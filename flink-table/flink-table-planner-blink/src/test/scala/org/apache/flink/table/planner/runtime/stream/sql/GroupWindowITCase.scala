@@ -38,7 +38,6 @@ import org.junit.runners.Parameterized
 
 import java.math.BigDecimal
 import java.time.Duration
-import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
@@ -350,19 +349,21 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testProctimeCascadeWindowAgg: Unit = {
-    val stream = failingDataSource(data)
+    val stream = env.fromCollection(data)
     val table =
       stream.toTable(
         tEnv, 'rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name, 'proctime.proctime)
     tEnv.registerTable("T1", table)
     val sql =
       """
-        | SELECT cnt,
-        |  TUMBLE_START(pt1, INTERVAL '0.01' SECOND),
-        |  TUMBLE_END(pt1, INTERVAL '0.01' SECOND),
-        |  TUMBLE_PROCTIME(pt1, INTERVAL '0.01' SECOND),
-        |  MAX(s1),
-        |  MAX(e1) FROM
+        | SELECT
+        |  cnt AS key,
+        |  TUMBLE_START(pt1, INTERVAL '0.01' SECOND) AS window_start,
+        |  TUMBLE_END(pt1, INTERVAL '0.01' SECOND) AS window_start,
+        |  TUMBLE_PROCTIME(pt1, INTERVAL '0.01' SECOND) as window_proctime,
+        |  MAX(s1) AS v1,
+        |  MAX(e1) AS v2
+        | FROM
         | (SELECT
         |   TUMBLE_START(proctime, INTERVAL '0.005' SECOND) as s1,
         |   TUMBLE_END(proctime, INTERVAL '0.005' SECOND) e1,
@@ -373,11 +374,20 @@ class GroupWindowITCase(mode: StateBackendMode)
         |  ) as T
         | GROUP BY cnt, TUMBLE(pt1, INTERVAL '0.01' SECOND)
       """.stripMargin
-    val timeZone = TimeZone.getTimeZone(tEnv.getConfig.getLocalTimeZone.toString)
-    val sink = new TestingAppendSink(timeZone)
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
-    env.execute()
+    val resolvedSchema = tEnv.sqlQuery(sql).getResolvedSchema
     // due to the non-deterministic of proctime() function, the result isn't checked here
+    assertEquals(
+      s"""
+         |(
+         |  `key` BIGINT NOT NULL,
+         |  `window_start` TIMESTAMP(3) NOT NULL,
+         |  `window_start0` TIMESTAMP(3) NOT NULL,
+         |  `window_proctime` TIMESTAMP_LTZ(3) *PROCTIME*,
+         |  `v1` TIMESTAMP(3) NOT NULL,
+         |  `v2` TIMESTAMP(3) NOT NULL
+         |)
+         """.stripMargin.trim,
+      resolvedSchema.toString)
   }
 
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {

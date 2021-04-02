@@ -31,6 +31,7 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -54,7 +55,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             SliceSharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
             int indexOfCountStar,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         super(
                 genAggsHandler,
                 bufferFactory,
@@ -88,7 +89,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             } else {
                 timerService.registerProcessingTimeTimer(
                         nextWindowEnd,
-                        TimeWindowUtil.toEpochMillsForTimer(nextWindowEnd - 1, timeZone));
+                        TimeWindowUtil.toEpochMillsForTimer(nextWindowEnd - 1, shiftTimeZone));
             }
         }
     }

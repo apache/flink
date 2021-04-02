@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -28,6 +29,7 @@ import java.time.ZoneId;
 import java.util.TimeZone;
 
 /** Time util to deals window start and end in different timezone. */
+@Internal
 public class TimeWindowUtil {
 
     private static final ZoneId UTC_ZONE_ID = TimeZone.getTimeZone("UTC").toZoneId();
@@ -43,31 +45,31 @@ public class TimeWindowUtil {
      * timestamp mills is 8 * 60 * 60 * 100 + 5.
      *
      * @param epochMills the epoch mills.
-     * @param timeZone the timezone
+     * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.
      * @return the mills which can describe the local timestamp string in given timezone.
      */
-    public static long toUtcTimestampMills(long epochMills, TimeZone timeZone) {
-        if (timeZone.toZoneId().equals(UTC_ZONE_ID)) {
+    public static long toUtcTimestampMills(long epochMills, ZoneId shiftTimeZone) {
+        if (UTC_ZONE_ID.equals(shiftTimeZone)) {
             return epochMills;
         }
         LocalDateTime localDateTime =
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMills), timeZone.toZoneId());
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMills), shiftTimeZone);
         return localDateTime.atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
     }
 
     /**
-     * Get a timer time according to the timestamp mills and given shift timezone.
+     * Get a timer time according to the timestamp mills and the given shift timezone.
      *
      * @param utcTimestampMills the timestamp mills.
      * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.
      * @return the epoch mills.
      */
-    public static long toEpochMillsForTimer(long utcTimestampMills, TimeZone shiftTimeZone) {
-        if (shiftTimeZone.toZoneId().equals(UTC_ZONE_ID)) {
+    public static long toEpochMillsForTimer(long utcTimestampMills, ZoneId shiftTimeZone) {
+        if (shiftTimeZone.equals(UTC_ZONE_ID)) {
             return utcTimestampMills;
         }
 
-        if (shiftTimeZone.useDaylightTime()) {
+        if (TimeZone.getTimeZone(shiftTimeZone).useDaylightTime()) {
             /*
              * return the larger epoch mills if the time is leaving the DST.
              *  eg. Los_Angeles has two timestamp 2021-11-07 01:00:00 when leaving DST.
@@ -87,11 +89,11 @@ public class TimeWindowUtil {
              */
             LocalDateTime utcTimestamp =
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(utcTimestampMills), UTC_ZONE_ID);
-            long t1 = utcTimestamp.atZone(shiftTimeZone.toZoneId()).toInstant().toEpochMilli();
+            long t1 = utcTimestamp.atZone(shiftTimeZone).toInstant().toEpochMilli();
             long t2 =
                     utcTimestamp
                             .plusSeconds(SECONDS_PER_HOUR)
-                            .atZone(shiftTimeZone.toZoneId())
+                            .atZone(shiftTimeZone)
                             .toInstant()
                             .toEpochMilli();
             boolean hasTwoEpochs = t2 - t1 > MILLS_PER_HOUR;
@@ -104,31 +106,31 @@ public class TimeWindowUtil {
 
         LocalDateTime utcTimestamp =
                 LocalDateTime.ofInstant(Instant.ofEpochMilli(utcTimestampMills), UTC_ZONE_ID);
-        return utcTimestamp.atZone(shiftTimeZone.toZoneId()).toInstant().toEpochMilli();
+        return utcTimestamp.atZone(shiftTimeZone).toInstant().toEpochMilli();
     }
 
     /**
-     * Convert a timestamp mills with given timezone to epoch mills.
+     * Convert a timestamp mills with the given timezone to epoch mills.
      *
      * @param utcTimestampMills the timezone that the given timestamp mills has been shifted.
      * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.
      * @return the epoch mills.
      */
-    public static long toEpochMills(long utcTimestampMills, TimeZone shiftTimeZone) {
-        if (shiftTimeZone.toZoneId().equals(UTC_ZONE_ID)) {
+    public static long toEpochMills(long utcTimestampMills, ZoneId shiftTimeZone) {
+        if (UTC_ZONE_ID.equals(shiftTimeZone)) {
             return utcTimestampMills;
         }
         LocalDateTime utcTimestamp =
                 LocalDateTime.ofInstant(Instant.ofEpochMilli(utcTimestampMills), UTC_ZONE_ID);
-        return utcTimestamp.atZone(shiftTimeZone.toZoneId()).toInstant().toEpochMilli();
+        return utcTimestamp.atZone(shiftTimeZone).toInstant().toEpochMilli();
     }
 
     /**
      * Get the shifted timezone of window if the time attribute type is TIMESTAMP_LTZ, always
      * returns UTC timezone if the time attribute type is TIMESTAMP which means do not shift.
      */
-    public static String getShiftTimeZone(LogicalType timeAttributeType, TableConfig tableConfig) {
+    public static ZoneId getShiftTimeZone(LogicalType timeAttributeType, TableConfig tableConfig) {
         boolean needShiftTimeZone = timeAttributeType instanceof LocalZonedTimestampType;
-        return needShiftTimeZone ? tableConfig.getLocalTimeZone().toString() : "UTC";
+        return needShiftTimeZone ? tableConfig.getLocalTimeZone() : UTC_ZONE_ID;
     }
 }

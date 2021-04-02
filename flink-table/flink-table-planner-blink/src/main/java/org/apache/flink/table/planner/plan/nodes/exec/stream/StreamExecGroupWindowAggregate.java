@@ -74,6 +74,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -208,7 +209,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             inputTimeFieldIndex = -1;
         }
 
-        final String shiftTimeZone =
+        final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
                         window.timeAttribute().getOutputDataType().getLogicalType(), config);
 
@@ -284,7 +285,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             TableConfig config,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         final boolean needMerge;
         final Class<?> windowClass;
         if (window instanceof SlidingGroupWindow) {
@@ -350,7 +351,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             LogicalType[] aggValueTypes,
             LogicalType[] inputFields,
             int timeFieldIndex,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         WindowOperatorBuilder builder =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFields)

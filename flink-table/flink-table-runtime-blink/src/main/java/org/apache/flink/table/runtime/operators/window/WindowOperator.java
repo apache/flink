@@ -58,8 +58,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.time.ZoneId;
 import java.util.Collection;
-import java.util.TimeZone;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -127,7 +127,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
      * which means never shift when assigning windows.
      */
-    protected final String shiftTimeZone;
+    protected final ZoneId shiftTimeZone;
 
     private final int rowtimeIndex;
 
@@ -163,7 +163,6 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     protected transient InternalValueState<K, W, RowData> previousState;
 
     private transient TriggerContext triggerContext;
-    private transient TimeZone timeZone;
 
     // ------------------------------------------------------------------------
     // Metrics
@@ -185,7 +184,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             int rowtimeIndex,
             boolean produceUpdates,
             long allowedLateness,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAggregator = checkNotNull(windowAggregator);
         this.windowAssigner = checkNotNull(windowAssigner);
@@ -216,7 +215,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             int rowtimeIndex,
             boolean produceUpdates,
             long allowedLateness,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAssigner = checkNotNull(windowAssigner);
         this.trigger = checkNotNull(trigger);
@@ -266,7 +265,6 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
                     (InternalValueState<K, W, RowData>)
                             getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
         }
-        timeZone = TimeZone.getTimeZone(shiftTimeZone);
 
         compileGeneratedCode();
 
@@ -348,7 +346,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             timestamp = internalTimerService.currentProcessingTime();
         }
 
-        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone);
+        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
 
         // the windows which the input row should be placed into
         Collection<W> affectedWindows = windowFunction.assignStateNamespace(inputRow, timestamp);
@@ -421,7 +419,9 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         if (!windowAssigner.isEventTime()) {
-            windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
+            windowFunction.cleanWindowIfNeeded(
+                    triggerContext.window,
+                    TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
         }
     }
 
@@ -570,7 +570,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         boolean onProcessingTime(long time) throws Exception {
             return trigger.onProcessingTime(
-                    TimeWindowUtil.toUtcTimestampMills(time, timeZone), window);
+                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -599,7 +599,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         @Override
         public void registerProcessingTimeTimer(long time) {
             internalTimerService.registerProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override
@@ -610,7 +610,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         @Override
         public void deleteProcessingTimeTimer(long time) {
             internalTimerService.deleteProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override

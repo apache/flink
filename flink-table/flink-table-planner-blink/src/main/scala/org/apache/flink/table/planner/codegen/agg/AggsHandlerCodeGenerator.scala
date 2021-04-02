@@ -46,6 +46,7 @@ import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
 import java.util.Optional
+import java.time.ZoneId
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -70,7 +71,7 @@ class AggsHandlerCodeGenerator(
   private var windowProperties: Seq[PlannerWindowProperty] = Seq()
   private var hasNamespace: Boolean = false
   private var sliceAssignerTerm: String = _
-  private var shiftTimeZone: String = _
+  private var shiftTimeZone: ZoneId = _
 
   /** Aggregates informations */
   private var accTypeInfo: RowType = _
@@ -196,7 +197,7 @@ class AggsHandlerCodeGenerator(
   private def initialWindowProperties(
       windowProperties: Seq[PlannerWindowProperty],
       windowClass: Class[_],
-      shiftTimeZone: String): Unit = {
+      shiftTimeZone: ZoneId): Unit = {
     this.windowProperties = windowProperties
     this.namespaceClassName = windowClass.getCanonicalName
     this.hasNamespace = true
@@ -579,7 +580,7 @@ class AggsHandlerCodeGenerator(
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[PlannerWindowProperty],
       sliceAssigner: SliceAssigner,
-      shiftTimeZone: String): GeneratedNamespaceAggsHandleFunction[JLong] = {
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[JLong] = {
     this.sliceAssignerTerm = newName("sliceAssigner")
     ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
     // we use window end timestamp to indicate a window, see SliceAssigner
@@ -600,7 +601,7 @@ class AggsHandlerCodeGenerator(
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[PlannerWindowProperty],
       windowClass: Class[N],
-      shiftTimeZone: String): GeneratedNamespaceAggsHandleFunction[N] = {
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[N] = {
 
     initialWindowProperties(windowProperties, windowClass, shiftTimeZone)
     initialAggregateInformation(aggInfoList)
@@ -705,7 +706,7 @@ class AggsHandlerCodeGenerator(
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[PlannerWindowProperty],
       windowClass: Class[N],
-      shiftedTimeZone: String): GeneratedNamespaceTableAggsHandleFunction[N] = {
+      shiftedTimeZone: ZoneId): GeneratedNamespaceTableAggsHandleFunction[N] = {
 
     initialWindowProperties(windowProperties, windowClass, shiftedTimeZone)
     initialAggregateInformation(aggInfoList)
@@ -1100,12 +1101,12 @@ class AggsHandlerCodeGenerator(
   }
 
   private def getShiftEpochMills(itemExpr: String): String = {
-     if ("UTC".equals(shiftTimeZone)) {
+     if ("UTC".equals(shiftTimeZone.getId)) {
        itemExpr
      } else {
        s"""
           |$TIME_WINDOW_UTIL.toEpochMills(
-          |$itemExpr, java.util.TimeZone.getTimeZone("$shiftTimeZone"))
+          |$itemExpr, java.time.ZoneId.of("${shiftTimeZone.getId}"))
           """.stripMargin
      }
   }

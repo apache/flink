@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -174,7 +175,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             inputTimeFieldIndex = -1;
         }
 
-        final String shiftTimeZone =
+        final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
                         window.timeAttribute().getOutputDataType().getLogicalType(), tableConfig);
         Tuple2<WindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
@@ -308,7 +309,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     Trigger<?> trigger,
                     long allowance,
                     Configuration config,
-                    String shiftTimeZone) {
+                    ZoneId shiftTimeZone) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
@@ -344,7 +345,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     AggregateInfoList aggInfoList,
                     long allowance,
                     Configuration config,
-                    String shiftTimeZone) {
+                    ZoneId shiftTimeZone) {
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
         final Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
@@ -387,7 +388,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     int inputTimeFieldIndex,
                     int[] udafInputOffsets,
                     PythonFunctionInfo[] pythonFunctionInfos,
-                    String shiftTimeZone) {
+                    ZoneId shiftTimeZone) {
         Class clazz =
                 CommonPythonUtil.loadClass(
                         ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
@@ -405,7 +406,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             PlannerNamedWindowProperty[].class,
                             int[].class,
                             int[].class,
-                            String.class);
+                            ZoneId.class);
             return ctor.newInstance(
                     config,
                     pythonFunctionInfos,
@@ -443,7 +444,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     boolean generateUpdateBefore,
                     boolean countStarInserted,
                     long allowance,
-                    String shiftTimeZone) {
+                    ZoneId shiftTimeZone) {
         Class clazz =
                 CommonPythonUtil.loadClass(
                         GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
@@ -464,7 +465,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             LogicalWindow.class,
                             long.class,
                             PlannerNamedWindowProperty[].class,
-                            String.class);
+                            ZoneId.class);
             return ctor.newInstance(
                     config,
                     inputType,

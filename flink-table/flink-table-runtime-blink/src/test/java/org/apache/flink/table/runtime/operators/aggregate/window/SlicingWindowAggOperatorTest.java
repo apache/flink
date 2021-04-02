@@ -48,9 +48,9 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.TimeZone;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -99,7 +99,7 @@ public class SlicingWindowAggOperatorTest {
                     OUTPUT_TYPES,
                     new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
-    private static final String UTC_ZONE_ID = "UTC";
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
     public void testEventTimeHoppingWindows() throws Exception {
@@ -217,10 +217,10 @@ public class SlicingWindowAggOperatorTest {
 
     @Test
     public void testProcessingTimeHoppingWindowsInShanghai() throws Exception {
-        testProcessingTimeHoppingWindows("Asia/Shanghai");
+        testProcessingTimeHoppingWindows(ZoneId.of("Asia/Shanghai"));
     }
 
-    private void testProcessingTimeHoppingWindows(String shiftTimeZone) throws Exception {
+    private void testProcessingTimeHoppingWindows(ZoneId shiftTimeZone) throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(-1, shiftTimeZone, Duration.ofHours(3), Duration.ofHours(1));
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
@@ -455,10 +455,10 @@ public class SlicingWindowAggOperatorTest {
 
     @Test
     public void testProcessingTimeCumulativeWindowsInShanghai() throws Exception {
-        testProcessingTimeCumulativeWindows("Asia/Shanghai");
+        testProcessingTimeCumulativeWindows(ZoneId.of("Asia/Shanghai"));
     }
 
-    private void testProcessingTimeCumulativeWindows(String shiftTimeZone) throws Exception {
+    private void testProcessingTimeCumulativeWindows(ZoneId shiftTimeZone) throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
                         -1, shiftTimeZone, Duration.ofDays(1), Duration.ofHours(8));
@@ -701,10 +701,10 @@ public class SlicingWindowAggOperatorTest {
 
     @Test
     public void testProcessingTimeTumblingWindowsInShanghai() throws Exception {
-        testProcessingTimeTumblingWindows("Asia/Shanghai");
+        testProcessingTimeTumblingWindows(ZoneId.of("Asia/Shanghai"));
     }
 
-    private void testProcessingTimeTumblingWindows(String shiftTimeZone) throws Exception {
+    private void testProcessingTimeTumblingWindows(ZoneId shiftTimeZone) throws Exception {
 
         final SliceAssigner assigner =
                 SliceAssigners.tumbling(-1, shiftTimeZone, Duration.ofHours(5));
@@ -961,10 +961,9 @@ public class SlicingWindowAggOperatorTest {
     }
 
     /** Get epoch mills from a timestamp string and the time zone the timestamp belongs. */
-    private static long epochMills(String shiftTimeZone, String timestampStr) {
-        TimeZone timeZone = TimeZone.getTimeZone(shiftTimeZone);
+    private static long epochMills(ZoneId shiftTimeZone, String timestampStr) {
         LocalDateTime localDateTime = LocalDateTime.parse(timestampStr);
-        ZoneOffset zoneOffset = timeZone.toZoneId().getRules().getOffset(localDateTime);
+        ZoneOffset zoneOffset = shiftTimeZone.getRules().getOffset(localDateTime);
         return localDateTime.toInstant(zoneOffset).toEpochMilli();
     }
 }

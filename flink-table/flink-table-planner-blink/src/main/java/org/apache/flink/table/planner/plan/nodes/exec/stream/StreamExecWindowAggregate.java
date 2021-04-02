@@ -56,6 +56,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -135,7 +136,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final TableConfig config = planner.getTableConfig();
-        final String shiftTimeZone =
+        final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), config);
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
@@ -194,7 +195,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
             TableConfig config,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),

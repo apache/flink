@@ -39,7 +39,6 @@ import org.junit.{Before, Test}
 import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.{Collection => JCollection}
-import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -49,14 +48,16 @@ import scala.collection.JavaConversions._
  * we use harness to test them.
  */
 @RunWith(classOf[Parameterized])
-class WindowAggregateHarnessTest(backend: StateBackendMode, timeZone: TimeZone)
+class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneId)
   extends HarnessTestBase(backend) {
+
+  private val UTC_ZONE_ID = ZoneId.of("UTC")
 
   @Before
   override def before(): Unit = {
     super.before()
     val dataId = TestValuesTableFactory.registerData(TestData.windowData)
-    tEnv.getConfig.setLocalTimeZone(timeZone.toZoneId)
+    tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
     tEnv.executeSql(
       s"""
          |CREATE TABLE T1 (
@@ -307,9 +308,9 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, timeZone: TimeZone)
   }
 
   private def localMills(dateTime: String): TimestampData = {
-    val windowDateTime =  LocalDateTime.parse(dateTime).atZone(ZoneId.of("UTC"))
+    val windowDateTime =  LocalDateTime.parse(dateTime).atZone(UTC_ZONE_ID)
      TimestampData.fromEpochMillis(
-       TimeWindowUtil.toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, timeZone))
+       TimeWindowUtil.toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
   }
 }
 
@@ -318,9 +319,9 @@ object WindowAggregateHarnessTest {
   @Parameterized.Parameters(name = "StateBackend={0}, TimeZone={1}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(HEAP_BACKEND, TimeZone.getTimeZone("UTC")),
-      Array(HEAP_BACKEND, TimeZone.getTimeZone("Asia/Shanghai")),
-      Array(ROCKSDB_BACKEND, TimeZone.getTimeZone("UTC")),
-      Array(ROCKSDB_BACKEND, TimeZone.getTimeZone("Asia/Shanghai")))
+      Array(HEAP_BACKEND, ZoneId.of("UTC")),
+      Array(HEAP_BACKEND, ZoneId.of("Asia/Shanghai")),
+      Array(ROCKSDB_BACKEND, ZoneId.of("UTC")),
+      Array(ROCKSDB_BACKEND, ZoneId.of("Asia/Shanghai")))
   }
 }

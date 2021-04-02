@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulat
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.supportedTimeAttributeType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
@@ -183,7 +183,7 @@ object WindowUtil {
         "but is type of " + fieldType)
     }
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
-    if (!supportedTimeAttributeType(timeAttributeType)) {
+    if (!canBeTimeAttributeType(timeAttributeType)) {
       throw new ValidationException("The supported time indicator type are" +
         " timestamp and timestampLtz, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
     }

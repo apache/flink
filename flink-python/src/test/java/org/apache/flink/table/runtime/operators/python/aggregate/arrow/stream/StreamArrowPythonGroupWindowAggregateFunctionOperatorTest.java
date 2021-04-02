@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -65,6 +66,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
+
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
     public void testGroupWindowAggregateFunction() throws Exception {
@@ -459,7 +462,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 },
                 groupingSet,
                 udafInputOffsets,
-                "UTC");
+                UTC_ZONE_ID);
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
@@ -477,7 +480,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 PlannerNamedWindowProperty[] namedProperties,
                 int[] groupingSet,
                 int[] udafInputOffsets,
-                String shiftTimeZone) {
+                ZoneId shiftTimeZone) {
             super(
                     config,
                     pandasAggFunctions,

@@ -29,11 +29,11 @@ import org.apache.commons.math3.util.ArithmeticUtils;
 
 import java.io.Serializable;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -58,7 +58,7 @@ public final class SliceAssigners {
      * @param size the size of the generated windows.
      */
     public static TumblingSliceAssigner tumbling(
-            int rowtimeIndex, String shiftTimeZone, Duration size) {
+            int rowtimeIndex, ZoneId shiftTimeZone, Duration size) {
         return new TumblingSliceAssigner(rowtimeIndex, shiftTimeZone, size.toMillis(), 0);
     }
 
@@ -74,7 +74,7 @@ public final class SliceAssigners {
      * @param slide the slide interval of the generated windows.
      */
     public static HoppingSliceAssigner hopping(
-            int rowtimeIndex, String shiftTimeZone, Duration size, Duration slide) {
+            int rowtimeIndex, ZoneId shiftTimeZone, Duration size, Duration slide) {
         return new HoppingSliceAssigner(
                 rowtimeIndex, shiftTimeZone, size.toMillis(), slide.toMillis(), 0);
     }
@@ -91,7 +91,7 @@ public final class SliceAssigners {
      * @param step the step interval of the generated windows.
      */
     public static CumulativeSliceAssigner cumulative(
-            int rowtimeIndex, String shiftTimeZone, Duration maxSize, Duration step) {
+            int rowtimeIndex, ZoneId shiftTimeZone, Duration maxSize, Duration step) {
         return new CumulativeSliceAssigner(
                 rowtimeIndex, shiftTimeZone, maxSize.toMillis(), step.toMillis(), 0);
     }
@@ -144,7 +144,7 @@ public final class SliceAssigners {
         private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         private TumblingSliceAssigner(
-                int rowtimeIndex, String shiftTimeZone, long size, long offset) {
+                int rowtimeIndex, ZoneId shiftTimeZone, long size, long offset) {
             super(rowtimeIndex, shiftTimeZone);
             checkArgument(
                     size > 0,
@@ -201,7 +201,7 @@ public final class SliceAssigners {
         private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         protected HoppingSliceAssigner(
-                int rowtimeIndex, String shiftTimeZone, long size, long slide, long offset) {
+                int rowtimeIndex, ZoneId shiftTimeZone, long size, long slide, long offset) {
             super(rowtimeIndex, shiftTimeZone);
             if (size <= 0 || slide <= 0) {
                 throw new IllegalArgumentException(
@@ -284,7 +284,7 @@ public final class SliceAssigners {
         private final ReusableListIterable reuseExpiredList = new ReusableListIterable();
 
         protected CumulativeSliceAssigner(
-                int rowtimeIndex, String shiftTimeZone, long maxSize, long step, long offset) {
+                int rowtimeIndex, ZoneId shiftTimeZone, long maxSize, long step, long offset) {
             super(rowtimeIndex, shiftTimeZone);
             if (maxSize <= 0 || step <= 0) {
                 throw new IllegalArgumentException(
@@ -501,13 +501,11 @@ public final class SliceAssigners {
 
         protected final int rowtimeIndex;
         protected final boolean isEventTime;
-        protected final String shiftTimeZone;
-        private final TimeZone timeZone;
+        protected final ZoneId shiftTimeZone;
 
-        protected AbstractSliceAssigner(int rowtimeIndex, String shiftTimeZone) {
+        protected AbstractSliceAssigner(int rowtimeIndex, ZoneId shiftTimeZone) {
             this.rowtimeIndex = rowtimeIndex;
             this.shiftTimeZone = shiftTimeZone;
-            this.timeZone = TimeZone.getTimeZone(shiftTimeZone);
             this.isEventTime = rowtimeIndex >= 0;
         }
 
@@ -518,11 +516,13 @@ public final class SliceAssigners {
             final long timestamp;
             if (rowtimeIndex >= 0) {
                 timestamp =
-                        TimeWindowUtil.toUtcTimestampMills(element.getLong(rowtimeIndex), timeZone);
+                        TimeWindowUtil.toUtcTimestampMills(
+                                element.getLong(rowtimeIndex), shiftTimeZone);
             } else {
                 // in processing time mode
                 timestamp =
-                        TimeWindowUtil.toUtcTimestampMills(clock.currentProcessingTime(), timeZone);
+                        TimeWindowUtil.toUtcTimestampMills(
+                                clock.currentProcessingTime(), shiftTimeZone);
             }
             return assignSliceEnd(timestamp);
         }

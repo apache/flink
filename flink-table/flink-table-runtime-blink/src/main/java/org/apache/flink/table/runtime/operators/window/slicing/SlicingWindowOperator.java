@@ -42,7 +42,7 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
-import java.util.TimeZone;
+import java.time.ZoneId;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -113,7 +113,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
      * which means never shift when assigning windows.
      */
-    private final String shiftTimeZone;
+    private final ZoneId shiftTimeZone;
     // ------------------------------------------------------------------------
 
     /** This is used for emitting elements with a given timestamp. */
@@ -128,8 +128,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     /** The tracked processing time triggered last time. */
     private transient long lastTriggeredProcessingTime;
 
-    private transient TimeZone timeZone;
-
     // ------------------------------------------------------------------------
     // Metrics
     // ------------------------------------------------------------------------
@@ -138,7 +136,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     private transient Meter lateRecordsDroppedRate;
     private transient Gauge<Long> watermarkLatency;
 
-    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor, String shiftTimeZone) {
+    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor, ZoneId shiftTimeZone) {
         this.windowProcessor = windowProcessor;
         this.shiftTimeZone = shiftTimeZone;
         setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -156,7 +154,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
         internalTimerService =
                 getInternalTimerService(
                         "window-timers", windowProcessor.createWindowSerializer(), this);
-        timeZone = TimeZone.getTimeZone(shiftTimeZone);
 
         windowProcessor.open(
                 new WindowProcessorContext<>(
@@ -229,7 +226,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
-        long timestamp = TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), timeZone);
+        long timestamp = TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone);
 
         if (timestamp > lastTriggeredProcessingTime) {
             // similar to the watermark advance,

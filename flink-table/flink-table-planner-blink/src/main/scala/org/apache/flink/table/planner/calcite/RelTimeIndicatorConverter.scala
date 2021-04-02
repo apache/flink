@@ -50,19 +50,6 @@ import scala.collection.mutable
   */
 class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
-  private def timestamp(isNullable: Boolean, isTimestampLtz: Boolean = false)
-  : RelDataType = {
-    rexBuilder
-      .getTypeFactory
-      .asInstanceOf[FlinkTypeFactory]
-      .createFieldTypeFromLogicalType(
-        if (isTimestampLtz) {
-          new LocalZonedTimestampType(isNullable, 3)
-        } else {
-          new TimestampType(isNullable, 3)
-        })
-  }
-
   val materializerUtils = new RexTimeIndicatorMaterializerUtils(rexBuilder)
 
   override def visit(intersect: LogicalIntersect): RelNode = visitSetOp(intersect)
@@ -445,7 +432,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
               if (isRowtimeIndicatorType(expr.getType)) {
                 // cast rowtime indicator to regular timestamp
                 rexBuilder.makeAbstractCast(
-                  timestamp(expr.getType.isNullable, isTimestampLtzIndicatorType(expr.getType)),
+                  RelTimeIndicatorConverter.timestamp(
+                    expr.getType.isNullable,
+                    isTimestampLtzIndicatorType(expr.getType),
+                    rexBuilder),
                   expr)
               } else {
                 // generate proctime access
@@ -469,7 +459,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
               if (isRowtimeIndicatorType(field.getType)) {
                 // cast rowtime indicator to regular timestamp
                 rexBuilder.makeAbstractCast(
-                  timestamp(field.getType.isNullable, isTimestampLtzIndicatorType(field.getType)),
+                  RelTimeIndicatorConverter.timestamp(
+                    field.getType.isNullable,
+                    isTimestampLtzIndicatorType(field.getType),
+                    rexBuilder),
                   new RexInputRef(field.getIndex, field.getType))
               } else {
                 // generate proctime access
@@ -496,7 +489,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     // remove time indicator type as agg call return type
     val updatedAggCalls = aggregate.getAggCallList.map { call =>
       val callType = if (isTimeIndicatorType(call.getType)) {
-        timestamp(call.getType.isNullable, isTimestampLtzIndicatorType(call.getType))
+        RelTimeIndicatorConverter.timestamp(
+          call.getType.isNullable,
+          isTimestampLtzIndicatorType(call.getType),
+          rexBuilder)
       } else {
         call.getType
       }
@@ -601,18 +597,11 @@ object RelTimeIndicatorConverter {
 
     isProctimeCall || isRowtimeCall
   }
-}
 
-/**
-  * Takes `newResolvedInput` types of the [[RexNode]] and if those types have changed rewrites
-  * the [[RexNode]] to make it consistent with new type.
-  */
-class RexTimeIndicatorMaterializer(
-    private val rexBuilder: RexBuilder,
-    private val input: Seq[RelDataType])
-  extends RexShuttle {
-
-  private def timestamp(isNullable: Boolean, isTimestampLtz: Boolean = false): RelDataType = {
+  def timestamp(
+      isNullable: Boolean,
+      isTimestampLtz: Boolean,
+      rexBuilder: RexBuilder): RelDataType = {
     rexBuilder
       .getTypeFactory
       .asInstanceOf[FlinkTypeFactory]
@@ -623,6 +612,17 @@ class RexTimeIndicatorMaterializer(
           new TimestampType(isNullable, 3)
         })
   }
+
+}
+
+/**
+  * Takes `newResolvedInput` types of the [[RexNode]] and if those types have changed rewrites
+  * the [[RexNode]] to make it consistent with new type.
+  */
+class RexTimeIndicatorMaterializer(
+    private val rexBuilder: RexBuilder,
+    private val input: Seq[RelDataType])
+  extends RexShuttle {
 
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     // reference is interesting
@@ -671,7 +671,11 @@ class RexTimeIndicatorMaterializer(
             if (isRowtimeIndicatorType(o.getType)) {
               // cast rowtime indicator to regular timestamp
               rexBuilder.makeAbstractCast(
-                timestamp(o.getType.isNullable, isTimestampLtzIndicatorType(o.getType)), o)
+                RelTimeIndicatorConverter.timestamp(
+                  o.getType.isNullable,
+                  isTimestampLtzIndicatorType(o.getType),
+                  rexBuilder),
+                o)
             } else {
               // generate proctime access
               rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE, o)
@@ -716,9 +720,10 @@ class RexTimeIndicatorMaterializer(
           updatedCall
         } else {
           updatedCall.clone(
-            timestamp(
+            RelTimeIndicatorConverter.timestamp(
               updatedCall.getType.isNullable,
-              isTimestampLtzIndicatorType(updatedCall.getType)),
+              isTimestampLtzIndicatorType(updatedCall.getType),
+              rexBuilder),
             materializedOperands)
         }
 

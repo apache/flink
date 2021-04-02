@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProc
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
+import java.time.ZoneId;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -68,7 +69,7 @@ public class SlicingWindowAggOperatorBuilder {
     private GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction;
     private GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction;
     private int indexOfCountStart = -1;
-    private String shiftTimeZone;
+    private ZoneId shiftTimeZone;
 
     public SlicingWindowAggOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
@@ -76,7 +77,7 @@ public class SlicingWindowAggOperatorBuilder {
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder shiftTimeZone(String shiftTimeZone) {
+    public SlicingWindowAggOperatorBuilder shiftTimeZone(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
         return this;
     }

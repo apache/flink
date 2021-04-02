@@ -44,6 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -66,6 +67,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
  */
 public class WindowOperatorContractTest {
 
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -222,7 +224,7 @@ public class WindowOperatorContractTest {
                             2,
                             sendRetraction,
                             allowedLateness,
-                            "UTC");
+                            UTC_ZONE_ID);
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
         } else {
@@ -239,7 +241,7 @@ public class WindowOperatorContractTest {
                             2,
                             sendRetraction,
                             allowedLateness,
-                            "UTC");
+                            UTC_ZONE_ID);
 
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);

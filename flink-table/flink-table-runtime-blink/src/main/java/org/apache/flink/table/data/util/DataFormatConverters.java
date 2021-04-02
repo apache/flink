@@ -907,6 +907,7 @@ public class DataFormatConverters {
             extends DataFormatConverter<TimestampData, Timestamp> {
 
         private static final long serialVersionUID = 1L;
+        private static final int NANOS_PER_MILL = 1000_000;
 
         private final int precision;
 
@@ -916,13 +917,14 @@ public class DataFormatConverters {
 
         @Override
         TimestampData toInternalImpl(Timestamp value) {
-            return TimestampData.fromEpochMillis(value.getTime(), value.getNanos());
+            return TimestampData.fromEpochMillis(
+                    value.getTime(), value.getNanos() % NANOS_PER_MILL);
         }
 
         @Override
         Timestamp toExternalImpl(TimestampData value) {
             Timestamp ts = new Timestamp(value.getMillisecond());
-            ts.setNanos(value.getNanoOfMillisecond());
+            ts.setNanos(ts.getNanos() + value.getNanoOfMillisecond());
             return ts;
         }
 

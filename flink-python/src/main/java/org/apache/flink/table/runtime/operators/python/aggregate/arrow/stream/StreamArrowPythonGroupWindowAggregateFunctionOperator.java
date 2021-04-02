@@ -58,11 +58,11 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.TimeZone;
 
 /** The Stream Arrow Python {@link AggregateFunction} Operator for Group Window Aggregation. */
 @Internal
@@ -102,9 +102,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
      * which means never shift when assigning windows.
      */
-    private final String shiftTimeZone;
-
-    private transient TimeZone timeZone;
+    private final ZoneId shiftTimeZone;
 
     /** Interface for working with time and timers. */
     private transient InternalTimerService<W> internalTimerService;
@@ -151,7 +149,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             PlannerNamedWindowProperty[] namedProperties,
             int[] groupingSet,
             int[] udafInputOffsets,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
@@ -173,7 +171,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
-        timeZone = TimeZone.getTimeZone(shiftTimeZone);
 
         triggerContext = new TriggerContext();
         triggerContext.open();
@@ -204,7 +201,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         } else {
             timestamp = internalTimerService.currentProcessingTime();
         }
-        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone);
+        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
 
         // Given the timestamp and element, returns the set of windows into which it
         // should be placed.
@@ -424,7 +421,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
     }
 
     private long getShiftEpochMills(long utcTimestampMills) {
-        return TimeWindowUtil.toEpochMills(utcTimestampMills, timeZone);
+        return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
     }
 
     private void cleanWindowIfNeeded(W window, long currentTime) throws Exception {
@@ -457,7 +454,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         boolean onProcessingTime(long time) throws Exception {
             return trigger.onProcessingTime(
-                    TimeWindowUtil.toUtcTimestampMills(time, timeZone), window);
+                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -486,7 +483,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         @Override
         public void registerProcessingTimeTimer(long time) {
             internalTimerService.registerProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override
@@ -497,7 +494,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         @Override
         public void deleteProcessingTimeTimer(long time) {
             internalTimerService.deleteProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, timeZone));
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override

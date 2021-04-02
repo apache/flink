@@ -42,6 +42,7 @@ import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.Test;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -59,6 +60,7 @@ public class WindowRankOperatorTest {
                             new RowType.RowField("f2", new BigIntType())));
 
     private static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     private static final RowDataKeySelector KEY_SELECTOR =
             HandwrittenSelectorUtil.getRowDataSelector(
@@ -119,7 +121,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
-                        .shiftTimeZone("UTC")
+                        .shiftTimeZone(UTC_ZONE_ID)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -209,7 +211,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
-                        .shiftTimeZone("UTC")
+                        .shiftTimeZone(UTC_ZONE_ID)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -283,7 +285,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
-                        .shiftTimeZone("UTC")
+                        .shiftTimeZone(UTC_ZONE_ID)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)

@@ -40,6 +40,8 @@ public abstract class SliceAssignerTestBase {
 
     private static final ClockService CLOCK_SERVICE = System::currentTimeMillis;
 
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
+
     protected static void assertErrorMessage(Runnable runnable, String errorMessage) {
         try {
             runnable.run();
@@ -101,19 +103,18 @@ public abstract class SliceAssignerTestBase {
     }
 
     public static String localTimestampStr(long epochMills) {
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMills), ZoneId.of("UTC"))
-                .toString();
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMills), UTC_ZONE_ID).toString();
     }
 
     /** Get utc mills from a timestamp string and the parameterized time zone. */
     protected long utcMills(String timestampStr) {
         LocalDateTime localDateTime = LocalDateTime.parse(timestampStr);
-        return localDateTime.atZone(ZoneId.of("UTC")).toInstant().toEpochMilli();
+        return localDateTime.atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
     }
 
     /** Get local mills from a timestamp string and the parameterized time zone. */
-    protected long localMills(String timestampStr, String shiftTimeZone) {
+    protected long localMills(String timestampStr, ZoneId shiftTimeZone) {
         LocalDateTime localDateTime = LocalDateTime.parse(timestampStr);
-        return localDateTime.atZone(ZoneId.of(shiftTimeZone)).toInstant().toEpochMilli();
+        return localDateTime.atZone(shiftTimeZone).toInstant().toEpochMilli();
     }
 }

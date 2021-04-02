@@ -36,6 +36,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 
@@ -62,7 +63,7 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
     // ------------------------------------------------------------------------------------------
 
     protected SliceAssigner createSliceAssigner(
-            WindowingStrategy windowingStrategy, String shiftTimeZone) {
+            WindowingStrategy windowingStrategy, ZoneId shiftTimeZone) {
         WindowSpec windowSpec = windowingStrategy.getWindow();
         if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
             int windowEndIndex =
@@ -96,7 +97,7 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
     }
 
     protected SliceAssigner createSliceAssigner(
-            WindowSpec windowSpec, int timeAttributeIndex, String shiftTimeZone) {
+            WindowSpec windowSpec, int timeAttributeIndex, ZoneId shiftTimeZone) {
         if (windowSpec instanceof TumblingWindowSpec) {
             Duration size = ((TumblingWindowSpec) windowSpec).getSize();
             return SliceAssigners.tumbling(timeAttributeIndex, shiftTimeZone, size);

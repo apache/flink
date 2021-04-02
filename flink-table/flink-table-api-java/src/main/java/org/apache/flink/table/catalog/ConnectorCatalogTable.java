@@ -28,9 +28,9 @@ import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -167,10 +167,7 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
             if (fieldNames[i].equals(proctimeAttribute)) {
                 // bridged to timestamp for compatible flink-planner
                 types[i] =
-                        new AtomicDataType(
-                                        new LocalZonedTimestampType(
-                                                true, TimestampKind.PROCTIME, 3))
-                                .bridgedTo(java.sql.Timestamp.class);
+                        DataTypeUtils.createProctimeDataType().bridgedTo(java.sql.Timestamp.class);
                 break;
             }
         }

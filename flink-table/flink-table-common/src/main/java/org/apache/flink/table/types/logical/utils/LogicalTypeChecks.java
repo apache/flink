@@ -117,10 +117,11 @@ public final class LogicalTypeChecks {
     }
 
     public static boolean isProctimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+        return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
     }
 
-    public static boolean supportedTimeAttributeType(LogicalType logicalType) {
+    public static boolean canBeTimeAttributeType(LogicalType logicalType) {
         if (isProctimeAttribute(logicalType)
                 && logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
             return true;

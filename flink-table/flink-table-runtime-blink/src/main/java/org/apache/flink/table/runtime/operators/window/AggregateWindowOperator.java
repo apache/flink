@@ -31,6 +31,8 @@ import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
+import java.time.ZoneId;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -80,7 +82,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             int rowtimeIndex,
             boolean produceUpdates,
             long allowedLateness,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         super(
                 windowAggregator,
                 windowAssigner,
@@ -111,7 +113,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             int rowtimeIndex,
             boolean sendRetraction,
             long allowedLateness,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         super(
                 windowAssigner,
                 trigger,

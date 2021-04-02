@@ -894,6 +894,7 @@ DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(p)
 |`int`               | X     | (X)    | Describes the number of seconds since epoch.<br>Output only if type is not nullable. |
 |`java.lang.Long`    | X     | X      | Describes the number of milliseconds since epoch. |
 |`long`              | X     | (X)    | Describes the number of milliseconds since epoch.<br>Output only if type is not nullable. |
+|`java.sql.Timestamp`| X     | X      | Describes the number of milliseconds since epoch. |
 |`org.apache.flink.table.data.TimestampData` | X     | X      | Internal data structure. |
 
 {{< /tab >}}

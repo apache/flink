@@ -58,6 +58,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -107,7 +108,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             LogicalWindow window,
             long allowedLateness,
             PlannerNamedWindowProperty[] namedProperties,
-            String shiftTimeZone) {
+            ZoneId shiftTimeZone) {
         super(
                 config,
                 inputType,
@@ -237,7 +238,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
                 // get timestamp
                 long timestamp = inputRow.getLong(inputTimeFieldIndex);
-                timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, timeZone);
+                timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
 
                 Collection<TimeWindow> elementWindows =
                         windowAssigner.assignWindows(inputRow, timestamp);

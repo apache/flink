@@ -54,6 +54,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -199,7 +200,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         SortSpec sortSpecInSortKey = builder.build();
         TableConfig tableConfig = planner.getTableConfig();
 
-        String shiftTimeZone =
+        ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), tableConfig);
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(

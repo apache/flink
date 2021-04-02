@@ -85,7 +85,7 @@ public class DataFormatConvertersTest {
                 LocalTimeTypeInfo.LOCAL_DATE,
                 LocalTimeTypeInfo.LOCAL_TIME,
                 LocalTimeTypeInfo.LOCAL_DATE_TIME,
-                StringDataTypeInfo.INSTANCE
+                StringDataTypeInfo.INSTANCE,
             };
 
     private Object[] simpleValues =
@@ -118,6 +118,8 @@ public class DataFormatConvertersTest {
                 DataTypes.TIMESTAMP(9).bridgedTo(LocalDateTime.class),
                 DataTypes.TIMESTAMP(9).bridgedTo(Timestamp.class),
                 DataTypes.TIMESTAMP(3),
+                DataTypes.TIMESTAMP_LTZ(3).bridgedTo(Timestamp.class),
+                DataTypes.TIMESTAMP_LTZ(9).bridgedTo(Timestamp.class),
                 new AtomicDataType(
                         new LegacyTypeInformationType<>(
                                 LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
@@ -134,10 +136,18 @@ public class DataFormatConvertersTest {
                 LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123456789),
                 Timestamp.valueOf("1970-01-01 00:00:00.123456789"),
                 LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
+                buildTimestamp(4000L, 123),
+                buildTimestamp(4000L, 123456789),
                 Timestamp.valueOf("1970-01-01 00:00:00.123"),
                 Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
                 TimestampData.fromEpochMillis(1000L)
             };
+
+    private static Timestamp buildTimestamp(long mills, int nanos) {
+        Timestamp ts = new Timestamp(mills);
+        ts.setNanos(nanos);
+        return ts;
+    }
 
     private static DataFormatConverter getConverter(TypeInformation typeInfo) {
         return getConverterForDataType(TypeConversions.fromLegacyInfoToDataType(typeInfo));

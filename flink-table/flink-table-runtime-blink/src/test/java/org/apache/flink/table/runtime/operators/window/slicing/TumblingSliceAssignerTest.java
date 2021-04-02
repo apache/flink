@@ -23,6 +23,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,11 +37,11 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class TumblingSliceAssignerTest extends SliceAssignerTestBase {
 
-    @Parameterized.Parameter public String shiftTimeZone;
+    @Parameterized.Parameter public ZoneId shiftTimeZone;
 
     @Parameterized.Parameters(name = "timezone = {0}")
-    public static Collection<String> parameters() {
-        return Arrays.asList("America/Los_Angeles", "Asia/Shanghai");
+    public static Collection<ZoneId> parameters() {
+        return Arrays.asList(ZoneId.of("America/Los_Angeles"), ZoneId.of("Asia/Shanghai"));
     }
 
     @Test

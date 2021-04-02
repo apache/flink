@@ -42,6 +42,7 @@ import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.Duration;
+import java.time.ZoneId;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -72,7 +73,7 @@ public class WindowOperatorBuilder {
     protected long allowedLateness = 0L;
     protected boolean produceUpdates = false;
     protected int rowtimeIndex = -1;
-    protected String shiftTimeZone = "UTC";
+    protected ZoneId shiftTimeZone;
 
     public static WindowOperatorBuilder builder() {
         return new WindowOperatorBuilder();
@@ -88,7 +89,7 @@ public class WindowOperatorBuilder {
      * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
      * which means never shift when assigning windows.
      */
-    public WindowOperatorBuilder withShiftTimezone(String shiftTimeZone) {
+    public WindowOperatorBuilder withShiftTimezone(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
         return this;
     }
