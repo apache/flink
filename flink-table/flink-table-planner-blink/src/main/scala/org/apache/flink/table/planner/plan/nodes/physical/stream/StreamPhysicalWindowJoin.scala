@@ -97,7 +97,7 @@ class StreamPhysicalWindowJoin(
       .item("joinType", joinSpec.getJoinType)
       .item("where",
         getExpressionString(
-          remainingCondition, getRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
+          remainingCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

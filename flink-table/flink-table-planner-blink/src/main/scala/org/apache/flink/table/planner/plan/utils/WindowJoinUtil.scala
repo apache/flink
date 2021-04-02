@@ -96,7 +96,8 @@ object WindowJoinUtil {
     val joinInfo = join.analyzeCondition()
     val (remainLeftKeys, remainRightKeys, remainCondition) = if (
       windowStartEqualityLeftKeys.nonEmpty || windowEndEqualityLeftKeys.nonEmpty) {
-      val joinFieldsType = join.getRowType.getFieldList
+      val leftChildFieldsType = join.getLeft.getRowType.getFieldList
+      val rightChildFieldsType = join.getRight.getRowType.getFieldList
       val leftFieldCnt = join.getLeft.getRowType.getFieldCount
       val rexBuilder = join.getCluster.getRexBuilder
       val remainEquals = mutable.ArrayBuffer[RexNode]()
@@ -106,10 +107,10 @@ object WindowJoinUtil {
       joinInfo.pairs().foreach { p =>
         if (!windowStartEqualityLeftKeys.contains(p.source) &&
           !windowEndEqualityLeftKeys.contains(p.source)) {
-          val leftFieldType = joinFieldsType.get(p.source).getType
+          val leftFieldType = leftChildFieldsType.get(p.source).getType
           val leftInputRef = new RexInputRef(p.source, leftFieldType)
+          val rightFieldType = rightChildFieldsType.get(p.target).getType
           val rightIndex = leftFieldCnt + p.target
-          val rightFieldType = joinFieldsType.get(rightIndex).getType
           val rightInputRef = new RexInputRef(rightIndex, rightFieldType)
           val remainEqual = rexBuilder.makeCall(
             SqlStdOperatorTable.EQUALS,
