@@ -1104,4 +1104,41 @@ class WindowJoinTest extends TableTestBase {
       """.stripMargin
     util.verifyRelPlan(sql)
   }
+
+  // ----------------------------------------------------------------------------------------
+  // Test IS NOT DISTINCT FROM
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testJoinWithIsNotDistinctFrom(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND
+        |L.a IS NOT DISTINCT FROM R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
