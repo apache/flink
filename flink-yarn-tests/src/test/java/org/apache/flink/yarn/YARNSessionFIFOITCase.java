@@ -92,7 +92,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
     }
 
     /** Test regular operation, including command line parameter parsing. */
-    void runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
+    ApplicationId runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
         LOG.info("Starting testDetachedMode()");
 
         File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
@@ -169,10 +169,12 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                         + ")");
 
         LOG.info("Waiting until the job reaches FINISHED state");
+        final ApplicationId applicationId = getOnlyApplicationReport().getApplicationId();
         CommonTestUtils.waitUntilCondition(
                 () ->
                         verifyStringsInNamedLogFiles(
                                 new String[] {"switched from state RUNNING to FINISHED"},
+                                applicationId,
                                 "jobmanager.log"),
                 Deadline.fromNow(timeout),
                 testConditionIntervalInMillis,
@@ -242,6 +244,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
         }
 
         LOG.info("Finished testDetachedMode()");
+        return applicationId;
     }
 
     /**
