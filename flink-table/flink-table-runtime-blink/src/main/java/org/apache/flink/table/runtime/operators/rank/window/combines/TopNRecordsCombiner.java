@@ -33,6 +33,7 @@ import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -188,7 +189,8 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
-                boolean isEventTime)
+                boolean isEventTime,
+                ZoneId shiftTimeZone)
                 throws Exception {
             final Comparator<RowData> sortKeyComparator =
                     generatedSortKeyComparator.newInstance(runtimeContext.getUserCodeClassLoader());

@@ -27,7 +27,10 @@ import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Iterator;
 
 /** The {@link WindowCombineFunction} is used to combine buffered data into state. */
@@ -64,13 +67,15 @@ public interface WindowCombineFunction {
          * @param windowState the window state to flush buffered data into.
          * @param isEventTime indicates whether the operator works in event-time or processing-time
          *     mode, used for register corresponding timers.
+         * @param shiftTimeZone indicates the timer of window should shift or not.
          */
         WindowCombineFunction create(
                 RuntimeContext runtimeContext,
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
-                boolean isEventTime)
+                boolean isEventTime,
+                @Nullable ZoneId shiftTimeZone)
                 throws Exception;
     }
 

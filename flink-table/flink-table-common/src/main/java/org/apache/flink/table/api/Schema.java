@@ -455,8 +455,8 @@ public final class Schema {
          * Declares that the given column should serve as an event-time (i.e. rowtime) attribute and
          * specifies a corresponding watermark strategy as an expression.
          *
-         * <p>The column must be of type {@code TIMESTAMP(3)} and be a top-level column in the
-         * schema. It may be a computed column.
+         * <p>The column must be of type {@code TIMESTAMP(3)} or {@code TIMESTAMP_LTZ(3)} and be a
+         * top-level column in the schema. It may be a computed column.
          *
          * <p>The watermark generation expression is evaluated by the framework for every record
          * during runtime. The framework will periodically emit the largest generated watermark. If

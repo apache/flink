@@ -42,14 +42,14 @@ public class TimeWindowUtil {
      * Convert a epoch mills to timestamp mills which can describe a locate date time.
      *
      * <p>For example: The timestamp string of epoch mills 5 in UTC+8 is 1970-01-01 08:00:05, the
-     * timestamp mills is 8 * 60 * 60 * 100 + 5.
+     * timestamp mills is 8 * 60 * 60 * 1000 + 5.
      *
      * @param epochMills the epoch mills.
      * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.
      * @return the mills which can describe the local timestamp string in given timezone.
      */
     public static long toUtcTimestampMills(long epochMills, ZoneId shiftTimeZone) {
-        if (UTC_ZONE_ID.equals(shiftTimeZone)) {
+        if (UTC_ZONE_ID.equals(shiftTimeZone) || Long.MAX_VALUE == epochMills) {
             return epochMills;
         }
         LocalDateTime localDateTime =
@@ -65,7 +65,8 @@ public class TimeWindowUtil {
      * @return the epoch mills.
      */
     public static long toEpochMillsForTimer(long utcTimestampMills, ZoneId shiftTimeZone) {
-        if (shiftTimeZone.equals(UTC_ZONE_ID)) {
+        if (UTC_ZONE_ID.equals(shiftTimeZone.equals(shiftTimeZone))
+                || Long.MAX_VALUE == utcTimestampMills) {
             return utcTimestampMills;
         }
 

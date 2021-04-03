@@ -26,6 +26,7 @@ import org.apache.flink.table.runtime.operators.window.Window;
 
 import java.time.Duration;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -99,9 +100,11 @@ public class ProcessingTimeTriggers {
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
             ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
             if (nextFiring.get() == null) {
-                long nextTimer = ctx.getCurrentProcessingTime() + interval;
-                ctx.registerProcessingTimeTimer(nextTimer);
-                nextFiring.add(nextTimer);
+                long nextShiftedTimer =
+                        toUtcTimestampMills(ctx.getCurrentProcessingTime(), ctx.getShiftTimeZone())
+                                + interval;
+                ctx.registerProcessingTimeTimer(nextShiftedTimer);
+                nextFiring.add(nextShiftedTimer);
             }
             return false;
         }

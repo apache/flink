@@ -37,6 +37,9 @@ import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
+
+import java.time.ZoneId;
 
 /**
  * The operator used for local window aggregation.
@@ -54,6 +57,13 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     private final WindowBuffer.Factory windowBufferFactory;
     private final WindowCombineFunction.LocalFactory combinerFactory;
 
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    private final ZoneId shiftTimezone;
+
     // ------------------------------------------------------------------------
 
     /** This is used for emitting elements with a given timestamp. */
@@ -62,10 +72,10 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
     private transient boolean functionsClosed = false;
 
-    /** current watermark of this operator. */
+    /** current watermark of this operator, the value has considered shifted timezone. */
     private transient long currentWatermark;
 
-    /** The next watermark to trigger windows. */
+    /** The next watermark to trigger windows, the value has considered shifted timezone. */
     private transient long nextTriggerWatermark;
 
     /** A buffer to buffers window data in memory and may flush to output. */
@@ -76,24 +86,28 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
             SliceAssigner sliceAssigner,
             PagedTypeSerializer<RowData> keySer,
             AbstractRowDataSerializer<RowData> inputSer,
-            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler) {
+            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
+            ZoneId shiftTimezone) {
         this(
                 keySelector,
                 sliceAssigner,
                 new RecordsWindowBuffer.Factory(keySer, inputSer),
-                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer));
+                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer),
+                shiftTimezone);
     }
 
     public LocalSlicingWindowAggOperator(
             RowDataKeySelector keySelector,
             SliceAssigner sliceAssigner,
             WindowBuffer.Factory windowBufferFactory,
-            WindowCombineFunction.LocalFactory combinerFactory) {
+            WindowCombineFunction.LocalFactory combinerFactory,
+            ZoneId shiftTimezone) {
         this.keySelector = keySelector;
         this.sliceAssigner = sliceAssigner;
         this.windowInterval = sliceAssigner.getSliceEndInterval();
         this.windowBufferFactory = windowBufferFactory;
         this.combinerFactory = combinerFactory;
+        this.shiftTimezone = shiftTimezone;
     }
 
     @Override
@@ -125,8 +139,9 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        if (mark.getTimestamp() > currentWatermark) {
-            currentWatermark = mark.getTimestamp();
+        long timestamp = TimeWindowUtil.toUtcTimestampMills(mark.getTimestamp(), shiftTimezone);
+        if (timestamp > currentWatermark) {
+            currentWatermark = timestamp;
             if (currentWatermark >= nextTriggerWatermark) {
                 // we only need to call advanceProgress() when currentWatermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);

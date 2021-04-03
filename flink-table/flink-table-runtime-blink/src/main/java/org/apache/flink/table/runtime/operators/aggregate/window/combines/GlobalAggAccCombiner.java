@@ -33,9 +33,12 @@ import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An implementation of {@link WindowCombineFunction} that accumulates local accumulators records
@@ -66,6 +69,9 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
     /** Serializer to copy key if required. */
     private final TypeSerializer<RowData> keySerializer;
 
+    /** The shifted timezone of the window. */
+    private final ZoneId shiftTimeZone;
+
     public GlobalAggAccCombiner(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
@@ -73,7 +79,8 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
             NamespaceAggsHandleFunction<Long> localAggregator,
             NamespaceAggsHandleFunction<Long> globalAggregator,
             boolean requiresCopy,
-            TypeSerializer<RowData> keySerializer) {
+            TypeSerializer<RowData> keySerializer,
+            ZoneId shiftTimeZone) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
@@ -81,6 +88,7 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         this.globalAggregator = globalAggregator;
         this.requiresCopy = requiresCopy;
         this.keySerializer = keySerializer;
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -116,7 +124,8 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         accState.update(window, stateAcc);
 
         // step 3: register timer for current window
-        timerService.registerEventTimeTimer(window, window - 1);
+        timerService.registerEventTimeTimer(
+                window, toEpochMillsForTimer(window - 1, shiftTimeZone));
     }
 
     @Override
@@ -156,8 +165,10 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
-                boolean isEventTime)
+                boolean isEventTime,
+                ZoneId shiftTimeZone)
                 throws Exception {
+            checkNotNull(shiftTimeZone);
             final NamespaceAggsHandleFunction<Long> localAggregator =
                     genLocalAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
             final NamespaceAggsHandleFunction<Long> globalAggregator =
@@ -177,7 +188,8 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
                     localAggregator,
                     globalAggregator,
                     requiresCopy,
-                    keySerializer);
+                    keySerializer,
+                    shiftTimeZone);
         }
     }
 }

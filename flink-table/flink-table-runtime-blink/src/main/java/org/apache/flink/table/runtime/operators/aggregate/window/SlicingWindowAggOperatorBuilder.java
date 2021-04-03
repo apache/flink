@@ -171,6 +171,6 @@ public class SlicingWindowAggOperatorBuilder {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
-        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
+        return new SlicingWindowOperator<>(windowProcessor);
     }
 }

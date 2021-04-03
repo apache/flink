@@ -41,8 +41,10 @@ import static org.junit.Assert.assertTrue;
 /** Tests for {@link TableSchema}. */
 public class TableSchemaTest {
 
-    private static final String WATERMARK_EXPRESSION = "now()";
+    private static final String WATERMARK_EXPRESSION = "localtimestamp";
+    private static final String WATERMARK_EXPRESSION_TS_LTZ = "now()";
     private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
+    private static final DataType WATERMARK_TS_LTZ_DATATYPE = DataTypes.TIMESTAMP_LTZ(3);
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -71,7 +73,7 @@ public class TableSchemaTest {
                         + " |-- f2: STRING\n"
                         + " |-- f3: BIGINT AS f0 + 1\n"
                         + " |-- f4: BIGINT METADATA FROM 'other.key' VIRTUAL\n"
-                        + " |-- WATERMARK FOR f1.q2: TIMESTAMP(3) AS now()\n";
+                        + " |-- WATERMARK FOR f1.q2: TIMESTAMP(3) AS localtimestamp\n";
         assertEquals(expected, schema.toString());
 
         // test getFieldNames and getFieldDataType
@@ -93,6 +95,28 @@ public class TableSchemaTest {
         // test copy() and equals()
         assertEquals(schema, schema.copy());
         assertEquals(schema.hashCode(), schema.copy().hashCode());
+    }
+
+    @Test
+    public void testWatermarkOnTimestampLtz() {
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .field("f0", DataTypes.TIMESTAMP())
+                        .field(
+                                "f1",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("q1", DataTypes.STRING()),
+                                        DataTypes.FIELD("q2", DataTypes.TIMESTAMP_LTZ(3))))
+                        .watermark("f1.q2", WATERMARK_EXPRESSION_TS_LTZ, WATERMARK_TS_LTZ_DATATYPE)
+                        .build();
+
+        // test toString()
+        String expected =
+                "root\n"
+                        + " |-- f0: TIMESTAMP(6)\n"
+                        + " |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP_LTZ(3)>\n"
+                        + " |-- WATERMARK FOR f1.q2: TIMESTAMP_LTZ(3) AS now()\n";
+        assertEquals(expected, tableSchema.toString());
     }
 
     @Test

@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -54,9 +55,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.supportedWatermarkType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -520,8 +520,8 @@ public class TableSchema {
                                                     String.format(
                                                             "Rowtime attribute '%s' is not defined in schema.",
                                                             rowtimeAttribute)));
-            if (!(rowtimeType.getTypeRoot() == TIMESTAMP_WITHOUT_TIME_ZONE
-                    || rowtimeType.getTypeRoot() == TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+            if (!(rowtimeType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                    || rowtimeType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
                 throw new ValidationException(
                         String.format(
                                 "Rowtime attribute '%s' must be of type TIMESTAMP or TIMESTAMP_LTZ but is of type '%s'.",
@@ -529,8 +529,7 @@ public class TableSchema {
             }
             LogicalType watermarkOutputType =
                     watermark.getWatermarkExprOutputType().getLogicalType();
-            if (!(watermarkOutputType.getTypeRoot() == TIMESTAMP_WITHOUT_TIME_ZONE
-                    || watermarkOutputType.getTypeRoot() == TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+            if (!supportedWatermarkType(watermarkOutputType)) {
                 throw new ValidationException(
                         String.format(
                                 "Watermark strategy %s must be of type TIMESTAMP or TIMESTAMP_LTZ but is of type '%s'.",

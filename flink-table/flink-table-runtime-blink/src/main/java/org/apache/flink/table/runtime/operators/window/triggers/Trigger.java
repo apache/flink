@@ -27,6 +27,7 @@ import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 
 /**
  * A {@code Trigger} determines when a pane of a window should be evaluated to emit the results for
@@ -166,6 +167,9 @@ public abstract class Trigger<W extends Window> implements Serializable {
 
         /** Delete the event-time trigger for the given time. */
         void deleteEventTimeTimer(long time);
+
+        /** Returns the shifted timezone. */
+        ZoneId getShiftTimeZone();
 
         /**
          * Retrieves a {@link State} object that can be used to interact with fault-tolerant state

@@ -64,6 +64,9 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+
 /** The Stream Arrow Python {@link AggregateFunction} Operator for Group Window Aggregation. */
 @Internal
 public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends Window>
@@ -201,7 +204,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         } else {
             timestamp = internalTimerService.currentProcessingTime();
         }
-        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
+        timestamp = toUtcTimestampMills(timestamp, shiftTimeZone);
 
         // Given the timestamp and element, returns the set of windows into which it
         // should be placed.
@@ -319,11 +322,12 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
      * @param window the window whose cleanup time we are computing.
      */
     private long cleanupTime(W window) {
+        long windowMatTs = toEpochMillsForTimer(window.maxTimestamp(), shiftTimeZone);
         if (windowAssigner.isEventTime()) {
-            long cleanupTime = window.maxTimestamp() + allowedLateness;
-            return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
+            long cleanupTime = windowMatTs + allowedLateness;
+            return cleanupTime >= windowMatTs ? cleanupTime : Long.MAX_VALUE;
         } else {
-            return window.maxTimestamp();
+            return windowMatTs;
         }
     }
 
@@ -453,8 +457,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
 
         boolean onProcessingTime(long time) throws Exception {
-            return trigger.onProcessingTime(
-                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
+            return trigger.onProcessingTime(toUtcTimestampMills(time, shiftTimeZone), window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -503,6 +506,11 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
 
         @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
+        }
+
+        @Override
         public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
             try {
                 return StreamArrowPythonGroupWindowAggregateFunctionOperator.this
@@ -534,6 +542,11 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         @Override
         public long currentWatermark() {
             throw new RuntimeException("The method currentWatermark should not be called.");
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
         }
 
         @Override

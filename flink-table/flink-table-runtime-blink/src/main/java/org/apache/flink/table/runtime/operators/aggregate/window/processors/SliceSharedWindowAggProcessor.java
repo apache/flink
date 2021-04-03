@@ -85,7 +85,9 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         if (nextWindowEndOptional.isPresent()) {
             long nextWindowEnd = nextWindowEndOptional.get();
             if (sliceSharedAssigner.isEventTime()) {
-                timerService.registerEventTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+                timerService.registerEventTimeTimer(
+                        nextWindowEnd,
+                        TimeWindowUtil.toEpochMillsForTimer(nextWindowEnd - 1, shiftTimeZone));
             } else {
                 timerService.registerProcessingTimeTimer(
                         nextWindowEnd,

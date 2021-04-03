@@ -54,6 +54,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
 /** Utilities for {@link LogicalType} and {@link DataType}.. */
 public class PlannerTypeUtils {
@@ -96,6 +97,11 @@ public class PlannerTypeUtils {
         }
         if (t1.getTypeRoot().getFamilies().contains(BINARY_STRING)
                 && t2.getTypeRoot().getFamilies().contains(BINARY_STRING)) {
+            return true;
+        }
+        // To resolve function MATCH_ROWTIME() that returns different timestamp type
+        // according to rowtime type, we will ewrite the time attribute type.
+        if (isRowtimeAttribute(t1) && isRowtimeAttribute(t2)) {
             return true;
         }
         if (t1.getTypeRoot() != t2.getTypeRoot()) {

@@ -156,6 +156,6 @@ public class WindowRankOperatorBuilder {
                         rankEnd,
                         outputRankNumber,
                         windowEndIndex);
-        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
+        return new SlicingWindowOperator<>(windowProcessor);
     }
 }

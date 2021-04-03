@@ -54,6 +54,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
+
 /**
  * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive
  * work.
@@ -109,11 +111,14 @@ public final class LogicalTypeChecks {
     }
 
     public static boolean isTimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) != TimestampKind.REGULAR;
+        return hasFamily(logicalType, TIMESTAMP)
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) != TimestampKind.REGULAR;
     }
 
     public static boolean isRowtimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.ROWTIME;
+        return (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
+                        || hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE))
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.ROWTIME;
     }
 
     public static boolean isProctimeAttribute(LogicalType logicalType) {

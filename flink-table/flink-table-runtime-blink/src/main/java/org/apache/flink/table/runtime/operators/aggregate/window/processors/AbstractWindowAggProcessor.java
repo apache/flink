@@ -35,9 +35,11 @@ import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import java.time.ZoneId;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -116,7 +118,8 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
                         ctx.getTimerService(),
                         ctx.getKeyedStateBackend(),
                         windowState,
-                        isEventTime);
+                        isEventTime,
+                        shiftTimeZone);
         this.windowBuffer =
                 windowBufferFactory.create(
                         ctx.getOperatorOwner(),
@@ -134,7 +137,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         if (!isEventTime) {
             // always register processing time for every element when processing time mode
             timerService.registerProcessingTimeTimer(
-                    sliceEnd, TimeWindowUtil.toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone));
+                    sliceEnd, toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone));
         }
         if (isEventTime && sliceEnd - 1 <= currentProgress) {
             // element is late and should be dropped
@@ -146,8 +149,9 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        if (progress > currentProgress) {
-            currentProgress = progress;
+        long timestamp = toUtcTimestampMills(progress, shiftTimeZone);
+        if (timestamp > currentProgress) {
+            currentProgress = timestamp;
             windowBuffer.advanceProgress(currentProgress);
         }
     }

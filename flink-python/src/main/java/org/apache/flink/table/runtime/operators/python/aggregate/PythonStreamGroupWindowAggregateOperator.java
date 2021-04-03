@@ -61,6 +61,7 @@ import java.util.List;
 
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /** The Python Group Window AggregateFunction operator for the blink planner. */
 @Internal
@@ -243,15 +244,17 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 setCurrentKey(((RowDataSerializer) getKeySerializer()).toBinaryRow(key));
 
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
-                    internalTimerService.registerEventTimeTimer(window, timestamp);
+                    internalTimerService.registerEventTimeTimer(
+                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else if (timerOperandType == REGISTER_PROCESSING_TIMER) {
                     internalTimerService.registerProcessingTimeTimer(
-                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else if (timerOperandType == DELETE_EVENT_TIMER) {
-                    internalTimerService.deleteEventTimeTimer(window, timestamp);
+                    internalTimerService.deleteEventTimeTimer(
+                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else if (timerOperandType == DELETE_PROCESSING_TIMER) {
                     internalTimerService.deleteProcessingTimeTimer(
-                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else {
                     throw new RuntimeException(
                             String.format("Unsupported timerOperandType %s.", timerOperandType));
@@ -407,8 +410,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         reuseTimerData.setField(2, baos.toByteArray());
         baos.reset();
 
-        reuseTimerRowData.setLong(
-                2, TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
+        reuseTimerRowData.setLong(2, toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
 
         udfInputTypeSerializer.serialize(reuseTimerRowData, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());

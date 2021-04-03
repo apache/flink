@@ -36,6 +36,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 
 /** Utils for type. */
 public class TypeCheckUtils {
@@ -53,8 +54,8 @@ public class TypeCheckUtils {
     }
 
     public static boolean isRowTime(LogicalType type) {
-        return type instanceof TimestampType
-                && ((TimestampType) type).getKind() == TimestampKind.ROWTIME;
+        return (type instanceof TimestampType || type instanceof LocalZonedTimestampType)
+                && isTimeAttribute(type);
     }
 
     public static boolean isProcTime(LogicalType type) {

@@ -121,7 +121,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                         ctx.getTimerService(),
                         ctx.getKeyedStateBackend(),
                         windowState,
-                        true);
+                        true,
+                        null);
         this.windowBuffer =
                 bufferFactory.create(
                         ctx.getOperatorOwner(),

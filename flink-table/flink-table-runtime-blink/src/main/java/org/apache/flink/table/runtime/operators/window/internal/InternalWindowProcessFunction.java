@@ -27,7 +27,10 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Collection;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /**
  * The internal interface for functions that process over grouped windows.
@@ -125,11 +128,12 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
      * @param window the window whose cleanup time we are computing.
      */
     private long cleanupTime(W window) {
+        long windowMaxTs = toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
         if (windowAssigner.isEventTime()) {
-            long cleanupTime = window.maxTimestamp() + allowedLateness;
-            return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
+            long cleanupTime = windowMaxTs + allowedLateness;
+            return cleanupTime >= windowMaxTs ? cleanupTime : Long.MAX_VALUE;
         } else {
-            return window.maxTimestamp();
+            return windowMaxTs;
         }
     }
 
@@ -157,6 +161,9 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 
         /** Returns the current event-time watermark. */
         long currentWatermark();
+
+        /** Returns the shifted timezone of the window */
+        ZoneId getShiftTimeZone();
 
         /** Gets the accumulators of the given window. */
         RowData getWindowAccumulators(W window) throws Exception;

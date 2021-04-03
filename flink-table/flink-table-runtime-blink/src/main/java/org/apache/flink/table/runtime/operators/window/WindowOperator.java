@@ -419,9 +419,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         if (!windowAssigner.isEventTime()) {
-            windowFunction.cleanWindowIfNeeded(
-                    triggerContext.window,
-                    TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
+            windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
 
@@ -493,6 +491,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         @Override
         public long currentWatermark() {
             return internalTimerService.currentWatermark();
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
         }
 
         @Override
@@ -574,7 +577,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         boolean onEventTime(long time) throws Exception {
-            return trigger.onEventTime(time, window);
+            return trigger.onEventTime(
+                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
         }
 
         void onMerge() throws Exception {
@@ -604,7 +608,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void registerEventTimeTimer(long time) {
-            internalTimerService.registerEventTimeTimer(window, time);
+            internalTimerService.registerEventTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override
@@ -615,7 +620,13 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void deleteEventTimeTimer(long time) {
-            internalTimerService.deleteEventTimeTimer(window, time);
+            internalTimerService.deleteEventTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
         }
 
         public void clear() throws Exception {

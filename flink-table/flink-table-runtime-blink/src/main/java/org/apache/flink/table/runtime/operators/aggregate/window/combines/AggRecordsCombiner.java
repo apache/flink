@@ -32,11 +32,14 @@ import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
+import org.apache.flink.util.Preconditions;
 
+import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /**
  * An implementation of {@link WindowCombineFunction} that accumulates input records into the window
@@ -68,6 +71,9 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
+    /** The shifted timezone of the window. */
+    private final ZoneId shiftTimezone;
+
     public AggRecordsCombiner(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
@@ -76,7 +82,8 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
             boolean requiresCopy,
             TypeSerializer<RowData> keySerializer,
             TypeSerializer<RowData> recordSerializer,
-            boolean isEventTime) {
+            boolean isEventTime,
+            ZoneId shiftTimezone) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
@@ -85,6 +92,7 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
         this.keySerializer = keySerializer;
         this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
+        this.shiftTimezone = shiftTimezone;
     }
 
     @Override
@@ -129,7 +137,8 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
 
         // step 5: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeTimer(window, window - 1);
+            timerService.registerEventTimeTimer(
+                    window, toEpochMillsForTimer(window - 1, shiftTimezone));
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()
@@ -168,8 +177,10 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
                 InternalTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
-                boolean isEventTime)
+                boolean isEventTime,
+                ZoneId shiftTimeZone)
                 throws Exception {
+            Preconditions.checkNotNull(shiftTimeZone);
             final NamespaceAggsHandleFunction<Long> aggregator =
                     genAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
             aggregator.open(
@@ -185,7 +196,8 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
                     requiresCopy,
                     keySerializer,
                     recordSerializer,
-                    isEventTime);
+                    isEventTime,
+                    shiftTimeZone);
         }
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.runtime.operators.window.Window;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -94,7 +95,8 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+            if (toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
+                    <= ctx.getCurrentWatermark()) {
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
@@ -174,7 +176,8 @@ public class EventTimeTriggers {
                 // is Long.MIN_VALUE but the window is already in the late phase.
                 return lateTrigger != null && lateTrigger.onElement(element, timestamp, window);
             } else {
-                if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+                if (toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
+                        <= ctx.getCurrentWatermark()) {
                     // we are in the late phase
 
                     // if there is no late trigger then we fire on every late element
@@ -303,7 +306,8 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+            if (toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
+                    <= ctx.getCurrentWatermark()) {
                 // the on-time firing
                 return true;
             } else {

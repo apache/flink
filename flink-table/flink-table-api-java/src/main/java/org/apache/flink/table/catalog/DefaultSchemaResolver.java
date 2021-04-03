@@ -34,6 +34,7 @@ import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -245,13 +246,29 @@ class DefaultSchemaResolver implements SchemaResolver {
         final boolean hasWatermarkSpec =
                 watermarkSpecs.stream().anyMatch(s -> s.getRowtimeAttribute().equals(name));
         if (hasWatermarkSpec && isStreamingMode) {
-            final TimestampType originalType = (TimestampType) dataType.getLogicalType();
-            final LogicalType rowtimeType =
-                    new TimestampType(
-                            originalType.isNullable(),
-                            TimestampKind.ROWTIME,
-                            originalType.getPrecision());
-            return column.copy(replaceLogicalType(dataType, rowtimeType));
+            switch (dataType.getLogicalType().getTypeRoot()) {
+                case TIMESTAMP_WITHOUT_TIME_ZONE:
+                    final TimestampType originalType = (TimestampType) dataType.getLogicalType();
+                    final LogicalType rowtimeType =
+                            new TimestampType(
+                                    originalType.isNullable(),
+                                    TimestampKind.ROWTIME,
+                                    originalType.getPrecision());
+                    return column.copy(replaceLogicalType(dataType, rowtimeType));
+                case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                    final LocalZonedTimestampType timestampLtzType =
+                            (LocalZonedTimestampType) dataType.getLogicalType();
+                    final LogicalType rowtimeLtzType =
+                            new LocalZonedTimestampType(
+                                    timestampLtzType.isNullable(),
+                                    TimestampKind.ROWTIME,
+                                    timestampLtzType.getPrecision());
+                    return column.copy(replaceLogicalType(dataType, rowtimeLtzType));
+                default:
+                    throw new ValidationException(
+                            "Invalid data type of expression for rowtime definition. "
+                                    + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
+            }
         }
         return column;
     }
