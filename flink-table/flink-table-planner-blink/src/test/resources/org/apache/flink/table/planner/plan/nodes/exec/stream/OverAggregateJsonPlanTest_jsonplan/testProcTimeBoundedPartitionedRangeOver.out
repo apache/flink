@@ -47,7 +47,7 @@
         }
       } ]
     },
-    "id" : 83,
+    "id" : 47,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -92,6 +92,7 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     }, {
@@ -104,7 +105,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 84,
+    "id" : 48,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -148,7 +149,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 85,
+    "id" : 49,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -201,6 +202,7 @@
       "inputIndex" : 2,
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     }, {
@@ -224,7 +226,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 86,
+    "id" : 50,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -253,7 +255,7 @@
     "description" : "Calc(select=[a, c, proctime, CAST(a) AS $3])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 87,
+    "id" : 51,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -359,7 +361,7 @@
       } ],
       "originalInputFields" : 4
     },
-    "id" : 88,
+    "id" : 52,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -484,7 +486,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 89,
+    "id" : 53,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -521,7 +523,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 90,
+    "id" : 54,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -541,50 +543,50 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
   } ],
   "edges" : [ {
-    "source" : 83,
-    "target" : 84,
+    "source" : 47,
+    "target" : 48,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 84,
-    "target" : 85,
+    "source" : 48,
+    "target" : 49,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 85,
-    "target" : 86,
+    "source" : 49,
+    "target" : 50,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 86,
-    "target" : 87,
+    "source" : 50,
+    "target" : 51,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 87,
-    "target" : 88,
+    "source" : 51,
+    "target" : 52,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 88,
-    "target" : 89,
+    "source" : 52,
+    "target" : 53,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 89,
-    "target" : 90,
+    "source" : 53,
+    "target" : 54,
     "shuffle" : {
       "type" : "FORWARD"
     },

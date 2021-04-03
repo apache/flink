@@ -27,13 +27,60 @@ import org.junit.{Before, Test}
 // TODO add more union case after aggregation and join supported
 class UnionTest extends TableTestBase {
 
-  private val util = batchTestUtil()
+  private val util = streamTestUtil()
 
   @Before
   def before(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("MyTable3", 'a, 'b, 'c)
+
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE t1 (
+         |  id int,
+         |  ts bigint,
+         |  name string,
+         |  timestamp_col timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+         |  watermark for timestamp_col as timestamp_col
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin)
+
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE t2 (
+         |  id int,
+         |  ts bigint,
+         |  name string,
+         |  timestamp_col timestamp(3),
+         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+         |  watermark for timestamp_ltz_col as timestamp_ltz_col
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin)
+
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE t3 (
+         |  id int,
+         |  ts bigint,
+         |  name string,
+         |  timestamp_col timestamp(3),
+         |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
+         |  watermark for timestamp_ltz_col as timestamp_ltz_col
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin)
   }
 
   @Test
@@ -60,6 +107,33 @@ class UnionTest extends TableTestBase {
         | UNION ALL
         | SELECT a, CAST(0 aS DECIMAL(2, 1)) FROM MyTable2)
       """.stripMargin
+    util.verifyRelPlanWithType(sqlQuery)
+  }
+
+  @Test
+  def testUnionDiffRowTime(): Unit = {
+    expectedException.expectMessage("Union fields with time attributes have different types")
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        | SELECT id, ts, name, timestamp_col, timestamp_ltz_col FROM t1
+        | UNION ALL
+        | SELECT  id, ts, name, timestamp_col, timestamp_ltz_col FROM t2)
+      """.stripMargin
+
+    util.verifyRelPlanWithType(sqlQuery)
+  }
+
+  @Test
+  def testUnionSameRowTime(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * FROM (
+        | SELECT id, ts, name, timestamp_col, timestamp_ltz_col FROM t2
+        | UNION ALL
+        | SELECT  id, ts, name, timestamp_col, timestamp_ltz_col FROM t3)
+      """.stripMargin
+
     util.verifyRelPlanWithType(sqlQuery)
   }
 

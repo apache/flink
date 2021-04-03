@@ -147,6 +147,32 @@ class TemporalJoinTest extends TableTestBase {
     util.addTable("CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
       "FROM RatesHistory " +
       "GROUP BY currency ")
+
+    util.tableEnv.executeSql(
+      s"""
+          |CREATE TABLE OrdersLtz (
+          | amount INT,
+          | currency STRING,
+          | ts BIGINT,
+          | rowtime AS TO_TIMESTAMP_LTZ(ts, 3),
+          | WATERMARK FOR rowtime AS rowtime
+          |) WITH (
+          | 'connector' = 'values'
+          |)
+      """.stripMargin)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE RatesLtz (
+         | currency STRING,
+         | rate INT,
+         | ts BIGINT,
+         | rowtime as TO_TIMESTAMP_LTZ(ts, 3),
+         | WATERMARK FOR rowtime AS rowtime,
+         | PRIMARY KEY(currency) NOT ENFORCED
+         |) WITH (
+         | 'connector' = 'values'
+         |)
+      """.stripMargin)
   }
 
   @Test
@@ -176,6 +202,16 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
       "ON o.currency = r.currency"
 
+    util.verifyExecPlan(sqlQuery)
+  }
+
+
+  @Test
+  def testEventTimeTemporalJoinOnTimestampLtzRowtime(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM OrdersLtz AS o JOIN " +
+      "RatesLtz FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
     util.verifyExecPlan(sqlQuery)
   }
 
@@ -468,6 +504,19 @@ class TemporalJoinTest extends TableTestBase {
       "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with an expression call " +
         "'TO_TIMESTAMP(FROM_UNIXTIME(1))' is not supported yet.",
       classOf[AssertionError])
+
+    val sqlQuery8 =
+      s"""
+          |SELECT *
+          | FROM OrdersLtz AS o JOIN
+          | RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r
+          | ON o.currency = r.currency
+          """.stripMargin
+    expectExceptionThrown(
+      sqlQuery8,
+      "Event-Time Temporal Table Join requires same rowtime" +
+        " type in left table and versioned table.",
+      classOf[ValidationException])
   }
 
   private def expectExceptionThrown(

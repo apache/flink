@@ -115,6 +115,39 @@ Calc(select=[amount, currency, rowtime, PROCTIME_MATERIALIZE(proctime) AS procti
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testEventTimeTemporalJoinOnTimestampLtzRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM OrdersLtz AS o JOIN RatesLtz FOR SYSTEM_TIME AS OF o.rowtime AS r ON o.currency = r.currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[$3], currency0=[$4], rate=[$5], ts0=[$6], rowtime0=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+   :  +- LogicalProject(amount=[$0], currency=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersLtz]])
+   +- LogicalFilter(condition=[=($cor0.currency, $0)])
+      +- LogicalSnapshot(period=[$cor0.rowtime])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$3])
+            +- LogicalProject(currency=[$0], rate=[$1], ts=[$2], rowtime=[TO_TIMESTAMP_LTZ($2, 3)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, RatesLtz]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[amount, currency, ts, rowtime, currency0, rate, ts0, CAST(rowtime0) AS rowtime0])
++- TemporalJoin(joinType=[InnerJoin], where=[((currency = currency0) AND __TEMPORAL_JOIN_CONDITION(rowtime, rowtime0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency0), __TEMPORAL_JOIN_LEFT_KEY(currency), __TEMPORAL_JOIN_RIGHT_KEY(currency0)))], select=[amount, currency, ts, rowtime, currency0, rate, ts0, rowtime0])
+   :- Exchange(distribution=[hash[currency]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- Calc(select=[amount, currency, ts, TO_TIMESTAMP_LTZ(ts, 3) AS rowtime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersLtz]], fields=[amount, currency, ts])
+   +- Exchange(distribution=[hash[currency]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+         +- Calc(select=[currency, rate, ts, TO_TIMESTAMP_LTZ(ts, 3) AS rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, RatesLtz]], fields=[currency, rate, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testEventTimeTemporalJoinWithComputedColumnAndPushDown">
     <Resource name="sql">
       <![CDATA[SELECT o.currency, r.currency, rate1 FROM Orders AS o JOIN RatesBinlogWithComputedColumn FOR SYSTEM_TIME AS OF o.rowtime AS r on o.currency = r.currency AND o.amount > 10 AND r.rate < 100]]>

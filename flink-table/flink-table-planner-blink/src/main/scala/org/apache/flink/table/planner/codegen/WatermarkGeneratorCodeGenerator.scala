@@ -48,9 +48,10 @@ object WatermarkGeneratorCodeGenerator {
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
     // validation
     val watermarkOutputType = FlinkTypeFactory.toLogicalType(watermarkExpr.getType)
-    if (watermarkOutputType.getTypeRoot != LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
+    if (! (watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE ||
+      watermarkOutputType.getTypeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
       throw new CodeGenException(
-        "WatermarkGenerator only accepts output data type of TIMESTAMP," +
+        "WatermarkGenerator only accepts output data type of TIMESTAMP or TIMESTAMP_LTZ," +
           " but is " + watermarkOutputType)
     }
     val funcName = newName("WatermarkGenerator")

@@ -587,7 +587,7 @@ object TestData {
     changelogRow("-D", "Yen", JLong.valueOf(1L))
   )
 
-  val windowData: Seq[Row] = List(
+  val windowDataWithTimestamp: Seq[Row] = List(
     row("2020-10-10 00:00:01", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
     row("2020-10-10 00:00:02", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
     row("2020-10-10 00:00:03", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
@@ -602,6 +602,63 @@ object TestData {
 
     row("2020-10-10 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
     row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
+
+  val shanghaiZone = ZoneId.of("Asia/Shanghai")
+  val windowDataWithLtzInShanghai: Seq[Row] = List(
+    row(toEpochMills("2020-10-10T00:00:01", shanghaiZone),
+      1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
+    row(toEpochMills("2020-10-10T00:00:02", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row(toEpochMills("2020-10-10T00:00:03", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row(toEpochMills("2020-10-10T00:00:04", shanghaiZone),
+      5, 5d, 5f, new JBigDecimal("5.55"), null, "a"),
+    row(toEpochMills("2020-10-10T00:00:07", shanghaiZone),
+      3, 3d, 3f, null, "Hello", "b"),
+    row(toEpochMills("2020-10-10T00:00:06", shanghaiZone),
+      6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"), // out of order
+    row(toEpochMills("2020-10-10T00:00:08", shanghaiZone),
+      3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a"),
+    row(toEpochMills("2020-10-10T00:00:04", shanghaiZone),
+      5, 5d, null, new JBigDecimal("5.55"), "Hi", "a"), // late event
+    row(toEpochMills("2020-10-10T00:00:16", shanghaiZone),
+      4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+    row(toEpochMills("2020-10-10T00:00:32", shanghaiZone),
+      7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row(toEpochMills("2020-10-10T00:00:34", shanghaiZone),
+      1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
+
+  val timestampData: Seq[Row] = List(
+    row("1970-01-01 00:00:00.001", 1, 1d, 1f, new JBigDecimal("1"), "Hi", "a"),
+    row("1970-01-01 00:00:00.002", 2, 2d, 2f, new JBigDecimal("2"), "Hallo", "a"),
+    row("1970-01-01 00:00:00.003", 2, 2d, 2f, new JBigDecimal("2"), "Hello", "a"),
+    row("1970-01-01 00:00:00.004", 5, 5d, 5f, new JBigDecimal("5"), "Hello", "a"),
+    row("1970-01-01 00:00:00.007", 3, 3d, 3f, new JBigDecimal("3"), "Hello", "b"),
+    row("1970-01-01 00:00:00.006", 5, 5d, 5f, new JBigDecimal("5"), "Hello", "a"),
+    row("1970-01-01 00:00:00.008", 3, 3d, 3f, new JBigDecimal("3"), "Hello world", "a"),
+    row("1970-01-01 00:00:00.016", 4, 4d, 4f, new JBigDecimal("4"), "Hello world", "b"),
+    row("1970-01-01 00:00:00.032", 4, 4d, 4f,
+      new JBigDecimal("4"), null.asInstanceOf[String], null.asInstanceOf[String]))
+
+  val timestampLtzData: Seq[Row] = List(
+    row(toEpochMills("1970-01-01T00:00:00.001", shanghaiZone),
+      1, 1d, 1f, new JBigDecimal("1"), "Hi", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.002", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2"), "Hallo", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.003", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2"), "Hello", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.004", shanghaiZone),
+      5, 5d, 5f, new JBigDecimal("5"), "Hello", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.007", shanghaiZone),
+      3, 3d, 3f, new JBigDecimal("3"), "Hello", "b"),
+    row(toEpochMills("1970-01-01T00:00:00.006", shanghaiZone),
+      5, 5d, 5f, new JBigDecimal("5"), "Hello", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.008", shanghaiZone),
+      3, 3d, 3f, new JBigDecimal("3"), "Hello world", "a"),
+    row(toEpochMills("1970-01-01T00:00:00.016", shanghaiZone),
+      4, 4d, 4f, new JBigDecimal("4"), "Hello world", "b"),
+    row(toEpochMills("1970-01-01T00:00:00.032", shanghaiZone),
+      4, 4d, 4f, new JBigDecimal("4"), null.asInstanceOf[String], null.asInstanceOf[String]))
 
   val fullDataTypesData: Seq[Row] = {
     val bools = List(true, false, true, false, null)

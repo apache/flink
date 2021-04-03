@@ -53,7 +53,7 @@ class WindowAggregateUseDaylightTimeHarnessTest(backend: StateBackendMode, timeZ
   @Before
   override def before(): Unit = {
     super.before()
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(timeZone.toZoneId)
     tEnv.executeSql(
       s"""

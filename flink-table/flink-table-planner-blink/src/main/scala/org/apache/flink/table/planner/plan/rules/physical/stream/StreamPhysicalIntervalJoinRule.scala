@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalI
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.api.ValidationException
 
 import scala.collection.JavaConversions._
 
@@ -48,6 +49,16 @@ class StreamPhysicalIntervalJoinRule
 
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
+        val leftTimeAttributeType = join.getLeft.getRowType
+          .getFieldList
+          .get(windowBounds.get.getLeftTimeIdx).getType
+        val rightTimeAttributeType = join.getRight.getRowType
+          .getFieldList
+          .get(windowBounds.get.getRightTimeIdx).getType
+        if (leftTimeAttributeType.getSqlTypeName != rightTimeAttributeType.getSqlTypeName) {
+          throw new ValidationException(
+            "Interval join with rowtime attribute has different rowtime types")
+        }
         true
       } else {
         // Check that no event-time attributes are in the input because the processing time window

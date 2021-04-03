@@ -56,7 +56,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   @Before
   override def before(): Unit = {
     super.before()
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
     tEnv.executeSql(
       s"""
@@ -266,7 +266,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
   /**
    * Ingests testing data, the input schema is [name, double, string, proctime].
-   * We follow the test data in [[TestData.windowData]] to have the same produced result.
+   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced result.
    * The only difference is we don't ingest the late data in this test, so they should produce
    * same result.
    */

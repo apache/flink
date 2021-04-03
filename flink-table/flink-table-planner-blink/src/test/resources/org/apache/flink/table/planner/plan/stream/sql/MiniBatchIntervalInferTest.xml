@@ -542,7 +542,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
       +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
          :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, MyDataStream1]])
-         +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIME ATTRIBUTE(PROCTIME) proctime, TIME ATTRIBUTE(ROWTIME) rowtime)])
+         +- LogicalTableFunctionScan(invocation=[Rates($cor0.rowtime)], rowType=[RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) *ROWTIME* rowtime)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

@@ -36,6 +36,33 @@ class IntervalJoinTest extends TableTestBase {
   util.addDataStream[(Int, String, Long)](
     "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable3 (
+       |  a int,
+       |  b bigint,
+       |  c string,
+       |  rowtime as TO_TIMESTAMP_LTZ(b, 3),
+       |  watermark for rowtime as rowtime
+       |) WITH (
+       |  'connector' = 'values',
+       |  'bounded' = 'false'
+       |)
+       """.stripMargin)
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable4 (
+       |  a int,
+       |  b bigint,
+       |  c string,
+       |  rowtime as TO_TIMESTAMP_LTZ(b, 3),
+       |  watermark for rowtime as rowtime
+       |) WITH (
+       |  'connector' = 'values',
+       |  'bounded' = 'false'
+       |)
+       """.stripMargin)
+
   /** There should exist exactly two time conditions **/
   @Test(expected = classOf[TableException])
   def testInteravlJoinSingleTimeCondition(): Unit = {
@@ -56,6 +83,22 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.a = t2.a AND
         |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
         |  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+
+  /** Both rowtime types in a join condition must be of the same type **/
+  @Test
+  def testIntervalJoinOnDiffRowTimeType(): Unit = {
+    expectedException.expectMessage(
+      "Interval join with rowtime attribute has different rowtime types")
+    val sql =
+      """
+        |SELECT t2.a FROM MyTable2 t1 JOIN MyTable3 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime > t2.rowtime - INTERVAL '5' SECOND AND
+        |  t1.rowtime < t2.rowtime + INTERVAL '5' SECOND
       """.stripMargin
     util.verifyExecPlan(sql)
   }
@@ -147,6 +190,18 @@ class IntervalJoinTest extends TableTestBase {
       """.stripMargin
 
     util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testIntervalJoinOnTimestampLtzRowtime(): Unit = {
+       val sql =
+      """
+        |SELECT t2.a FROM MyTable3 t1 JOIN MyTable4 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime > t2.rowtime - INTERVAL '5' SECOND AND
+        |  t1.rowtime < t2.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyExecPlan(sql)
   }
 
   @Test

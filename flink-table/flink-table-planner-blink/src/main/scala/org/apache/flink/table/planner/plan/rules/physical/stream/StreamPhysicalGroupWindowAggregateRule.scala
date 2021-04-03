@@ -59,7 +59,6 @@ class StreamPhysicalGroupWindowAggregateRule
   override def convert(rel: RelNode): RelNode = {
     val agg = rel.asInstanceOf[FlinkLogicalWindowAggregate]
     val input = agg.getInput
-    val inputRowType = input.getRowType
     val cluster = rel.getCluster
     val requiredDistribution = if (agg.getGroupCount != 0) {
       FlinkRelDistribution.hash(agg.getGroupSet.asList)
