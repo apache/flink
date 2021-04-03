@@ -50,6 +50,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -69,11 +70,10 @@ public class JobGraph implements Serializable {
 
     // --- job and configuration ---
 
-    /** List of task vertices included in this job graph. */
-    private final Map<JobVertexID, JobVertex> taskVertices =
-            new LinkedHashMap<JobVertexID, JobVertex>();
+    /** Map of task vertices included in this job graph. */
+    private final Map<JobVertexID, JobVertex> taskVertices = new LinkedHashMap<>();
 
-    /** The job configuration attached to this job. */
+    /** The job configuration attached to this job graph. */
     private final Configuration jobConfiguration = new Configuration();
 
     /** ID of this job. May be set if specific job id is desired (e.g. session management) */
@@ -104,7 +104,7 @@ public class JobGraph implements Serializable {
     // --- attached resources ---
 
     /** Set of JAR files required to run this job. */
-    private final List<Path> userJars = new ArrayList<Path>();
+    private final List<Path> userJars = new ArrayList<>();
 
     /** Set of custom files required to run this job. */
     private final Map<String, DistributedCache.DistributedCacheEntry> userArtifacts =
@@ -178,7 +178,7 @@ public class JobGraph implements Serializable {
 
     /** Sets the ID of the job. */
     public void setJobID(JobID jobID) {
-        this.jobID = jobID;
+        this.jobID = Objects.requireNonNull(jobID);
     }
 
     /**
@@ -210,7 +210,7 @@ public class JobGraph implements Serializable {
     }
 
     public void setJobType(JobType type) {
-        this.jobType = type;
+        this.jobType = Objects.requireNonNull(type);
     }
 
     public JobType getJobType() {
@@ -231,7 +231,8 @@ public class JobGraph implements Serializable {
      * @param settings The savepoint restore settings.
      */
     public void setSavepointRestoreSettings(SavepointRestoreSettings settings) {
-        this.savepointRestoreSettings = checkNotNull(settings, "Savepoint restore settings");
+        this.savepointRestoreSettings =
+                checkNotNull(settings, "Savepoint restore settings must not be null.");
     }
 
     /**
@@ -356,14 +357,13 @@ public class JobGraph implements Serializable {
      * @return true if checkpointing enabled
      */
     public boolean isCheckpointingEnabled() {
-
         if (snapshotSettings == null) {
             return false;
         }
-
         long checkpointInterval =
                 snapshotSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval();
-        return checkpointInterval > 0 && checkpointInterval < Long.MAX_VALUE;
+
+        return checkpointInterval >= MINIMAL_CHECKPOINT_TIME && checkpointInterval < Long.MAX_VALUE;
     }
 
     /**
@@ -414,8 +414,8 @@ public class JobGraph implements Serializable {
             return Collections.emptyList();
         }
 
-        List<JobVertex> sorted = new ArrayList<JobVertex>(this.taskVertices.size());
-        Set<JobVertex> remaining = new LinkedHashSet<JobVertex>(this.taskVertices.values());
+        List<JobVertex> sorted = new ArrayList<>(this.taskVertices.size());
+        Set<JobVertex> remaining = new LinkedHashSet<>(this.taskVertices.values());
 
         // start by finding the vertices with no input edges
         // and the ones with disconnected inputs (that refer to some standalone data set)
@@ -548,9 +548,9 @@ public class JobGraph implements Serializable {
     }
 
     /**
-     * Gets the list of assigned user jar paths.
+     * Gets the map of assigned user jar paths.
      *
-     * @return The list of assigned user jar paths
+     * @return The map of assigned user jar paths
      */
     public Map<String, DistributedCache.DistributedCacheEntry> getUserArtifacts() {
         return userArtifacts;

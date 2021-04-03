@@ -192,7 +192,7 @@ public class StreamExecutionEnvironment {
         this(new Configuration());
         // unfortunately, StreamExecutionEnvironment always (implicitly) had a public constructor.
         // This constructor is not useful because the execution environment cannot be used for
-        // execution. We're keeping this to appease the binary compatibiliy checks.
+        // execution. We're keeping this to appease the binary compatibility checks.
     }
 
     /**
@@ -255,7 +255,7 @@ public class StreamExecutionEnvironment {
         return userClassloader;
     }
 
-    /** Gets the config object. */
+    /** Gets the execution config object. */
     public ExecutionConfig getConfig() {
         return config;
     }
@@ -316,7 +316,7 @@ public class StreamExecutionEnvironment {
      * defines the number of key groups used for partitioned state.
      *
      * @param maxParallelism Maximum degree of parallelism to be used for the program., with {@code
-     *     0 < maxParallelism <= 2^15 - 1}.
+     *     0 < maxParallelism <= 2^15}.
      */
     public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
         Preconditions.checkArgument(
@@ -431,7 +431,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
      * the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -452,7 +452,7 @@ public class StreamExecutionEnvironment {
      * {@link CheckpointingMode} for the checkpointing ("exactly once" vs "at least once"). The
      * state will be stored in the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -475,7 +475,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the given interval. The state will be stored in
      * the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * If the "force" parameter is set to true, the system will execute the job nonetheless.
      *
      * @param interval Time interval between state checkpoints in millis.
@@ -505,7 +505,7 @@ public class StreamExecutionEnvironment {
      * <p>The job draws checkpoints periodically, in the default interval. The state will be stored
      * in the configured state backend.
      *
-     * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at the moment.
+     * <p>NOTE: Checkpointing iterative streaming dataflows is not properly supported at the moment.
      * For that reason, iterative jobs will not be started if used with enabled checkpointing. To
      * override this mechanism, use the {@link #enableCheckpointing(long, CheckpointingMode,
      * boolean)} method.
@@ -566,7 +566,7 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Sets the state backend that describes how to store operator. It defines the data structures
+     * Sets the state backend that describes how to store states. It defines the data structures
      * that hold state during execution (for example hash tables, RocksDB, or other data stores).
      *
      * <p>State managed by the state backend includes both keyed state that is accessible on {@link
@@ -587,7 +587,7 @@ public class StreamExecutionEnvironment {
      * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
      * backends persist during a checkpoint.
      *
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @return This StreamExecutionEnvironment itself.
      * @see #getStateBackend()
      * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
@@ -611,7 +611,7 @@ public class StreamExecutionEnvironment {
      * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
      * provided when triggered.
      *
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @return This StreamExecutionEnvironment itself.
      * @see #getDefaultSavepointDirectory()
      */
     @PublicEvolving
@@ -624,7 +624,7 @@ public class StreamExecutionEnvironment {
      * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
      * provided when triggered.
      *
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @return This StreamExecutionEnvironment itself.
      * @see #getDefaultSavepointDirectory()
      */
     @PublicEvolving
@@ -637,7 +637,7 @@ public class StreamExecutionEnvironment {
      * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
      * provided when triggered.
      *
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @return This StreamExecutionEnvironment itself.
      * @see #getDefaultSavepointDirectory()
      */
     @PublicEvolving
@@ -793,10 +793,10 @@ public class StreamExecutionEnvironment {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Sets the time characteristic for all streams create from this environment, e.g., processing
+     * Sets the time characteristic for all streams created from this environment, e.g., processing
      * time, event time, or ingestion time.
      *
-     * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
+     * <p>If you set the characteristic to IngestionTime or EventTime, this will set a default
      * watermark update interval of 200 ms. If this is not applicable for your application you
      * should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
      *
@@ -2182,7 +2182,7 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public static StreamExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
-        checkNotNull(conf, "conf");
+        checkNotNull(conf, "conf must not be null.");
 
         if (!conf.contains(RestOptions.PORT)) {
             // explicitly set this option so that it's not set to 0 later

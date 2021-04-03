@@ -329,7 +329,7 @@ public class DefaultExecutionGraphBuilder {
     }
 
     public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
-        return jobGraph.getCheckpointingSettings() != null;
+        return jobGraph.isCheckpointingEnabled();
     }
 
     // ------------------------------------------------------------------------

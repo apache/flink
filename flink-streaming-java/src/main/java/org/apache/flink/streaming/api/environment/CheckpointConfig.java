@@ -84,7 +84,7 @@ public class CheckpointConfig implements java.io.Serializable {
     /** Flag to force checkpointing in iterative jobs. */
     private boolean forceCheckpointing;
 
-    /** Flag to force checkpointing in iterative jobs. */
+    /** Flag to force unaligned checkpointing in iterative jobs. */
     private boolean forceUnalignedCheckpoints;
 
     /** Flag to enable unaligned checkpoints. */
@@ -109,7 +109,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated private boolean failOnCheckpointingErrors = true;
 
-    /** Determines if a job will fallback to checkpoint when there is a more recent savepoint. * */
+    /** Determines if a job will fallback to checkpoint when there is a more recent savepoint. */
     private boolean preferCheckpointForRecovery = false;
 
     /**
@@ -161,10 +161,10 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Checks whether checkpointing is enabled.
      *
-     * @return True if checkpointing is enables, false otherwise.
+     * @return True if checkpointing is enabled, false otherwise.
      */
     public boolean isCheckpointingEnabled() {
-        return checkpointInterval > 0;
+        return checkpointInterval >= MINIMAL_CHECKPOINT_TIME && checkpointTimeout < Long.MAX_VALUE;
     }
 
     /**
@@ -207,11 +207,11 @@ public class CheckpointConfig implements java.io.Serializable {
      * @param checkpointInterval The checkpoint interval, in milliseconds.
      */
     public void setCheckpointInterval(long checkpointInterval) {
-        if (checkpointInterval < MINIMAL_CHECKPOINT_TIME) {
+        if (checkpointInterval < MINIMAL_CHECKPOINT_TIME || checkpointInterval == Long.MAX_VALUE) {
             throw new IllegalArgumentException(
-                    String.format(
-                            "Checkpoint interval must be larger than or equal to %s ms",
-                            MINIMAL_CHECKPOINT_TIME));
+                    "Checkpoint interval must be larger than or equal to"
+                            + MINIMAL_CHECKPOINT_TIME
+                            + "ms, explicitly set checkpointInterval to Long.MAX_VALUE will disable checkpoint too.");
         }
         this.checkpointInterval = checkpointInterval;
     }
@@ -313,7 +313,7 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether checkpointing is forced, despite currently non-checkpointable iteration
+     * Sets whether checkpointing is forced, despite currently non-checkpointable iteration
      * feedback.
      *
      * @param forceCheckpointing The flag to force checkpointing.
@@ -336,8 +336,8 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether Unaligned Checkpoints are forced, despite currently non-checkpointable
-     * iteration feedback.
+     * Sets whether Unaligned Checkpoints are forced, despite currently non-checkpointable iteration
+     * feedback.
      *
      * @param forceUnalignedCheckpoints The flag to force checkpointing.
      */
@@ -494,7 +494,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * <p>Unaligned checkpoints can only be enabled if {@link #checkpointingMode} is {@link
      * CheckpointingMode#EXACTLY_ONCE}.
      *
-     * @param enabled Flag to indicate whether unaligned are enabled.
+     * @param enabled Flag to indicate whether unaligned checkpoints are enabled.
      */
     @PublicEvolving
     public void enableUnalignedCheckpoints(boolean enabled) {
@@ -540,6 +540,8 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public void setAlignmentTimeout(long alignmentTimeout) {
+        Preconditions.checkArgument(
+                alignmentTimeout >= 0, "alignmentTimeout must be non-negative.");
         this.alignmentTimeout = alignmentTimeout;
     }
 
