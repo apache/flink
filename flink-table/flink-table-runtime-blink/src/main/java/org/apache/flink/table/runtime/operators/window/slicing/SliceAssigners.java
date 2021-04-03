@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.window.slicing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.util.IterableIterator;
 import org.apache.flink.util.MathUtils;
 
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utilities to create {@link SliceAssigner}s. */
@@ -515,14 +515,10 @@ public final class SliceAssigners {
         public final long assignSliceEnd(RowData element, ClockService clock) {
             final long timestamp;
             if (rowtimeIndex >= 0) {
-                timestamp =
-                        TimeWindowUtil.toUtcTimestampMills(
-                                element.getLong(rowtimeIndex), shiftTimeZone);
+                timestamp = toUtcTimestampMills(element.getLong(rowtimeIndex), shiftTimeZone);
             } else {
                 // in processing time mode
-                timestamp =
-                        TimeWindowUtil.toUtcTimestampMills(
-                                clock.currentProcessingTime(), shiftTimeZone);
+                timestamp = toUtcTimestampMills(clock.currentProcessingTime(), shiftTimeZone);
             }
             return assignSliceEnd(timestamp);
         }

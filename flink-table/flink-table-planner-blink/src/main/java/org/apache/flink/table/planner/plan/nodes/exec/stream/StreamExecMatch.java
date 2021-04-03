@@ -60,7 +60,6 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.MathUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -82,6 +81,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -255,7 +255,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
         if (TypeCheckUtils.isRowTime(timeOrderFieldType)) {
             // copy the rowtime field into the StreamRecord timestamp field
-            int precision = ((TimestampType) timeOrderFieldType).getPrecision();
+            int precision = getPrecision(timeOrderFieldType);
             Transformation<RowData> transform =
                     new OneInputTransformation<>(
                             inputTransform,

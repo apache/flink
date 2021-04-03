@@ -246,7 +246,7 @@ class LegacyCatalogSourceTable[T](
                 TimestampKind.REGULAR,
                 ltz.getPrecision)
             case _ => throw new ValidationException("The supported time indicator type" +
-              " are timestamp and timestampLtz, but is " + f.getType + ".")
+              " are TIMESTAMP and TIMESTAMP_LTZ, but is " + f.getType + ".")
            }
         } else {
           f.getType

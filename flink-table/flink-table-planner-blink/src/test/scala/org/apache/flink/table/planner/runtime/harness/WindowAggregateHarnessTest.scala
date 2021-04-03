@@ -27,8 +27,10 @@ import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData
-import org.apache.flink.table.runtime.util.{RowDataHarnessAssertor, TimeWindowUtil}
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
+import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
+
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
@@ -56,7 +58,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   @Before
   override def before(): Unit = {
     super.before()
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.getConfig.setLocalTimeZone(shiftTimeZone)
     tEnv.executeSql(
       s"""
@@ -266,9 +268,9 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
   /**
    * Ingests testing data, the input schema is [name, double, string, proctime].
-   * We follow the test data in [[TestData.windowData]] to have the same produced result.
-   * The only difference is we don't ingest the late data in this test, so they should produce
-   * same result.
+   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced
+   * result. The only difference is we don't ingest the late data in this test, so they should
+   * produce same result.
    */
   private def ingestData(
       testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Unit = {
@@ -310,7 +312,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   private def localMills(dateTime: String): TimestampData = {
     val windowDateTime =  LocalDateTime.parse(dateTime).atZone(UTC_ZONE_ID)
      TimestampData.fromEpochMillis(
-       TimeWindowUtil.toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
+       toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
   }
 }
 

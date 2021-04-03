@@ -84,4 +84,39 @@ Union(all=[true], union=[a, b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnionSameRowTime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT id, ts, name, timestamp_col, timestamp_ltz_col FROM t2
+ UNION ALL
+ SELECT  id, ts, name, timestamp_col, timestamp_ltz_col FROM t3)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
++- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :  +- LogicalWatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :     +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[TO_TIMESTAMP_LTZ($1, 3)]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, t2]]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+   +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+      +- LogicalWatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+         +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[TO_TIMESTAMP_LTZ($1, 3)]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+            +- LogicalTableScan(table=[[default_catalog, default_database, t3]]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[id, ts, name, timestamp_col, timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+:- WatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+:  +- Calc(select=[id, ts, name, timestamp_col, TO_TIMESTAMP_LTZ(ts, 3) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+:     +- TableSourceScan(table=[[default_catalog, default_database, t2]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
++- WatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   +- Calc(select=[id, ts, name, timestamp_col, TO_TIMESTAMP_LTZ(ts, 3) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+      +- TableSourceScan(table=[[default_catalog, default_database, t3]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+]]>
+    </Resource>
+  </TestCase>
 </Root>

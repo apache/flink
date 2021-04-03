@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFun
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.ZoneId;
 
 /**
  * A buffer that buffers data in memory and flushes many values to state together at a time to avoid
@@ -83,13 +84,15 @@ public interface WindowBuffer {
          * @param memoryManager the manager that governs memory by Flink framework
          * @param memorySize the managed memory size can be used by this operator
          * @param combineFunction the combine function used to combine buffered data into state
+         * @param shiftTimeZone the shit timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
         WindowBuffer create(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowCombineFunction combineFunction)
+                WindowCombineFunction combineFunction,
+                ZoneId shiftTimeZone)
                 throws IOException;
     }
 }

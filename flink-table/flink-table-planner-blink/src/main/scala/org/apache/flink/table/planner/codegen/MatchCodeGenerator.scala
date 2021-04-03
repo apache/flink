@@ -375,7 +375,10 @@ class MatchCodeGenerator(
           ctx.nullCheck)
 
       case MATCH_ROWTIME =>
-        generateRowtimeAccess(ctx, contextTerm)
+        generateRowtimeAccess(
+          ctx,
+          contextTerm,
+          FlinkTypeFactory.isTimestampLtzIndicatorType(call.getType))
 
       case PROCTIME_MATERIALIZE =>
         // override proctime materialize code generation

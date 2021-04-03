@@ -27,7 +27,7 @@
         "schema.0.name" : "a"
       }
     },
-    "id" : 10,
+    "id" : 100,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -96,11 +96,12 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
     "condition" : null,
-    "id" : 11,
+    "id" : 101,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -168,7 +169,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 12,
+    "id" : 102,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -224,11 +225,12 @@
       "inputIndex" : 4,
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
     "condition" : null,
-    "id" : 13,
+    "id" : 103,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -255,7 +257,7 @@
     "description" : "Calc(select=[b, c, proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 14,
+    "id" : 104,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -346,7 +348,7 @@
         }
       }
     } ],
-    "id" : 15,
+    "id" : 105,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -396,7 +398,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 16,
+    "id" : 106,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -431,7 +433,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 17,
+    "id" : 107,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -451,50 +453,50 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, EXPR$1])"
   } ],
   "edges" : [ {
-    "source" : 10,
-    "target" : 11,
+    "source" : 100,
+    "target" : 101,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 11,
-    "target" : 12,
+    "source" : 101,
+    "target" : 102,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 12,
-    "target" : 13,
+    "source" : 102,
+    "target" : 103,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 13,
-    "target" : 14,
+    "source" : 103,
+    "target" : 104,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 14,
-    "target" : 15,
+    "source" : 104,
+    "target" : 105,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 15,
-    "target" : 16,
+    "source" : 105,
+    "target" : 106,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 16,
-    "target" : 17,
+    "source" : 106,
+    "target" : 107,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -31,12 +31,18 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
+
+import java.time.ZoneId;
+import java.util.TimeZone;
+
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /**
  * The operator used for local window aggregation.
@@ -53,6 +59,16 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     private final long windowInterval;
     private final WindowBuffer.Factory windowBufferFactory;
     private final WindowCombineFunction.LocalFactory combinerFactory;
+
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    private final ZoneId shiftTimezone;
+
+    /** The shift timezone is using DayLightSaving time or not. */
+    private final boolean useDayLightSaving;
 
     // ------------------------------------------------------------------------
 
@@ -76,24 +92,29 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
             SliceAssigner sliceAssigner,
             PagedTypeSerializer<RowData> keySer,
             AbstractRowDataSerializer<RowData> inputSer,
-            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler) {
+            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
+            ZoneId shiftTimezone) {
         this(
                 keySelector,
                 sliceAssigner,
                 new RecordsWindowBuffer.Factory(keySer, inputSer),
-                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer));
+                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer),
+                shiftTimezone);
     }
 
     public LocalSlicingWindowAggOperator(
             RowDataKeySelector keySelector,
             SliceAssigner sliceAssigner,
             WindowBuffer.Factory windowBufferFactory,
-            WindowCombineFunction.LocalFactory combinerFactory) {
+            WindowCombineFunction.LocalFactory combinerFactory,
+            ZoneId shiftTimezone) {
         this.keySelector = keySelector;
         this.sliceAssigner = sliceAssigner;
         this.windowInterval = sliceAssigner.getSliceEndInterval();
         this.windowBufferFactory = windowBufferFactory;
         this.combinerFactory = combinerFactory;
+        this.shiftTimezone = shiftTimezone;
+        this.useDayLightSaving = TimeZone.getTimeZone(shiftTimezone).useDaylightTime();
     }
 
     @Override
@@ -111,7 +132,8 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
-                        localCombiner);
+                        localCombiner,
+                        shiftTimezone);
     }
 
     @Override
@@ -128,9 +150,11 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         if (mark.getTimestamp() > currentWatermark) {
             currentWatermark = mark.getTimestamp();
             if (currentWatermark >= nextTriggerWatermark) {
-                // we only need to call advanceProgress() when currentWatermark may trigger window
+                // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);
-                nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
+                nextTriggerWatermark =
+                        getNextTriggerWatermark(
+                                currentWatermark, windowInterval, shiftTimezone, useDayLightSaving);
             }
         }
         super.processWatermark(mark);
@@ -176,9 +200,24 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     //  Utilities
     // ------------------------------------------------------------------------
     /** Method to get the next watermark to trigger window. */
-    private static long getNextTriggerWatermark(long currentWatermark, long interval) {
-        long start = TimeWindow.getWindowStartWithOffset(currentWatermark, 0L, interval);
-        long triggerWatermark = start + interval - 1;
+    private static long getNextTriggerWatermark(
+            long currentWatermark, long interval, ZoneId shiftTimezone, boolean useDayLightSaving) {
+        if (currentWatermark == Long.MAX_VALUE) {
+            return currentWatermark;
+        }
+
+        long triggerWatermark;
+        // consider the DST timezone
+        if (useDayLightSaving) {
+            long utcWindowStart =
+                    getWindowStartWithOffset(
+                            toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
+            triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
+        } else {
+            long start = getWindowStartWithOffset(currentWatermark, 0L, interval);
+            triggerWatermark = start + interval - 1;
+        }
+
         if (triggerWatermark > currentWatermark) {
             return triggerWatermark;
         } else {

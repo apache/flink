@@ -98,6 +98,7 @@ public class PlannerTypeUtils {
                 && t2.getTypeRoot().getFamilies().contains(BINARY_STRING)) {
             return true;
         }
+
         if (t1.getTypeRoot() != t2.getTypeRoot()) {
             return false;
         }
