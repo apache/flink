@@ -62,6 +62,7 @@ import java.time.ZoneId;
 import java.util.Collection;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -419,9 +420,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         if (!windowAssigner.isEventTime()) {
-            windowFunction.cleanWindowIfNeeded(
-                    triggerContext.window,
-                    TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
+            windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
 
@@ -434,7 +433,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
      * @param window the window whose state to discard
      */
     private void registerCleanupTimer(W window) {
-        long cleanupTime = cleanupTime(window);
+        long cleanupTime = toEpochMillsForTimer(cleanupTime(window), shiftTimeZone);
         if (cleanupTime == Long.MAX_VALUE) {
             // don't set a GC timer for "end of time"
             return;
@@ -496,6 +495,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
+        }
+
+        @Override
         public RowData getWindowAccumulators(W window) throws Exception {
             windowState.setCurrentNamespace(window);
             return windowState.value();
@@ -530,7 +534,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void deleteCleanupTimer(W window) throws Exception {
-            long cleanupTime = cleanupTime(window);
+            long cleanupTime = toEpochMillsForTimer(cleanupTime(window), shiftTimeZone);
             if (cleanupTime == Long.MAX_VALUE) {
                 // no need to clean up because we didn't set one
                 return;
@@ -569,8 +573,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         boolean onProcessingTime(long time) throws Exception {
-            return trigger.onProcessingTime(
-                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
+            return trigger.onProcessingTime(time, window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -598,8 +601,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void registerProcessingTimeTimer(long time) {
-            internalTimerService.registerProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
+            internalTimerService.registerProcessingTimeTimer(window, time);
         }
 
         @Override
@@ -609,13 +611,17 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void deleteProcessingTimeTimer(long time) {
-            internalTimerService.deleteProcessingTimeTimer(
-                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
+            internalTimerService.deleteProcessingTimeTimer(window, time);
         }
 
         @Override
         public void deleteEventTimeTimer(long time) {
             internalTimerService.deleteEventTimeTimer(window, time);
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
         }
 
         public void clear() throws Exception {

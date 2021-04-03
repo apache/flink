@@ -95,7 +95,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
   def testMixedTimeIndicators(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Non rowtime timeAttribute [TIME ATTRIBUTE(PROCTIME)] passed as the argument " +
+      "Non rowtime timeAttribute [TIMESTAMP_LTZ(3) *PROCTIME*] passed as the argument " +
         "to TemporalTableFunction")
 
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)

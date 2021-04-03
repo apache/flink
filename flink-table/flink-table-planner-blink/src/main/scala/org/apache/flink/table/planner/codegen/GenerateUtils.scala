@@ -509,8 +509,13 @@ object GenerateUtils {
 
   def generateRowtimeAccess(
       ctx: CodeGeneratorContext,
-      contextTerm: String): GeneratedExpression = {
-    val resultType = new TimestampType(true, TimestampKind.ROWTIME, 3)
+      contextTerm: String,
+      isTimestampLtz: Boolean): GeneratedExpression = {
+    val resultType = if (isTimestampLtz) {
+      new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 3)
+    } else {
+      new TimestampType(true, TimestampKind.ROWTIME, 3)
+    }
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val Seq(resultTerm, nullTerm, timestamp) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),

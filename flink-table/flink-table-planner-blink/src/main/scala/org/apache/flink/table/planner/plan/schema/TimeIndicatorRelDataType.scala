@@ -23,6 +23,8 @@ import org.apache.calcite.sql.`type`.BasicSqlType
 
 import java.lang
 
+import org.apache.calcite.sql.`type`.SqlTypeName.TIMESTAMP
+
 /**
   * Creates a time indicator type for event-time or processing-time, but with similar properties
   * as a basic SQL type.
@@ -45,7 +47,11 @@ class TimeIndicatorRelDataType(
   }
 
   override def toString: String = {
-    s"TIME ATTRIBUTE(${if (isEventTime) "ROWTIME" else "PROCTIME"})"
+    // Calcite caches type instance by the type string representation in
+    // org.apache.calcite.rel.type.RelDataTypeFactoryImpl, thus we use
+    // unique name for each TimeIndicatorRelDataType
+    s"${if (typeName == TIMESTAMP) "TIMESTAMP(3)" else "TIMESTAMP_LTZ(3)"}" +
+      s" ${if (isEventTime) "*ROWTIME*" else "*PROCTIME*"}"
   }
 
   override def generateTypeString(sb: lang.StringBuilder, withDetail: Boolean): Unit = {

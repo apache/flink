@@ -20,7 +20,7 @@
         "schema.1.data-type" : "VARCHAR(2147483647)"
       }
     },
-    "id" : 128,
+    "id" : 86,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -59,11 +59,12 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
     "condition" : null,
-    "id" : 129,
+    "id" : 87,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -90,7 +91,7 @@
     "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 130,
+    "id" : 88,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -407,7 +408,7 @@
       },
       "interval" : null
     },
-    "id" : 131,
+    "id" : 89,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -448,7 +449,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 132,
+    "id" : 90,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -470,29 +471,29 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[aid, bid, cid])"
   } ],
   "edges" : [ {
-    "source" : 128,
-    "target" : 129,
+    "source" : 86,
+    "target" : 87,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 129,
-    "target" : 130,
+    "source" : 87,
+    "target" : 88,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 130,
-    "target" : 131,
+    "source" : 88,
+    "target" : 89,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 131,
-    "target" : 132,
+    "source" : 89,
+    "target" : 90,
     "shuffle" : {
       "type" : "FORWARD"
     },

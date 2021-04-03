@@ -30,7 +30,10 @@ import org.apache.flink.table.runtime.util.collections.binary.BytesMap.LookupInf
 import org.apache.flink.table.runtime.util.collections.binary.WindowBytesMultiMap;
 
 import java.io.EOFException;
+import java.time.ZoneId;
 import java.util.Iterator;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
  * An implementation of {@link WindowBuffer} that buffers input elements in a {@link
@@ -42,8 +45,9 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     private final WindowBytesMultiMap recordsBuffer;
     private final WindowKey reuseWindowKey;
     private final AbstractRowDataSerializer<RowData> recordSerializer;
+    private final ZoneId shiftTimeZone;
 
-    private long minTriggerTime = Long.MAX_VALUE;
+    private long minSliceEnd = Long.MAX_VALUE;
 
     public RecordsWindowBuffer(
             Object operatorOwner,
@@ -51,13 +55,15 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             long memorySize,
             WindowCombineFunction combineFunction,
             PagedTypeSerializer<RowData> keySer,
-            AbstractRowDataSerializer<RowData> inputSer) {
+            AbstractRowDataSerializer<RowData> inputSer,
+            ZoneId shiftTimeZone) {
         this.combineFunction = combineFunction;
         this.recordsBuffer =
                 new WindowBytesMultiMap(
                         operatorOwner, memoryManager, memorySize, keySer, inputSer.getArity());
         this.recordSerializer = inputSer;
         this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -65,7 +71,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
         // track the lowest trigger time, if watermark exceeds the trigger time,
         // it means there are some elements in the buffer belong to a window going to be fired,
         // and we need to flush the buffer into state for firing.
-        minTriggerTime = Math.min(sliceEnd - 1, minTriggerTime);
+        minSliceEnd = Math.min(sliceEnd, minSliceEnd);
 
         reuseWindowKey.replace(sliceEnd, key);
         LookupInfo<WindowKey, Iterator<RowData>> lookup = recordsBuffer.lookup(reuseWindowKey);
@@ -81,7 +87,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        if (progress >= minTriggerTime) {
+        if (isWindowFired(minSliceEnd, progress, shiftTimeZone)) {
             // there should be some window to be fired, flush buffer to state first
             flush();
         }
@@ -97,7 +103,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             }
             recordsBuffer.reset();
             // reset trigger time
-            minTriggerTime = Long.MAX_VALUE;
+            minSliceEnd = Long.MAX_VALUE;
         }
     }
 
@@ -129,9 +135,16 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowCombineFunction combineFunction) {
+                WindowCombineFunction combineFunction,
+                ZoneId shiftTimeZone) {
             return new RecordsWindowBuffer(
-                    operatorOwner, memoryManager, memorySize, combineFunction, keySer, inputSer);
+                    operatorOwner,
+                    memoryManager,
+                    memorySize,
+                    combineFunction,
+                    keySer,
+                    inputSer,
+                    shiftTimeZone);
         }
     }
 }

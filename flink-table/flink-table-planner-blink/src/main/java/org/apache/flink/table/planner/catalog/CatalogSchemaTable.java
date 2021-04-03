@@ -53,8 +53,8 @@ import org.apache.calcite.schema.impl.AbstractTable;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 
 /**
  * Represents a wrapper for {@link CatalogBaseTable} in {@link org.apache.calcite.schema.Schema}.
@@ -146,7 +146,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                 if (lt instanceof TimestampType && isRowtimeAttribute(lt)) {
                     int precision = ((TimestampType) lt).getPrecision();
                     fieldDataTypes[i] = DataTypes.TIMESTAMP(precision);
-                } else if (lt instanceof LocalZonedTimestampType && isProctimeAttribute(lt)) {
+                } else if (lt instanceof LocalZonedTimestampType && isTimeAttribute(lt)) {
                     int precision = ((LocalZonedTimestampType) lt).getPrecision();
                     fieldDataTypes[i] = DataTypes.TIMESTAMP_LTZ(precision);
                 }

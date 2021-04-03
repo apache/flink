@@ -152,7 +152,7 @@ class WindowDistinctAggregateITCase(
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
     FailingCollectionSource.reset()
 
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.executeSql(
       s"""
          |CREATE TABLE T1 (

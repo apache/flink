@@ -804,7 +804,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateProctimeTimestamp(ctx, contextTerm)
 
       case STREAMRECORD_TIMESTAMP =>
-        generateRowtimeAccess(ctx, contextTerm)
+        generateRowtimeAccess(ctx, contextTerm, false)
 
       case _: SqlThrowExceptionFunction =>
         val nullValue = generateNullLiteral(resultType, nullCheck = true)

@@ -37,11 +37,15 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 import java.util
+import java.time.ZoneId
 
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBackendMode)
+class WindowAggregateITCase(
+    aggPhase: AggregatePhaseStrategy,
+    state: StateBackendMode,
+    useTimestampLtz: Boolean)
   extends StreamingWithStateTestBase(state) {
 
   // -------------------------------------------------------------------------------
@@ -127,6 +131,8 @@ class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBacken
 
   val CumulateWindowRollupExpectedData = CumulateWindowGroupSetExpectedData
 
+  val SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai")
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -136,27 +142,32 @@ class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBacken
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
     FailingCollectionSource.reset()
 
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
+    val timestampLtzDataId = TestValuesTableFactory
+      .registerData(TestData.windowDataWithLtzInShanghai)
+
     tEnv.executeSql(
       s"""
         |CREATE TABLE T1 (
-        | `ts` STRING,
+        | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
         | `int` INT,
         | `double` DOUBLE,
         | `float` FLOAT,
         | `bigdec` DECIMAL(10, 2),
         | `string` STRING,
         | `name` STRING,
-        | `rowtime` AS TO_TIMESTAMP(`ts`),
+        | `rowtime` AS
+        | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
         |) WITH (
         | 'connector' = 'values',
-        | 'data-id' = '$dataId',
+        | 'data-id' = '${ if (useTimestampLtz) timestampLtzDataId else timestampDataId}',
         | 'failing-source' = 'true'
         |)
         |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
+    tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
     tEnv.getConfig.getConfiguration.setString(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       aggPhase.toString)
@@ -301,13 +312,24 @@ class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBacken
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "a,2020-10-10T00:00,2020-10-10T00:00:05,2020-10-10T00:00:04.999,4",
-      "a,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999,1",
-      "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999,2",
-      "b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-10T00:00:19.999,1",
-      "b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1",
-      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1")
+    val expected = if (useTimestampLtz) {
+      Seq(
+        "a,2020-10-10T00:00,2020-10-10T00:00:05,2020-10-09T16:00:04.999Z,4",
+        "a,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-09T16:00:09.999Z,1",
+        "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-09T16:00:09.999Z,2",
+        "b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-09T16:00:19.999Z,1",
+        "b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-09T16:00:34.999Z,1",
+        "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-09T16:00:34.999Z,1"
+      )
+    } else {
+      Seq(
+        "a,2020-10-10T00:00,2020-10-10T00:00:05,2020-10-10T00:00:04.999,4",
+        "a,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999,1",
+        "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2020-10-10T00:00:09.999,2",
+        "b,2020-10-10T00:00:15,2020-10-10T00:00:20,2020-10-10T00:00:19.999,1",
+        "b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1",
+        "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1")
+    }
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
@@ -640,12 +662,14 @@ class WindowAggregateITCase(aggPhase: AggregatePhaseStrategy, state: StateBacken
 }
 
 object WindowAggregateITCase {
-  @Parameterized.Parameters(name = "AggPhase={0}, StateBackend={1}")
+
+  @Parameterized.Parameters(name = "AggPhase={0}, StateBackend={1}, UseTimestampLtz = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(ONE_PHASE, HEAP_BACKEND),
-      Array(TWO_PHASE, HEAP_BACKEND),
-      Array(ONE_PHASE, ROCKSDB_BACKEND),
-      Array(TWO_PHASE, ROCKSDB_BACKEND))
+      // we do not test all cases to simplify the test matrix
+      Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.TRUE),
+      Array(TWO_PHASE, HEAP_BACKEND, java.lang.Boolean.FALSE),
+      Array(ONE_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.FALSE),
+      Array(TWO_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.TRUE))
   }
 }

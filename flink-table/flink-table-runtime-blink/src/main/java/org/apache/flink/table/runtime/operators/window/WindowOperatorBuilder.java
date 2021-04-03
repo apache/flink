@@ -73,7 +73,7 @@ public class WindowOperatorBuilder {
     protected long allowedLateness = 0L;
     protected boolean produceUpdates = false;
     protected int rowtimeIndex = -1;
-    protected ZoneId shiftTimeZone;
+    protected ZoneId shiftTimeZone = ZoneId.of("UTC");
 
     public static WindowOperatorBuilder builder() {
         return new WindowOperatorBuilder();

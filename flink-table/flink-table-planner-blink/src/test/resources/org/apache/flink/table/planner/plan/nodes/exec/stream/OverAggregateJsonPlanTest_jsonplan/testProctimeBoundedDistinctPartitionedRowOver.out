@@ -47,7 +47,7 @@
         }
       } ]
     },
-    "id" : 114,
+    "id" : 78,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -92,6 +92,7 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     }, {
@@ -104,7 +105,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 115,
+    "id" : 79,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -148,7 +149,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 116,
+    "id" : 80,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -201,11 +202,12 @@
       "inputIndex" : 2,
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
     "condition" : null,
-    "id" : 117,
+    "id" : 81,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -232,7 +234,7 @@
     "description" : "Calc(select=[a, c, proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 118,
+    "id" : 82,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -332,7 +334,7 @@
       } ],
       "originalInputFields" : 3
     },
-    "id" : 119,
+    "id" : 83,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -455,7 +457,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 120,
+    "id" : 84,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -496,7 +498,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 121,
+    "id" : 85,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -518,50 +520,50 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 114,
-    "target" : 115,
+    "source" : 78,
+    "target" : 79,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 115,
-    "target" : 116,
+    "source" : 79,
+    "target" : 80,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 116,
-    "target" : 117,
+    "source" : 80,
+    "target" : 81,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 117,
-    "target" : 118,
+    "source" : 81,
+    "target" : 82,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 118,
-    "target" : 119,
+    "source" : 82,
+    "target" : 83,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 119,
-    "target" : 120,
+    "source" : 83,
+    "target" : 84,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 120,
-    "target" : 121,
+    "source" : 84,
+    "target" : 85,
     "shuffle" : {
       "type" : "FORWARD"
     },

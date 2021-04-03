@@ -22,12 +22,12 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
@@ -45,7 +45,7 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutab
 public final class AggRecordsCombiner implements WindowCombineFunction {
 
     /** The service to register event-time or processing-time timers. */
-    private final InternalTimerService<Long> timerService;
+    private final WindowTimerService<Long> timerService;
 
     /** Context to switch current key for states. */
     private final StateKeyContext keyContext;
@@ -69,7 +69,7 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
     private final boolean isEventTime;
 
     public AggRecordsCombiner(
-            InternalTimerService<Long> timerService,
+            WindowTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> aggregator,
@@ -129,7 +129,7 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
 
         // step 5: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeTimer(window, window - 1);
+            timerService.registerEventTimeWindowTimer(window);
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()
@@ -165,7 +165,7 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
         @Override
         public WindowCombineFunction create(
                 RuntimeContext runtimeContext,
-                InternalTimerService<Long> timerService,
+                WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
                 boolean isEventTime)
