@@ -671,6 +671,16 @@ class RexTimeIndicatorMaterializer(
            FlinkSqlOperatorTable.TUMBLE_OLD =>
         updatedCall.getOperands.toList
 
+      // The type of FINAL(MATCH_ROWTIME) is inferred by first operand's type,
+      // but the initial type of MATCH_ROWTIME is TIMESTAMP(3) *ROWTIME*
+      // rewrite the return type of according to the final type of MATCH_ROWTIME
+      case FINAL if updatedCall.getOperands.size() == 1
+        && isMatchTimeIndicator(updatedCall.getOperands.get(0)) =>
+        val rowtimeType = updatedCall.getOperands.get(0).getType
+        updatedCall.clone(
+          rowtimeType.asInstanceOf[TimeIndicatorRelDataType].originalType,
+          updatedCall.getOperands).getOperands.toList
+
       case _ =>
         updatedCall.getOperands.map { o =>
           if (isTimeIndicatorType(o.getType)) {
@@ -704,7 +714,10 @@ class RexTimeIndicatorMaterializer(
       // extraction
       case FINAL if updatedCall.getOperands.size() == 1
         && isMatchTimeIndicator(updatedCall.getOperands.get(0)) =>
-        updatedCall
+        val rowtimeType = updatedCall.getOperands.get(0).getType
+        updatedCall.clone(
+          rowtimeType,
+          materializedOperands)
 
       case FlinkSqlOperatorTable.MATCH_ROWTIME if isTimeIndicatorType(updatedCall.getType) =>
         val rowtimeType = input.filter(isTimeIndicatorType).head

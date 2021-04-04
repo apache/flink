@@ -162,7 +162,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
         /** Returns the current event-time watermark. */
         long currentWatermark();
 
-        /** Returns the shifted timezone of the window */
+        /** Returns the shifted timezone of the window. */
         ZoneId getShiftTimeZone();
 
         /** Gets the accumulators of the given window. */

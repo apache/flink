@@ -121,7 +121,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     /**
      * Function used to access a event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
-     * MATCH_RECOGNIZE.
+     * MATCH_RECOGNIZE, for TIMESTAMP_LTZ type, we rewrite the return type in
+     * [org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter].
      */
     public static final SqlFunction MATCH_ROWTIME =
             new CalciteSqlFunction(

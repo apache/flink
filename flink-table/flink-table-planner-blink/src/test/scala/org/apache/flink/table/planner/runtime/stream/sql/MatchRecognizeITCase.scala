@@ -369,7 +369,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    tEnv.getConfig.setLocalTimeZone(ZoneId.of("UTC"))
     val data: Seq[Row] = Seq(
       //first window
       rowOf("ACME", Instant.ofEpochMilli(1), 1, 1),
@@ -427,7 +426,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       "ACME,2,1970-01-01T00:00:05.999,1970-01-01T00:00:03")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
-
 
   @Test
   def testLogicalOffsets(): Unit = {
