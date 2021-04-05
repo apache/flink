@@ -74,8 +74,7 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
         source.setParallelism(1);
 
         SinkFunction<Row> sink =
-                new SinkFunction<>() {
-
+                new SinkFunction<Row>() {
                     @Override
                     public void invoke(Row value, Context context) throws Exception {
                         count.incrementAndGet();

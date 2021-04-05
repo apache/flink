@@ -89,7 +89,7 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
 
             final int index = t;
             source.addSink(
-                    new SinkFunction<>() {
+                    new SinkFunction<Row>() {
                         @Override
                         public void invoke(Row value, Context context) throws Exception {
                             count[index].incrementAndGet();
