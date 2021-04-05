@@ -35,9 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- *
- */
+/** */
 public class RedisStreamConsumerITCase extends RedisITCaseBase {
 
     private static final int NUM_ELEMENTS = 4;
@@ -66,18 +64,23 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
     public void redisConsumer() throws Exception {
         populate(jedis);
 
-        DataStreamSource<Row> source = env.addSource(new RedisStreamConsumer<>(
-                getDefaultConfigProperties(), StartupMode.EARLIEST, new SchemalessDataRowToMap(),
-                REDIS_KEY));
+        DataStreamSource<Row> source =
+                env.addSource(
+                        new RedisStreamConsumer<>(
+                                getDefaultConfigProperties(),
+                                StartupMode.EARLIEST,
+                                new SchemalessDataRowToMap(),
+                                REDIS_KEY));
         source.setParallelism(1);
 
-        SinkFunction<Row> sink = new SinkFunction<>() {
+        SinkFunction<Row> sink =
+                new SinkFunction<>() {
 
-            @Override
-            public void invoke(Row value, Context context) throws Exception {
-                count.incrementAndGet();
-            }
-        };
+                    @Override
+                    public void invoke(Row value, Context context) throws Exception {
+                        count.incrementAndGet();
+                    }
+                };
         source.addSink(sink);
 
         env.execute("Test Redis Row Consumer");
@@ -94,5 +97,4 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
             iJedis.xadd(REDIS_KEY, StreamEntryID.NEW_ENTRY, map);
         }
     }
-
 }

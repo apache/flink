@@ -25,12 +25,10 @@ import redis.clients.jedis.Jedis;
 
 import java.util.Properties;
 
-/**
- *
- */
+/** */
 public abstract class RedisITCaseBase extends AbstractTestBase {
 
-//    public static final int REDIS_PORT = getAvailablePort();
+    //    public static final int REDIS_PORT = getAvailablePort();
     public static final int REDIS_PORT = 6379;
     public static final String REDIS_HOST = "127.0.0.1";
 

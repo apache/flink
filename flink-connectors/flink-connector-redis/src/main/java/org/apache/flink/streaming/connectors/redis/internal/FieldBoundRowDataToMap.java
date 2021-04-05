@@ -25,9 +25,7 @@ import org.apache.flink.table.data.RowData;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- *
- */
+/** */
 public class FieldBoundRowDataToMap implements MapConverter<RowData>, DataConverter<RowData> {
 
     private final String[] fieldNames;

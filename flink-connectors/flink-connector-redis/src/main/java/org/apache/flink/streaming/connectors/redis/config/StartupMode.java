@@ -23,29 +23,18 @@ package org.apache.flink.streaming.connectors.redis.config;
  */
 public enum StartupMode {
 
-    /**
-     * Start from the earliest offset possible.
-     */
+    /** Start from the earliest offset possible. */
     EARLIEST,
 
-    /**
-     * Start from user-supplied timestamp for each partition.
-     */
+    /** Start from user-supplied timestamp for each partition. */
     TIMESTAMP,
 
-    /**
-     * Start from user-supplied specific offsets for each partition.
-     */
+    /** Start from user-supplied specific offsets for each partition. */
     SPECIFIC_OFFSETS,
 
-    /**
-     * Start from the latest offset.
-     */
+    /** Start from the latest offset. */
     LATEST,
 
-    /**
-     * Start from latest group offset.
-     */
+    /** Start from latest group offset. */
     GROUP_OFFSETS
-
 }

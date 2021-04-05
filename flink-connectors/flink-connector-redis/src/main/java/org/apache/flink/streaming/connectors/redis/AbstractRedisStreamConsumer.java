@@ -31,16 +31,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-/**
- *
- * @param <T>
- */
+/** @param <T> */
 public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T> {
 
     protected final Entry<String, StreamEntryID>[] streamEntryIds;
     private final Map<String, Integer> keyIndex = new HashMap<>();
 
-    public AbstractRedisStreamConsumer(StartupMode startupMode, String[] streamKeys, Properties configProps) {
+    public AbstractRedisStreamConsumer(
+            StartupMode startupMode, String[] streamKeys, Properties configProps) {
         super(Arrays.asList(streamKeys), configProps);
         final StreamEntryID streamEntryID;
         switch (startupMode) {
@@ -54,7 +52,8 @@ public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T
                 streamEntryID = StreamEntryID.UNRECEIVED_ENTRY;
                 break;
             case SPECIFIC_OFFSETS:
-                throw new RuntimeException("Use the constructor with 'StreamEntryID[] streamIds' as param");
+                throw new RuntimeException(
+                        "Use the constructor with 'StreamEntryID[] streamIds' as param");
             case TIMESTAMP:
                 throw new RuntimeException("Use the constructor with 'Long[] timestamps' param");
             default:
@@ -64,22 +63,26 @@ public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T
         initializeKeyIndex();
     }
 
-    public AbstractRedisStreamConsumer(String[] streamKeys, Long[] timestamps, Properties configProps) {
+    public AbstractRedisStreamConsumer(
+            String[] streamKeys, Long[] timestamps, Properties configProps) {
         this(streamKeys, streamEntryIds(timestamps), configProps);
     }
 
-    public AbstractRedisStreamConsumer(String[] streamKeys, StreamEntryID[] streamIds, Properties configProps) {
+    public AbstractRedisStreamConsumer(
+            String[] streamKeys, StreamEntryID[] streamIds, Properties configProps) {
         this(prepareStreamEntryIds(streamKeys, streamIds), configProps);
     }
 
-    private AbstractRedisStreamConsumer(Entry<String, StreamEntryID>[] streamIds, Properties configProps) {
+    private AbstractRedisStreamConsumer(
+            Entry<String, StreamEntryID>[] streamIds, Properties configProps) {
         super(null, configProps);
         this.streamEntryIds = streamIds;
         initializeKeyIndex();
     }
 
     @Override
-    protected final boolean readAndCollect(Jedis jedis, List<String> streamKeys, SourceContext<T> sourceContext) {
+    protected final boolean readAndCollect(
+            Jedis jedis, List<String> streamKeys, SourceContext<T> sourceContext) {
         boolean anyEntry = false;
         List<Entry<String, List<StreamEntry>>> response = read(jedis);
         if (response != null) {
@@ -97,7 +100,8 @@ public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T
 
     protected abstract List<Entry<String, List<StreamEntry>>> read(Jedis jedis);
 
-    protected abstract void collect(SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry);
+    protected abstract void collect(
+            SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry);
 
     protected void updateIdForKey(String streamKey, StreamEntryID streamEntryID) {
         int index = keyIndex.get(streamKey);
@@ -115,7 +119,8 @@ public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T
         }
     }
 
-    private static Entry<String, StreamEntryID>[] prepareStreamEntryIds(String[] streamKeys, StreamEntryID streamId) {
+    private static Entry<String, StreamEntryID>[] prepareStreamEntryIds(
+            String[] streamKeys, StreamEntryID streamId) {
         Entry<?, ?>[] streams = new Entry<?, ?>[streamKeys.length];
         for (int i = 0; i < streamKeys.length; i++) {
             streams[i] = new SimpleEntry<>(streamKeys[i], streamId);
@@ -123,7 +128,8 @@ public abstract class AbstractRedisStreamConsumer<T> extends RedisConsumerBase<T
         return (Entry<String, StreamEntryID>[]) streams;
     }
 
-    private static Entry<String, StreamEntryID>[] prepareStreamEntryIds(String[] streamKeys, StreamEntryID[] streamIds) {
+    private static Entry<String, StreamEntryID>[] prepareStreamEntryIds(
+            String[] streamKeys, StreamEntryID[] streamIds) {
         Entry<?, ?>[] streams = new Entry<?, ?>[streamKeys.length];
         for (int i = 0; i < streamKeys.length; i++) {
             streams[i] = new SimpleEntry<>(streamKeys[i], streamIds[i]);

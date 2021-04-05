@@ -32,9 +32,7 @@ import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- *
- */
+/** */
 public class RedisStreamProducerITCase extends RedisITCaseBase {
 
     private static final int NUM_ELEMENTS = 4;
@@ -60,8 +58,9 @@ public class RedisStreamProducerITCase extends RedisITCaseBase {
     public void redisProducer() throws Exception {
         DataStreamSource<Row> source = env.addSource(new TestRowSourceFunction());
 
-        SinkFunction<Row> producer = new FlinkRedisStreamProducer<>(new SchemalessDataRowToMap(),
-                REDIS_KEY, getDefaultConfigProperties());
+        SinkFunction<Row> producer =
+                new FlinkRedisStreamProducer<>(
+                        new SchemalessDataRowToMap(), REDIS_KEY, getDefaultConfigProperties());
         source.addSink(producer);
 
         env.execute("Test Redis Stream Producer");
@@ -93,5 +92,4 @@ public class RedisStreamProducerITCase extends RedisITCaseBase {
             running = false;
         }
     }
-
 }

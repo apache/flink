@@ -27,10 +27,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-/**
- *
- * @param <T>
- */
+/** @param <T> */
 public class RedisStreamGroupConsumer<T> extends AbstractRedisStreamConsumer<T> {
 
     private final String group;
@@ -38,29 +35,54 @@ public class RedisStreamGroupConsumer<T> extends AbstractRedisStreamConsumer<T> 
 
     private final DataConverter<T> dataConverter;
 
-    public RedisStreamGroupConsumer(String groupName, String consumerName, DataConverter<T> dataConverter,
-                                    String streamKey, Properties config) {
-        this(groupName, consumerName, StartupMode.GROUP_OFFSETS, dataConverter, new String[]{streamKey}, config);
+    public RedisStreamGroupConsumer(
+            String groupName,
+            String consumerName,
+            DataConverter<T> dataConverter,
+            String streamKey,
+            Properties config) {
+        this(
+                groupName,
+                consumerName,
+                StartupMode.GROUP_OFFSETS,
+                dataConverter,
+                new String[] {streamKey},
+                config);
     }
 
-    public RedisStreamGroupConsumer(String groupName, String consumerName, StartupMode startupMode,
-                                    DataConverter<T> dataConverter, String[] streamKeys, Properties config) {
+    public RedisStreamGroupConsumer(
+            String groupName,
+            String consumerName,
+            StartupMode startupMode,
+            DataConverter<T> dataConverter,
+            String[] streamKeys,
+            Properties config) {
         super(startupMode, streamKeys, config);
         this.group = groupName;
         this.consumer = consumerName;
         this.dataConverter = dataConverter;
     }
 
-    public RedisStreamGroupConsumer(String groupName, String consumerName, DataConverter<T> dataConverter,
-                                    String[] streamKeys, Long[] timestamps, Properties config) {
+    public RedisStreamGroupConsumer(
+            String groupName,
+            String consumerName,
+            DataConverter<T> dataConverter,
+            String[] streamKeys,
+            Long[] timestamps,
+            Properties config) {
         super(streamKeys, timestamps, config);
         this.group = groupName;
         this.consumer = consumerName;
         this.dataConverter = dataConverter;
     }
 
-    public RedisStreamGroupConsumer(String groupName, String consumerName, DataConverter<T> dataConverter,
-                                    String[] streamKeys, StreamEntryID[] streamIds, Properties config) {
+    public RedisStreamGroupConsumer(
+            String groupName,
+            String consumerName,
+            DataConverter<T> dataConverter,
+            String[] streamKeys,
+            StreamEntryID[] streamIds,
+            Properties config) {
         super(streamKeys, streamIds, config);
         this.group = groupName;
         this.consumer = consumerName;
@@ -73,7 +95,8 @@ public class RedisStreamGroupConsumer<T> extends AbstractRedisStreamConsumer<T> 
     }
 
     @Override
-    protected void collect(SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry) {
+    protected void collect(
+            SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry) {
         sourceContext.collect(dataConverter.toData(streamEntry.getFields()));
     }
 }

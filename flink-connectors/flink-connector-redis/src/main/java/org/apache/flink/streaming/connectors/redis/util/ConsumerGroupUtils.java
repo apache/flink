@@ -22,20 +22,30 @@ import org.apache.flink.streaming.connectors.redis.config.StartupMode;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.StreamEntryID;
 
-/**
- *
- */
+/** */
 public final class ConsumerGroupUtils {
 
-    public static void createConsumerGroup(Jedis jedis, String streamKey, String groupName, StreamEntryID streamEntryID, boolean createStreamIfAbsent) {
+    public static void createConsumerGroup(
+            Jedis jedis,
+            String streamKey,
+            String groupName,
+            StreamEntryID streamEntryID,
+            boolean createStreamIfAbsent) {
         jedis.xgroupCreate(streamKey, groupName, streamEntryID, createStreamIfAbsent);
     }
-//
-//    public static void createConsumerGroup(Jedis jedis, String streamKey, String groupName, long timestamp, boolean createStreamIfAbsent) {
-//        createConsumerGroup(jedis, streamKey, groupName, new StreamEntryID(timestamp, 0L), createStreamIfAbsent);
-//    }
+    //
+    //    public static void createConsumerGroup(Jedis jedis, String streamKey, String groupName,
+    // long timestamp, boolean createStreamIfAbsent) {
+    //        createConsumerGroup(jedis, streamKey, groupName, new StreamEntryID(timestamp, 0L),
+    // createStreamIfAbsent);
+    //    }
 
-    public static void createConsumerGroup(Jedis jedis, String streamKey, String groupName, StartupMode startupMode, boolean createStreamIfAbsent) {
+    public static void createConsumerGroup(
+            Jedis jedis,
+            String streamKey,
+            String groupName,
+            StartupMode startupMode,
+            boolean createStreamIfAbsent) {
         final StreamEntryID streamEntryID;
         switch (startupMode) {
             case EARLIEST:
@@ -49,7 +59,8 @@ public final class ConsumerGroupUtils {
             case TIMESTAMP:
                 throw new RuntimeException("Use the method with 'long timestamp' param");
             default:
-                throw new RuntimeException("Consumer Group cannot be initialized from " + startupMode);
+                throw new RuntimeException(
+                        "Consumer Group cannot be initialized from " + startupMode);
         }
         createConsumerGroup(jedis, streamKey, groupName, streamEntryID, createStreamIfAbsent);
     }

@@ -31,10 +31,7 @@ import java.util.Properties;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- *
- * @param <T>
- */
+/** @param <T> */
 public abstract class RedisConsumerBase<T> extends RichParallelSourceFunction<T> {
 
     protected static final Logger LOG = LoggerFactory.getLogger(RedisConsumerBase.class);
@@ -45,9 +42,7 @@ public abstract class RedisConsumerBase<T> extends RichParallelSourceFunction<T>
 
     private final List<String> keys;
 
-    /**
-     * Flag indicating whether the consumer is still running.
-     */
+    /** Flag indicating whether the consumer is still running. */
     private volatile boolean running = true;
 
     public RedisConsumerBase(List<String> keys, Properties configProps) {
@@ -62,7 +57,8 @@ public abstract class RedisConsumerBase<T> extends RichParallelSourceFunction<T>
             for (String key : keys) {
                 sb.append(key).append(", ");
             }
-            LOG.info("Flink Redis Stream Consumer is going to read the following streams: {}",
+            LOG.info(
+                    "Flink Redis Stream Consumer is going to read the following streams: {}",
                     sb.toString());
         }
     }
@@ -89,7 +85,8 @@ public abstract class RedisConsumerBase<T> extends RichParallelSourceFunction<T>
         return new Jedis();
     }
 
-    protected abstract boolean readAndCollect(Jedis jedis, List<String> keys, SourceContext<T> sourceContext);
+    protected abstract boolean readAndCollect(
+            Jedis jedis, List<String> keys, SourceContext<T> sourceContext);
 
     @Override
     public void cancel() {

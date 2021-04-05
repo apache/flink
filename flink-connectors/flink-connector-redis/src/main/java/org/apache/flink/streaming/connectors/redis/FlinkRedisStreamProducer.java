@@ -23,15 +23,13 @@ import redis.clients.jedis.StreamEntryID;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- *
- * @param <OUT>
- */
+/** @param <OUT> */
 public class FlinkRedisStreamProducer<OUT> extends FlinkRedisProducerBase<OUT> {
 
     private final MapConverter<OUT> mapConverter;
 
-    public FlinkRedisStreamProducer(MapConverter<OUT> mapConverter, String streamKey, Properties configProps) {
+    public FlinkRedisStreamProducer(
+            MapConverter<OUT> mapConverter, String streamKey, Properties configProps) {
         super(streamKey, configProps);
         this.mapConverter = mapConverter;
     }
@@ -42,5 +40,4 @@ public class FlinkRedisStreamProducer<OUT> extends FlinkRedisProducerBase<OUT> {
         Map<String, String> map = mapConverter.toMap(value);
         jedis.xadd(streamKey, StreamEntryID.NEW_ENTRY, map);
     }
-
 }

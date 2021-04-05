@@ -35,9 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 
-/**
- *
- */
+/** */
 public class RedisStreamDynamicSource implements ScanTableSource {
 
     private static final ChangelogMode CHANGELOG_MODE = ChangelogMode.insertOnly();
@@ -48,9 +46,7 @@ public class RedisStreamDynamicSource implements ScanTableSource {
 
     private final Optional<String> consumerName;
 
-    /**
-     * The Redis key to consume.
-     */
+    /** The Redis key to consume. */
     private final String streamKey;
 
     /**
@@ -59,8 +55,8 @@ public class RedisStreamDynamicSource implements ScanTableSource {
     private final StartupMode startupMode;
 
     /**
-     * Specific startup offset; only relevant when startup mode is
-     * {@link StartupMode#SPECIFIC_OFFSETS}.
+     * Specific startup offset; only relevant when startup mode is {@link
+     * StartupMode#SPECIFIC_OFFSETS}.
      */
     private StreamEntryID streamEntryId;
 
@@ -82,7 +78,8 @@ public class RedisStreamDynamicSource implements ScanTableSource {
         this.streamKey = Preconditions.checkNotNull(streamKey, "Key must not be null.");
         this.groupName = groupName;
         this.consumerName = consumerName;
-        this.converter = Preconditions.checkNotNull(rowMapConverter, "RowMapConverter must not be null.");
+        this.converter =
+                Preconditions.checkNotNull(rowMapConverter, "RowMapConverter must not be null.");
         this.startupMode = Preconditions.checkNotNull(startupMode, "StartupMode must not be null.");
     }
 
@@ -91,7 +88,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String streamKey,
             StreamEntryID streamEntryId,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.empty(), Optional.empty(), streamKey, StartupMode.SPECIFIC_OFFSETS, rowMapConverter);
+        this(
+                config,
+                Optional.empty(),
+                Optional.empty(),
+                streamKey,
+                StartupMode.SPECIFIC_OFFSETS,
+                rowMapConverter);
         this.streamEntryId = streamEntryId;
     }
 
@@ -100,7 +103,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String streamKey,
             Long timestamp,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.empty(), Optional.empty(), streamKey, StartupMode.TIMESTAMP, rowMapConverter);
+        this(
+                config,
+                Optional.empty(),
+                Optional.empty(),
+                streamKey,
+                StartupMode.TIMESTAMP,
+                rowMapConverter);
         this.timestamp = timestamp;
     }
 
@@ -119,7 +128,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String streamKey,
             StreamEntryID streamEntryId,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.of(groupName), Optional.of(consumerName), streamKey, StartupMode.SPECIFIC_OFFSETS, rowMapConverter);
+        this(
+                config,
+                Optional.of(groupName),
+                Optional.of(consumerName),
+                streamKey,
+                StartupMode.SPECIFIC_OFFSETS,
+                rowMapConverter);
         this.streamEntryId = streamEntryId;
     }
 
@@ -130,7 +145,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String streamKey,
             Long timestamp,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.of(groupName), Optional.of(consumerName), streamKey, StartupMode.TIMESTAMP, rowMapConverter);
+        this(
+                config,
+                Optional.of(groupName),
+                Optional.of(consumerName),
+                streamKey,
+                StartupMode.TIMESTAMP,
+                rowMapConverter);
         this.timestamp = timestamp;
     }
 
@@ -141,7 +162,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String streamKey,
             StartupMode startupMode,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.of(groupName), Optional.of(consumerName), streamKey, startupMode, rowMapConverter);
+        this(
+                config,
+                Optional.of(groupName),
+                Optional.of(consumerName),
+                streamKey,
+                startupMode,
+                rowMapConverter);
     }
 
     public RedisStreamDynamicSource(
@@ -150,7 +177,13 @@ public class RedisStreamDynamicSource implements ScanTableSource {
             String consumerName,
             String streamKey,
             DataConverter<RowData> rowMapConverter) {
-        this(config, Optional.of(groupName), Optional.of(consumerName), streamKey, StartupMode.GROUP_OFFSETS, rowMapConverter);
+        this(
+                config,
+                Optional.of(groupName),
+                Optional.of(consumerName),
+                streamKey,
+                StartupMode.GROUP_OFFSETS,
+                rowMapConverter);
     }
 
     @Override
@@ -158,24 +191,40 @@ public class RedisStreamDynamicSource implements ScanTableSource {
         if (groupName.isPresent()) {
             switch (startupMode) {
                 case GROUP_OFFSETS:
-                    return new RedisStreamDynamicSource(config, groupName.get(), consumerName.get(),
-                            streamKey, converter);
+                    return new RedisStreamDynamicSource(
+                            config, groupName.get(), consumerName.get(), streamKey, converter);
                 case TIMESTAMP:
-                    return new RedisStreamDynamicSource(config, groupName.get(), consumerName.get(),
-                            streamKey, timestamp, converter);
+                    return new RedisStreamDynamicSource(
+                            config,
+                            groupName.get(),
+                            consumerName.get(),
+                            streamKey,
+                            timestamp,
+                            converter);
                 case SPECIFIC_OFFSETS:
-                    return new RedisStreamDynamicSource(config, groupName.get(), consumerName.get(),
-                            streamKey, streamEntryId, converter);
+                    return new RedisStreamDynamicSource(
+                            config,
+                            groupName.get(),
+                            consumerName.get(),
+                            streamKey,
+                            streamEntryId,
+                            converter);
                 default:
-                    return new RedisStreamDynamicSource(config, groupName.get(), consumerName.get(),
-                            streamKey, startupMode, converter);
+                    return new RedisStreamDynamicSource(
+                            config,
+                            groupName.get(),
+                            consumerName.get(),
+                            streamKey,
+                            startupMode,
+                            converter);
             }
         } else {
             switch (startupMode) {
                 case TIMESTAMP:
                     return new RedisStreamDynamicSource(config, streamKey, timestamp, converter);
                 case SPECIFIC_OFFSETS:
-                    return new RedisStreamDynamicSource(config, streamKey, streamEntryId, converter);
+                    return new RedisStreamDynamicSource(
+                            config, streamKey, streamEntryId, converter);
                 default:
                     return new RedisStreamDynamicSource(config, streamKey, startupMode, converter);
             }
@@ -235,30 +284,47 @@ public class RedisStreamDynamicSource implements ScanTableSource {
         if (groupName.isPresent()) {
             switch (startupMode) {
                 case GROUP_OFFSETS:
-                    return new RedisStreamGroupConsumer<>(groupName.get(), consumerName.get(),
-                            converter, streamKey, config);
+                    return new RedisStreamGroupConsumer<>(
+                            groupName.get(), consumerName.get(), converter, streamKey, config);
                 case TIMESTAMP:
-                    return new RedisStreamGroupConsumer<>(groupName.get(), consumerName.get(),
-                            converter, new String[]{streamKey}, new Long[]{timestamp}, config);
+                    return new RedisStreamGroupConsumer<>(
+                            groupName.get(),
+                            consumerName.get(),
+                            converter,
+                            new String[] {streamKey},
+                            new Long[] {timestamp},
+                            config);
                 case SPECIFIC_OFFSETS:
-                    return new RedisStreamGroupConsumer<>(groupName.get(), consumerName.get(),
-                            converter, new String[]{streamKey}, new StreamEntryID[]{streamEntryId}, config);
+                    return new RedisStreamGroupConsumer<>(
+                            groupName.get(),
+                            consumerName.get(),
+                            converter,
+                            new String[] {streamKey},
+                            new StreamEntryID[] {streamEntryId},
+                            config);
                 default:
-                    return new RedisStreamGroupConsumer<>(groupName.get(), consumerName.get(),
-                            startupMode, converter, new String[]{streamKey}, config);
+                    return new RedisStreamGroupConsumer<>(
+                            groupName.get(),
+                            consumerName.get(),
+                            startupMode,
+                            converter,
+                            new String[] {streamKey},
+                            config);
             }
         } else {
             switch (startupMode) {
                 case TIMESTAMP:
-                    return new RedisStreamConsumer<>(converter,
-                            new String[]{streamKey}, new Long[]{timestamp}, config);
+                    return new RedisStreamConsumer<>(
+                            converter, new String[] {streamKey}, new Long[] {timestamp}, config);
                 case SPECIFIC_OFFSETS:
-                    return new RedisStreamConsumer<>(converter,
-                            new String[]{streamKey}, new StreamEntryID[]{streamEntryId}, config);
+                    return new RedisStreamConsumer<>(
+                            converter,
+                            new String[] {streamKey},
+                            new StreamEntryID[] {streamEntryId},
+                            config);
                 default:
                     return new RedisStreamConsumer<>(config, startupMode, converter, streamKey);
             }
         }
-
     }
 }

@@ -29,10 +29,7 @@ import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- *
- * @param <OUT>
- */
+/** @param <OUT> */
 public abstract class FlinkRedisProducerBase<OUT> extends RichSinkFunction<OUT>
         implements CheckpointedFunction {
 
@@ -50,9 +47,7 @@ public abstract class FlinkRedisProducerBase<OUT> extends RichSinkFunction<OUT>
         this.configProps = configProps;
     }
 
-    /**
-     * Initializes the connection to Redis.
-     */
+    /** Initializes the connection to Redis. */
     @Override
     public void open(Configuration configuration) throws Exception {
         super.open(configuration);
@@ -78,7 +73,8 @@ public abstract class FlinkRedisProducerBase<OUT> extends RichSinkFunction<OUT>
         invoke(this.jedis, this.key, value, context);
     }
 
-    protected abstract void invoke(Jedis resource, String key, OUT value, Context context) throws Exception;
+    protected abstract void invoke(Jedis resource, String key, OUT value, Context context)
+            throws Exception;
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) {

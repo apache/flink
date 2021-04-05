@@ -20,10 +20,7 @@ package org.apache.flink.streaming.connectors.redis;
 import java.io.Serializable;
 import java.util.Map;
 
-/**
- *
- * @param <OUT>
- */
+/** @param <OUT> */
 public interface DataConverter<OUT> extends Serializable {
 
     OUT toData(Map<String, String> input);

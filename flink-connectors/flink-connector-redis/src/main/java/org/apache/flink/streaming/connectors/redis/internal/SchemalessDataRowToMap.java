@@ -24,13 +24,10 @@ import org.apache.flink.types.Row;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- *
- */
+/** */
 public class SchemalessDataRowToMap implements MapConverter<Row>, DataConverter<Row> {
 
-    public SchemalessDataRowToMap() {
-    }
+    public SchemalessDataRowToMap() {}
 
     @Override
     public Map<String, String> toMap(Row input) {

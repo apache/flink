@@ -38,12 +38,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- *
- */
+/** */
 public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RedisStreamGroupConsumerITCase.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(RedisStreamGroupConsumerITCase.class);
 
     private static final int NUM_THREADS = 3;
     private static final int NUM_ELEMENTS = 20;
@@ -73,22 +72,29 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
 
     @Test
     public void redisGroupConsumer() throws Exception {
-        ConsumerGroupUtils.createConsumerGroup(jedis, REDIS_KEY, GROUP_NAME, StartupMode.EARLIEST, true);
+        ConsumerGroupUtils.createConsumerGroup(
+                jedis, REDIS_KEY, GROUP_NAME, StartupMode.EARLIEST, true);
         populate(jedis);
 
         for (int t = 0; t < NUM_THREADS; t++) {
-            DataStreamSource<Row> source = env.addSource(new RedisStreamGroupConsumer<>(
-                    GROUP_NAME, "consumer" + t, new SchemalessDataRowToMap(), REDIS_KEY,
-                    getDefaultConfigProperties()));
+            DataStreamSource<Row> source =
+                    env.addSource(
+                            new RedisStreamGroupConsumer<>(
+                                    GROUP_NAME,
+                                    "consumer" + t,
+                                    new SchemalessDataRowToMap(),
+                                    REDIS_KEY,
+                                    getDefaultConfigProperties()));
             source.setParallelism(1);
 
             final int index = t;
-            source.addSink(new SinkFunction<>() {
-                @Override
-                public void invoke(Row value, Context context) throws Exception {
-                    count[index].incrementAndGet();
-                }
-            });
+            source.addSink(
+                    new SinkFunction<>() {
+                        @Override
+                        public void invoke(Row value, Context context) throws Exception {
+                            count[index].incrementAndGet();
+                        }
+                    });
         }
 
         env.execute("Test Redis Consumer Group");

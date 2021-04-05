@@ -45,10 +45,14 @@ public class RedisStreamDynamicSink implements DynamicTableSink, SupportsPartiti
 
     private final MapConverter<RowData> converter;
 
-    public RedisStreamDynamicSink(String streamKey, Properties producerProperties, MapConverter<RowData> converter) {
-        this.streamKey = Preconditions.checkNotNull(streamKey, "Redis Stream key name must not be null");
-        this.producerProperties = Preconditions.checkNotNull(producerProperties,
-                "Properties for the Flink Redis producer must not be null");
+    public RedisStreamDynamicSink(
+            String streamKey, Properties producerProperties, MapConverter<RowData> converter) {
+        this.streamKey =
+                Preconditions.checkNotNull(streamKey, "Redis Stream key name must not be null");
+        this.producerProperties =
+                Preconditions.checkNotNull(
+                        producerProperties,
+                        "Properties for the Flink Redis producer must not be null");
         this.converter = Preconditions.checkNotNull(converter, "Converter must not be null");
     }
 

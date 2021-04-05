@@ -27,26 +27,34 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-/**
- *
- * @param <T>
- */
+/** @param <T> */
 public class RedisStreamConsumer<T> extends AbstractRedisStreamConsumer<T> {
 
     private final DataConverter<T> dataConverter;
 
-    public RedisStreamConsumer(Properties configProps, StartupMode startupMode,
-                               DataConverter<T> dataConverter, String... streamKeys) {
+    public RedisStreamConsumer(
+            Properties configProps,
+            StartupMode startupMode,
+            DataConverter<T> dataConverter,
+            String... streamKeys) {
         super(startupMode, streamKeys, configProps);
         this.dataConverter = dataConverter;
     }
 
-    public RedisStreamConsumer(DataConverter<T> dataConverter, String[] streamKeys, Long[] timestamps, Properties configProps) {
+    public RedisStreamConsumer(
+            DataConverter<T> dataConverter,
+            String[] streamKeys,
+            Long[] timestamps,
+            Properties configProps) {
         super(streamKeys, timestamps, configProps);
         this.dataConverter = dataConverter;
     }
 
-    public RedisStreamConsumer(DataConverter<T> dataConverter, String[] streamKeys, StreamEntryID[] streamIds, Properties configProps) {
+    public RedisStreamConsumer(
+            DataConverter<T> dataConverter,
+            String[] streamKeys,
+            StreamEntryID[] streamIds,
+            Properties configProps) {
         super(streamKeys, streamIds, configProps);
         this.dataConverter = dataConverter;
     }
@@ -57,7 +65,8 @@ public class RedisStreamConsumer<T> extends AbstractRedisStreamConsumer<T> {
     }
 
     @Override
-    protected void collect(SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry) {
+    protected void collect(
+            SourceContext<T> sourceContext, String streamKey, StreamEntry streamEntry) {
         sourceContext.collect(dataConverter.toData(streamEntry.getFields()));
     }
 }
