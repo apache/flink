@@ -1106,7 +1106,7 @@ class AggsHandlerCodeGenerator(
      } else {
        s"""
           |$TIME_WINDOW_UTIL.toEpochMills(
-          |$itemExpr, java.time.ZoneId.of("${shiftTimeZone.getId}"))
+          |$itemExpr, shiftTimeZone))
           """.stripMargin
      }
   }
@@ -1127,6 +1127,7 @@ class AggsHandlerCodeGenerator(
 
     if (hasNamespace) {
       // append window property results
+      ctx.addReusableShiftTimeZone(shiftTimeZone)
       val windowExprs = getWindowExpressions(windowProperties)
       valueExprs = valueExprs ++ windowExprs
     }
@@ -1161,6 +1162,7 @@ class AggsHandlerCodeGenerator(
       if (isWindow) {
         // no need to bind input
         val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        ctx.addReusableShiftTimeZone(shiftTimeZone)
         val valueExprs = getWindowExpressions(windowProperties)
 
         val aggValueTerm = newName("windowProperties")

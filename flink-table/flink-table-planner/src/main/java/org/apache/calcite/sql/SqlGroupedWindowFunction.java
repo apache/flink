@@ -38,8 +38,11 @@ import java.util.List;
  * streaming query:
  *
  * <p>Note: we copied the implementation from Calcite's {@link
- * org.apache.calcite.sql.SqlGroupedWindowFunction}, but support using TIMESTAMP type for the window
- * start and window end no matter the time attribute column is TIMESTAMP or TIMESTAMP_LTZ.
+ * org.apache.calcite.sql.SqlGroupedWindowFunction} because of CALCITE-4563, Calcite currently
+ * doesn't allow to set the SqlReturnTypeInference of auxiliary SqlGroupedWindowFunction.
+ *
+ * <p>The motivation is using TIMESTAMP type for the window start and window end no matter the time
+ * attribute column is TIMESTAMP or TIMESTAMP_LTZ.
  */
 public class SqlGroupedWindowFunction extends SqlFunction {
 

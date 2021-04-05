@@ -85,7 +85,7 @@ public class DataFormatConvertersTest {
                 LocalTimeTypeInfo.LOCAL_DATE,
                 LocalTimeTypeInfo.LOCAL_TIME,
                 LocalTimeTypeInfo.LOCAL_DATE_TIME,
-                StringDataTypeInfo.INSTANCE,
+                StringDataTypeInfo.INSTANCE
             };
 
     private Object[] simpleValues =
