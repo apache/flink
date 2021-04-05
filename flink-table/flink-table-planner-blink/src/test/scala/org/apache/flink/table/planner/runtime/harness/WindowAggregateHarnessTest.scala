@@ -266,9 +266,9 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
   /**
    * Ingests testing data, the input schema is [name, double, string, proctime].
-   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced result.
-   * The only difference is we don't ingest the late data in this test, so they should produce
-   * same result.
+   * We follow the test data in [[TestData.windowDataWithTimestamp]] to have the same produced
+   * result. The only difference is we don't ingest the late data in this test, so they should
+   * produce same result.
    */
   private def ingestData(
       testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Unit = {
