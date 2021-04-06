@@ -132,9 +132,10 @@ object GenerateUtils {
     */
   def generateStringResultCallIfArgsNotNull(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType)
       (call: Seq[String] => String): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+    generateCallIfArgsNotNull(ctx, returnType, operands) {
       args => s"$BINARY_STRING.fromString(${call(args)})"
     }
   }
@@ -146,9 +147,10 @@ object GenerateUtils {
     */
   def generateStringResultCallWithStmtIfArgsNotNull(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType)
       (call: Seq[String] => (String, String)): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands) {
       args =>
         val (stmt, result) = call(args)
         (stmt, s"$BINARY_STRING.fromString($result)")
