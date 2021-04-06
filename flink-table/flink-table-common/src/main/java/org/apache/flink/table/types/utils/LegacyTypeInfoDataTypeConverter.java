@@ -40,6 +40,7 @@ import org.apache.flink.table.types.DataTypeQueryable;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
@@ -191,7 +192,7 @@ public final class LegacyTypeInfoDataTypeConverter {
     public static TypeInformation<?> toLegacyTypeInfo(DataType dataType) {
         // time indicators first as their hashCode/equals is shared with those of regular timestamps
         if (canConvertToTimeAttributeTypeInfo(dataType)) {
-            return convertToTimeAttributeTypeInfo((TimestampType) dataType.getLogicalType());
+            return convertToTimeAttributeTypeInfo(dataType.getLogicalType());
         }
 
         // check in the map but relax the nullability constraint as every not null data type can be
@@ -225,6 +226,12 @@ public final class LegacyTypeInfoDataTypeConverter {
         else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
                 && dataType.getConversionClass() == LocalDateTime.class) {
             return Types.LOCAL_DATE_TIME;
+        }
+
+        // convert proctime back
+        else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                && dataType.getConversionClass() == Timestamp.class) {
+            return Types.SQL_TIMESTAMP;
         }
 
         // relax the precision constraint as LocalTime can store the highest precision
@@ -266,25 +273,29 @@ public final class LegacyTypeInfoDataTypeConverter {
 
     private static DataType convertToTimeAttributeType(
             TimeIndicatorTypeInfo timeIndicatorTypeInfo) {
-        final TimestampKind kind;
         if (timeIndicatorTypeInfo.isEventTime()) {
-            kind = TimestampKind.ROWTIME;
+            return new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3))
+                    .bridgedTo(java.sql.Timestamp.class);
         } else {
-            kind = TimestampKind.PROCTIME;
+            return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3))
+                    .bridgedTo(java.time.Instant.class);
         }
-        return new AtomicDataType(new TimestampType(true, kind, 3))
-                .bridgedTo(java.sql.Timestamp.class);
     }
 
     private static boolean canConvertToTimeAttributeTypeInfo(DataType dataType) {
-        return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                && dataTypeTypeInfoMap.containsKey(dataType.nullable())
-                && // checks precision and conversion and ignore nullable
-                ((TimestampType) dataType.getLogicalType()).getKind() != TimestampKind.REGULAR;
+        if (hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+            return ((TimestampType) dataType.getLogicalType()).getKind() != TimestampKind.REGULAR;
+        } else if (hasRoot(
+                dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+            return ((LocalZonedTimestampType) dataType.getLogicalType()).getKind()
+                    != TimestampKind.REGULAR;
+        } else {
+            return false;
+        }
     }
 
-    private static TypeInformation<?> convertToTimeAttributeTypeInfo(TimestampType timestampType) {
-        if (isRowtimeAttribute(timestampType)) {
+    private static TypeInformation<?> convertToTimeAttributeTypeInfo(LogicalType type) {
+        if (isRowtimeAttribute(type)) {
             return TimeIndicatorTypeInfo.ROWTIME_INDICATOR;
         } else {
             return TimeIndicatorTypeInfo.PROCTIME_INDICATOR;

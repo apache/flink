@@ -708,7 +708,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |    LAST(A.proctime + INTERVAL '1' second) as calculatedField
          |  PATTERN (A)
          |  DEFINE
-         |    A AS proctime >= (CAST(CURRENT_TIMESTAMP AS TIMESTAMP(3)) - INTERVAL '1' day)
+         |    A AS proctime >= (CURRENT_TIMESTAMP - INTERVAL '1' day)
          |) AS T
          |""".stripMargin
 

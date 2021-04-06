@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -126,8 +127,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         if (orderKeyType instanceof TimestampType
                 && ((TimestampType) orderKeyType).getKind() == TimestampKind.ROWTIME) {
             rowTimeIdx = orderKey;
-        } else if (orderKeyType instanceof TimestampType
-                && ((TimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
+        } else if (orderKeyType instanceof LocalZonedTimestampType
+                && ((LocalZonedTimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
             rowTimeIdx = -1;
         } else {
             throw new TableException(

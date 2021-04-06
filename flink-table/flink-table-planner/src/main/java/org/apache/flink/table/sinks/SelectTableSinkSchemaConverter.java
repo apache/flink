@@ -21,6 +21,7 @@ package org.apache.flink.table.sinks;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
@@ -42,6 +43,15 @@ class SelectTableSinkSchemaConverter {
             if (fieldType.getLogicalType() instanceof TimestampType) {
                 TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
                 if (!timestampType.getKind().equals(TimestampKind.REGULAR)) {
+                    // converts `TIME ATTRIBUTE(ROWTIME)`/ to `TIMESTAMP`
+                    builder.field(fieldName, Types.SQL_TIMESTAMP);
+                    continue;
+                }
+            }
+            if (fieldType.getLogicalType() instanceof LocalZonedTimestampType) {
+                LocalZonedTimestampType localZonedTimestampType =
+                        (LocalZonedTimestampType) fieldType.getLogicalType();
+                if (!localZonedTimestampType.getKind().equals(TimestampKind.REGULAR)) {
                     // converts `TIME ATTRIBUTE(ROWTIME)`/`TIME ATTRIBUTE(PROCTIME)` to `TIMESTAMP`
                     builder.field(fieldName, Types.SQL_TIMESTAMP);
                     continue;

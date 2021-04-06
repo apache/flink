@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulat
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
@@ -182,7 +182,11 @@ object WindowUtil {
       throw new ValidationException("Window can only be defined on a time attribute column, " +
         "but is type of " + fieldType)
     }
-    val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType).asInstanceOf[TimestampType]
+    val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
+    if (!canBeTimeAttributeType(timeAttributeType)) {
+      throw new ValidationException("The supported time indicator type are" +
+        " timestamp and timestampLtz, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
+    }
 
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
     val windowSpec = windowFunction match {
@@ -245,7 +249,7 @@ object WindowUtil {
       // cast the type to not null type, because window properties should never be null
       val timeType = namedProp.getProperty match {
         case _: PlannerWindowStart | _: PlannerWindowEnd =>
-          LogicalTypeUtils.removeTimeAttributes(windowing.getTimeAttributeType).copy(false)
+          new TimestampType(false, 3)
         case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
           windowing.getTimeAttributeType.copy(false)
       }

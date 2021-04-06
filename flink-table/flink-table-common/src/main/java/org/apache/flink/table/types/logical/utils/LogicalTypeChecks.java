@@ -117,7 +117,27 @@ public final class LogicalTypeChecks {
     }
 
     public static boolean isProctimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+        return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+    }
+
+    public static boolean canBeTimeAttributeType(LogicalType logicalType) {
+        if (isProctimeAttribute(logicalType)
+                && logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+            return true;
+        }
+        if (isRowtimeAttribute(logicalType)
+                && (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+                        || logicalType.getTypeRoot()
+                                == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean supportedWatermarkType(LogicalType logicalType) {
+        return logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                || logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
     }
 
     /**

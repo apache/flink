@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{LogicalType, RowType, TimestampKind, TimestampType}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, LogicalType, RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
@@ -92,11 +92,11 @@ object DataStreamTable {
           case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
             new TimestampType(true, TimestampKind.ROWTIME, 3)
           case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
-            new TimestampType(true, TimestampKind.PROCTIME, 3)
+            new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3)
           case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
             new TimestampType(3)
           case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
-            new TimestampType(3)
+            new LocalZonedTimestampType(3)
           case i => rt.getTypeAt(i)
         }
 
@@ -106,11 +106,11 @@ object DataStreamTable {
           case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
             new TimestampType(true, TimestampKind.ROWTIME, 3)
           case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
-            new TimestampType(true, TimestampKind.PROCTIME, 3)
+            new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3)
           case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
             new TimestampType(3)
           case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
-            new TimestampType(3)
+            new LocalZonedTimestampType(3)
           case _ =>
             cnt += 1
             t

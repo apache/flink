@@ -278,7 +278,7 @@ class Schema(Descriptor):
         """
         Specifies the previously defined field as a processing-time attribute.
 
-        E.g. field("proctime", Types.SQL_TIMESTAMP).proctime()
+        E.g. field("proctime", Types.SQL_TIMESTAMP_LTZ).proctime()
 
         :return: This schema object.
         """

@@ -28,8 +28,7 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
-
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
@@ -186,7 +185,7 @@ object MetadataTestUtil {
       new BigIntType(),
       new VarCharType(VarCharType.MAX_LENGTH),
       new IntType(),
-      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](
@@ -205,7 +204,7 @@ object MetadataTestUtil {
       new BigIntType(),
       new VarCharType(VarCharType.MAX_LENGTH),
       new IntType(),
-      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](
@@ -225,7 +224,7 @@ object MetadataTestUtil {
       new IntType(),
       new BigIntType(),
       new VarCharType(VarCharType.MAX_LENGTH),
-      new TimestampType(true, TimestampKind.PROCTIME, 3),
+      new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
 
     val colStatsMap = Map[String, ColumnStats](

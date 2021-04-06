@@ -19,6 +19,9 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+import os
+
+import pytz
 from libc.stdlib cimport free, malloc
 from pyflink.fn_execution.table.aggregate_fast cimport DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.coder_impl_fast cimport InternalRowKind
@@ -322,7 +325,8 @@ cdef class GroupWindowAggFunctionBase:
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase,
                  trigger: Trigger[W],
-                 rowtime_index: int):
+                 rowtime_index: int,
+                 shift_timezone: str):
         self._allowed_lateness = allowed_lateness
         self._key_selector = key_selector
         self._state_backend = state_backend
@@ -330,6 +334,7 @@ cdef class GroupWindowAggFunctionBase:
         self._window_assigner = window_assigner
         self._window_aggregator = window_aggregator
         self._rowtime_index = rowtime_index
+        self._shift_timezone = shift_timezone
         self._window_function = None  # type: InternalWindowProcessFunction[K, W]
         self._internal_timer_service = None  # type: InternalTimerServiceImpl
         self._window_context = None  # type: WindowContext
@@ -376,6 +381,8 @@ cdef class GroupWindowAggFunctionBase:
             timestamp = milliseconds
         else:
             timestamp = self._internal_timer_service.current_processing_time()
+
+        timestamp = self.to_utc_timestamp_mills(timestamp)
 
         # the windows which the input row should be placed into
         affected_windows = self._window_function.assign_state_namespace(input_value, timestamp)
@@ -443,6 +450,16 @@ cdef class GroupWindowAggFunctionBase:
             self._window_function.clean_window_if_needed(window, timestamp)
         return result
 
+    cpdef libc.stdint.int64_t to_utc_timestamp_mills(self, libc.stdint.int64_t epoch_mills):
+        if self._shift_timezone == "UTC":
+            return epoch_mills
+        else:
+            timezone = pytz.timezone(self._shift_timezone)
+            local_date_time = datetime.datetime.fromtimestamp(epoch_mills / 1000., timezone)\
+                .replace(tzinfo=None)
+            epoch = datetime.datetime.utcfromtimestamp(0)
+            return int((local_date_time - epoch).total_seconds() * 1000.0)
+
     cpdef list get_timers(self):
         cdef list timers
         cdef object timer
@@ -488,10 +505,11 @@ cdef class GroupWindowAggFunction(GroupWindowAggFunctionBase):
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],
-                 rowtime_index: int):
+                 rowtime_index: int,
+                 shift_timezone: str):
         super(GroupWindowAggFunction, self).__init__(
             allowed_lateness, key_selector, state_backend, state_value_coder, window_assigner,
-            window_aggregator, trigger, rowtime_index)
+            window_aggregator, trigger, rowtime_index, shift_timezone)
         self._window_aggregator = window_aggregator
 
     cdef InternalRow _emit_window_result(self, list key, object window):

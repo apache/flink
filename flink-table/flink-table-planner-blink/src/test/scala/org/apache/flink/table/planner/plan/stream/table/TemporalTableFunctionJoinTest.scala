@@ -43,7 +43,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
   val rates: TemporalTableFunction = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
-  util.addFunction("Rates", rates)
+  util.addTemporarySystemFunction("Rates", rates)
 
   val proctimeOrders: Table = util.addDataStream[(Long, String)](
     "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
@@ -118,7 +118,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
       .as("currency", "rate", "rowtime")
 
     val filteredRates = filteredRatesHistory.createTemporalTableFunction('rowtime, 'currency)
-    util.addFunction("FilteredRates", filteredRates)
+    util.addTemporarySystemFunction("FilteredRates", filteredRates)
 
     val result = orders
       .joinLateral(filteredRates('o_rowtime), 'currency === 'o_currency)
