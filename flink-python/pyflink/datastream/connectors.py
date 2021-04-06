@@ -30,6 +30,7 @@ from py4j.java_gateway import JavaObject
 
 __all__ = [
     'FileEnumeratorProvider',
+    'FileSink',
     'FileSource',
     'FileSourceBuilder',
     'FileSplitAssignerProvider',
