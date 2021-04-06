@@ -33,6 +33,8 @@ __all__ = [
     'FileSource',
     'FileSourceBuilder',
     'FileSplitAssignerProvider',
+    'FlinkKinesisConsumer',
+    'FlinkKinesisProducer',
     'FlinkKafkaConsumer',
     'FlinkKafkaProducer',
     'JdbcSink',
@@ -45,6 +47,64 @@ __all__ = [
     'Source',
     'StreamFormat',
     'StreamingFileSink']
+
+
+class FlinkKinesisConsumer(SourceFunction):
+    def __init__(
+        self,
+        streams: Union[str, List[str]],
+        deserialization_schema: DeserializationSchema,
+        config_props: Dict
+    ):
+        """
+        Creates a new Kinesis streaming source consumer.
+
+        This constructor allows passing multiple streams to the consumer.
+
+        :param streams: The Kinesis streams to read from.
+        :param deserialization_schema: The deserializer used to convert raw bytes of
+                                       Kinesis records and Flink's objects.
+        :param config_props:  The properties used to configure AWS credentials, AWS region, and
+                              initial starting position.
+        """
+        gateway = get_gateway()
+        j_properties = gateway.jvm.java.util.Properties()
+        for key, value in config_props.items():
+            j_properties.setProperty(key, value)
+
+        JFlinkKafkaConsumer = gateway.jvm \
+            .org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer
+        j_flink_kafka_consumer = JFlinkKafkaConsumer(
+            streams, deserialization_schema._j_deserialization_schema, j_properties)
+        super().__init__(source_func=j_flink_kafka_consumer)
+
+
+class FlinkKinesisProducer(SinkFunction):
+    def __init__(
+        self,
+        serialization_schema: SerializationSchema,
+        config_props: Dict
+    ):
+        """
+        Creates a FlinkKinesisProducer for a given topic. The sink produces a DataStream to
+        the Kinesis data stream.
+
+        Using this constructor, the default FlinkFixedPartitioner will be used as the partitioner.
+
+        :param serialization_schema: User defined key-less serialization schema.
+        :param config_props: Properties with the producer configuration.
+        """
+        gateway = get_gateway()
+        j_properties = gateway.jvm.java.util.Properties()
+        for key, value in config_props.items():
+            j_properties.setProperty(key, value)
+
+        JFlinkKinesisProducer = gateway.jvm \
+            .org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer
+
+        j_flink_kinesis_producer = JFlinkKinesisProducer(
+            serialization_schema._j_serialization_schema, j_properties)
+        super().__init__(sink_func=j_flink_kinesis_producer)
 
 
 class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
@@ -154,7 +214,7 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
     pull data from one or more Kafka partitions.
 
     The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
-    during a failure, and taht the computation processes elements 'exactly once. (These guarantees
+    during a failure, and that the computation processes elements exactly once. (These guarantees
     naturally assume that Kafka itself does not loose any data.)
 
     Please note that Flink snapshots the offsets internally as part of its distributed checkpoints.
@@ -192,7 +252,7 @@ class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
     Flink Sink to produce data into a Kafka topic.
 
     Please note that this producer provides at-least-once reliability guarantees when checkpoints
-    are enabled and set_flush_on_checkpoint(True) is set. Otherwise, the producer doesn;t provid any
+    are enabled and set_flush_on_checkpoint(True) is set. Otherwise, the producer doesn't provid any
     reliability guarantees.
     """
 
