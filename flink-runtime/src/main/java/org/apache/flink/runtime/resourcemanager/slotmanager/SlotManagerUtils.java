@@ -19,6 +19,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.util.Preconditions;
 
 /** Utilities for {@link SlotManager} implementations. */
 public class SlotManagerUtils {
@@ -81,6 +82,8 @@ public class SlotManagerUtils {
         if (totalResourceProfile.equals(ResourceProfile.ANY)) {
             return Integer.MAX_VALUE;
         }
+
+        Preconditions.checkArgument(!defaultSlotResourceProfile.equals(ResourceProfile.ZERO));
 
         int numSlots = 0;
         ResourceProfile remainResource = totalResourceProfile;
