@@ -88,6 +88,12 @@ under the License.
 			<artifactId>aircompressor</artifactId>
 			<version>0.8</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>3.5.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -109,6 +115,7 @@ under the License.
 									<include>org.apache.hive:hive-exec</include>
 									<include>org.apache.orc:orc-core</include>
 									<include>io.airlift:aircompressor</include>
+									<include>org.antlr:antlr-runtime</include>
 								</includes>
 							</artifactSet>
 						</configuration>
