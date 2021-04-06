@@ -46,6 +46,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
 
     private final SliceSharedAssigner sliceSharedAssigner;
     private final WindowIsEmptySupplier emptySupplier;
+    private final SliceMergeTargetGetter mergeTargetGetter = new SliceMergeTargetGetter();
 
     public SliceSharedWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
@@ -123,6 +124,19 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         }
     }
 
+    protected long sliceStateMergeTarget(long sliceToMerge) throws Exception {
+        mergeTargetGetter.mergeTarget = null;
+        sliceSharedAssigner.mergeSlices(sliceToMerge, mergeTargetGetter);
+
+        // the mergeTarget might be null, which means the merging happens in memory instead of
+        // on state, so the slice state to merge into is itself.
+        if (mergeTargetGetter.mergeTarget != null) {
+            return mergeTargetGetter.mergeTarget;
+        } else {
+            return sliceToMerge;
+        }
+    }
+
     private boolean isWindowEmpty() {
         if (emptySupplier.indexOfCountStar < 0) {
             // for non-hopping windows, the window is never empty
@@ -131,6 +145,8 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             return emptySupplier.get();
         }
     }
+
+    // ------------------------------------------------------------------------------------------
 
     private final class WindowIsEmptySupplier implements Supplier<Boolean>, Serializable {
         private static final long serialVersionUID = 1L;
@@ -157,6 +173,18 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
+        }
+    }
+
+    private static final class SliceMergeTargetGetter
+            implements SliceSharedAssigner.MergeCallback, Serializable {
+
+        private static final long serialVersionUID = 1L;
+        private Long mergeTarget = null;
+
+        @Override
+        public void merge(@Nullable Long mergeResult, Iterable<Long> toBeMerged) throws Exception {
+            this.mergeTarget = mergeResult;
         }
     }
 }

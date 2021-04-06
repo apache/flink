@@ -62,6 +62,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for window aggregate operators created by {@link SlicingWindowAggOperatorBuilder}. */
@@ -70,7 +71,7 @@ public class SlicingWindowAggOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
-    private ZoneId shiftTimeZone;
+    private final ZoneId shiftTimeZone;
 
     public SlicingWindowAggOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
@@ -173,8 +174,10 @@ public class SlicingWindowAggOperatorTest {
         testHarness.prepareSnapshotPreBarrier(0L);
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
         testHarness.close();
-        expectedOutput.clear();
 
+        assertTrue("Close was not called.", aggsFunction.closeCalled.get() > 0);
+
+        expectedOutput.clear();
         testHarness = createTestHarness(operator);
         testHarness.setup(OUT_SERIALIZER);
         testHarness.initializeState(snapshot);
@@ -186,20 +189,20 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // late element, should be dropped
+        // late element for [1K, 4K), but should be accumulated into [2K, 5K), [3K, 6K)
         testHarness.processElement(insertRecord("key2", 1, 3500L));
 
         testHarness.processWatermark(new Watermark(4999));
-        expectedOutput.add(insertRecord("key2", 2L, 2L, localMills(2000L), localMills(5000L)));
+        expectedOutput.add(insertRecord("key2", 3L, 3L, localMills(2000L), localMills(5000L)));
         expectedOutput.add(new Watermark(4999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // late element, should be dropped
-        testHarness.processElement(insertRecord("key1", 1, 4999L));
+        // totally late element, should be dropped
+        testHarness.processElement(insertRecord("key1", 1, 2999L));
 
         testHarness.processWatermark(new Watermark(5999));
-        expectedOutput.add(insertRecord("key2", 2L, 2L, localMills(3000L), localMills(6000L)));
+        expectedOutput.add(insertRecord("key2", 3L, 3L, localMills(3000L), localMills(6000L)));
         expectedOutput.add(new Watermark(5999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -213,12 +216,9 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        assertEquals(2, operator.getNumLateRecordsDropped().getCount());
+        assertEquals(1, operator.getNumLateRecordsDropped().getCount());
 
         testHarness.close();
-
-        // we close once in the rest...
-        assertEquals("Close was not called.", 2, aggsFunction.closeCalled.get());
     }
 
     @Test
@@ -339,7 +339,7 @@ public class SlicingWindowAggOperatorTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.close();
-        assertEquals("Close was not called.", 1, aggsFunction.closeCalled.get());
+        assertTrue("Close was not called.", aggsFunction.closeCalled.get() > 0);
     }
 
     @Test
@@ -402,8 +402,10 @@ public class SlicingWindowAggOperatorTest {
         testHarness.prepareSnapshotPreBarrier(0L);
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
         testHarness.close();
-        expectedOutput.clear();
 
+        assertTrue("Close was not called.", aggsFunction.closeCalled.get() > 0);
+
+        expectedOutput.clear();
         testHarness = createTestHarness(operator);
         testHarness.setup();
         testHarness.initializeState(snapshot);
@@ -415,20 +417,22 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // late element, should be dropped
+        // late element for [3K, 4K), but should be accumulated into [3K, 5K) [3K, 6K)
         testHarness.processElement(insertRecord("key1", 2, 3500L));
 
         testHarness.processWatermark(new Watermark(4999));
         expectedOutput.add(insertRecord("key2", 1L, 1L, localMills(3000L), localMills(5000L)));
+        expectedOutput.add(insertRecord("key1", 2L, 1L, localMills(3000L), localMills(5000L)));
         expectedOutput.add(new Watermark(4999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // late element, should be dropped
-        testHarness.processElement(insertRecord("key1", 1, 4999L));
+        // totally late element, should be dropped
+        testHarness.processElement(insertRecord("key1", 1, 2999L));
 
         testHarness.processWatermark(new Watermark(5999));
         expectedOutput.add(insertRecord("key2", 1L, 1L, localMills(3000L), localMills(6000L)));
+        expectedOutput.add(insertRecord("key1", 2L, 1L, localMills(3000L), localMills(6000L)));
         expectedOutput.add(new Watermark(5999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -442,12 +446,9 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        assertEquals(2, operator.getNumLateRecordsDropped().getCount());
+        assertEquals(1, operator.getNumLateRecordsDropped().getCount());
 
         testHarness.close();
-
-        // we close once in the rest...
-        assertEquals("Close was not called.", 2, aggsFunction.closeCalled.get());
     }
 
     @Test
@@ -582,7 +583,7 @@ public class SlicingWindowAggOperatorTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.close();
-        assertEquals("Close was not called.", 1, aggsFunction.closeCalled.get());
+        assertTrue("Close was not called.", aggsFunction.closeCalled.get() > 0);
     }
 
     @Test
@@ -634,8 +635,10 @@ public class SlicingWindowAggOperatorTest {
         testHarness.prepareSnapshotPreBarrier(0L);
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
         testHarness.close();
-        expectedOutput.clear();
 
+        assertTrue("Close was not called.", aggsFunction.closeCalled.get() > 0);
+
+        expectedOutput.clear();
         testHarness = createTestHarness(operator);
         testHarness.setup();
         testHarness.initializeState(snapshot);
@@ -682,9 +685,6 @@ public class SlicingWindowAggOperatorTest {
         assertEquals(2, operator.getNumLateRecordsDropped().getCount());
 
         testHarness.close();
-
-        // we close once in the rest...
-        assertEquals("Close was not called.", 2, aggsFunction.closeCalled.get());
     }
 
     @Test
