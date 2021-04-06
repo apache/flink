@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
-import org.apache.flink.table.planner.plan.utils.{ExpandUtil, WindowUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ExpandUtil, WindowUtil}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -138,9 +138,11 @@ class SplitAggregateRule extends RelOptRule(
     val windowProps = fmq.getRelWindowProperties(agg.getInput)
     val isWindowAgg = WindowUtil.groupingContainsWindowStartEnd(agg.getGroupSet, windowProps)
     val isProctimeWindowAgg = isWindowAgg && !windowProps.isRowtime
+    // TableAggregate is not supported. see also FLINK-21923.
+    val isTableAgg = AggregateUtil.isTableAggregate(agg.getAggCallList)
 
     agg.partialFinalType == PartialFinalType.NONE && agg.containsDistinctCall() &&
-      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg
+      splitDistinctAggEnabled && isAllAggSplittable && !isProctimeWindowAgg && !isTableAgg
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -280,11 +282,16 @@ class SplitAggregateRule extends RelOptRule(
     }
 
     // STEP 2.3: construct partial aggregates
-    relBuilder.aggregate(
-      relBuilder.groupKey(fullGroupSet, ImmutableList.of[ImmutableBitSet](fullGroupSet)),
+    // Create aggregate node directly to avoid ClassCastException,
+    // Please see FLINK-21923 for more details.
+    // TODO reuse aggregate function, see FLINK-22412
+    val partialAggregate = FlinkLogicalAggregate.create(
+      relBuilder.build(),
+      fullGroupSet,
+      ImmutableList.of[ImmutableBitSet](fullGroupSet),
       newPartialAggCalls)
-    relBuilder.peek().asInstanceOf[FlinkLogicalAggregate]
-      .setPartialFinalType(PartialFinalType.PARTIAL)
+    partialAggregate.setPartialFinalType(PartialFinalType.PARTIAL)
+    relBuilder.push(partialAggregate)
 
     // STEP 3: construct final aggregates
     val finalAggInputOffset = fullGroupSet.cardinality
@@ -306,13 +313,16 @@ class SplitAggregateRule extends RelOptRule(
         needMergeFinalAggOutput = true
       }
     }
-    relBuilder.aggregate(
-      relBuilder.groupKey(
-        SplitAggregateRule.remap(fullGroupSet, originalAggregate.getGroupSet),
-        SplitAggregateRule.remap(fullGroupSet, Seq(originalAggregate.getGroupSet))),
+    // Create aggregate node directly to avoid ClassCastException,
+    // Please see FLINK-21923 for more details.
+    // TODO reuse aggregate function, see FLINK-22412
+    val finalAggregate = FlinkLogicalAggregate.create(
+      relBuilder.build(),
+      SplitAggregateRule.remap(fullGroupSet, originalAggregate.getGroupSet),
+      SplitAggregateRule.remap(fullGroupSet, Seq(originalAggregate.getGroupSet)),
       finalAggCalls)
-    val finalAggregate = relBuilder.peek().asInstanceOf[FlinkLogicalAggregate]
     finalAggregate.setPartialFinalType(PartialFinalType.FINAL)
+    relBuilder.push(finalAggregate)
 
     // STEP 4: convert final aggregation output to the original aggregation output.
     // For example, aggregate function AVG is transformed to SUM0 and COUNT, so the output of
