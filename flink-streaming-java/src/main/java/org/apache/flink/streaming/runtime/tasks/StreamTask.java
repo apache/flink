@@ -630,6 +630,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } catch (Throwable invokeException) {
             failing = !canceled;
             try {
+                if (!canceled) {
+                    cancelTask();
+                }
+
                 cleanUpInvoke();
             }
             // TODO: investigate why Throwable instead of Exception is used here.
