@@ -30,6 +30,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -97,8 +98,12 @@ public class TestingResourceManagerService implements ResourceManagerService {
         return getResourceManagerOpt().map(FencedRpcEndpoint::getFencingToken);
     }
 
+    public Optional<CompletableFuture<Void>> getResourceManagerTerminationFuture() {
+        return getResourceManagerOpt().map(RpcEndpoint::getTerminationFuture);
+    }
+
     private Optional<ResourceManager<?>> getResourceManagerOpt() {
-        return Optional.ofNullable(rmService.getResourceManager());
+        return Optional.ofNullable(rmService.getLeaderResourceManager());
     }
 
     public void isLeader(UUID uuid) {

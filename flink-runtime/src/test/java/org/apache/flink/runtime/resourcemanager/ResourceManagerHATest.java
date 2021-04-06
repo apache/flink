@@ -23,7 +23,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -57,8 +59,12 @@ public class ResourceManagerHATest extends TestLogger {
                     resourceManagerService.getResourceManagerFencingToken().get().toUUID());
 
             // then revoke leadership, verify resource manager is closed
+            final Optional<CompletableFuture<Void>> rmTerminationFutureOpt =
+                    resourceManagerService.getResourceManagerTerminationFuture();
+            assertTrue(rmTerminationFutureOpt.isPresent());
+
             resourceManagerService.notLeader();
-            resourceManagerService.getTerminationFuture().get();
+            rmTerminationFutureOpt.get().get();
 
             resourceManagerService.rethrowFatalErrorIfAny();
         } finally {

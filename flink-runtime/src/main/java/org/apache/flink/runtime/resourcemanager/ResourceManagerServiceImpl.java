@@ -60,7 +60,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final Executor ioExecutor;
 
     private final Executor handleLeaderEventExecutor;
-    private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> serviceTerminationFuture;
 
     private final Object lock = new Object();
 
@@ -69,11 +69,14 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     @Nullable
     @GuardedBy("lock")
-    private ResourceManager<?> resourceManager;
+    private ResourceManager<?> leaderResourceManager;
 
     @Nullable
     @GuardedBy("lock")
     private UUID leaderSessionID;
+
+    @GuardedBy("lock")
+    private CompletableFuture<Void> previousResourceManagerTerminationFuture;
 
     private ResourceManagerServiceImpl(
             ResourceManagerFactory<?> resourceManagerFactory,
@@ -89,11 +92,12 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
         this.ioExecutor = rmProcessContext.getIoExecutor();
 
         this.handleLeaderEventExecutor = Executors.newSingleThreadExecutor();
-        this.terminationFuture = new CompletableFuture<>();
+        this.serviceTerminationFuture = new CompletableFuture<>();
 
         this.running = false;
-        this.resourceManager = null;
+        this.leaderResourceManager = null;
         this.leaderSessionID = null;
+        this.previousResourceManagerTerminationFuture = FutureUtils.completedVoidFuture();
     }
 
     // ------------------------------------------------------------------------
@@ -117,15 +121,15 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     @Override
     public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
+        return serviceTerminationFuture;
     }
 
     @Override
     public CompletableFuture<Void> deregisterApplication(
             final ApplicationStatus applicationStatus, final @Nullable String diagnostics) {
         synchronized (lock) {
-            if (running && resourceManager != null) {
-                return resourceManager
+            if (running && leaderResourceManager != null) {
+                return leaderResourceManager
                         .getSelfGateway(ResourceManagerGateway.class)
                         .deregisterApplication(applicationStatus, diagnostics)
                         .thenApply(ack -> null);
@@ -143,25 +147,16 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
             if (running) {
                 LOG.info("Stopping resource manager service.");
                 running = false;
-                try {
-                    leaderElectionService.stop();
-                } catch (Exception e) {
-                    terminationFuture.completeExceptionally(
-                            new FlinkException("Cannot stop leader election service.", e));
-                }
+                stopLeaderElectionService();
+                stopLeaderResourceManager();
             } else {
                 LOG.debug("Resource manager service is not running.");
             }
 
-            if (resourceManager != null) {
-                resourceManager.closeAsync();
-            } else {
-                // resource manager is never started
-                terminationFuture.complete(null);
-            }
+            FutureUtils.forward(previousResourceManagerTerminationFuture, serviceTerminationFuture);
         }
 
-        return terminationFuture;
+        return serviceTerminationFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -184,25 +179,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                                 "Resource manager service is granted leadership with session id {}.",
                                 newLeaderSessionID);
 
-                        this.leaderSessionID = newLeaderSessionID;
-
                         try {
-                            resourceManager =
-                                    resourceManagerFactory.createResourceManager(
-                                            rmProcessContext,
-                                            newLeaderSessionID,
-                                            ResourceID.generate());
-                            FutureUtils.forward(
-                                    resourceManager.getTerminationFuture(), terminationFuture);
-
-                            resourceManager.start();
-                            resourceManager.getStartedFuture().get();
-
-                            ioExecutor.execute(
-                                    () ->
-                                            leaderElectionService.confirmLeadership(
-                                                    newLeaderSessionID,
-                                                    resourceManager.getAddress()));
+                            startNewLeaderResourceManager(newLeaderSessionID);
                         } catch (Throwable t) {
                             fatalErrorHandler.onFatalError(
                                     new FlinkException("Cannot start resource manager.", t));
@@ -226,7 +204,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                                 "Resource manager service is revoked leadership with session id {}.",
                                 leaderSessionID);
 
-                        closeAsync();
+                        stopLeaderResourceManager();
                     }
                 });
     }
@@ -239,11 +217,102 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                         exception));
     }
 
+    // ------------------------------------------------------------------------
+    //  Internal
+    // ------------------------------------------------------------------------
+
+    @GuardedBy("lock")
+    private void startNewLeaderResourceManager(UUID newLeaderSessionID) throws Exception {
+        stopLeaderResourceManager();
+
+        this.leaderSessionID = newLeaderSessionID;
+        this.leaderResourceManager =
+                resourceManagerFactory.createResourceManager(
+                        rmProcessContext, newLeaderSessionID, ResourceID.generate());
+
+        final ResourceManager<?> newLeaderResourceManager = this.leaderResourceManager;
+
+        previousResourceManagerTerminationFuture
+                .thenComposeAsync(
+                        (ignore) -> {
+                            synchronized (lock) {
+                                return startResourceManagerIfIsLeader(newLeaderResourceManager);
+                            }
+                        },
+                        handleLeaderEventExecutor)
+                .thenAcceptAsync(
+                        (isStillLeader) -> {
+                            if (isStillLeader) {
+                                leaderElectionService.confirmLeadership(
+                                        newLeaderSessionID, newLeaderResourceManager.getAddress());
+                            }
+                        },
+                        ioExecutor);
+    }
+
+    /**
+     * Returns a future that completes as {@code true} if the resource manager is still leader and
+     * started, and {@code false} if it's no longer leader.
+     */
+    @GuardedBy("lock")
+    private CompletableFuture<Boolean> startResourceManagerIfIsLeader(
+            ResourceManager<?> resourceManager) {
+        if (isLeader(resourceManager)) {
+            resourceManager.start();
+            forwardTerminationFuture(resourceManager);
+            return resourceManager.getStartedFuture().thenApply(ignore -> true);
+        } else {
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    private void forwardTerminationFuture(ResourceManager<?> resourceManager) {
+        resourceManager
+                .getTerminationFuture()
+                .whenComplete(
+                        (ignore, throwable) -> {
+                            synchronized (lock) {
+                                if (isLeader(resourceManager)) {
+                                    if (throwable != null) {
+                                        serviceTerminationFuture.completeExceptionally(throwable);
+                                    } else {
+                                        serviceTerminationFuture.complete(null);
+                                    }
+                                }
+                            }
+                        });
+    }
+
+    @GuardedBy("lock")
+    private boolean isLeader(ResourceManager<?> resourceManager) {
+        return running && this.leaderResourceManager == resourceManager;
+    }
+
+    @GuardedBy("lock")
+    private void stopLeaderResourceManager() {
+        if (leaderResourceManager != null) {
+            previousResourceManagerTerminationFuture =
+                    previousResourceManagerTerminationFuture.thenCombine(
+                            leaderResourceManager.closeAsync(), (ignore1, ignore2) -> null);
+            leaderResourceManager = null;
+            leaderSessionID = null;
+        }
+    }
+
+    private void stopLeaderElectionService() {
+        try {
+            leaderElectionService.stop();
+        } catch (Exception e) {
+            serviceTerminationFuture.completeExceptionally(
+                    new FlinkException("Cannot stop leader election service.", e));
+        }
+    }
+
     @VisibleForTesting
     @Nullable
-    public ResourceManager<?> getResourceManager() {
+    public ResourceManager<?> getLeaderResourceManager() {
         synchronized (lock) {
-            return resourceManager;
+            return leaderResourceManager;
         }
     }
 
