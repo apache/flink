@@ -40,87 +40,93 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
-/**
- * Test for snapshot compatiblily between differen state tables.
- */
+/** Test for snapshot compatiblily between differen state tables. */
 public class StateTableSnapshotCompatibilityTest {
-	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+    private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 
-	/**
-	 * This test ensures that different implementations of {@link StateTable} are compatible in their serialization
-	 * format.
-	 */
-	@Test
-	public void checkCompatibleSerializationFormats() throws IOException {
-		final Random r = new Random(42);
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyValueStateBackendMetaInfo<>(
-				StateDescriptor.Type.UNKNOWN,
-				"test",
-				IntSerializer.INSTANCE,
-				new ArrayListSerializer<>(IntSerializer.INSTANCE));
+    /**
+     * This test ensures that different implementations of {@link StateTable} are compatible in
+     * their serialization format.
+     */
+    @Test
+    public void checkCompatibleSerializationFormats() throws IOException {
+        final Random r = new Random(42);
+        RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        StateDescriptor.Type.UNKNOWN,
+                        "test",
+                        IntSerializer.INSTANCE,
+                        new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
-		final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
+        final MockInternalKeyContext<Integer> keyContext = new MockInternalKeyContext<>();
 
-		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
-			new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
+        CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
+                new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
-		for (int i = 0; i < 100; ++i) {
-			ArrayList<Integer> list = new ArrayList<>(5);
-			int end = r.nextInt(5);
-			for (int j = 0; j < end; ++j) {
-				list.add(r.nextInt(100));
-			}
+        for (int i = 0; i < 100; ++i) {
+            ArrayList<Integer> list = new ArrayList<>(5);
+            int end = r.nextInt(5);
+            for (int j = 0; j < end; ++j) {
+                list.add(r.nextInt(100));
+            }
 
-			keyContext.setCurrentKey(r.nextInt(10));
-			cowStateTable.put(r.nextInt(2), list);
-		}
+            keyContext.setCurrentKey(r.nextInt(10));
+            cowStateTable.put(r.nextInt(2), list);
+        }
 
-		StateSnapshot snapshot = cowStateTable.stateSnapshot();
+        StateSnapshot snapshot = cowStateTable.stateSnapshot();
 
-		final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
-			new NestedMapsStateTable<>(keyContext, metaInfo, keySerializer);
+        final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
+                new NestedMapsStateTable<>(keyContext, metaInfo, keySerializer);
 
-		restoreStateTableFromSnapshot(nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
-		snapshot.release();
+        restoreStateTableFromSnapshot(
+                nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
+        snapshot.release();
 
-		Assert.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
-		for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
-			Assert.assertEquals(entry.getState(), nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()));
-		}
+        Assert.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
+        for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
+            Assert.assertEquals(
+                    entry.getState(),
+                    nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()));
+        }
 
-		snapshot = nestedMapsStateTable.stateSnapshot();
-		cowStateTable = new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
+        snapshot = nestedMapsStateTable.stateSnapshot();
+        cowStateTable = new CopyOnWriteStateTable<>(keyContext, metaInfo, keySerializer);
 
-		restoreStateTableFromSnapshot(cowStateTable, snapshot, keyContext.getKeyGroupRange());
-		snapshot.release();
+        restoreStateTableFromSnapshot(cowStateTable, snapshot, keyContext.getKeyGroupRange());
+        snapshot.release();
 
-		Assert.assertEquals(nestedMapsStateTable.size(), cowStateTable.size());
-		for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
-			Assert.assertEquals(nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()), entry.getState());
-		}
-	}
+        Assert.assertEquals(nestedMapsStateTable.size(), cowStateTable.size());
+        for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
+            Assert.assertEquals(
+                    nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()),
+                    entry.getState());
+        }
+    }
 
-	private void restoreStateTableFromSnapshot(
-		StateTable<Integer, Integer, ArrayList<Integer>> stateTable,
-		StateSnapshot snapshot,
-		KeyGroupRange keyGroupRange) throws IOException {
+    private void restoreStateTableFromSnapshot(
+            StateTable<Integer, Integer, ArrayList<Integer>> stateTable,
+            StateSnapshot snapshot,
+            KeyGroupRange keyGroupRange)
+            throws IOException {
 
-		final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
-		final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-		final StateSnapshot.StateKeyGroupWriter keyGroupPartitionedSnapshot = snapshot.getKeyGroupWriter();
-		for (Integer keyGroup : keyGroupRange) {
-			keyGroupPartitionedSnapshot.writeStateInKeyGroup(dov, keyGroup);
-		}
+        final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
+        final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
+        final StateSnapshot.StateKeyGroupWriter keyGroupPartitionedSnapshot =
+                snapshot.getKeyGroupWriter();
+        for (Integer keyGroup : keyGroupRange) {
+            keyGroupPartitionedSnapshot.writeStateInKeyGroup(dov, keyGroup);
+        }
 
-		final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());
-		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
+        final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());
+        final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
 
-		final StateSnapshotKeyGroupReader keyGroupReader =
-			StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
+        final StateSnapshotKeyGroupReader keyGroupReader =
+                StateTableByKeyGroupReaders.readerForVersion(
+                        stateTable, KeyedBackendSerializationProxy.VERSION);
 
-		for (Integer keyGroup : keyGroupRange) {
-			keyGroupReader.readMappingsInKeyGroup(div, keyGroup);
-		}
-	}
+        for (Integer keyGroup : keyGroupRange) {
+            keyGroupReader.readMappingsInKeyGroup(div, keyGroup);
+        }
+    }
 }

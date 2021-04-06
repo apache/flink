@@ -24,42 +24,41 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Locale;
 
-/**
- * TODO: add javadoc.
- */
-public class MetricsAggregationParameter extends MessageQueryParameter<MetricsAggregationParameter.AggregationMode> {
+/** TODO: add javadoc. */
+public class MetricsAggregationParameter
+        extends MessageQueryParameter<MetricsAggregationParameter.AggregationMode> {
 
-	protected MetricsAggregationParameter() {
-		super("agg", MessageParameterRequisiteness.OPTIONAL);
-	}
+    protected MetricsAggregationParameter() {
+        super("agg", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public AggregationMode convertStringToValue(String value) throws ConversionException {
-		try {
-			return AggregationMode.valueOf(value.toUpperCase(Locale.ROOT));
-		} catch (IllegalArgumentException iae) {
-			throw new ConversionException("Not a valid aggregation: " + value, iae);
-		}
-	}
+    @Override
+    public AggregationMode convertStringToValue(String value) throws ConversionException {
+        try {
+            return AggregationMode.valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException iae) {
+            throw new ConversionException("Not a valid aggregation: " + value, iae);
+        }
+    }
 
-	@Override
-	public String convertValueToString(AggregationMode value) {
-		return value.name().toLowerCase();
-	}
+    @Override
+    public String convertValueToString(AggregationMode value) {
+        return value.name().toLowerCase();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of aggregation modes which should be calculated. " +
-			"Available aggregations are: " + StringUtils.toQuotedListString(AggregationMode.values()) + '.';
-	}
+    @Override
+    public String getDescription() {
+        return "Comma-separated list of aggregation modes which should be calculated. "
+                + "Available aggregations are: "
+                + StringUtils.toQuotedListString(AggregationMode.values())
+                + '.';
+    }
 
-	/**
-	 * The available aggregations.
-	 */
-	public enum AggregationMode {
-		MIN,
-		MAX,
-		SUM,
-		AVG
-	}
+    /** The available aggregations. */
+    public enum AggregationMode {
+        MIN,
+        MAX,
+        SUM,
+        AVG
+    }
 }

@@ -28,103 +28,103 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/**
- * Cluster overview message including the current Flink version and commit id.
- */
+/** Cluster overview message including the current Flink version and commit id. */
 public class ClusterOverviewWithVersion extends ClusterOverview implements ResponseBody {
 
-	private static final long serialVersionUID = 5000058311783413216L;
+    private static final long serialVersionUID = 5000058311783413216L;
 
-	public static final String FIELD_NAME_VERSION = "flink-version";
-	public static final String FIELD_NAME_COMMIT = "flink-commit";
+    public static final String FIELD_NAME_VERSION = "flink-version";
+    public static final String FIELD_NAME_COMMIT = "flink-commit";
 
-	@JsonProperty(FIELD_NAME_VERSION)
-	private final String version;
+    @JsonProperty(FIELD_NAME_VERSION)
+    private final String version;
 
-	@JsonProperty(FIELD_NAME_COMMIT)
-	private final String commitId;
+    @JsonProperty(FIELD_NAME_COMMIT)
+    private final String commitId;
 
-	@JsonCreator
-	public ClusterOverviewWithVersion(
-			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
-			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
-			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
-			@JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
-			@JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
-			@JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
-			@JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed,
-			@JsonProperty(FIELD_NAME_VERSION) String version,
-			@JsonProperty(FIELD_NAME_COMMIT) String commitId) {
-		super(
-			numTaskManagersConnected,
-			numSlotsTotal,
-			numSlotsAvailable,
-			numJobsRunningOrPending,
-			numJobsFinished,
-			numJobsCancelled,
-			numJobsFailed);
+    @JsonCreator
+    public ClusterOverviewWithVersion(
+            @JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
+            @JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
+            @JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
+            @JsonProperty(FIELD_NAME_JOBS_RUNNING) int numJobsRunningOrPending,
+            @JsonProperty(FIELD_NAME_JOBS_FINISHED) int numJobsFinished,
+            @JsonProperty(FIELD_NAME_JOBS_CANCELLED) int numJobsCancelled,
+            @JsonProperty(FIELD_NAME_JOBS_FAILED) int numJobsFailed,
+            @JsonProperty(FIELD_NAME_VERSION) String version,
+            @JsonProperty(FIELD_NAME_COMMIT) String commitId) {
+        super(
+                numTaskManagersConnected,
+                numSlotsTotal,
+                numSlotsAvailable,
+                numJobsRunningOrPending,
+                numJobsFinished,
+                numJobsCancelled,
+                numJobsFailed);
 
-		this.version = Preconditions.checkNotNull(version);
-		this.commitId = Preconditions.checkNotNull(commitId);
-	}
+        this.version = Preconditions.checkNotNull(version);
+        this.commitId = Preconditions.checkNotNull(commitId);
+    }
 
-	public ClusterOverviewWithVersion(
-			int numTaskManagersConnected,
-			int numSlotsTotal,
-			int numSlotsAvailable,
-			JobsOverview jobs1,
-			JobsOverview jobs2,
-			String version,
-			String commitId) {
-		super(numTaskManagersConnected, numSlotsTotal, numSlotsAvailable, jobs1, jobs2);
+    public ClusterOverviewWithVersion(
+            int numTaskManagersConnected,
+            int numSlotsTotal,
+            int numSlotsAvailable,
+            JobsOverview jobs1,
+            JobsOverview jobs2,
+            String version,
+            String commitId) {
+        super(numTaskManagersConnected, numSlotsTotal, numSlotsAvailable, jobs1, jobs2);
 
-		this.version = Preconditions.checkNotNull(version);
-		this.commitId = Preconditions.checkNotNull(commitId);
-	}
+        this.version = Preconditions.checkNotNull(version);
+        this.commitId = Preconditions.checkNotNull(commitId);
+    }
 
-	public static ClusterOverviewWithVersion fromStatusOverview(ClusterOverview statusOverview, String version, String commitId) {
-		return new ClusterOverviewWithVersion(
-			statusOverview.getNumTaskManagersConnected(),
-			statusOverview.getNumSlotsTotal(),
-			statusOverview.getNumSlotsAvailable(),
-			statusOverview.getNumJobsRunningOrPending(),
-			statusOverview.getNumJobsFinished(),
-			statusOverview.getNumJobsCancelled(),
-			statusOverview.getNumJobsFailed(),
-			version,
-			commitId);
-	}
+    public static ClusterOverviewWithVersion fromStatusOverview(
+            ClusterOverview statusOverview, String version, String commitId) {
+        return new ClusterOverviewWithVersion(
+                statusOverview.getNumTaskManagersConnected(),
+                statusOverview.getNumSlotsTotal(),
+                statusOverview.getNumSlotsAvailable(),
+                statusOverview.getNumJobsRunningOrPending(),
+                statusOverview.getNumJobsFinished(),
+                statusOverview.getNumJobsCancelled(),
+                statusOverview.getNumJobsFailed(),
+                version,
+                commitId);
+    }
 
-	public String getVersion() {
-		return version;
-	}
+    public String getVersion() {
+        return version;
+    }
 
-	public String getCommitId() {
-		return commitId;
-	}
+    public String getCommitId() {
+        return commitId;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
 
-		ClusterOverviewWithVersion that = (ClusterOverviewWithVersion) o;
+        ClusterOverviewWithVersion that = (ClusterOverviewWithVersion) o;
 
-		return Objects.equals(version, that.getVersion()) && Objects.equals(commitId, that.getCommitId());
-	}
+        return Objects.equals(version, that.getVersion())
+                && Objects.equals(commitId, that.getCommitId());
+    }
 
-	@Override
-	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + (version != null ? version.hashCode() : 0);
-		result = 31 * result + (commitId != null ? commitId.hashCode() : 0);
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (version != null ? version.hashCode() : 0);
+        result = 31 * result + (commitId != null ? commitId.hashCode() : 0);
+        return result;
+    }
 }

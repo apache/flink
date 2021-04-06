@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-1.2.2_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-hive-1.2.2</name>
+	<name>Flink : Connectors : SQL : Hive 1.2.2</name>
 
 	<packaging>jar</packaging>
 
@@ -40,12 +40,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -54,8 +48,16 @@ under the License.
 			<version>1.2.2</version>
 			<exclusions>
 				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.pentaho</groupId>
+					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -66,8 +68,12 @@ under the License.
 			<version>1.2.2</version>
 			<exclusions>
 				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -76,37 +82,40 @@ under the License.
 			<groupId>org.apache.thrift</groupId>
 			<artifactId>libfb303</artifactId>
 			<version>0.9.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.orc</groupId>
+			<artifactId>orc-core</artifactId>
+			<version>${orc.version}</version>
+			<classifier>nohive</classifier>
 			<exclusions>
 				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.orc</groupId>
-			<artifactId>orc-core</artifactId>
-			<version>1.4.3</version>
-			<classifier>nohive</classifier>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
+			<artifactId>orc-shims</artifactId>
+			<version>${orc.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>io.airlift</groupId>
 			<artifactId>aircompressor</artifactId>
 			<version>0.8</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
 
@@ -130,9 +139,19 @@ under the License.
 									<include>org.apache.hive:hive-metastore</include>
 									<include>org.apache.thrift:libfb303</include>
 									<include>org.apache.orc:orc-core</include>
+									<include>org.apache.orc:orc-shims</include>
 									<include>io.airlift:aircompressor</include>
 								</includes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<!-- JSON is CatX so we're not allowed to bundle it in our jar -->
+									<artifact>org.apache.hive:hive-exec</artifact>
+									<excludes>
+										<exclude>org/json/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

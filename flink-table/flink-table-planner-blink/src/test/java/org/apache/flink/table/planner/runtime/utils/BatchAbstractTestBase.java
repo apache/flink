@@ -23,33 +23,30 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
+/** Batch test base to use {@link ClassRule}. */
+public class BatchAbstractTestBase extends TestLogger {
 
-/**
- * Batch test base to use {@link ClassRule}.
- */
-public class BatchAbstractTestBase {
+    public static final int DEFAULT_PARALLELISM = 3;
 
-	public static final int DEFAULT_PARALLELISM = 3;
+    @ClassRule
+    public static MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .build());
 
-	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-					.setConfiguration(getConfiguration())
-					.setNumberTaskManagers(1)
-					.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-					.build());
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-	private static Configuration getConfiguration() {
-		Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("100m"));
-		return config;
-	}
-
+    private static Configuration getConfiguration() {
+        Configuration config = new Configuration();
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("100m"));
+        return config;
+    }
 }

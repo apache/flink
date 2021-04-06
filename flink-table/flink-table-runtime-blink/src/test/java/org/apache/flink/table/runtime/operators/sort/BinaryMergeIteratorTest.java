@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
@@ -35,143 +35,138 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Test of {@link BinaryMergeIterator}.
- */
+/** Test of {@link BinaryMergeIterator}. */
 public class BinaryMergeIteratorTest {
 
-	private RecordComparator comparator;
-	private BinaryRowSerializer serializer;
+    private RecordComparator comparator;
+    private BinaryRowDataSerializer serializer;
 
-	@Before
-	public void setup() throws InstantiationException, IllegalAccessException {
-		serializer = new BinaryRowSerializer(2);
-		comparator = IntRecordComparator.INSTANCE;
-	}
+    @Before
+    public void setup() throws InstantiationException, IllegalAccessException {
+        serializer = new BinaryRowDataSerializer(2);
+        comparator = IntRecordComparator.INSTANCE;
+    }
 
-	private MutableObjectIterator<BinaryRow> newIterator(final int[] keys, final String[] values) {
+    private MutableObjectIterator<BinaryRowData> newIterator(
+            final int[] keys, final String[] values) {
 
-		BinaryRow row = serializer.createInstance();
-		BinaryRowWriter writer = new BinaryRowWriter(row);
-		return new MutableObjectIterator<BinaryRow>() {
+        BinaryRowData row = serializer.createInstance();
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+        return new MutableObjectIterator<BinaryRowData>() {
 
-			private int current = 0;
+            private int current = 0;
 
-			@Override
-			public BinaryRow next(BinaryRow reuse) {
-				if (current < keys.length) {
-					int key = keys[current];
-					String value = values[current];
-					current++;
-					writer.reset();
-					writer.writeInt(0, key);
-					writer.writeString(1, BinaryString.fromString(value));
-					writer.complete();
-					return row;
-				} else {
-					return null;
-				}
-			}
+            @Override
+            public BinaryRowData next(BinaryRowData reuse) {
+                if (current < keys.length) {
+                    int key = keys[current];
+                    String value = values[current];
+                    current++;
+                    writer.reset();
+                    writer.writeInt(0, key);
+                    writer.writeString(1, StringData.fromString(value));
+                    writer.complete();
+                    return row;
+                } else {
+                    return null;
+                }
+            }
 
-			@Override
-			public BinaryRow next() {
-				throw new RuntimeException();
-			}
-		};
-	}
+            @Override
+            public BinaryRowData next() {
+                throw new RuntimeException();
+            }
+        };
+    }
 
-	@Test
-	public void testOneStream() throws Exception {
-		List<MutableObjectIterator<BinaryRow>> iterators = new ArrayList<>();
-		iterators.add(newIterator(
-				new int[]{1, 2, 4, 5, 10}, new String[]{"1", "2", "4", "5", "10"}));
+    @Test
+    public void testOneStream() throws Exception {
+        List<MutableObjectIterator<BinaryRowData>> iterators = new ArrayList<>();
+        iterators.add(
+                newIterator(new int[] {1, 2, 4, 5, 10}, new String[] {"1", "2", "4", "5", "10"}));
 
-		final int[] expected = new int[]{1, 2, 4, 5, 10};
+        final int[] expected = new int[] {1, 2, 4, 5, 10};
 
-		MutableObjectIterator<BinaryRow> iterator =
-				new BinaryMergeIterator<>(
-						iterators,
-						Collections.singletonList(serializer.createInstance()),
-						(o1, o2) -> this.comparator.compare(o1, o2));
+        MutableObjectIterator<BinaryRowData> iterator =
+                new BinaryMergeIterator<>(
+                        iterators,
+                        Collections.singletonList(serializer.createInstance()),
+                        (o1, o2) -> this.comparator.compare(o1, o2));
 
-		BinaryRow row = serializer.createInstance();
+        BinaryRowData row = serializer.createInstance();
 
-		int pos = 0;
-		while ((row = iterator.next(row)) != null) {
-			Assert.assertEquals(expected[pos++], row.getInt(0));
-		}
-	}
+        int pos = 0;
+        while ((row = iterator.next(row)) != null) {
+            Assert.assertEquals(expected[pos++], row.getInt(0));
+        }
+    }
 
-	@Test
-	public void testMergeOfTwoStreams() throws Exception {
-		List<MutableObjectIterator<BinaryRow>> iterators = new ArrayList<>();
-		iterators.add(newIterator(
-				new int[]{1, 2, 4, 5, 10}, new String[]{"1", "2", "4", "5", "10"}));
-		iterators.add(newIterator(
-				new int[]{3, 6, 7, 10, 12}, new String[]{"3", "6", "7", "10", "12"}));
+    @Test
+    public void testMergeOfTwoStreams() throws Exception {
+        List<MutableObjectIterator<BinaryRowData>> iterators = new ArrayList<>();
+        iterators.add(
+                newIterator(new int[] {1, 2, 4, 5, 10}, new String[] {"1", "2", "4", "5", "10"}));
+        iterators.add(
+                newIterator(new int[] {3, 6, 7, 10, 12}, new String[] {"3", "6", "7", "10", "12"}));
 
-		final int[] expected = new int[]{1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
+        final int[] expected = new int[] {1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
 
-		MutableObjectIterator<BinaryRow> iterator =
-				new BinaryMergeIterator<>(
-						iterators,
-						reused(2),
-						(o1, o2) -> this.comparator.compare(o1, o2));
+        MutableObjectIterator<BinaryRowData> iterator =
+                new BinaryMergeIterator<>(
+                        iterators, reused(2), (o1, o2) -> this.comparator.compare(o1, o2));
 
-		BinaryRow row = serializer.createInstance();
+        BinaryRowData row = serializer.createInstance();
 
-		int pos = 0;
-		while ((row = iterator.next(row)) != null) {
-			Assert.assertEquals(expected[pos++], row.getInt(0));
-		}
-	}
+        int pos = 0;
+        while ((row = iterator.next(row)) != null) {
+            Assert.assertEquals(expected[pos++], row.getInt(0));
+        }
+    }
 
-	@Test
-	public void testMergeOfTenStreams() throws Exception {
-		List<MutableObjectIterator<BinaryRow>> iterators = new ArrayList<>();
-		iterators.add(newIterator(
-				new int[]{1, 2, 17, 23, 23}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{2, 6, 7, 8, 9}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{4, 10, 11, 11, 12}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{3, 6, 7, 10, 12}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{7, 10, 15, 19, 44}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{6, 6, 11, 17, 18}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{1, 2, 4, 5, 10}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{5, 10, 19, 23, 29}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{9, 9, 9, 9, 9}, new String[]{"A", "B", "C", "D", "E"}));
-		iterators.add(newIterator(
-				new int[]{8, 8, 14, 14, 15}, new String[]{"A", "B", "C", "D", "E"}));
+    @Test
+    public void testMergeOfTenStreams() throws Exception {
+        List<MutableObjectIterator<BinaryRowData>> iterators = new ArrayList<>();
+        iterators.add(
+                newIterator(new int[] {1, 2, 17, 23, 23}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {2, 6, 7, 8, 9}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {4, 10, 11, 11, 12}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {3, 6, 7, 10, 12}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {7, 10, 15, 19, 44}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {6, 6, 11, 17, 18}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {1, 2, 4, 5, 10}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {5, 10, 19, 23, 29}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {9, 9, 9, 9, 9}, new String[] {"A", "B", "C", "D", "E"}));
+        iterators.add(
+                newIterator(new int[] {8, 8, 14, 14, 15}, new String[] {"A", "B", "C", "D", "E"}));
 
-		TypeComparator<Integer> comparator = new IntComparator(true);
+        TypeComparator<Integer> comparator = new IntComparator(true);
 
-		MutableObjectIterator<BinaryRow> iterator =
-				new BinaryMergeIterator<>(
-						iterators,
-						reused(10),
-						(o1, o2) -> this.comparator.compare(o1, o2));
+        MutableObjectIterator<BinaryRowData> iterator =
+                new BinaryMergeIterator<>(
+                        iterators, reused(10), (o1, o2) -> this.comparator.compare(o1, o2));
 
-		BinaryRow row = serializer.createInstance();
+        BinaryRowData row = serializer.createInstance();
 
-		int pre = 0;
-		while ((row = iterator.next(row)) != null) {
-			Assert.assertTrue(comparator.compare(row.getInt(0), pre) >= 0);
-			pre = row.getInt(0);
-		}
-	}
+        int pre = 0;
+        while ((row = iterator.next(row)) != null) {
+            Assert.assertTrue(comparator.compare(row.getInt(0), pre) >= 0);
+            pre = row.getInt(0);
+        }
+    }
 
-	private List<BinaryRow> reused(int size) {
-		ArrayList<BinaryRow> ret = new ArrayList<>(size);
-		for (int i = 0; i < size; i++) {
-			ret.add(serializer.createInstance());
-		}
-		return ret;
-	}
+    private List<BinaryRowData> reused(int size) {
+        ArrayList<BinaryRowData> ret = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            ret.add(serializer.createInstance());
+        }
+        return ret;
+    }
 }

@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-high-parallelism-iterations-test</artifactId>
-	<name>flink-high-parallelism-iterations-test</name>
+	<name>Flink : E2E Tests : High parallelism iterations</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

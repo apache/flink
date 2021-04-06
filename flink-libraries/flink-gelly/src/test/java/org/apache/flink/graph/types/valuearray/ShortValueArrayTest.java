@@ -27,102 +27,101 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link ShortValueArray}.
- */
+/** Tests for {@link ShortValueArray}. */
 public class ShortValueArrayTest {
 
-	@Test
-	public void testBoundedArray() {
-		int count = ShortValueArray.DEFAULT_CAPACITY_IN_BYTES / ShortValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Test
+    public void testBoundedArray() {
+        int count =
+                ShortValueArray.DEFAULT_CAPACITY_IN_BYTES / ShortValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		ValueArray<ShortValue> lva = new ShortValueArray(ShortValueArray.DEFAULT_CAPACITY_IN_BYTES);
+        ValueArray<ShortValue> lva = new ShortValueArray(ShortValueArray.DEFAULT_CAPACITY_IN_BYTES);
 
-		// fill the array
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // fill the array
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new ShortValue((short) i)));
+            assertTrue(lva.add(new ShortValue((short) i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array is now full
-		assertTrue(lva.isFull());
-		assertEquals(count, lva.size());
+        // array is now full
+        assertTrue(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (ShortValue lv : lva) {
-			assertEquals((short) idx++, lv.getValue());
-		}
+        // verify the array values
+        int idx = 0;
+        for (ShortValue lv : lva) {
+            assertEquals((short) idx++, lv.getValue());
+        }
 
-		// add element past end of array
-		assertFalse(lva.add(new ShortValue((short) count)));
-		assertFalse(lva.addAll(lva));
+        // add element past end of array
+        assertFalse(lva.add(new ShortValue((short) count)));
+        assertFalse(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		ShortValueArray lvaTo = new ShortValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        ShortValueArray lvaTo = new ShortValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 
-	@Test
-	public void testUnboundedArray() {
-		int count = 4096;
+    @Test
+    public void testUnboundedArray() {
+        int count = 4096;
 
-		ValueArray<ShortValue> lva = new ShortValueArray();
+        ValueArray<ShortValue> lva = new ShortValueArray();
 
-		// add several elements
-		for (int i = 0; i < count; i++) {
-			assertFalse(lva.isFull());
-			assertEquals(i, lva.size());
+        // add several elements
+        for (int i = 0; i < count; i++) {
+            assertFalse(lva.isFull());
+            assertEquals(i, lva.size());
 
-			assertTrue(lva.add(new ShortValue((short) i)));
+            assertTrue(lva.add(new ShortValue((short) i)));
 
-			assertEquals(i + 1, lva.size());
-		}
+            assertEquals(i + 1, lva.size());
+        }
 
-		// array never fills
-		assertFalse(lva.isFull());
-		assertEquals(count, lva.size());
+        // array never fills
+        assertFalse(lva.isFull());
+        assertEquals(count, lva.size());
 
-		// verify the array values
-		int idx = 0;
-		for (ShortValue lv : lva) {
-			assertEquals((short) idx++, lv.getValue());
-		}
+        // verify the array values
+        int idx = 0;
+        for (ShortValue lv : lva) {
+            assertEquals((short) idx++, lv.getValue());
+        }
 
-		// add element past end of array
-		assertTrue(lva.add(new ShortValue((short) count)));
-		assertTrue(lva.addAll(lva));
+        // add element past end of array
+        assertTrue(lva.add(new ShortValue((short) count)));
+        assertTrue(lva.addAll(lva));
 
-		// test copy
-		assertEquals(lva, lva.copy());
+        // test copy
+        assertEquals(lva, lva.copy());
 
-		// test copyTo
-		ShortValueArray lvaTo = new ShortValueArray();
-		lva.copyTo(lvaTo);
-		assertEquals(lva, lvaTo);
+        // test copyTo
+        ShortValueArray lvaTo = new ShortValueArray();
+        lva.copyTo(lvaTo);
+        assertEquals(lva, lvaTo);
 
-		// test mark/reset
-		int size = lva.size();
-		lva.mark();
-		assertTrue(lva.add(new ShortValue()));
-		assertEquals(size + 1, lva.size());
-		lva.reset();
-		assertEquals(size, lva.size());
+        // test mark/reset
+        int size = lva.size();
+        lva.mark();
+        assertTrue(lva.add(new ShortValue()));
+        assertEquals(size + 1, lva.size());
+        lva.reset();
+        assertEquals(size, lva.size());
 
-		// test clear
-		lva.clear();
-		assertEquals(0, lva.size());
-	}
+        // test clear
+        lva.clear();
+        assertEquals(0, lva.size());
+    }
 }

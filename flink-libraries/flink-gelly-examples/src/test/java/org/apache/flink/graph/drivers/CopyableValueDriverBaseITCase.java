@@ -25,28 +25,29 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Base class for drivers requiring the key ID to implement
- * {@code CopyableValue}. This class overrides {@link DriverBaseITCase}
- * to restrict the tested ID types.
+ * Base class for drivers requiring the key ID to implement {@code CopyableValue}. This class
+ * overrides {@link DriverBaseITCase} to restrict the tested ID types.
  */
-public abstract class CopyableValueDriverBaseITCase
-extends DriverBaseITCase {
+public abstract class CopyableValueDriverBaseITCase extends DriverBaseITCase {
 
-	protected CopyableValueDriverBaseITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    protected CopyableValueDriverBaseITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	// limit tests to types supporting CopyableValue
-	@Parameterized.Parameters(name = "ID type = {0}, Execution mode = {1}")
-	public static Collection<Object[]> executionModes() {
-		List<Object[]> executionModes = new ArrayList<>();
+    // limit tests to types supporting CopyableValue
+    @Parameterized.Parameters(name = "ID type = {0}, Execution mode = {1}")
+    public static Collection<Object[]> executionModes() {
+        List<Object[]> executionModes = new ArrayList<>();
 
-		for (String idType : new String[] {"byte", "short", "char", "integer", "long", "float", "double", "string"}) {
-			for (TestExecutionMode executionMode : TestExecutionMode.values()) {
-				executionModes.add(new Object[] {idType, executionMode});
-			}
-		}
+        for (String idType :
+                new String[] {
+                    "byte", "short", "char", "integer", "long", "float", "double", "string"
+                }) {
+            for (TestExecutionMode executionMode : TestExecutionMode.values()) {
+                executionModes.add(new Object[] {idType, executionMode});
+            }
+        }
 
-		return executionModes;
-	}
+        return executionModes;
+    }
 }

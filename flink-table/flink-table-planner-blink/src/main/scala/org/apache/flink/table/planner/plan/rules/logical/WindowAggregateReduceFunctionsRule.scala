@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.calcite.FlinkRelFactories
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule
 import org.apache.calcite.rex.RexNode
@@ -39,7 +40,7 @@ import scala.collection.JavaConversions._
 class WindowAggregateReduceFunctionsRule
   extends AggregateReduceFunctionsRule(
     operand(classOf[LogicalWindowAggregate], any()),
-    RelFactories.LOGICAL_BUILDER) {
+    FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE) {
 
   override def newAggregateRel(
       relBuilder: RelBuilder,

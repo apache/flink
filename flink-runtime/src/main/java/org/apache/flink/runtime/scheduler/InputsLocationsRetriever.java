@@ -26,24 +26,24 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Component to retrieve the inputs locations of a {@link Execution}.
- */
+/** Component to retrieve the inputs locations of a {@link Execution}. */
 public interface InputsLocationsRetriever {
 
-	/**
-	 * Get the producers of the result partitions consumed by an execution.
-	 *
-	 * @param executionVertexId identifies the execution
-	 * @return the producers of the result partitions group by job vertex id
-	 */
-	Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(ExecutionVertexID executionVertexId);
+    /**
+     * Get the producers of the result partitions consumed by an execution.
+     *
+     * @param executionVertexId identifies the execution
+     * @return the producers of the result partitions group by job vertex id
+     */
+    Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+            ExecutionVertexID executionVertexId);
 
-	/**
-	 * Get the task manager location future for an execution.
-	 *
-	 * @param executionVertexId identifying the execution
-	 * @return the task manager location future
-	 */
-	Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(ExecutionVertexID executionVertexId);
+    /**
+     * Get the task manager location future for an execution.
+     *
+     * @param executionVertexId identifying the execution
+     * @return the task manager location future
+     */
+    Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(
+            ExecutionVertexID executionVertexId);
 }

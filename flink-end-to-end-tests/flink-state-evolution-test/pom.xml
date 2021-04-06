@@ -22,12 +22,12 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-state-evolution-test</artifactId>
-	<name>flink-state-evolution-test</name>
+	<name>Flink : E2E Tests : State evolution</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -84,8 +84,8 @@ under the License.
 							<goal>schema</goal>
 						</goals>
 						<configuration>
-							<sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
-							<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
+							<sourceDirectory>${project.basedir}/src/main/resources/avro/</sourceDirectory>
+							<outputDirectory>${project.basedir}/target/generated-sources/</outputDirectory>
 							<fieldVisibility>PRIVATE</fieldVisibility>
 							<includes>
 								<include>**/*.avsc</include>

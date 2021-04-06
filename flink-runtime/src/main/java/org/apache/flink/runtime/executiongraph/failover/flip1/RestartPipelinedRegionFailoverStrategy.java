@@ -18,260 +18,302 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IterableUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A failover strategy that proposes to restart involved regions when a vertex fails.
- * A region is defined by this strategy as tasks that communicate via pipelined data exchange.
+ * A failover strategy that proposes to restart involved regions when a vertex fails. A region is
+ * defined by this strategy as tasks that communicate via pipelined data exchange.
  */
 public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy {
 
-	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(RestartPipelinedRegionFailoverStrategy.class);
+    /** The log object used for debugging. */
+    private static final Logger LOG =
+            LoggerFactory.getLogger(RestartPipelinedRegionFailoverStrategy.class);
 
-	/** The topology containing info about all the vertices and result partitions. */
-	private final FailoverTopology<?, ?> topology;
+    /** The topology containing info about all the vertices and result partitions. */
+    private final SchedulingTopology topology;
 
-	/** All failover regions. */
-	private final Set<FailoverRegion> regions;
+    /** The checker helps to query result partition availability. */
+    private final RegionFailoverResultPartitionAvailabilityChecker
+            resultPartitionAvailabilityChecker;
 
-	/** Maps execution vertex id to failover region. */
-	private final Map<ExecutionVertexID, FailoverRegion> vertexToRegionMap;
+    /**
+     * Creates a new failover strategy to restart pipelined regions that works on the given
+     * topology. The result partitions are always considered to be available if no data consumption
+     * error happens.
+     *
+     * @param topology containing info about all the vertices and result partitions
+     */
+    @VisibleForTesting
+    public RestartPipelinedRegionFailoverStrategy(SchedulingTopology topology) {
+        this(topology, resultPartitionID -> true);
+    }
 
-	/** The checker helps to query result partition availability. */
-	private final RegionFailoverResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
+    /**
+     * Creates a new failover strategy to restart pipelined regions that works on the given
+     * topology.
+     *
+     * @param topology containing info about all the vertices and result partitions
+     * @param resultPartitionAvailabilityChecker helps to query result partition availability
+     */
+    public RestartPipelinedRegionFailoverStrategy(
+            SchedulingTopology topology,
+            ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
 
-	/**
-	 * Creates a new failover strategy to restart pipelined regions that works on the given topology.
-	 * The result partitions are always considered to be available if no data consumption error happens.
-	 *
-	 * @param topology containing info about all the vertices and result partitions
-	 */
-	@VisibleForTesting
-	public RestartPipelinedRegionFailoverStrategy(FailoverTopology<?, ?> topology) {
-		this(topology, resultPartitionID -> true);
-	}
+        this.topology = checkNotNull(topology);
+        this.resultPartitionAvailabilityChecker =
+                new RegionFailoverResultPartitionAvailabilityChecker(
+                        resultPartitionAvailabilityChecker);
+    }
 
-	/**
-	 * Creates a new failover strategy to restart pipelined regions that works on the given topology.
-	 *
-	 * @param topology containing info about all the vertices and result partitions
-	 * @param resultPartitionAvailabilityChecker helps to query result partition availability
-	 */
-	public RestartPipelinedRegionFailoverStrategy(
-		FailoverTopology<?, ?> topology,
-		ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
+    // ------------------------------------------------------------------------
+    //  task failure handling
+    // ------------------------------------------------------------------------
 
-		this.topology = checkNotNull(topology);
-		this.regions = Collections.newSetFromMap(new IdentityHashMap<>());
-		this.vertexToRegionMap = new HashMap<>();
-		this.resultPartitionAvailabilityChecker = new RegionFailoverResultPartitionAvailabilityChecker(
-			resultPartitionAvailabilityChecker);
+    /**
+     * Returns a set of IDs corresponding to the set of vertices that should be restarted. In this
+     * strategy, all task vertices in 'involved' regions are proposed to be restarted. The
+     * 'involved' regions are calculated with rules below: 1. The region containing the failed task
+     * is always involved 2. If an input result partition of an involved region is not available,
+     * i.e. Missing or Corrupted, the region containing the partition producer task is involved 3.
+     * If a region is involved, all of its consumer regions are involved
+     *
+     * @param executionVertexId ID of the failed task
+     * @param cause cause of the failure
+     * @return set of IDs of vertices to restart
+     */
+    @Override
+    public Set<ExecutionVertexID> getTasksNeedingRestart(
+            ExecutionVertexID executionVertexId, Throwable cause) {
+        LOG.info("Calculating tasks to restart to recover the failed task {}.", executionVertexId);
 
-		// build regions based on the given topology
-		LOG.info("Start building failover regions.");
-		buildFailoverRegions();
-	}
-	// ------------------------------------------------------------------------
-	//  region building
-	// ------------------------------------------------------------------------
+        final SchedulingPipelinedRegion failedRegion =
+                topology.getPipelinedRegionOfVertex(executionVertexId);
+        if (failedRegion == null) {
+            // TODO: show the task name in the log
+            throw new IllegalStateException(
+                    "Can not find the failover region for task " + executionVertexId, cause);
+        }
 
-	private void buildFailoverRegions() {
-		final Set<? extends Set<? extends FailoverVertex<?, ?>>> distinctRegions =
-			PipelinedRegionComputeUtil.computePipelinedRegions(topology);
+        // if the failure cause is data consumption error, mark the corresponding data partition to
+        // be failed,
+        // so that the failover process will try to recover it
+        Optional<PartitionException> dataConsumptionException =
+                ExceptionUtils.findThrowable(cause, PartitionException.class);
+        if (dataConsumptionException.isPresent()) {
+            resultPartitionAvailabilityChecker.markResultPartitionFailed(
+                    dataConsumptionException.get().getPartitionId().getPartitionId());
+        }
 
-		// creating all the failover regions and register them
-		for (Set<? extends FailoverVertex<?, ?>> regionVertices : distinctRegions) {
-			LOG.debug("Creating a failover region with {} vertices.", regionVertices.size());
-			final FailoverRegion failoverRegion = new FailoverRegion(regionVertices);
-			regions.add(failoverRegion);
-			for (FailoverVertex<?, ?> vertex : regionVertices) {
-				vertexToRegionMap.put(vertex.getId(), failoverRegion);
-			}
-		}
+        // calculate the tasks to restart based on the result of regions to restart
+        Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
+        for (SchedulingPipelinedRegion region : getRegionsToRestart(failedRegion)) {
+            for (SchedulingExecutionVertex vertex : region.getVertices()) {
+                // we do not need to restart tasks which are already in the initial state
+                if (vertex.getState() != ExecutionState.CREATED) {
+                    tasksToRestart.add(vertex.getId());
+                }
+            }
+        }
 
-		LOG.info("Created {} failover regions.", regions.size());
-	}
+        // the previous failed partition will be recovered. remove its failed state from the checker
+        if (dataConsumptionException.isPresent()) {
+            resultPartitionAvailabilityChecker.removeResultPartitionFromFailedState(
+                    dataConsumptionException.get().getPartitionId().getPartitionId());
+        }
 
+        LOG.info(
+                "{} tasks should be restarted to recover the failed task {}. ",
+                tasksToRestart.size(),
+                executionVertexId);
+        return tasksToRestart;
+    }
 
-	// ------------------------------------------------------------------------
-	//  task failure handling
-	// ------------------------------------------------------------------------
+    /**
+     * All 'involved' regions are proposed to be restarted. The 'involved' regions are calculated
+     * with rules below: 1. The region containing the failed task is always involved 2. If an input
+     * result partition of an involved region is not available, i.e. Missing or Corrupted, the
+     * region containing the partition producer task is involved 3. If a region is involved, all of
+     * its consumer regions are involved
+     */
+    private Set<SchedulingPipelinedRegion> getRegionsToRestart(
+            SchedulingPipelinedRegion failedRegion) {
+        Set<SchedulingPipelinedRegion> regionsToRestart =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<SchedulingPipelinedRegion> visitedRegions =
+                Collections.newSetFromMap(new IdentityHashMap<>());
 
-	/**
-	 * Returns a set of IDs corresponding to the set of vertices that should be restarted.
-	 * In this strategy, all task vertices in 'involved' regions are proposed to be restarted.
-	 * The 'involved' regions are calculated with rules below:
-	 * 1. The region containing the failed task is always involved
-	 * 2. If an input result partition of an involved region is not available, i.e. Missing or Corrupted,
-	 *    the region containing the partition producer task is involved
-	 * 3. If a region is involved, all of its consumer regions are involved
-	 *
-	 * @param executionVertexId ID of the failed task
-	 * @param cause cause of the failure
-	 * @return set of IDs of vertices to restart
-	 */
-	@Override
-	public Set<ExecutionVertexID> getTasksNeedingRestart(ExecutionVertexID executionVertexId, Throwable cause) {
-		LOG.info("Calculating tasks to restart to recover the failed task {}.", executionVertexId);
+        Set<ConsumedPartitionGroup> visitedConsumedResultGroups =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<ConsumerVertexGroup> visitedConsumerVertexGroups =
+                Collections.newSetFromMap(new IdentityHashMap<>());
 
-		final FailoverRegion failedRegion = vertexToRegionMap.get(executionVertexId);
-		if (failedRegion == null) {
-			// TODO: show the task name in the log
-			throw new IllegalStateException("Can not find the failover region for task " + executionVertexId, cause);
-		}
+        // start from the failed region to visit all involved regions
+        Queue<SchedulingPipelinedRegion> regionsToVisit = new ArrayDeque<>();
+        visitedRegions.add(failedRegion);
+        regionsToVisit.add(failedRegion);
+        while (!regionsToVisit.isEmpty()) {
+            SchedulingPipelinedRegion regionToRestart = regionsToVisit.poll();
 
-		// if the failure cause is data consumption error, mark the corresponding data partition to be failed,
-		// so that the failover process will try to recover it
-		Optional<PartitionException> dataConsumptionException = ExceptionUtils.findThrowable(
-			cause, PartitionException.class);
-		if (dataConsumptionException.isPresent()) {
-			resultPartitionAvailabilityChecker.markResultPartitionFailed(
-				dataConsumptionException.get().getPartitionId().getPartitionId());
-		}
+            // an involved region should be restarted
+            regionsToRestart.add(regionToRestart);
 
-		// calculate the tasks to restart based on the result of regions to restart
-		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
-		for (FailoverRegion region : getRegionsToRestart(failedRegion)) {
-			tasksToRestart.addAll(region.getAllExecutionVertexIDs());
-		}
+            // if a needed input result partition is not available, its producer region is involved
+            for (IntermediateResultPartitionID consumedPartitionId :
+                    getConsumedPartitionsToVisit(regionToRestart, visitedConsumedResultGroups)) {
+                if (!resultPartitionAvailabilityChecker.isAvailable(consumedPartitionId)) {
+                    SchedulingResultPartition consumedPartition =
+                            topology.getResultPartition(consumedPartitionId);
+                    SchedulingPipelinedRegion producerRegion =
+                            topology.getPipelinedRegionOfVertex(
+                                    consumedPartition.getProducer().getId());
+                    if (!visitedRegions.contains(producerRegion)) {
+                        visitedRegions.add(producerRegion);
+                        regionsToVisit.add(producerRegion);
+                    }
+                }
+            }
 
-		// the previous failed partition will be recovered. remove its failed state from the checker
-		if (dataConsumptionException.isPresent()) {
-			resultPartitionAvailabilityChecker.removeResultPartitionFromFailedState(
-				dataConsumptionException.get().getPartitionId().getPartitionId());
-		}
+            // all consumer regions of an involved region should be involved
+            for (ExecutionVertexID consumerVertexId :
+                    getConsumerVerticesToVisit(regionToRestart, visitedConsumerVertexGroups)) {
+                SchedulingPipelinedRegion consumerRegion =
+                        topology.getPipelinedRegionOfVertex(consumerVertexId);
+                if (!visitedRegions.contains(consumerRegion)) {
+                    visitedRegions.add(consumerRegion);
+                    regionsToVisit.add(consumerRegion);
+                }
+            }
+        }
 
-		LOG.info("{} tasks should be restarted to recover the failed task {}. ", tasksToRestart.size(), executionVertexId);
-		return tasksToRestart;
-	}
+        return regionsToRestart;
+    }
 
-	/**
-	 * All 'involved' regions are proposed to be restarted.
-	 * The 'involved' regions are calculated with rules below:
-	 * 1. The region containing the failed task is always involved
-	 * 2. If an input result partition of an involved region is not available, i.e. Missing or Corrupted,
-	 *    the region containing the partition producer task is involved
-	 * 3. If a region is involved, all of its consumer regions are involved
-	 */
-	private Set<FailoverRegion> getRegionsToRestart(FailoverRegion failedRegion) {
-		Set<FailoverRegion> regionsToRestart = Collections.newSetFromMap(new IdentityHashMap<>());
-		Set<FailoverRegion> visitedRegions = Collections.newSetFromMap(new IdentityHashMap<>());
+    private Iterable<IntermediateResultPartitionID> getConsumedPartitionsToVisit(
+            SchedulingPipelinedRegion regionToRestart,
+            Set<ConsumedPartitionGroup> visitedConsumedResultGroups) {
 
-		// start from the failed region to visit all involved regions
-		Queue<FailoverRegion> regionsToVisit = new ArrayDeque<>();
-		visitedRegions.add(failedRegion);
-		regionsToVisit.add(failedRegion);
-		while (!regionsToVisit.isEmpty()) {
-			FailoverRegion regionToRestart = regionsToVisit.poll();
+        final List<ConsumedPartitionGroup> consumedPartitionGroupsToVisit = new ArrayList<>();
 
-			// an involved region should be restarted
-			regionsToRestart.add(regionToRestart);
+        for (SchedulingExecutionVertex vertex : regionToRestart.getVertices()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    vertex.getConsumedPartitionGroups()) {
+                if (!visitedConsumedResultGroups.contains(consumedPartitionGroup)) {
+                    visitedConsumedResultGroups.add(consumedPartitionGroup);
+                    consumedPartitionGroupsToVisit.add(consumedPartitionGroup);
+                }
+            }
+        }
 
-			// if a needed input result partition is not available, its producer region is involved
-			for (FailoverVertex<?, ?> vertex : regionToRestart.getAllExecutionVertices()) {
-				for (FailoverResultPartition<?, ?> consumedPartition : vertex.getConsumedResults()) {
-					if (!resultPartitionAvailabilityChecker.isAvailable(consumedPartition.getId())) {
-						FailoverRegion producerRegion = vertexToRegionMap.get(consumedPartition.getProducer().getId());
-						if (!visitedRegions.contains(producerRegion)) {
-							visitedRegions.add(producerRegion);
-							regionsToVisit.add(producerRegion);
-						}
-					}
-				}
-			}
+        return IterableUtils.flatMap(consumedPartitionGroupsToVisit, Function.identity());
+    }
 
-			// all consumer regions of an involved region should be involved
-			for (FailoverVertex<?, ?> vertex : regionToRestart.getAllExecutionVertices()) {
-				for (FailoverResultPartition<?, ?> producedPartition : vertex.getProducedResults()) {
-					for (FailoverVertex<?, ?> consumerVertex : producedPartition.getConsumers()) {
-						FailoverRegion consumerRegion = vertexToRegionMap.get(consumerVertex.getId());
-						if (!visitedRegions.contains(consumerRegion)) {
-							visitedRegions.add(consumerRegion);
-							regionsToVisit.add(consumerRegion);
-						}
-					}
-				}
-			}
-		}
+    private Iterable<ExecutionVertexID> getConsumerVerticesToVisit(
+            SchedulingPipelinedRegion regionToRestart,
+            Set<ConsumerVertexGroup> visitedConsumerVertexGroups) {
+        final List<ConsumerVertexGroup> consumerVertexGroupsToVisit = new ArrayList<>();
 
-		return regionsToRestart;
-	}
+        for (SchedulingExecutionVertex vertex : regionToRestart.getVertices()) {
+            for (SchedulingResultPartition producedPartition : vertex.getProducedResults()) {
+                for (ConsumerVertexGroup consumerVertexGroup :
+                        producedPartition.getConsumerVertexGroups()) {
+                    if (!visitedConsumerVertexGroups.contains(consumerVertexGroup)) {
+                        visitedConsumerVertexGroups.add(consumerVertexGroup);
+                        consumerVertexGroupsToVisit.add(consumerVertexGroup);
+                    }
+                }
+            }
+        }
 
-	// ------------------------------------------------------------------------
-	//  testing
-	// ------------------------------------------------------------------------
+        return IterableUtils.flatMap(consumerVertexGroupsToVisit, Function.identity());
+    }
 
-	/**
-	 * Returns the failover region that contains the given execution vertex.
-	 *
-	 * @return the failover region that contains the given execution vertex
-	 */
-	@VisibleForTesting
-	public FailoverRegion getFailoverRegion(ExecutionVertexID vertexID) {
-		return vertexToRegionMap.get(vertexID);
-	}
+    // ------------------------------------------------------------------------
+    //  testing
+    // ------------------------------------------------------------------------
 
-	/**
-	 * A stateful {@link ResultPartitionAvailabilityChecker} which maintains the failed partitions which are not available.
-	 */
-	private static class RegionFailoverResultPartitionAvailabilityChecker implements ResultPartitionAvailabilityChecker {
+    /**
+     * Returns the failover region that contains the given execution vertex.
+     *
+     * @return the failover region that contains the given execution vertex
+     */
+    @VisibleForTesting
+    public SchedulingPipelinedRegion getFailoverRegion(ExecutionVertexID vertexID) {
+        return topology.getPipelinedRegionOfVertex(vertexID);
+    }
 
-		/** Result partition state checker from the shuffle master. */
-		private final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
+    /**
+     * A stateful {@link ResultPartitionAvailabilityChecker} which maintains the failed partitions
+     * which are not available.
+     */
+    private static class RegionFailoverResultPartitionAvailabilityChecker
+            implements ResultPartitionAvailabilityChecker {
 
-		/** Records partitions which has caused {@link PartitionException}. */
-		private final HashSet<IntermediateResultPartitionID> failedPartitions;
+        /** Result partition state checker from the shuffle master. */
+        private final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
 
-		RegionFailoverResultPartitionAvailabilityChecker(ResultPartitionAvailabilityChecker checker) {
-			this.resultPartitionAvailabilityChecker = checkNotNull(checker);
-			this.failedPartitions = new HashSet<>();
-		}
+        /** Records partitions which has caused {@link PartitionException}. */
+        private final HashSet<IntermediateResultPartitionID> failedPartitions;
 
-		@Override
-		public boolean isAvailable(IntermediateResultPartitionID resultPartitionID) {
-			return !failedPartitions.contains(resultPartitionID) &&
-				resultPartitionAvailabilityChecker.isAvailable(resultPartitionID);
-		}
+        RegionFailoverResultPartitionAvailabilityChecker(
+                ResultPartitionAvailabilityChecker checker) {
+            this.resultPartitionAvailabilityChecker = checkNotNull(checker);
+            this.failedPartitions = new HashSet<>();
+        }
 
-		public void markResultPartitionFailed(IntermediateResultPartitionID resultPartitionID) {
-			failedPartitions.add(resultPartitionID);
-		}
+        @Override
+        public boolean isAvailable(IntermediateResultPartitionID resultPartitionID) {
+            return !failedPartitions.contains(resultPartitionID)
+                    && resultPartitionAvailabilityChecker.isAvailable(resultPartitionID);
+        }
 
-		public void removeResultPartitionFromFailedState(IntermediateResultPartitionID resultPartitionID) {
-			failedPartitions.remove(resultPartitionID);
-		}
-	}
+        public void markResultPartitionFailed(IntermediateResultPartitionID resultPartitionID) {
+            failedPartitions.add(resultPartitionID);
+        }
 
-	/**
-	 * The factory to instantiate {@link RestartPipelinedRegionFailoverStrategy}.
-	 */
-	public static class Factory implements FailoverStrategy.Factory {
+        public void removeResultPartitionFromFailedState(
+                IntermediateResultPartitionID resultPartitionID) {
+            failedPartitions.remove(resultPartitionID);
+        }
+    }
 
-		@Override
-		public FailoverStrategy create(
-				final FailoverTopology<?, ?> topology,
-				final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
+    /** The factory to instantiate {@link RestartPipelinedRegionFailoverStrategy}. */
+    public static class Factory implements FailoverStrategy.Factory {
 
-			return new RestartPipelinedRegionFailoverStrategy(topology, resultPartitionAvailabilityChecker);
-		}
-	}
+        @Override
+        public FailoverStrategy create(
+                final SchedulingTopology topology,
+                final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker) {
+
+            return new RestartPipelinedRegionFailoverStrategy(
+                    topology, resultPartitionAvailabilityChecker);
+        }
+    }
 }

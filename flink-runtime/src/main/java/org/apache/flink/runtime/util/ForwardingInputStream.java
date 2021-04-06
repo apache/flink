@@ -25,59 +25,60 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Input stream, that wraps another input stream and forwards all method calls to the wrapped stream.
+ * Input stream, that wraps another input stream and forwards all method calls to the wrapped
+ * stream.
  */
 @Internal
 public class ForwardingInputStream extends InputStream {
 
-	private final InputStream delegate;
+    private final InputStream delegate;
 
-	public ForwardingInputStream(InputStream delegate) {
-		this.delegate = Preconditions.checkNotNull(delegate);
-	}
+    public ForwardingInputStream(InputStream delegate) {
+        this.delegate = Preconditions.checkNotNull(delegate);
+    }
 
-	@Override
-	public int read() throws IOException {
-		return delegate.read();
-	}
+    @Override
+    public int read() throws IOException {
+        return delegate.read();
+    }
 
-	@Override
-	public int read(byte[] b) throws IOException {
-		return delegate.read(b);
-	}
+    @Override
+    public int read(byte[] b) throws IOException {
+        return delegate.read(b);
+    }
 
-	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return delegate.read(b, off, len);
-	}
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        return delegate.read(b, off, len);
+    }
 
-	@Override
-	public long skip(long n) throws IOException {
-		return delegate.skip(n);
-	}
+    @Override
+    public long skip(long n) throws IOException {
+        return delegate.skip(n);
+    }
 
-	@Override
-	public int available() throws IOException {
-		return delegate.available();
-	}
+    @Override
+    public int available() throws IOException {
+        return delegate.available();
+    }
 
-	@Override
-	public void close() throws IOException {
-		delegate.close();
-	}
+    @Override
+    public void close() throws IOException {
+        delegate.close();
+    }
 
-	@Override
-	public void mark(int readlimit) {
-		delegate.mark(readlimit);
-	}
+    @Override
+    public void mark(int readlimit) {
+        delegate.mark(readlimit);
+    }
 
-	@Override
-	public void reset() throws IOException {
-		delegate.reset();
-	}
+    @Override
+    public void reset() throws IOException {
+        delegate.reset();
+    }
 
-	@Override
-	public boolean markSupported() {
-		return delegate.markSupported();
-	}
+    @Override
+    public boolean markSupported() {
+        return delegate.markSupported();
+    }
 }

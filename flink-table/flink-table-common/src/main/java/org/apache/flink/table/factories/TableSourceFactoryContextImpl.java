@@ -25,37 +25,43 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Implementation of {@link TableSourceFactory.Context}.
- */
+/** Implementation of {@link TableSourceFactory.Context}. */
 @Internal
 public class TableSourceFactoryContextImpl implements TableSourceFactory.Context {
 
-	private final ObjectIdentifier identifier;
-	private final CatalogTable table;
-	private final ReadableConfig config;
+    private final ObjectIdentifier identifier;
+    private final CatalogTable table;
+    private final ReadableConfig config;
+    private final boolean isTemporary;
 
-	public TableSourceFactoryContextImpl(
-			ObjectIdentifier identifier,
-			CatalogTable table,
-			ReadableConfig config) {
-		this.identifier = checkNotNull(identifier);
-		this.table = checkNotNull(table);
-		this.config = checkNotNull(config);
-	}
+    public TableSourceFactoryContextImpl(
+            ObjectIdentifier identifier,
+            CatalogTable table,
+            ReadableConfig config,
+            boolean isTemporary) {
+        this.identifier = checkNotNull(identifier);
+        this.table = checkNotNull(table);
+        this.config = checkNotNull(config);
+        this.isTemporary = isTemporary;
+    }
 
-	@Override
-	public ObjectIdentifier getObjectIdentifier() {
-		return identifier;
-	}
+    @Override
+    public ObjectIdentifier getObjectIdentifier() {
+        return identifier;
+    }
 
-	@Override
-	public CatalogTable getTable() {
-		return table;
-	}
+    @Override
+    public CatalogTable getTable() {
+        return table;
+    }
 
-	@Override
-	public ReadableConfig getConfiguration() {
-		return config;
-	}
+    @Override
+    public ReadableConfig getConfiguration() {
+        return config;
+    }
+
+    @Override
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 }

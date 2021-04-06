@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
-
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.VersionedValue;
 
 /**
  * Wrapper class for a {@link VersionedValue} so that we don't expose a curator dependency in our
@@ -28,17 +28,17 @@ import org.apache.flink.util.Preconditions;
  */
 public class ZooKeeperVersionedValue<T> {
 
-	private final VersionedValue<T> versionedValue;
+    private final VersionedValue<T> versionedValue;
 
-	public ZooKeeperVersionedValue(VersionedValue<T> versionedValue) {
-		this.versionedValue = Preconditions.checkNotNull(versionedValue);
-	}
+    public ZooKeeperVersionedValue(VersionedValue<T> versionedValue) {
+        this.versionedValue = Preconditions.checkNotNull(versionedValue);
+    }
 
-	public T getValue() {
-		return versionedValue.getValue();
-	}
+    public T getValue() {
+        return versionedValue.getValue();
+    }
 
-	VersionedValue<T> getVersionedValue() {
-		return versionedValue;
-	}
+    VersionedValue<T> getVersionedValue() {
+        return versionedValue;
+    }
 }

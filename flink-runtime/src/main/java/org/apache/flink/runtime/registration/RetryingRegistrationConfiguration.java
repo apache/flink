@@ -23,65 +23,71 @@ import org.apache.flink.configuration.Configuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Configuration for the cluster components.
- */
+/** Configuration for the cluster components. */
 public class RetryingRegistrationConfiguration {
 
-	private final long initialRegistrationTimeoutMillis;
+    private final long initialRegistrationTimeoutMillis;
 
-	private final long maxRegistrationTimeoutMillis;
+    private final long maxRegistrationTimeoutMillis;
 
-	private final long errorDelayMillis;
+    private final long errorDelayMillis;
 
-	private final long refusedDelayMillis;
+    private final long refusedDelayMillis;
 
-	public RetryingRegistrationConfiguration(
-			long initialRegistrationTimeoutMillis,
-			long maxRegistrationTimeoutMillis,
-			long errorDelayMillis,
-			long refusedDelayMillis) {
-		checkArgument(initialRegistrationTimeoutMillis > 0, "initial registration timeout must be greater than zero");
-		checkArgument(maxRegistrationTimeoutMillis > 0, "maximum registration timeout must be greater than zero");
-		checkArgument(errorDelayMillis >= 0, "delay on error must be non-negative");
-		checkArgument(refusedDelayMillis >= 0, "delay on refused registration must be non-negative");
+    public RetryingRegistrationConfiguration(
+            long initialRegistrationTimeoutMillis,
+            long maxRegistrationTimeoutMillis,
+            long errorDelayMillis,
+            long refusedDelayMillis) {
+        checkArgument(
+                initialRegistrationTimeoutMillis > 0,
+                "initial registration timeout must be greater than zero");
+        checkArgument(
+                maxRegistrationTimeoutMillis > 0,
+                "maximum registration timeout must be greater than zero");
+        checkArgument(errorDelayMillis >= 0, "delay on error must be non-negative");
+        checkArgument(
+                refusedDelayMillis >= 0, "delay on refused registration must be non-negative");
 
-		this.initialRegistrationTimeoutMillis = initialRegistrationTimeoutMillis;
-		this.maxRegistrationTimeoutMillis = maxRegistrationTimeoutMillis;
-		this.errorDelayMillis = errorDelayMillis;
-		this.refusedDelayMillis = refusedDelayMillis;
-	}
+        this.initialRegistrationTimeoutMillis = initialRegistrationTimeoutMillis;
+        this.maxRegistrationTimeoutMillis = maxRegistrationTimeoutMillis;
+        this.errorDelayMillis = errorDelayMillis;
+        this.refusedDelayMillis = refusedDelayMillis;
+    }
 
-	public long getInitialRegistrationTimeoutMillis() {
-		return initialRegistrationTimeoutMillis;
-	}
+    public long getInitialRegistrationTimeoutMillis() {
+        return initialRegistrationTimeoutMillis;
+    }
 
-	public long getMaxRegistrationTimeoutMillis() {
-		return maxRegistrationTimeoutMillis;
-	}
+    public long getMaxRegistrationTimeoutMillis() {
+        return maxRegistrationTimeoutMillis;
+    }
 
-	public long getErrorDelayMillis() {
-		return errorDelayMillis;
-	}
+    public long getErrorDelayMillis() {
+        return errorDelayMillis;
+    }
 
-	public long getRefusedDelayMillis() {
-		return refusedDelayMillis;
-	}
+    public long getRefusedDelayMillis() {
+        return refusedDelayMillis;
+    }
 
-	public static RetryingRegistrationConfiguration fromConfiguration(final Configuration configuration) {
-		long initialRegistrationTimeoutMillis = configuration.getLong(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT);
-		long maxRegistrationTimeoutMillis = configuration.getLong(ClusterOptions.MAX_REGISTRATION_TIMEOUT);
-		long errorDelayMillis = configuration.getLong(ClusterOptions.ERROR_REGISTRATION_DELAY);
-		long refusedDelayMillis = configuration.getLong(ClusterOptions.REFUSED_REGISTRATION_DELAY);
+    public static RetryingRegistrationConfiguration fromConfiguration(
+            final Configuration configuration) {
+        long initialRegistrationTimeoutMillis =
+                configuration.getLong(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT);
+        long maxRegistrationTimeoutMillis =
+                configuration.getLong(ClusterOptions.MAX_REGISTRATION_TIMEOUT);
+        long errorDelayMillis = configuration.getLong(ClusterOptions.ERROR_REGISTRATION_DELAY);
+        long refusedDelayMillis = configuration.getLong(ClusterOptions.REFUSED_REGISTRATION_DELAY);
 
-		return new RetryingRegistrationConfiguration(
-			initialRegistrationTimeoutMillis,
-			maxRegistrationTimeoutMillis,
-			errorDelayMillis,
-			refusedDelayMillis);
-	}
+        return new RetryingRegistrationConfiguration(
+                initialRegistrationTimeoutMillis,
+                maxRegistrationTimeoutMillis,
+                errorDelayMillis,
+                refusedDelayMillis);
+    }
 
-	public static RetryingRegistrationConfiguration defaultConfiguration() {
-		return fromConfiguration(new Configuration());
-	}
+    public static RetryingRegistrationConfiguration defaultConfiguration() {
+        return fromConfiguration(new Configuration());
+    }
 }

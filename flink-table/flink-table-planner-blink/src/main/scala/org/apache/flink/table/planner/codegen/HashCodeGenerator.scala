@@ -18,16 +18,15 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, hashCodeForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, hashCodeForType, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedHashFunction, HashFunction}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.util.MathUtils
 
 /**
-  * CodeGenerator for hash code [[BaseRow]], Calculate a hash value based on some fields
-  * of [[BaseRow]].
+  * CodeGenerator for hash code RowData, Calculate a hash value based on some fields
+  * of RowData.
   * NOTE: If you need a hash value that is more evenly distributed, call [[MathUtils.murmurHash]]
   * outside to scatter.
   */
@@ -70,7 +69,7 @@ object HashCodeGenerator {
         }
 
         @Override
-        public int hashCode($BASE_ROW $inputTerm) {
+        public int hashCode($ROW_DATA $inputTerm) {
           ${ctx.reuseLocalVariableCode()}
           $hashBody
           return $resultTerm;

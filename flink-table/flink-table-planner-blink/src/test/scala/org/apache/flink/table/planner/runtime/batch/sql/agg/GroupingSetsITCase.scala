@@ -148,6 +148,46 @@ class GroupingSetsITCase extends BatchTestBase {
   }
 
   @Test
+  def testBooleanColumnOnGroupingSets(): Unit = {
+    checkResult(
+      s"""
+         |select
+         |  gender, city, manager, count(*) as cnt
+         |from emps group by grouping sets ((city), (gender, city, manager))
+         |""".stripMargin,
+      Seq(
+        row("F", "Vancouver", true, 1),
+        row("F", null, true, 1),
+        row("M", "San Francisco", false, 1),
+        row("M", "Vancouver", true, 1),
+        row(null, "San Francisco", null, 1),
+        row(null, "Vancouver", null, 2),
+        row(null, null, false, 1),
+        row(null, null, null, 2)))
+  }
+
+  @Test
+  def testCoalesceOnGroupingSets(): Unit = {
+    checkResult(
+      s"""
+         |select
+         |  gender, city, coalesce(deptno, -1) as deptno, count(*) as cnt
+         |from emps group by grouping sets ((gender, city), (gender, city, deptno))
+         |""".stripMargin,
+      Seq(
+        row("F", "Vancouver", -1, 1),
+        row("F", "Vancouver", 40, 1),
+        row("F", null, -1, 1),
+        row("F", null, 20, 1),
+        row("M", "San Francisco", -1, 1),
+        row("M", "San Francisco", 20, 1),
+        row("M", "Vancouver", -1, 1),
+        row("M", "Vancouver", 40, 1),
+        row(null, null, -1, 1),
+        row(null, null, 10, 1)))
+  }
+
+  @Test
   def testCube(): Unit = {
     checkResult(
       "select deptno + 1, count(*) as c from emp group by cube(deptno, gender)",
@@ -395,13 +435,16 @@ class GroupingSetsITCase extends BatchTestBase {
 
   @Test
   def testCALCITE1824(): Unit = {
-    // TODO:
-    // When "[CALCITE-1824] GROUP_ID returns wrong result" is fixed,
-    // there will be an extra row (null, 1, 14).
     checkResult(
       "select deptno, group_id() as g, count(*) as c " +
         "from scott_emp group by grouping sets (deptno, (), ())",
-      Seq(row(10, 0, 3), row(20, 0, 5), row(30, 0, 6), row(null, 0, 14))
+      Seq(row(10, 0, 3),
+        row(10, 1, 3),
+        row(20, 0, 5),
+        row(20, 1, 5),
+        row(30, 0, 6),
+        row(30, 1, 6),
+        row(null, 0, 14))
     )
   }
 

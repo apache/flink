@@ -18,22 +18,19 @@
 
 package org.apache.flink.table.catalog.stats;
 
-/**
- * Class representing a date value in statistics.
- */
+/** Class representing a date value in statistics. */
 public class Date {
-	private long daysSinceEpoch;
+    private long daysSinceEpoch;
 
-	public Date(long daysSinceEpoch) {
-		this.daysSinceEpoch = daysSinceEpoch;
-	}
+    public Date(long daysSinceEpoch) {
+        this.daysSinceEpoch = daysSinceEpoch;
+    }
 
-	public long getDaysSinceEpoch() {
-		return daysSinceEpoch;
-	}
+    public long getDaysSinceEpoch() {
+        return daysSinceEpoch;
+    }
 
-	public Date copy() {
-		return new Date(daysSinceEpoch);
-	}
-
+    public Date copy() {
+        return new Date(daysSinceEpoch);
+    }
 }

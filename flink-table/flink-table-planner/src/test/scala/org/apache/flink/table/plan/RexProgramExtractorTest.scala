@@ -189,14 +189,13 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     builder.addCondition(builder.addExpr(and))
 
     val program = builder.getProgram
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
 
     val expanded = program.expandLocalRef(program.getCondition)
 
     var convertedExpressions = new mutable.ArrayBuffer[Expression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = program.getInputRowType.getFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog)
+    val converter = new RexNodeToExpressionConverter(rexBuilder, inputNames, functionCatalog)
 
     expanded.accept(converter) match {
       case Some(expression) =>

@@ -28,44 +28,40 @@ import java.io.IOException;
 
 public class TestDistribution implements DataDistribution {
 
-	public int boundary;
+    public int boundary;
 
-	public TestDistribution(int boundary) {
-		this.boundary = boundary;
-	}
+    public TestDistribution(int boundary) {
+        this.boundary = boundary;
+    }
 
-	@Override
-	public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-		return new Object[0];
-	}
+    @Override
+    public Object[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+        return new Object[0];
+    }
 
-	@Override
-	public int getNumberOfFields() {
-		return 1;
-	}
+    @Override
+    public int getNumberOfFields() {
+        return 1;
+    }
 
-	@Override
-	public TypeInformation[] getKeyTypes() {
-		return new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO};
-	}
+    @Override
+    public TypeInformation[] getKeyTypes() {
+        return new TypeInformation[] {BasicTypeInfo.INT_TYPE_INFO};
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
+    @Override
+    public void write(DataOutputView out) throws IOException {}
 
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {}
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		boolean isEqual = true;
-		TestDistribution dist = (TestDistribution)obj;
-		if (this.boundary != dist.boundary) {
-			isEqual = false;
-		}
-		return isEqual;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        boolean isEqual = true;
+        TestDistribution dist = (TestDistribution) obj;
+        if (this.boundary != dist.boundary) {
+            isEqual = false;
+        }
+        return isEqual;
+    }
 }

@@ -18,26 +18,32 @@
 
 package org.apache.flink.streaming.api.scala
 
+import java.net.URI
+
 import com.esotericsoftware.kryo.Serializer
-import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
+import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.source.{Source, SourceSplit}
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener}
-import org.apache.flink.runtime.state.AbstractStateBackend
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.SplittableIterator
 
-import scala.collection.JavaConverters._
 import _root_.scala.language.implicitConversions
+import scala.collection.JavaConverters._
 
 @Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
@@ -58,6 +64,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getCachedFiles = javaEnv.getCachedFiles
 
   /**
+    * Gets the config JobListeners.
+    */
+  @PublicEvolving
+  def getJobListeners = javaEnv.getJobListeners
+
+  /**
    * Sets the parallelism for operations executed through this environment.
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
@@ -65,6 +77,25 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+    * Sets the runtime execution mode for the application (see [[RuntimeExecutionMode]]).
+    * This is equivalent to setting the "execution.runtime-mode" in your application's
+    * configuration file.
+    *
+    * We recommend users to NOT use this method but set the "execution.runtime-mode"
+    * using the command-line when submitting the application. Keeping the application code
+    * configuration-free allows for more flexibility as the same application will be able to
+    * be executed in any execution mode.
+    *
+    * @param executionMode the desired execution mode.
+    * @return The execution environment of your application.
+    */
+  @PublicEvolving
+  def setRuntimeMode(executionMode: RuntimeExecutionMode): StreamExecutionEnvironment = {
+    javaEnv.setRuntimeMode(executionMode)
+    this
   }
 
   /**
@@ -227,24 +258,29 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def getCheckpointingMode = javaEnv.getCheckpointingMode()
 
   /**
-   * Sets the state backend that describes how to store and checkpoint operator state. It defines
-   * both which data structures hold state during execution (for example hash tables, RockDB,
-   * or other data stores) as well as where checkpointed data will be persisted.
+   * Sets the state backend that describes how to store operator. It defines the data structures
+   * that hold state during execution (for example hash tables, RocksDB, or other data stores).
    *
    * State managed by the state backend includes both keyed state that is accessible on
-   * [[org.apache.flink.streaming.api.datastream.KeyedStream keyed streams]], as well as
-   * state maintained directly by the user code that implements
-   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction]].
+   * [[org.apache.flink.streaming.api.scala.KeyedStream]], as well as state
+   * maintained directly by the user code that implements
+   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction]].
    *
-   * The [[org.apache.flink.runtime.state.memory.MemoryStateBackend]], for example,
-   * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
-   * but can checkpoint only small states (some counters).
+   * The [[org.apache.flink.runtime.state.hashmap.HashMapStateBackend]] maintains state in
+   * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
+   * heap memory.
    *
-   * In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
-   * stores checkpoints of the state (also maintained as heap objects) in files.
-   * When using a replicated file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee
-   * that state is not lost upon failures of individual nodes and that streaming program can be
-   * executed highly available and strongly consistent.
+   * In contrast, the '''EmbeddedRocksDBStateBackend''' stores its state in an embedded
+   * '''RocksDB''' instance. This state backend can store very large state that exceeds memory
+   * and spills to local disk. All key/value state (including windows) is stored in the key/value
+   * index of RocksDB.
+   *
+   * In both cases, fault tolerance is managed via the jobs
+   * [[org.apache.flink.runtime.state.CheckpointStorage]] which configures how and where state
+   * backends persist during a checkpoint.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getStateBackend()
    */
   @PublicEvolving
   def setStateBackend(backend: StateBackend): StreamExecutionEnvironment = {
@@ -253,19 +289,57 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * @deprecated Use [[StreamExecutionEnvironment.setStateBackend(StateBackend)]] instead.
-   */
-  @Deprecated
-  @PublicEvolving
-  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
-    setStateBackend(backend.asInstanceOf[StateBackend])
-  }
-
-  /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
   @PublicEvolving
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: String): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: URI): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Sets the default savepoint directory, where savepoints will be written to
+   * if no is explicitly provided when triggered.
+   *
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #getDefaultSavepointDirectory()
+   */
+  @PublicEvolving
+  def setDefaultSavepointDirectory(savepointDirectory: Path): StreamExecutionEnvironment = {
+    javaEnv.setDefaultSavepointDirectory(savepointDirectory)
+    this
+  }
+
+  /**
+   * Gets the default savepoint directory for this Job.
+   *
+   * @see #setDefaultSavepointDirectory(Path)
+   */
+  @PublicEvolving
+  def getDefaultSavepointDirectory: Path = javaEnv.getDefaultSavepointDirectory
 
   /**
     * Sets the restart strategy configuration. The configuration specifies which restart strategy
@@ -390,7 +464,18 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]]
    *
    * @param characteristic The time characteristic.
+   * @deprecated In Flink 1.12 the default stream time characteristic has been changed to
+   *             [[TimeCharacteristic.EventTime]], thus you don't need to call this method for
+   *             enabling event-time support anymore. Explicitly using processing-time windows and
+   *             timers works in event-time mode. If you need to disable watermarks, please use
+   *             [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long]]. If
+   *             you are using [[TimeCharacteristic.IngestionTime]], please manually set an
+   *             appropriate [[WatermarkStrategy]]. If you are using generic "time window"
+   *             operations (for example [[KeyedStream.timeWindow()]] that change behaviour based
+   *             on the time characteristic, please use equivalent operations that explicitly
+   *             specify processing time or event time.
    */
+  @deprecated
   @PublicEvolving
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
@@ -431,9 +516,34 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
    * If you manually set the parallelism to `1` the emitted elements are in order.
+   *
+   * @deprecated Use [[fromSequence(long, long)]] instead to create a new data stream
+   *             that contains [[NumberSequenceSource]].
    */
+  @deprecated
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.generateSequence(from, to))
+      .asInstanceOf[DataStream[Long]]
+  }
+
+  /**
+   * Creates a new data stream that contains a sequence of numbers (longs) and is useful for
+   * testing and for cases that just need a stream of N events of any kind.
+   *
+   * The generated source splits the sequence into as many parallel sub-sequences as there are
+   * parallel source readers. Each sub-sequence will be produced in order. If the parallelism is
+   * limited to one, the source will produce one sequence in order.
+   *
+   * This source is always bounded. For very long sequences (for example over the entire domain
+   * of long integer values), you may consider executing the application in a streaming manner
+   * because of the end bound that is pretty far away.
+   *
+   * Use [[fromSource(Source,WatermarkStrategy, String)]] together with
+   * [[NumberSequenceSource]] if you required more control over the created sources. For
+   * example, if you want to set a [[WatermarkStrategy]].
+   */
+  def fromSequence(from: Long, to: Long): DataStream[Long] = {
+    new DataStream[java.lang.Long](javaEnv.fromSequence(from, to))
       .asInstanceOf[DataStream[Long]]
   }
 
@@ -655,6 +765,19 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+    * Create a DataStream using a [[Source]].
+    */
+  @Experimental
+  def fromSource[T: TypeInformation](
+      source: Source[T, _ <: SourceSplit, _],
+      watermarkStrategy: WatermarkStrategy[T],
+      sourceName: String): DataStream[T] = {
+
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.fromSource(source, watermarkStrategy, sourceName, typeInfo))
+  }
+
+  /**
    * Triggers the program execution. The environment will execute all parts of
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
@@ -833,6 +956,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
   }
+
+  /**
+   * Returns whether Unaligned Checkpoints are enabled.
+   */
+  def isUnalignedCheckpointsEnabled: Boolean = javaEnv.isUnalignedCheckpointsEnabled
+
+  /**
+   * Returns whether Unaligned Checkpoints are force-enabled.
+   */
+  def isForceUnalignedCheckpoints: Boolean = javaEnv.isForceUnalignedCheckpoints
 }
 
 object StreamExecutionEnvironment {

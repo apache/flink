@@ -23,19 +23,18 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * The type Subtask attempt message parameters.
- */
+/** The type Subtask attempt message parameters. */
 public class SubtaskAttemptMessageParameters extends SubtaskMessageParameters {
 
-	protected final SubtaskAttemptPathParameter subtaskAttemptPathParameter = new SubtaskAttemptPathParameter();
+    protected final SubtaskAttemptPathParameter subtaskAttemptPathParameter =
+            new SubtaskAttemptPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(
-			jobPathParameter,
-			jobVertexIdPathParameter,
-			subtaskIndexPathParameter,
-			subtaskAttemptPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(
+                jobPathParameter,
+                jobVertexIdPathParameter,
+                subtaskIndexPathParameter,
+                subtaskAttemptPathParameter);
+    }
 }

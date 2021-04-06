@@ -1,23 +1,13 @@
 # Flink End-to-End Tests
 
-This module contains tests that verify end-to-end behaviour of Flink. We
-categorize end-to-end tests as either pre-commit tests or nightly tests. The
-former should be run on every commit, that is every Travis run, while the second
-category should be run by a nightly job or when manually verifying a release or
-making sure that the tests pass.
+This module contains tests that verify end-to-end behaviour of Flink. 
 
-Tests in the pre-commit category should be more lightweight while tests in the
-nightly category can be quite heavyweight because we don't run them for every
-commit.
+The tests defined in `run-nightly-tests.sh` are run by the CI system on every pull request
+and push to master.
+
 
 ## Running Tests
-You can run all pre-commit tests by executing
-
-```
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-pre-commit-tests.sh
-```
-
-and all nightly tests via
+You can run all tests by executing
 
 ```
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-nightly-tests.sh
@@ -33,17 +23,17 @@ $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh a
 
 **NOTICE**: Please _DON'T_ run the scripts with explicit command like ```sh run-nightly-tests.sh``` since ```#!/usr/bin/env bash``` is specified as the header of the scripts to assure flexibility on different systems.
 
-### Streaming bucketing test
-
-Before running this nightly test case (test_streaming_bucketing.sh), please make sure to run `mvn -DskipTests install` in the `flink-end-to-end-tests` directory, so jar files necessary for the test like `BucketingSinkTestProgram.jar` could be generated.
-
-What's more, starting from 1.8.0 release it's required to make sure that `HADOOP_CLASSPATH` is [correctly set](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/hadoop.html) or the pre-bundled hadoop jar has been put into the `lib` folder of the `FLINK_DIR` (You can find the binaries from the [Downloads page](https://flink.apache.org/downloads.html) on the Flink project site).
+**NOTICE**: We do not recommend executing the nightly test script on production or personal desktop systems, as tests contained there might modify the environment (leftover processes, modification of system files, request for root permissions via sudo, ...).
 
 ### Kubernetes test
 
 Kubernetes test (test_kubernetes_embedded_job.sh) assumes a running minikube cluster.
 
+
 ## Writing Tests
+
+As of November 2020, Flink has two broad types of end-to-end tests: Bash-based end-to-end tests, located in the `test-scripts/` directory and Java-based end-to-end tests, such as the `PrometheusReporterEndToEndITCase`. The community recommends writing new tests as Java tests, as we are planning to deprecate the bash-based tests in the long run.
+
 
 ### Examples
 Have a look at `test_batch_wordcount.sh` for a very basic test and

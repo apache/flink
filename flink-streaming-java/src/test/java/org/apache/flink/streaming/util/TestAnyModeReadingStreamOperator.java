@@ -24,32 +24,30 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A test operator class for any mode reading.
- */
+/** A test operator class for any mode reading. */
 public class TestAnyModeReadingStreamOperator extends AbstractStreamOperator<String>
-	implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
+        implements TwoInputStreamOperator<String, Integer, String>, InputSelectable {
 
-	private final String name;
+    private final String name;
 
-	public TestAnyModeReadingStreamOperator(String name) {
-		super();
+    public TestAnyModeReadingStreamOperator(String name) {
+        super();
 
-		this.name = name;
-	}
+        this.name = name;
+    }
 
-	@Override
-	public InputSelection nextSelection() {
-		return InputSelection.ALL;
-	}
+    @Override
+    public InputSelection nextSelection() {
+        return InputSelection.ALL;
+    }
 
-	@Override
-	public void processElement1(StreamRecord<String> element) {
-		output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-	}
+    @Override
+    public void processElement1(StreamRecord<String> element) {
+        output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
+    }
 
-	@Override
-	public void processElement2(StreamRecord<Integer> element) {
-		output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-	}
+    @Override
+    public void processElement2(StreamRecord<Integer> element) {
+        output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
+    }
 }

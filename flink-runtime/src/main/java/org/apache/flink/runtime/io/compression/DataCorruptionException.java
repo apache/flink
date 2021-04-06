@@ -24,19 +24,19 @@ package org.apache.flink.runtime.io.compression;
  */
 public class DataCorruptionException extends RuntimeException {
 
-	public DataCorruptionException() {
-		super();
-	}
+    public DataCorruptionException() {
+        super();
+    }
 
-	public DataCorruptionException(String message) {
-		super(message);
-	}
+    public DataCorruptionException(String message) {
+        super(message);
+    }
 
-	public DataCorruptionException(String message, Throwable e) {
-		super(message, e);
-	}
+    public DataCorruptionException(String message, Throwable e) {
+        super(message, e);
+    }
 
-	public DataCorruptionException(Throwable e) {
-		super(e);
-	}
+    public DataCorruptionException(Throwable e) {
+        super(e);
+    }
 }

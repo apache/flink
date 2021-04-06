@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil
@@ -36,7 +36,7 @@ object StreamTableEnvUtil {
     * @param dataStream The [[DataStream]] to register as table in the catalog.
     * @tparam T the type of the [[DataStream]].
     */
-  def registerDataStreamInternal[T](
+  def createTemporaryViewInternal[T](
       tEnv: StreamTableEnvironment,
       name: String,
       dataStream: DataStream[T],
@@ -47,7 +47,7 @@ object StreamTableEnvUtil {
       case Some(names) => Some(names.map(ExpressionParser.parseExpression))
       case _ => None
     }
-    TableTestUtil.registerDataStream(tEnv, name, dataStream, fields, fieldNullables, statistic)
+    TableTestUtil.createTemporaryView(tEnv, name, dataStream, fields, fieldNullables, statistic)
   }
 
 }

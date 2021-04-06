@@ -26,6 +26,7 @@ from pyflink.table import *
 from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
+from pyflink.metrics import *
 
 utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 

@@ -19,18 +19,17 @@
 package org.apache.flink.runtime.iterative.concurrent;
 
 /**
- * Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads to iteration tails.
+ * Singleton class for the threadsafe handover of {@link BlockingBackChannel}s from iteration heads
+ * to iteration tails.
  */
 public class BlockingBackChannelBroker extends Broker<BlockingBackChannel> {
 
-	private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
+    private static final BlockingBackChannelBroker INSTANCE = new BlockingBackChannelBroker();
 
-	private BlockingBackChannelBroker() {}
+    private BlockingBackChannelBroker() {}
 
-	/**
-	 * Retrieve singleton instance.
-	 */
-	public static Broker<BlockingBackChannel> instance() {
-		return INSTANCE;
-	}
+    /** Retrieve singleton instance. */
+    public static Broker<BlockingBackChannel> instance() {
+        return INSTANCE;
+    }
 }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.api.batch.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class GroupWindowTest extends TableTestBase {
 
@@ -376,11 +377,11 @@ class GroupWindowTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(table),
-            term("select", "CASE(=(a, 1), 1, 99) AS correct, rowtime")
+            term("select", "rowtime, CASE(=(a, 1), 1, 99) AS $f1")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
-          term("select", "SUM(correct) AS s, AVG(correct) AS a, start('w$) AS w$start," +
-            " end('w$) AS w$end, rowtime('w$) AS w$rowtime")
+          term("select", "SUM($f1) AS s, AVG($f1) AS a, start('w$) AS w$start,"
+            + " end('w$) AS w$end, rowtime('w$) AS w$rowtime")
         ),
         term("select", "CAST(s) AS s", "CAST(a) AS a", "CAST(w$start) AS wStart")
       )

@@ -27,7 +27,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
@@ -44,11 +45,13 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Collections.singletonMap;
+import static org.apache.flink.runtime.checkpoint.StateAssignmentOperation.reDistributePartitionableStates;
 
 /**
  * The base input format for reading operator state from a {@link CheckpointMetadata}.
@@ -58,137 +61,145 @@ import java.util.Map;
 @Internal
 abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, OperatorStateInputSplit> {
 
-	private static final long serialVersionUID = -2286490341042373742L;
+    private static final long serialVersionUID = -2286490341042373742L;
 
-	private final OperatorState operatorState;
+    private final OperatorState operatorState;
 
-	private final boolean isUnionType;
+    private final boolean isUnionType;
 
-	private transient OperatorStateBackend restoredBackend;
+    private transient OperatorStateBackend restoredBackend;
 
-	private transient CloseableRegistry registry;
+    private transient CloseableRegistry registry;
 
-	private transient Iterator<OT> elements;
+    private transient Iterator<OT> elements;
 
-	OperatorStateInputFormat(OperatorState operatorState, boolean isUnionType) {
-		Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
+    OperatorStateInputFormat(OperatorState operatorState, boolean isUnionType) {
+        Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
 
-		this.operatorState = operatorState;
-		this.isUnionType = isUnionType;
-	}
+        this.operatorState = operatorState;
+        this.isUnionType = isUnionType;
+    }
 
-	protected abstract Iterable<OT> getElements(OperatorStateBackend restoredBackend) throws Exception;
+    protected abstract Iterable<OT> getElements(OperatorStateBackend restoredBackend)
+            throws Exception;
 
-	@Override
-	public void configure(Configuration parameters) {
-	}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return cachedStatistics;
-	}
+    @Override
+    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+        return cachedStatistics;
+    }
 
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(OperatorStateInputSplit[] inputSplits) {
-		return new DefaultInputSplitAssigner(inputSplits);
-	}
+    @Override
+    public InputSplitAssigner getInputSplitAssigner(OperatorStateInputSplit[] inputSplits) {
+        return new DefaultInputSplitAssigner(inputSplits);
+    }
 
-	public OperatorStateInputSplit[] createInputSplits(int minNumSplits) {
-		OperatorStateInputSplit[] splits = getOperatorStateInputSplits(minNumSplits);
+    public OperatorStateInputSplit[] createInputSplits(int minNumSplits) {
+        OperatorStateInputSplit[] splits = getOperatorStateInputSplits(minNumSplits);
 
-		if (isUnionType) {
-			return subPartitionSingleSplit(minNumSplits, splits);
-		} else {
-			return splits;
-		}
-	}
+        if (isUnionType) {
+            return subPartitionSingleSplit(minNumSplits, splits);
+        } else {
+            return splits;
+        }
+    }
 
-	private OperatorStateInputSplit[] subPartitionSingleSplit(int minNumSplits, OperatorStateInputSplit[] splits) {
-		if (splits.length == 0) {
-			return splits;
-		}
+    private OperatorStateInputSplit[] subPartitionSingleSplit(
+            int minNumSplits, OperatorStateInputSplit[] splits) {
+        if (splits.length == 0) {
+            return splits;
+        }
 
-		// We only want to output a single instance of the union state so we only need
-		// to transform a single input split. An arbitrary split is chosen and
-		// sub-partitioned for better data distribution across the cluster.
-		return CollectionUtil.mapWithIndex(
-			CollectionUtil.partition(splits[0].getPrioritizedManagedOperatorState().get(0).asList(), minNumSplits),
-			(state, index) ->  new OperatorStateInputSplit(new StateObjectCollection<>(new ArrayList<>(state)), index)
-		).toArray(OperatorStateInputSplit[]::new);
-	}
+        // We only want to output a single instance of the union state so we only need
+        // to transform a single input split. An arbitrary split is chosen and
+        // sub-partitioned for better data distribution across the cluster.
+        return CollectionUtil.mapWithIndex(
+                        CollectionUtil.partition(
+                                splits[0].getPrioritizedManagedOperatorState().get(0).asList(),
+                                minNumSplits),
+                        (state, index) ->
+                                new OperatorStateInputSplit(
+                                        new StateObjectCollection<>(new ArrayList<>(state)), index))
+                .toArray(OperatorStateInputSplit[]::new);
+    }
 
-	private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) {
-		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = new HashMap<>();
+    private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) {
+        Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates =
+                new HashMap<>();
+        reDistributePartitionableStates(
+                singletonMap(operatorState.getOperatorID(), operatorState),
+                minNumSplits,
+                OperatorSubtaskState::getManagedOperatorState,
+                RoundRobinOperatorStateRepartitioner.INSTANCE,
+                newManagedOperatorStates);
 
-		StateAssignmentOperation.reDistributePartitionableStates(
-			Collections.singletonList(operatorState),
-			minNumSplits,
-			Collections.singletonList(operatorState.getOperatorID()),
-			newManagedOperatorStates,
-			new HashMap<>());
+        return CollectionUtil.mapWithIndex(
+                        newManagedOperatorStates.values(),
+                        (handles, index) ->
+                                new OperatorStateInputSplit(
+                                        new StateObjectCollection<>(handles), index))
+                .toArray(OperatorStateInputSplit[]::new);
+    }
 
-		return CollectionUtil.mapWithIndex(
-			newManagedOperatorStates.values(),
-			(handles, index) -> new OperatorStateInputSplit(new StateObjectCollection<>(handles), index)
-		).toArray(OperatorStateInputSplit[]::new);
-	}
+    @Override
+    public void open(OperatorStateInputSplit split) throws IOException {
+        registry = new CloseableRegistry();
 
-	@Override
-	public void open(OperatorStateInputSplit split) throws IOException {
-		registry = new CloseableRegistry();
+        final BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
+                new BackendRestorerProcedure<>(
+                        (handles) ->
+                                createOperatorStateBackend(getRuntimeContext(), handles, registry),
+                        registry,
+                        operatorState.getOperatorID().toString());
 
-		final BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
-			new BackendRestorerProcedure<>(
-				(handles) -> createOperatorStateBackend(getRuntimeContext(), handles, registry),
-				registry,
-				operatorState.getOperatorID().toString()
-			);
+        try {
+            restoredBackend =
+                    backendRestorer.createAndRestore(split.getPrioritizedManagedOperatorState());
+        } catch (Exception exception) {
+            throw new IOException("Failed to restore state backend", exception);
+        }
 
-		try {
-			restoredBackend = backendRestorer.createAndRestore(split.getPrioritizedManagedOperatorState());
-		} catch (Exception exception) {
-			throw new IOException("Failed to restore state backend", exception);
-		}
+        try {
+            elements = getElements(restoredBackend).iterator();
+        } catch (Exception e) {
+            throw new IOException("Failed to read operator state from restored state backend", e);
+        }
+    }
 
-		try {
-			elements = getElements(restoredBackend).iterator();
-		} catch (Exception e) {
-			throw new IOException("Failed to read operator state from restored state backend", e);
-		}
-	}
+    @Override
+    public void close() {
+        registry.unregisterCloseable(restoredBackend);
+        IOUtils.closeQuietly(restoredBackend);
+        IOUtils.closeQuietly(registry);
+    }
 
-	@Override
-	public void close() {
-		registry.unregisterCloseable(restoredBackend);
-		IOUtils.closeQuietly(restoredBackend);
-		IOUtils.closeQuietly(registry);
-	}
+    @Override
+    public boolean reachedEnd() {
+        return !elements.hasNext();
+    }
 
-	@Override
-	public boolean reachedEnd() {
-		return !elements.hasNext();
-	}
+    @Override
+    public OT nextRecord(OT reuse) {
+        return elements.next();
+    }
 
-	@Override
-	public OT nextRecord(OT reuse) {
-		return elements.next();
-	}
+    private static OperatorStateBackend createOperatorStateBackend(
+            RuntimeContext runtimeContext,
+            Collection<OperatorStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) {
 
-	private static OperatorStateBackend createOperatorStateBackend(
-		RuntimeContext runtimeContext,
-		Collection<OperatorStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry){
-
-		try {
-			return new DefaultOperatorStateBackendBuilder(
-				runtimeContext.getUserCodeClassLoader(),
-				runtimeContext.getExecutionConfig(),
-				false,
-				stateHandles,
-				cancelStreamRegistry
-			).build();
-		} catch (BackendBuildingException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        try {
+            return new DefaultOperatorStateBackendBuilder(
+                            runtimeContext.getUserCodeClassLoader(),
+                            runtimeContext.getExecutionConfig(),
+                            false,
+                            stateHandles,
+                            cancelStreamRegistry)
+                    .build();
+        } catch (BackendBuildingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

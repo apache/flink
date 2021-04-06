@@ -18,35 +18,32 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Path parameter specifying the index of a subtask.
- */
+/** Path parameter specifying the index of a subtask. */
 public class SubtaskIndexPathParameter extends MessagePathParameter<Integer> {
 
-	public static final String KEY = "subtaskindex";
+    public static final String KEY = "subtaskindex";
 
-	public SubtaskIndexPathParameter() {
-		super(KEY);
-	}
+    public SubtaskIndexPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected Integer convertFromString(final String value) throws ConversionException {
-		final int subtaskIndex = Integer.parseInt(value);
-		if (subtaskIndex >= 0) {
-			return subtaskIndex;
-		} else {
-			throw new ConversionException("subtaskindex must be positive, was: " + subtaskIndex);
-		}
-	}
+    @Override
+    protected Integer convertFromString(final String value) throws ConversionException {
+        final int subtaskIndex = Integer.parseInt(value);
+        if (subtaskIndex >= 0) {
+            return subtaskIndex;
+        } else {
+            throw new ConversionException("subtaskindex must be positive, was: " + subtaskIndex);
+        }
+    }
 
-	@Override
-	protected String convertToString(final Integer value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(final Integer value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Positive integer value that identifies a subtask.";
-	}
-
+    @Override
+    public String getDescription() {
+        return "Positive integer value that identifies a subtask.";
+    }
 }

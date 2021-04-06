@@ -22,11 +22,11 @@ import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow, SqlTimestamp}
+import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
 
@@ -83,7 +83,7 @@ object PartitionPruner {
       return allPartitions
     }
 
-    val inputType = new BaseRowTypeInfo(partitionFieldTypes, partitionFieldNames).toRowType
+    val inputType = InternalTypeInfo.ofFields(partitionFieldTypes, partitionFieldNames).toRowType
     val returnType: LogicalType = new BooleanType(false)
 
     val ctx = new ConstantCodeGeneratorContext(config)
@@ -103,7 +103,7 @@ object PartitionPruner {
     val genFunction = FunctionCodeGenerator.generateFunction(
       ctx,
       "PartitionPruner",
-      classOf[MapFunction[GenericRow, Boolean]],
+      classOf[MapFunction[GenericRowData, Boolean]],
       filterFunctionBody,
       returnType,
       inputType,
@@ -111,8 +111,8 @@ object PartitionPruner {
 
     val function = genFunction.newInstance(getClass.getClassLoader)
     val richMapFunction = function match {
-      case r: RichMapFunction[GenericRow, Boolean] => r
-      case _ => throw new TableException("RichMapFunction[GenericRow, Boolean] required here")
+      case r: RichMapFunction[GenericRowData, Boolean] => r
+      case _ => throw new TableException("RichMapFunction[GenericRowData, Boolean] required here")
     }
 
     val results: JList[Boolean] = new JArrayList[Boolean](allPartitions.size)
@@ -148,8 +148,8 @@ object PartitionPruner {
       timeZone: ZoneId,
       partitionFieldNames: Array[String],
       partitionFieldTypes: Array[LogicalType],
-      partition: JMap[String, String]): GenericRow = {
-    val row = new GenericRow(partitionFieldNames.length)
+      partition: JMap[String, String]): GenericRowData = {
+    val row = new GenericRowData(partitionFieldNames.length)
     partitionFieldNames.zip(partitionFieldTypes).zipWithIndex.foreach {
       case ((fieldName, fieldType), index) =>
         val value = convertPartitionFieldValue(timeZone, partition(fieldName), fieldType)
@@ -166,7 +166,7 @@ object PartitionPruner {
       return null
     }
     t.getTypeRoot match {
-      case VARCHAR | CHAR => BinaryString.fromString(v)
+      case VARCHAR | CHAR => StringData.fromString(v)
       case BOOLEAN => Boolean
       case TINYINT => v.toByte
       case SMALLINT => v.toShort
@@ -176,12 +176,12 @@ object PartitionPruner {
       case DOUBLE => v.toDouble
       case DECIMAL =>
         val decimalType = t.asInstanceOf[DecimalType]
-        Decimal.castFrom(v, decimalType.getPrecision, decimalType.getScale)
+        DecimalDataUtils.castFrom(v, decimalType.getPrecision, decimalType.getScale)
       case DATE => SqlDateTimeUtils.dateStringToUnixDate(v)
       case TIME_WITHOUT_TIME_ZONE => SqlDateTimeUtils.timeStringToUnixDate(v)
-      case TIMESTAMP_WITHOUT_TIME_ZONE => SqlDateTimeUtils.toSqlTimestamp(v)
-      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => SqlTimestamp.fromInstant(
-        SqlDateTimeUtils.toSqlTimestamp(v).toLocalDateTime.atZone(timeZone).toInstant)
+      case TIMESTAMP_WITHOUT_TIME_ZONE => SqlDateTimeUtils.toTimestampData(v)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE => TimestampData.fromInstant(
+        SqlDateTimeUtils.toTimestampData(v).toLocalDateTime.atZone(timeZone).toInstant)
       case _ =>
         throw new TableException(s"$t is not supported in PartitionPruner")
     }

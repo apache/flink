@@ -19,19 +19,19 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.table.api.{Table, TableException}
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.StringUtils
-
 import org.apache.calcite.avatica.util.DateTimeUtils
-
 import java.sql.{Date, Time, Timestamp}
 import java.util.{Calendar, TimeZone}
+
+import org.apache.flink.util.StringUtils
 
 import scala.collection.JavaConverters._
 
@@ -62,7 +62,7 @@ object TestSinkUtil {
     }
   }
 
-  def rowToString(row: Row, tz: TimeZone): String = {
+  def rowToString(row: Row, tz: TimeZone = TimeZone.getTimeZone("UTC")): String = {
     val sb = StringBuilder.newBuilder
     for (i <- 0 until row.getArity ) {
       if (i > 0) {
@@ -73,15 +73,16 @@ object TestSinkUtil {
     sb.toString
   }
 
-  def genericRowToString(row: GenericRow, tz: TimeZone): String = {
+  def genericRowToString(row: GenericRowData, tz: TimeZone): String = {
     val sb = StringBuilder.newBuilder
-    sb.append(row.getHeader).append("|")
+    sb.append(row.getRowKind.shortString).append("(")
     for (i <- 0 until row.getArity) {
       if (i > 0) {
         sb.append(",")
       }
       sb.append(fieldToString(row.getField(i), tz))
     }
+    sb.append(")")
     sb.toString
   }
 

@@ -21,12 +21,10 @@ package org.apache.flink.optimizer.plan;
 import org.apache.flink.optimizer.dag.IterationNode;
 import org.apache.flink.util.Visitor;
 
-/**
- *
- */
+/** */
 public interface IterationPlanNode {
-	
-	void acceptForStepFunction(Visitor<PlanNode> visitor);
-	
-	IterationNode getIterationNode();
+
+    void acceptForStepFunction(Visitor<PlanNode> visitor);
+
+    IterationNode getIterationNode();
 }

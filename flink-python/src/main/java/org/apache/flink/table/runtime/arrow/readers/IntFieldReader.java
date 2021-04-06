@@ -22,18 +22,16 @@ import org.apache.flink.annotation.Internal;
 
 import org.apache.arrow.vector.IntVector;
 
-/**
- * {@link ArrowFieldReader} for Int.
- */
+/** {@link ArrowFieldReader} for Int. */
 @Internal
 public final class IntFieldReader extends ArrowFieldReader<Integer> {
 
-	public IntFieldReader(IntVector intVector) {
-		super(intVector);
-	}
+    public IntFieldReader(IntVector intVector) {
+        super(intVector);
+    }
 
-	@Override
-	public Integer read(int index) {
-		return ((IntVector) getValueVector()).getObject(index);
-	}
+    @Override
+    public Integer read(int index) {
+        return ((IntVector) getValueVector()).getObject(index);
+    }
 }

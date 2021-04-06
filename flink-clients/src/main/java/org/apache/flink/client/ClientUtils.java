@@ -18,134 +18,146 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
+import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
+import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 
+import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility functions for Flink client.
- */
+/** Utility functions for Flink client. */
 public enum ClientUtils {
-	;
+    ;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
-	public static ClassLoader buildUserCodeClassLoader(
-			List<URL> jars,
-			List<URL> classpaths,
-			ClassLoader parent,
-			Configuration configuration) {
-		URL[] urls = new URL[jars.size() + classpaths.size()];
-		for (int i = 0; i < jars.size(); i++) {
-			urls[i] = jars.get(i);
-		}
-		for (int i = 0; i < classpaths.size(); i++) {
-			urls[i + jars.size()] = classpaths.get(i);
-		}
-		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
-		final String classLoaderResolveOrder =
-			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-		FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
-		return FlinkUserCodeClassLoaders.create(resolveOrder, urls, parent, alwaysParentFirstLoaderPatterns);
-	}
+    public static URLClassLoader buildUserCodeClassLoader(
+            List<URL> jars, List<URL> classpaths, ClassLoader parent, Configuration configuration) {
+        URL[] urls = new URL[jars.size() + classpaths.size()];
+        for (int i = 0; i < jars.size(); i++) {
+            urls[i] = jars.get(i);
+        }
+        for (int i = 0; i < classpaths.size(); i++) {
+            urls[i + jars.size()] = classpaths.get(i);
+        }
+        final String[] alwaysParentFirstLoaderPatterns =
+                CoreOptions.getParentFirstLoaderPatterns(configuration);
+        final String classLoaderResolveOrder =
+                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+        FlinkUserCodeClassLoaders.ResolveOrder resolveOrder =
+                FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder);
+        final boolean checkClassloaderLeak =
+                configuration.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+        return FlinkUserCodeClassLoaders.create(
+                resolveOrder,
+                urls,
+                parent,
+                alwaysParentFirstLoaderPatterns,
+                NOOP_EXCEPTION_HANDLER,
+                checkClassloaderLeak);
+    }
 
-	public static JobExecutionResult submitJob(
-			ClusterClient<?> client,
-			JobGraph jobGraph) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		try {
-			return client
-				.submitJob(jobGraph)
-				.thenApply(DetachedJobExecutionResult::new)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
-		}
-	}
+    public static void executeProgram(
+            PipelineExecutorServiceLoader executorServiceLoader,
+            Configuration configuration,
+            PackagedProgram program,
+            boolean enforceSingleJobExecution,
+            boolean suppressSysout)
+            throws ProgramInvocationException {
+        checkNotNull(executorServiceLoader);
+        final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 
-	public static JobExecutionResult submitJobAndWaitForResult(
-			ClusterClient<?> client,
-			JobGraph jobGraph,
-			ClassLoader classLoader) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		checkNotNull(classLoader);
+            LOG.info(
+                    "Starting program (detached: {})",
+                    !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
-		JobResult jobResult;
+            ContextEnvironment.setAsContext(
+                    executorServiceLoader,
+                    configuration,
+                    userCodeClassLoader,
+                    enforceSingleJobExecution,
+                    suppressSysout);
 
-		try {
-			jobResult = client
-				.submitJob(jobGraph)
-				.thenCompose(client::requestJobResult)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
-		}
+            StreamContextEnvironment.setAsContext(
+                    executorServiceLoader,
+                    configuration,
+                    userCodeClassLoader,
+                    enforceSingleJobExecution,
+                    suppressSysout);
 
-		try {
-			return jobResult.toJobExecutionResult(classLoader);
-		} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-		}
-	}
+            try {
+                program.invokeInteractiveModeForExecution();
+            } finally {
+                ContextEnvironment.unsetAsContext();
+                StreamContextEnvironment.unsetAsContext();
+            }
+        } finally {
+            Thread.currentThread().setContextClassLoader(contextClassLoader);
+        }
+    }
 
-	public static void executeProgram(
-			PipelineExecutorServiceLoader executorServiceLoader,
-			Configuration configuration,
-			PackagedProgram program) throws ProgramInvocationException {
-		checkNotNull(executorServiceLoader);
-		final ClassLoader userCodeClassLoader = program.getUserCodeClassLoader();
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
-
-			LOG.info("Starting program (detached: {})", !configuration.getBoolean(DeploymentOptions.ATTACHED));
-
-			ContextEnvironment.setAsContext(
-				executorServiceLoader,
-				configuration,
-				userCodeClassLoader);
-
-			StreamContextEnvironment.setAsContext(
-				executorServiceLoader,
-				configuration,
-				userCodeClassLoader);
-
-			try {
-				program.invokeInteractiveModeForExecution();
-			} finally {
-				ContextEnvironment.unsetAsContext();
-				StreamContextEnvironment.unsetAsContext();
-			}
-		} finally {
-			Thread.currentThread().setContextClassLoader(contextClassLoader);
-		}
-	}
+    /**
+     * This method blocks until the job status is not INITIALIZING anymore.
+     *
+     * @param jobStatusSupplier supplier returning the job status.
+     * @param jobResultSupplier supplier returning the job result. This will only be called if the
+     *     job reaches the FAILED state.
+     * @throws JobInitializationException If the initialization failed
+     */
+    public static void waitUntilJobInitializationFinished(
+            SupplierWithException<JobStatus, Exception> jobStatusSupplier,
+            SupplierWithException<JobResult, Exception> jobResultSupplier,
+            ClassLoader userCodeClassloader)
+            throws JobInitializationException {
+        LOG.debug("Wait until job initialization is finished");
+        WaitStrategy waitStrategy = new ExponentialWaitStrategy(50, 2000);
+        try {
+            JobStatus status = jobStatusSupplier.get();
+            long attempt = 0;
+            while (status == JobStatus.INITIALIZING) {
+                Thread.sleep(waitStrategy.sleepTime(attempt++));
+                status = jobStatusSupplier.get();
+            }
+            if (status == JobStatus.FAILED) {
+                JobResult result = jobResultSupplier.get();
+                Optional<SerializedThrowable> throwable = result.getSerializedThrowable();
+                if (throwable.isPresent()) {
+                    Throwable t = throwable.get().deserializeError(userCodeClassloader);
+                    if (t instanceof JobInitializationException) {
+                        throw t;
+                    }
+                }
+            }
+        } catch (JobInitializationException initializationException) {
+            throw initializationException;
+        } catch (Throwable throwable) {
+            ExceptionUtils.checkInterrupted(throwable);
+            throw new RuntimeException("Error while waiting for job to be initialized", throwable);
+        }
+    }
 }

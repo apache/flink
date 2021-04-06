@@ -27,16 +27,16 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
  */
 public class CassandraTupleOutputFormat<OUT extends Tuple> extends CassandraOutputFormatBase<OUT> {
 
-	public CassandraTupleOutputFormat(String insertQuery, ClusterBuilder builder) {
-		super(insertQuery, builder);
-	}
+    public CassandraTupleOutputFormat(String insertQuery, ClusterBuilder builder) {
+        super(insertQuery, builder);
+    }
 
-	@Override
-	protected Object[] extractFields(OUT record) {
-		Object[] fields = new Object[record.getArity()];
-		for (int i = 0; i < fields.length; i++) {
-			fields[i] = record.getField(i);
-		}
-		return fields;
-	}
+    @Override
+    protected Object[] extractFields(OUT record) {
+        Object[] fields = new Object[record.getArity()];
+        for (int i = 0; i < fields.length; i++) {
+            fields[i] = record.getField(i);
+        }
+        return fields;
+    }
 }

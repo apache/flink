@@ -27,29 +27,27 @@ import java.util.List;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JarHandlerUtils}.
- */
+/** Tests for {@link JarHandlerUtils}. */
 public class JarHandlerUtilsTest extends TestLogger {
 
-	@Test
-	public void testTokenizeNonQuoted() {
-		final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo bar");
-		assertThat(arguments.get(0), equalTo("--foo"));
-		assertThat(arguments.get(1), equalTo("bar"));
-	}
+    @Test
+    public void testTokenizeNonQuoted() {
+        final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo bar");
+        assertThat(arguments.get(0), equalTo("--foo"));
+        assertThat(arguments.get(1), equalTo("bar"));
+    }
 
-	@Test
-	public void testTokenizeSingleQuoted() {
-		final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo 'bar baz '");
-		assertThat(arguments.get(0), equalTo("--foo"));
-		assertThat(arguments.get(1), equalTo("bar baz "));
-	}
+    @Test
+    public void testTokenizeSingleQuoted() {
+        final List<String> arguments = JarHandlerUtils.tokenizeArguments("--foo 'bar baz '");
+        assertThat(arguments.get(0), equalTo("--foo"));
+        assertThat(arguments.get(1), equalTo("bar baz "));
+    }
 
-	@Test
-	public void testTokenizeDoubleQuoted() {
-		final List<String> arguments = JarHandlerUtils.tokenizeArguments("--name \"K. Bote \"");
-		assertThat(arguments.get(0), equalTo("--name"));
-		assertThat(arguments.get(1), equalTo("K. Bote "));
-	}
+    @Test
+    public void testTokenizeDoubleQuoted() {
+        final List<String> arguments = JarHandlerUtils.tokenizeArguments("--name \"K. Bote \"");
+        assertThat(arguments.get(0), equalTo("--name"));
+        assertThat(arguments.get(1), equalTo("K. Bote "));
+    }
 }

@@ -1,4 +1,4 @@
- /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,8 @@ package org.apache.flink.types;
 
 import org.apache.flink.annotation.Public;
 
- /**
- * A type for (synthetic) operators that do not output data. For example, data sinks.
- */
+/** A type for (synthetic) operators that do not output data. For example, data sinks. */
 @Public
 public class Nothing {
-	private Nothing() {}
+    private Nothing() {}
 }

@@ -39,36 +39,40 @@ import org.slf4j.Logger;
 @ChannelHandler.Sharable
 public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
 
-	/** The logger to which the handler writes the log statements. */
-	private final Logger logger;
+    /** The logger to which the handler writes the log statements. */
+    private final Logger logger;
 
-	public PipelineErrorHandler(Logger logger) {
-		this.logger = logger;
-	}
+    public PipelineErrorHandler(Logger logger) {
+        this.logger = logger;
+    }
 
-	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, Object message) {
-		// we can't deal with this message. No one in the pipeline handled it. Log it.
-		logger.debug("Unknown message received: {}", message);
-		sendError(ctx, "Unknown message received.");
-	}
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, Object message) {
+        // we can't deal with this message. No one in the pipeline handled it. Log it.
+        logger.debug("Unknown message received: {}", message);
+        sendError(ctx, "Unknown message received.");
+    }
 
-	@Override
-	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-		logger.debug("Unhandled exception.", cause);
-		sendError(ctx, ExceptionUtils.stringifyException(cause));
-	}
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.debug("Unhandled exception.", cause);
+        sendError(ctx, ExceptionUtils.stringifyException(cause));
+    }
 
-	private void sendError(ChannelHandlerContext ctx, String error) {
-		if (ctx.channel().isActive()) {
-			DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-				HttpResponseStatus.INTERNAL_SERVER_ERROR,
-				Unpooled.wrappedBuffer(error.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+    private void sendError(ChannelHandlerContext ctx, String error) {
+        if (ctx.channel().isActive()) {
+            DefaultFullHttpResponse response =
+                    new DefaultFullHttpResponse(
+                            HttpVersion.HTTP_1_1,
+                            HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                            Unpooled.wrappedBuffer(
+                                    error.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
+            response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+            response.headers()
+                    .set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 
-			ctx.writeAndFlush(response);
-		}
-	}
+            ctx.writeAndFlush(response);
+        }
+    }
 }

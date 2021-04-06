@@ -20,14 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -38,66 +36,54 @@ import java.util.Optional;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Tests for the {@link JarRunHandler} and  {@link JarPlanHandler}.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Tests for the {@link JarRunHandler} and {@link JarPlanHandler}. */
 public class JarHandlerTest extends TestLogger {
 
-	private static final String JAR_NAME = "output-test-program.jar";
+    private static final String JAR_NAME = "output-test-program.jar";
 
-	@ClassRule
-	public static final TemporaryFolder TMP = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TMP = new TemporaryFolder();
 
-	enum Type {
-		PLAN,
-		RUN
-	}
+    @Test
+    public void testPlanJar() throws Exception {
+        runTest("hello out!", "hello err!");
+    }
 
-	@Test
-	public void testPlanJar() throws Exception {
-		runTest(Type.PLAN, "hello out!", "hello err!");
-	}
+    private static void runTest(String expectedCapturedStdOut, String expectedCapturedStdErr)
+            throws Exception {
+        final TestingDispatcherGateway restfulGateway =
+                new TestingDispatcherGateway.Builder().build();
 
-	@Test
-	public void testRunJar() throws Exception {
-		runTest(Type.RUN, "(none)", "(none)");
-	}
+        final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
 
-	private static void runTest(Type type, String expectedCapturedStdOut, String expectedCapturedStdErr) throws Exception {
-		final TestingDispatcherGateway restfulGateway = new TestingDispatcherGateway.Builder().build();
+        final Path originalJar = Paths.get(System.getProperty("targetDir")).resolve(JAR_NAME);
+        final Path jar = Files.copy(originalJar, TMP.newFolder().toPath().resolve(JAR_NAME));
 
-		final JarHandlers handlers = new JarHandlers(TMP.newFolder().toPath(), restfulGateway);
+        final String storedJarPath =
+                JarHandlers.uploadJar(handlers.uploadHandler, jar, restfulGateway);
+        final String storedJarName = Paths.get(storedJarPath).getFileName().toString();
 
-		final Path originalJar = Paths.get(System.getProperty("targetDir")).resolve(JAR_NAME);
-		final Path jar = Files.copy(originalJar, TMP.newFolder().toPath().resolve(JAR_NAME));
-
-		final String storedJarPath = JarHandlers.uploadJar(handlers.uploadHandler, jar, restfulGateway);
-		final String storedJarName = Paths.get(storedJarPath).getFileName().toString();
-
-		try {
-			switch (type) {
-				case RUN:
-					JarHandlers.runJar(handlers.runHandler, storedJarName, restfulGateway);
-					break;
-				case PLAN:
-					JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
-			}
-			Assert.fail("Should have failed with an exception.");
-		} catch (Exception e) {
-			Optional<ProgramInvocationException> expected = ExceptionUtils.findThrowable(e, ProgramInvocationException.class);
-			if (expected.isPresent()) {
-				String message = expected.get().getMessage();
-				// original cause is preserved in stack trace
-				assertThat(message, containsString("The program plan could not be fetched - the program aborted pre-maturely"));
-				// implies the jar was registered for the job graph (otherwise the jar name would not occur in the exception)
-				assertThat(message, containsString(JAR_NAME));
-				// ensure that no stdout/stderr has been captured
-				assertThat(message, containsString("System.out: " + expectedCapturedStdOut));
-				assertThat(message, containsString("System.err: " + expectedCapturedStdErr));
-			} else {
-				throw e;
-			}
-		}
-	}
+        try {
+            JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
+            Assert.fail("Should have failed with an exception.");
+        } catch (Exception e) {
+            Optional<ProgramInvocationException> expected =
+                    ExceptionUtils.findThrowable(e, ProgramInvocationException.class);
+            if (expected.isPresent()) {
+                String message = expected.get().getMessage();
+                // original cause is preserved in stack trace
+                assertThat(
+                        message,
+                        containsString(
+                                "The program plan could not be fetched - the program aborted pre-maturely"));
+                // implies the jar was registered for the job graph (otherwise the jar name would
+                // not occur in the exception)
+                assertThat(message, containsString(JAR_NAME));
+                // ensure that no stdout/stderr has been captured
+                assertThat(message, containsString("System.out: " + expectedCapturedStdOut));
+                assertThat(message, containsString("System.err: " + expectedCapturedStdErr));
+            } else {
+                throw e;
+            }
+        }
+    }
 }

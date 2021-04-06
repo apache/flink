@@ -21,11 +21,12 @@ under the License.
 	<parent>
 		<artifactId>flink-filesystems</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-oss-fs-hadoop</artifactId>
+	<name>Flink : FileSystems : OSS FS</name>
 
 	<properties>
 		<fs.oss.sdk.version>3.4.1</fs.oss.sdk.version>

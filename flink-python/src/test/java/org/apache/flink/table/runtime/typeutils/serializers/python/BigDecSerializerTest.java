@@ -23,31 +23,29 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.math.BigDecimal;
 
-/**
- * Test for {@link BigDecSerializer}.
- */
+/** Test for {@link BigDecSerializer}. */
 public class BigDecSerializerTest extends SerializerTestBase<BigDecimal> {
-	@Override
-	protected TypeSerializer<BigDecimal> createSerializer() {
-		return BigDecSerializer.INSTANCE;
-	}
+    @Override
+    protected TypeSerializer<BigDecimal> createSerializer() {
+        return BigDecSerializer.INSTANCE;
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<BigDecimal> getTypeClass() {
-		return BigDecimal.class;
-	}
+    @Override
+    protected Class<BigDecimal> getTypeClass() {
+        return BigDecimal.class;
+    }
 
-	@Override
-	protected BigDecimal[] getTestData() {
-		return new BigDecimal[]{
-			BigDecimal.valueOf(1000L),
-			BigDecimal.valueOf(200.0),
-			new BigDecimal("111111111111111111111.1111111111")
-		};
-	}
+    @Override
+    protected BigDecimal[] getTestData() {
+        return new BigDecimal[] {
+            BigDecimal.valueOf(1000L),
+            BigDecimal.valueOf(200.0),
+            new BigDecimal("111111111111111111111.1111111111")
+        };
+    }
 }

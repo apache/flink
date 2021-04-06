@@ -26,29 +26,27 @@ import java.util.Map;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_HIVE_VERSION;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_TYPE_HIVE;
 
-/**
- * Module descriptor for {@link HiveModule}.
- */
+/** Module descriptor for {@link HiveModule}. */
 public class HiveModuleDescriptor extends ModuleDescriptor {
-	private String hiveVersion;
+    private String hiveVersion;
 
-	public HiveModuleDescriptor() {
-		this(null);
-	}
+    public HiveModuleDescriptor() {
+        this(null);
+    }
 
-	public HiveModuleDescriptor(String hiveVersion) {
-		super(MODULE_TYPE_HIVE);
-		this.hiveVersion = hiveVersion;
-	}
+    public HiveModuleDescriptor(String hiveVersion) {
+        super(MODULE_TYPE_HIVE);
+        this.hiveVersion = hiveVersion;
+    }
 
-	@Override
-	protected Map<String, String> toModuleProperties() {
-		final DescriptorProperties properties = new DescriptorProperties();
+    @Override
+    protected Map<String, String> toModuleProperties() {
+        final DescriptorProperties properties = new DescriptorProperties();
 
-		if (hiveVersion != null) {
-			properties.putString(MODULE_HIVE_VERSION, hiveVersion);
-		}
+        if (hiveVersion != null) {
+            properties.putString(MODULE_HIVE_VERSION, hiveVersion);
+        }
 
-		return properties.asMap();
-	}
+        return properties.asMap();
+    }
 }

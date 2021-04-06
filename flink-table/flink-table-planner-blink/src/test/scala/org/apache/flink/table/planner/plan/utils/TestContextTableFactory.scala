@@ -34,7 +34,8 @@ import java.{lang, util}
   */
 class TestContextTableFactory[T](
     sourceIdentifier: ObjectIdentifier,
-    sinkIdentifier: ObjectIdentifier)
+    sinkIdentifier: ObjectIdentifier,
+    isBatch: Boolean)
     extends TableSourceFactory[T] with TableSinkFactory[T] {
 
   var hasInvokedSource = false
@@ -57,6 +58,7 @@ class TestContextTableFactory[T](
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[T] = {
     Assert.assertTrue(context.getConfiguration.get(REQUIRED_KEY))
+    Assert.assertEquals(isBatch, context.isBounded)
     Assert.assertEquals(sinkIdentifier, context.getObjectIdentifier)
     hasInvokedSink = true
     TableFactoryUtil.findAndCreateTableSink(context)

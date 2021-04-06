@@ -30,61 +30,62 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Special abstract {@link org.apache.flink.metrics.MetricGroup} representing everything belonging to
- * a specific job.
+ * Special abstract {@link org.apache.flink.metrics.MetricGroup} representing everything belonging
+ * to a specific job.
  *
  * @param <C> The type of the parent ComponentMetricGroup.
  */
 @Internal
-public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>> extends ComponentMetricGroup<C> {
+public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>>
+        extends ComponentMetricGroup<C> {
 
-	/** The ID of the job represented by this metrics group. */
-	protected final JobID jobId;
+    /** The ID of the job represented by this metrics group. */
+    protected final JobID jobId;
 
-	/** The name of the job represented by this metrics group. */
-	@Nullable
-	protected final String jobName;
+    /** The name of the job represented by this metrics group. */
+    @Nullable protected final String jobName;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	protected JobMetricGroup(
-			MetricRegistry registry,
-			C parent,
-			JobID jobId,
-			@Nullable String jobName,
-			String[] scope) {
-		super(registry, scope, parent);
+    protected JobMetricGroup(
+            MetricRegistry registry,
+            C parent,
+            JobID jobId,
+            @Nullable String jobName,
+            String[] scope) {
+        super(registry, scope, parent);
 
-		this.jobId = jobId;
-		this.jobName = jobName;
-	}
+        this.jobId = jobId;
+        this.jobName = jobName;
+    }
 
-	public JobID jobId() {
-		return jobId;
-	}
+    public JobID jobId() {
+        return jobId;
+    }
 
-	@Nullable
-	public String jobName() {
-		return jobName;
-	}
+    @Nullable
+    public String jobName() {
+        return jobName;
+    }
 
-	@Override
-	protected QueryScopeInfo.JobQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.JobQueryScopeInfo(this.jobId.toString());
-	}
+    @Override
+    protected QueryScopeInfo.JobQueryScopeInfo createQueryServiceMetricInfo(
+            CharacterFilter filter) {
+        return new QueryScopeInfo.JobQueryScopeInfo(this.jobId.toString());
+    }
 
-	// ------------------------------------------------------------------------
-	//  Component Metric Group Specifics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Component Metric Group Specifics
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_JOB_ID, jobId.toString());
-		variables.put(ScopeFormat.SCOPE_JOB_NAME, jobName);
-	}
+    @Override
+    protected void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.SCOPE_JOB_ID, jobId.toString());
+        variables.put(ScopeFormat.SCOPE_JOB_NAME, jobName);
+    }
 
-	@Override
-	protected String getGroupName(CharacterFilter filter) {
-		return "job";
-	}
+    @Override
+    protected String getGroupName(CharacterFilter filter) {
+        return "job";
+    }
 }

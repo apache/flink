@@ -24,59 +24,59 @@ import static org.junit.Assert.assertEquals;
 
 public class DoubleMaximumTest {
 
-	@Test
-	public void testGet() {
-		DoubleMaximum max = new DoubleMaximum();
-		assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
-	}
+    @Test
+    public void testGet() {
+        DoubleMaximum max = new DoubleMaximum();
+        assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
+    }
 
-	@Test
-	public void testResetLocal() {
-		DoubleMaximum max = new DoubleMaximum();
-		double value = 13.57902468;
+    @Test
+    public void testResetLocal() {
+        DoubleMaximum max = new DoubleMaximum();
+        double value = 13.57902468;
 
-		max.add(value);
-		assertEquals(value, max.getLocalValue(), 0.0);
+        max.add(value);
+        assertEquals(value, max.getLocalValue(), 0.0);
 
-		max.resetLocal();
-		assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
-	}
+        max.resetLocal();
+        assertEquals(Double.NEGATIVE_INFINITY, max.getLocalValue(), 0.0);
+    }
 
-	@Test
-	public void testAdd() {
-		DoubleMaximum max = new DoubleMaximum();
+    @Test
+    public void testAdd() {
+        DoubleMaximum max = new DoubleMaximum();
 
-		max.add(1234.5768);
-		max.add(9876.5432);
-		max.add(-987.6543);
-		max.add(-123.4567);
+        max.add(1234.5768);
+        max.add(9876.5432);
+        max.add(-987.6543);
+        max.add(-123.4567);
 
-		assertEquals(9876.5432, max.getLocalValue(), 0.0);
-	}
+        assertEquals(9876.5432, max.getLocalValue(), 0.0);
+    }
 
-	@Test
-	public void testMerge() {
-		DoubleMaximum max1 = new DoubleMaximum();
-		max1.add(1234.5768);
+    @Test
+    public void testMerge() {
+        DoubleMaximum max1 = new DoubleMaximum();
+        max1.add(1234.5768);
 
-		DoubleMaximum max2 = new DoubleMaximum();
-		max2.add(5678.9012);
+        DoubleMaximum max2 = new DoubleMaximum();
+        max2.add(5678.9012);
 
-		max2.merge(max1);
-		assertEquals(5678.9012, max2.getLocalValue(), 0.0);
+        max2.merge(max1);
+        assertEquals(5678.9012, max2.getLocalValue(), 0.0);
 
-		max1.merge(max2);
-		assertEquals(5678.9012, max1.getLocalValue(), 0.0);
-	}
+        max1.merge(max2);
+        assertEquals(5678.9012, max1.getLocalValue(), 0.0);
+    }
 
-	@Test
-	public void testClone() {
-		DoubleMaximum max = new DoubleMaximum();
-		double value = 3.14159265359;
+    @Test
+    public void testClone() {
+        DoubleMaximum max = new DoubleMaximum();
+        double value = 3.14159265359;
 
-		max.add(value);
+        max.add(value);
 
-		DoubleMaximum clone = max.clone();
-		assertEquals(value, clone.getLocalValue(), 0.0);
-	}
+        DoubleMaximum clone = max.clone();
+        assertEquals(value, clone.getLocalValue(), 0.0);
+    }
 }

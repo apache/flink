@@ -28,25 +28,20 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * {@link MessageParameters} for {@link SubtaskMetricsHandler}.
- */
+/** {@link MessageParameters} for {@link SubtaskMetricsHandler}. */
 public class SubtaskMetricsMessageParameters extends SubtaskMessageParameters {
 
-	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+    private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			jobPathParameter,
-			jobVertexIdPathParameter,
-			subtaskIndexPathParameter
-		));
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.unmodifiableCollection(
+                Arrays.asList(
+                        jobPathParameter, jobVertexIdPathParameter, subtaskIndexPathParameter));
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(metricsFilterParameter);
-	}
-
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singletonList(metricsFilterParameter);
+    }
 }

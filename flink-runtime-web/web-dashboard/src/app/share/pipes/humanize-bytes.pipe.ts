@@ -24,9 +24,9 @@ import { isNil } from 'utils';
 })
 export class HumanizeBytesPipe implements PipeTransform {
   transform(value: number): any {
-    if (isNil(value)) {
+    if (isNil(value) || value < 0) {
       return '-';
-    }
+	}
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
     const converter = (v: number, p: number): string => {
       const base = Math.pow(1024, p);

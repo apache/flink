@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 
@@ -59,14 +59,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testIN_EquiCondition_InnerJoin2(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -74,14 +74,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testIN_EquiCondition_InnerJoin4(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a IN (SELECT z.i FROM z WHERE x.b = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -89,14 +89,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from both join's right and join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "(x.a, y.e) IN (SELECT z.i, z.j FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testIN_EquiCondition_InnerJoin6(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -104,7 +104,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -112,7 +112,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -120,14 +120,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from both join's right and join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testIN_NonEquiCondition_InnerJoin4(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -135,7 +135,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // no keys
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "EXISTS (SELECT * FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -143,7 +143,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "EXISTS (SELECT * FROM z WHERE z.i = x.a AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -151,7 +151,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "EXISTS (SELECT * FROM z WHERE z.i = y.d AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
 
     // keys of semi-join are from both join's right and join's left
     // calcite does not support below sql:
@@ -164,7 +164,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "EXISTS (SELECT * FROM z WHERE z.i > x.a AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -172,7 +172,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "EXISTS (SELECT * FROM z WHERE z.i < y.d AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
 
     // keys of semi-join are from both join's right and join's left
     // calcite does not support below sql:
@@ -185,7 +185,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of anti-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d NOT IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
 
   }
 
@@ -193,7 +193,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
   def testNOT_IN_EquiCondition_InnerJoin2(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d NOT IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -201,14 +201,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a NOT IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testNOT_IN_EquiCondition_InnerJoin4(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a NOT IN (SELECT z.i FROM z WHERE x.b = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -216,14 +216,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from both join's right and join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "(x.a, y.e) NOT IN (SELECT z.i, z.j FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testNOT_IN_EquiCondition_InnerJoin6(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a NOT IN (SELECT z.i FROM z WHERE y.e = z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -231,7 +231,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d NOT IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -239,7 +239,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a NOT IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -247,14 +247,14 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from both join's right and join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "x.a NOT IN (SELECT z.i FROM z WHERE y.e > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testNOT_IN_NonEquiCondition_InnerJoin4(): Unit = {
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "y.d NOT IN (SELECT z.i FROM z WHERE x.b > z.j AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -262,7 +262,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // no keys
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "NOT EXISTS (SELECT * FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -270,7 +270,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "NOT EXISTS (SELECT * FROM z WHERE z.i = x.a AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -278,7 +278,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "NOT EXISTS (SELECT * FROM z WHERE z.i = y.d AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
 
     // keys of semi-join are from both join's right and join's left
     // calcite does not support below sql:
@@ -291,7 +291,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "NOT EXISTS (SELECT * FROM z WHERE z.i > x.a AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -299,7 +299,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM x, y WHERE x.c = y.f AND y.e > 100 AND " +
       "NOT EXISTS (SELECT * FROM z WHERE z.i < y.d AND z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
 
     // keys of semi-join are from both join's right and join's left
     // calcite does not support below sql:
@@ -312,7 +312,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x LEFT JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -320,7 +320,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x LEFT JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -328,7 +328,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x RIGHT JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -336,7 +336,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x RIGHT JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -344,7 +344,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's right
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x FULL JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -352,7 +352,7 @@ class FlinkSemiAntiJoinJoinTransposeRuleTest extends TableTestBase {
     // keys of semi-join are from join's left
     val sqlQuery = "SELECT a, f FROM (SELECT * FROM x FULL JOIN y ON x.c = y.f) xy " +
       "WHERE xy.e > 100 AND xy.a IN (SELECT z.i FROM z WHERE z.j < 50)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

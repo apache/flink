@@ -18,46 +18,46 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.math.BigDecimal;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.math.BigDecimal;
+
 public class BigDecComparatorTest extends ComparatorTestBase<BigDecimal> {
 
-	@Override
-	protected TypeComparator<BigDecimal> createComparator(boolean ascending) {
-		return new BigDecComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<BigDecimal> createComparator(boolean ascending) {
+        return new BigDecComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<BigDecimal> createSerializer() {
-		return new BigDecSerializer();
-	}
+    @Override
+    protected TypeSerializer<BigDecimal> createSerializer() {
+        return new BigDecSerializer();
+    }
 
-	@Override
-	protected BigDecimal[] getSortedTestData() {
-		return new BigDecimal[] {
-			new BigDecimal("-12.5E1000"),
-			new BigDecimal("-12.5E100"),
-			BigDecimal.valueOf(-12E100),
-			BigDecimal.valueOf(-10000),
-			BigDecimal.valueOf(-1.1),
-			BigDecimal.valueOf(-1),
-			BigDecimal.valueOf(-0.44),
-			BigDecimal.ZERO,
-			new BigDecimal("0.000000000000000000000000001"),
-			new BigDecimal("0.0000001"),
-			new BigDecimal("0.1234123413478523984729447"),
-			BigDecimal.valueOf(1),
-			BigDecimal.valueOf(1.1),
-			BigDecimal.TEN,
-			new BigDecimal("10000"),
-			BigDecimal.valueOf(12E100),
-			new BigDecimal("12.5E100"),
-			new BigDecimal("10E100000"),
-			new BigDecimal("10E1000000000")
-		};
-	}
+    @Override
+    protected BigDecimal[] getSortedTestData() {
+        return new BigDecimal[] {
+            new BigDecimal("-12.5E1000"),
+            new BigDecimal("-12.5E100"),
+            BigDecimal.valueOf(-12E100),
+            BigDecimal.valueOf(-10000),
+            BigDecimal.valueOf(-1.1),
+            BigDecimal.valueOf(-1),
+            BigDecimal.valueOf(-0.44),
+            BigDecimal.ZERO,
+            new BigDecimal("0.000000000000000000000000001"),
+            new BigDecimal("0.0000001"),
+            new BigDecimal("0.1234123413478523984729447"),
+            BigDecimal.valueOf(1),
+            BigDecimal.valueOf(1.1),
+            BigDecimal.TEN,
+            new BigDecimal("10000"),
+            BigDecimal.valueOf(12E100),
+            new BigDecimal("12.5E100"),
+            new BigDecimal("10E100000"),
+            new BigDecimal("10E1000000000")
+        };
+    }
 }

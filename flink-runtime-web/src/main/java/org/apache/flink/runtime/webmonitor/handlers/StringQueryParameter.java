@@ -20,23 +20,21 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-/**
- * Abstract super class for {@link String} query parameters.
- */
+/** Abstract super class for {@link String} query parameters. */
 public abstract class StringQueryParameter extends MessageQueryParameter<String> {
 
-	public StringQueryParameter(final String key, final MessageParameterRequisiteness requisiteness) {
-		super(key, requisiteness);
-	}
+    public StringQueryParameter(
+            final String key, final MessageParameterRequisiteness requisiteness) {
+        super(key, requisiteness);
+    }
 
-	@Override
-	public final String convertStringToValue(final String value) {
-		return value;
-	}
+    @Override
+    public final String convertStringToValue(final String value) {
+        return value;
+    }
 
-	@Override
-	public final String convertValueToString(final String value) {
-		return value;
-	}
-
+    @Override
+    public final String convertValueToString(final String value) {
+        return value;
+    }
 }

@@ -25,41 +25,46 @@ import java.io.File;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-/**
- * Builder for the {@link TestingBlobStoreBuilder}.
- */
+/** Builder for the {@link TestingBlobStoreBuilder}. */
 public class TestingBlobStoreBuilder {
-	private static final Function<Tuple3<File, JobID, BlobKey>, Boolean> DEFAULT_PUT_FUNCTION = ignored -> true;
-	private static final BiFunction<JobID, BlobKey, Boolean> DEFAULT_DELETE_FUNCTION = (ignoredA, ignoredB) -> true;
-	private static final Function<JobID, Boolean> DEFAULT_DELETE_ALL_FUNCTION = ignored -> true;
-	private static final Function<Tuple3<JobID, BlobKey, File>, Boolean> DEFAULT_GET_FUNCTION = ignored -> true;
+    private static final Function<Tuple3<File, JobID, BlobKey>, Boolean> DEFAULT_PUT_FUNCTION =
+            ignored -> true;
+    private static final BiFunction<JobID, BlobKey, Boolean> DEFAULT_DELETE_FUNCTION =
+            (ignoredA, ignoredB) -> true;
+    private static final Function<JobID, Boolean> DEFAULT_DELETE_ALL_FUNCTION = ignored -> true;
+    private static final Function<Tuple3<JobID, BlobKey, File>, Boolean> DEFAULT_GET_FUNCTION =
+            ignored -> true;
 
-	private Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction = DEFAULT_PUT_FUNCTION;
-	private BiFunction<JobID, BlobKey, Boolean> deleteFunction = DEFAULT_DELETE_FUNCTION;
-	private Function<JobID, Boolean> deleteAllFunction = DEFAULT_DELETE_ALL_FUNCTION;
-	private Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction = DEFAULT_GET_FUNCTION;
+    private Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction = DEFAULT_PUT_FUNCTION;
+    private BiFunction<JobID, BlobKey, Boolean> deleteFunction = DEFAULT_DELETE_FUNCTION;
+    private Function<JobID, Boolean> deleteAllFunction = DEFAULT_DELETE_ALL_FUNCTION;
+    private Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction = DEFAULT_GET_FUNCTION;
 
-	public TestingBlobStoreBuilder setPutFunction(Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction) {
-		this.putFunction = putFunction;
-		return this;
-	}
+    public TestingBlobStoreBuilder setPutFunction(
+            Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction) {
+        this.putFunction = putFunction;
+        return this;
+    }
 
-	public TestingBlobStoreBuilder setDeleteFunction(BiFunction<JobID, BlobKey, Boolean> deleteFunction) {
-		this.deleteFunction = deleteFunction;
-		return this;
-	}
+    public TestingBlobStoreBuilder setDeleteFunction(
+            BiFunction<JobID, BlobKey, Boolean> deleteFunction) {
+        this.deleteFunction = deleteFunction;
+        return this;
+    }
 
-	public TestingBlobStoreBuilder setDeleteAllFunction(Function<JobID, Boolean> deleteAllFunction) {
-		this.deleteAllFunction = deleteAllFunction;
-		return this;
-	}
+    public TestingBlobStoreBuilder setDeleteAllFunction(
+            Function<JobID, Boolean> deleteAllFunction) {
+        this.deleteAllFunction = deleteAllFunction;
+        return this;
+    }
 
-	public TestingBlobStoreBuilder setGetFunction(Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction) {
-		this.getFunction = getFunction;
-		return this;
-	}
+    public TestingBlobStoreBuilder setGetFunction(
+            Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction) {
+        this.getFunction = getFunction;
+        return this;
+    }
 
-	public TestingBlobStore createTestingBlobStore() {
-		return new TestingBlobStore(putFunction, deleteFunction, deleteAllFunction, getFunction);
-	}
+    public TestingBlobStore createTestingBlobStore() {
+        return new TestingBlobStore(putFunction, deleteFunction, deleteAllFunction, getFunction);
+    }
 }

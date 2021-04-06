@@ -18,55 +18,54 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 
-/**
- * Example String {@link NormalizedKeyComputer}.
- */
+/** Example String {@link NormalizedKeyComputer}. */
 public class StringNormalizedKeyComputer implements NormalizedKeyComputer {
 
-	@Override
-	public void putKey(org.apache.flink.table.dataformat.BaseRow record,
-			org.apache.flink.core.memory.MemorySegment target, int offset) {
-		if (record.isNullAt(0)) {
-			SortUtil.minNormalizedKey(target, offset, 8);
-		} else {
-			SortUtil.putStringNormalizedKey(record.getString(0), target, offset, 8);
-		}
-		target.putLong(offset, Long.reverseBytes(target.getLong(offset)));
-	}
+    @Override
+    public void putKey(RowData record, MemorySegment target, int offset) {
+        if (record.isNullAt(0)) {
+            SortUtil.minNormalizedKey(target, offset, 8);
+        } else {
+            SortUtil.putStringNormalizedKey(
+                    (BinaryStringData) record.getString(0), target, offset, 8);
+        }
+        target.putLong(offset, Long.reverseBytes(target.getLong(offset)));
+    }
 
-	@Override
-	public int compareKey(org.apache.flink.core.memory.MemorySegment segI, int offsetI,
-			org.apache.flink.core.memory.MemorySegment segJ, int offsetJ) {
-		long l0 = segI.getLong(offsetI);
-		long l1 = segJ.getLong(offsetJ);
-		if (l0 != l1) {
-			return ((l0 < l1) ^ (l0 < 0) ^ (l1 < 0) ? -1 : 1);
-		}
-		return 0;
-	}
+    @Override
+    public int compareKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ) {
+        long l0 = segI.getLong(offsetI);
+        long l1 = segJ.getLong(offsetJ);
+        if (l0 != l1) {
+            return ((l0 < l1) ^ (l0 < 0) ^ (l1 < 0) ? -1 : 1);
+        }
+        return 0;
+    }
 
-	@Override
-	public void swapKey(org.apache.flink.core.memory.MemorySegment segI, int offsetI,
-			org.apache.flink.core.memory.MemorySegment segJ, int offsetJ) {
-		long temp0 = segI.getLong(offsetI);
-		segI.putLong(offsetI, segJ.getLong(offsetJ));
-		segJ.putLong(offsetJ, temp0);
-	}
+    @Override
+    public void swapKey(MemorySegment segI, int offsetI, MemorySegment segJ, int offsetJ) {
+        long temp0 = segI.getLong(offsetI);
+        segI.putLong(offsetI, segJ.getLong(offsetJ));
+        segJ.putLong(offsetJ, temp0);
+    }
 
-	@Override
-	public int getNumKeyBytes() {
-		return 8;
-	}
+    @Override
+    public int getNumKeyBytes() {
+        return 8;
+    }
 
-	@Override
-	public boolean isKeyFullyDetermines() {
-		return false;
-	}
+    @Override
+    public boolean isKeyFullyDetermines() {
+        return false;
+    }
 
-	@Override
-	public boolean invertKey() {
-		return false;
-	}
+    @Override
+    public boolean invertKey() {
+        return false;
+    }
 }

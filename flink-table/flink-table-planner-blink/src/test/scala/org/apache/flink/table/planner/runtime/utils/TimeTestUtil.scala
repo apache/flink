@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.runtime.state.{StateInitializationContext, StateSnapshotContext}
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.table.planner.JLong
 
 object TimeTestUtil {
 
@@ -52,14 +56,47 @@ object TimeTestUtil {
     }
   }
 
+  /**
+   * A streaming operator to emit records and watermark depends on the input data.
+   * The last emitted watermark will be stored in state to emit it again on recovery.
+   * This is necessary for late arrival testing with [[FailingCollectionSource]].
+   */
   class EventTimeProcessOperator[T]
     extends AbstractStreamOperator[T]
       with OneInputStreamOperator[Either[(Long, T), Long], T] {
 
+    private var currentWatermark: Long = 0L
+    private var watermarkState: ListState[JLong] = _
+
+    override def snapshotState(context: StateSnapshotContext): Unit = {
+      super.snapshotState(context)
+      watermarkState.clear()
+      watermarkState.add(currentWatermark)
+    }
+
+    override def initializeState(context: StateInitializationContext): Unit = {
+      super.initializeState(context)
+      watermarkState = context.getOperatorStateStore.getListState(
+        new ListStateDescriptor("watermark-state", Types.LONG))
+
+      val iterator = watermarkState.get().iterator()
+      if (iterator.hasNext) {
+        // there should be only one element in the state list, because we won't rescale in tests,
+        currentWatermark = iterator.next()
+      }
+
+      if (currentWatermark > 0) {
+        output.emitWatermark(new Watermark(currentWatermark))
+      }
+    }
+
     override def processElement(element: StreamRecord[Either[(Long, T), Long]]): Unit = {
       element.getValue match {
-        case Left(t) => output.collect(new StreamRecord[T](t._2, t._1))
-        case Right(w) => output.emitWatermark(new Watermark(w))
+        case Left(t) =>
+          output.collect(new StreamRecord[T](t._2, t._1))
+        case Right(w) =>
+          currentWatermark = w
+          output.emitWatermark(new Watermark(w))
       }
     }
 

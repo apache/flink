@@ -30,32 +30,35 @@ import java.util.Optional;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
- * Strategy for inferring an unknown argument type from the function's output {@link DataType} if available.
+ * Strategy for inferring an unknown argument type from the function's output {@link DataType} if
+ * available.
  */
 @Internal
 public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-	@Override
-	public Optional<DataType> inferArgumentType(CallContext callContext, int argumentPos, boolean throwOnFailure) {
-		final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
-		if (hasRoot(actualDataType.getLogicalType(), LogicalTypeRoot.NULL)) {
-			return callContext.getOutputDataType();
-		}
-		return Optional.of(actualDataType);
-	}
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        final DataType actualDataType = callContext.getArgumentDataTypes().get(argumentPos);
+        if (hasRoot(actualDataType.getLogicalType(), LogicalTypeRoot.NULL)) {
+            return callContext.getOutputDataType();
+        }
+        return Optional.of(actualDataType);
+    }
 
-	@Override
-	public Signature.Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-		return Signature.Argument.of("<OUTPUT>");
-	}
+    @Override
+    public Signature.Argument getExpectedArgument(
+            FunctionDefinition functionDefinition, int argumentPos) {
+        return Signature.Argument.of("<OUTPUT>");
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o instanceof OutputArgumentTypeStrategy;
-	}
+    @Override
+    public boolean equals(Object o) {
+        return this == o || o instanceof OutputArgumentTypeStrategy;
+    }
 
-	@Override
-	public int hashCode() {
-		return OutputArgumentTypeStrategy.class.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return OutputArgumentTypeStrategy.class.hashCode();
+    }
 }

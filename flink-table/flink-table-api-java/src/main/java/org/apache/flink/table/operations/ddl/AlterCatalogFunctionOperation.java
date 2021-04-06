@@ -27,58 +27,56 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a ALTER FUNCTION statement for catalog functions.
- */
-public class AlterCatalogFunctionOperation implements AlterOperation  {
-	private final ObjectIdentifier functionIdentifier;
-	private CatalogFunction catalogFunction;
-	private boolean ifExists;
-	private boolean isTemporary;
+/** Operation to describe a ALTER FUNCTION statement for catalog functions. */
+public class AlterCatalogFunctionOperation implements AlterOperation {
+    private final ObjectIdentifier functionIdentifier;
+    private CatalogFunction catalogFunction;
+    private boolean ifExists;
+    private boolean isTemporary;
 
-	public AlterCatalogFunctionOperation(
-			ObjectIdentifier functionIdentifier,
-			CatalogFunction catalogFunction,
-			boolean ifExists,
-			boolean isTemporary) {
-		this.functionIdentifier = functionIdentifier;
-		this.catalogFunction = catalogFunction;
-		this.ifExists = ifExists;
-		this.isTemporary = isTemporary;
-	}
+    public AlterCatalogFunctionOperation(
+            ObjectIdentifier functionIdentifier,
+            CatalogFunction catalogFunction,
+            boolean ifExists,
+            boolean isTemporary) {
+        this.functionIdentifier = functionIdentifier;
+        this.catalogFunction = catalogFunction;
+        this.ifExists = ifExists;
+        this.isTemporary = isTemporary;
+    }
 
-	public CatalogFunction getCatalogFunction() {
-		return this.catalogFunction;
-	}
+    public CatalogFunction getCatalogFunction() {
+        return this.catalogFunction;
+    }
 
-	public ObjectIdentifier getFunctionIdentifier() {
-		return this.functionIdentifier;
-	}
+    public ObjectIdentifier getFunctionIdentifier() {
+        return this.functionIdentifier;
+    }
 
-	public boolean isIfExists() {
-		return this.ifExists;
-	}
+    public boolean isIfExists() {
+        return this.ifExists;
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogFunction", catalogFunction.getDetailedDescription());
-		params.put("identifier", functionIdentifier);
-		params.put("ifExists", ifExists);
-		params.put("isTemporary", isTemporary);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("catalogFunction", catalogFunction.getDetailedDescription());
+        params.put("identifier", functionIdentifier);
+        params.put("ifExists", ifExists);
+        params.put("isTemporary", isTemporary);
 
-		return OperationUtils.formatWithChildren(
-			"ALTER CATALOG FUNCTION",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "ALTER CATALOG FUNCTION",
+                params,
+                Collections.emptyList(),
+                Operation::asSummaryString);
+    }
 
-	public String getFunctionName() {
-		return this.functionIdentifier.getObjectName();
-	}
+    public String getFunctionName() {
+        return this.functionIdentifier.getObjectName();
+    }
 }

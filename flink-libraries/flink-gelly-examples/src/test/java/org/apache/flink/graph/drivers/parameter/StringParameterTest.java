@@ -26,57 +26,53 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for {@link StringParameter}.
- */
-public class StringParameterTest
-extends ParameterTestBase {
+/** Tests for {@link StringParameter}. */
+public class StringParameterTest extends ParameterTestBase {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	private StringParameter parameter;
+    private StringParameter parameter;
 
-	@Before
-	public void setup() {
-		super.setup();
+    @Before
+    public void setup() {
+        super.setup();
 
-		parameter = new StringParameter(owner, "test");
-	}
+        parameter = new StringParameter(owner, "test");
+    }
 
-	@Test
-	public void testWithDefaultWithParameter() {
-		parameter.setDefaultValue("Flink");
-		Assert.assertEquals("[--test TEST]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithParameter() {
+        parameter.setDefaultValue("Flink");
+        Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "Gelly"}));
-		Assert.assertEquals("Gelly", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "Gelly"}));
+        Assert.assertEquals("Gelly", parameter.getValue());
+    }
 
-	@Test
-	public void testWithDefaultWithoutParameter() {
-		parameter.setDefaultValue("Flink");
-		Assert.assertEquals("[--test TEST]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithoutParameter() {
+        parameter.setDefaultValue("Flink");
+        Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-		Assert.assertEquals("Flink", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+        Assert.assertEquals("Flink", parameter.getValue());
+    }
 
-	@Test
-	public void testWithoutDefaultWithParameter() {
-		Assert.assertEquals("--test TEST", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithParameter() {
+        Assert.assertEquals("--test TEST", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "Gelly"}));
-		Assert.assertEquals("Gelly", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "Gelly"}));
+        Assert.assertEquals("Gelly", parameter.getValue());
+    }
 
-	@Test
-	public void testWithoutDefaultWithoutParameter() {
-		Assert.assertEquals("--test TEST", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithoutParameter() {
+        Assert.assertEquals("--test TEST", parameter.getUsage());
 
-		expectedException.expect(RuntimeException.class);
-		expectedException.expectMessage("No data for required key 'test'");
+        expectedException.expect(RuntimeException.class);
+        expectedException.expectMessage("No data for required key 'test'");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+    }
 }

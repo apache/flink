@@ -28,16 +28,19 @@ import org.apache.flink.util.Collector;
  */
 public interface TranslatableResult<K> {
 
-	/**
-	 * Output the result after transforming the vertex ID type.
-	 *
-	 * @param translator translates type {@code K} to type {@code T}
-	 * @param reuse reusable value
-	 * @param out output collector
-	 * @return reusable result
-	 * @throws Exception on error
-	 *
-	 * @param <T> ID output type
-	 */
-	<T> TranslatableResult<T> translate(TranslateFunction<K, T> translator, TranslatableResult<T> reuse, Collector<TranslatableResult<T>> out) throws Exception;
+    /**
+     * Output the result after transforming the vertex ID type.
+     *
+     * @param translator translates type {@code K} to type {@code T}
+     * @param reuse reusable value
+     * @param out output collector
+     * @return reusable result
+     * @throws Exception on error
+     * @param <T> ID output type
+     */
+    <T> TranslatableResult<T> translate(
+            TranslateFunction<K, T> translator,
+            TranslatableResult<T> reuse,
+            Collector<TranslatableResult<T>> out)
+            throws Exception;
 }

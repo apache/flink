@@ -16,31 +16,34 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 public class FullOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
-	
-	
-	public FullOuterJoinTaskTest(ExecutionConfig config) {
-		super(config);
-	}
 
-	@Override
-	protected DriverStrategy getSortDriverStrategy() {
-		return DriverStrategy.FULL_OUTER_MERGE;
-	}
-	
-	@Override
-	protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
-		return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2) + (keyCnt2 > keyCnt1 ? (keyCnt2 - keyCnt1) * valCnt2 : (keyCnt1 - keyCnt2) * valCnt1);
-	}
-	
-	@Override
-	protected AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver() {
-		return new FullOuterJoinDriver<>();
-	}
+    public FullOuterJoinTaskTest(ExecutionConfig config) {
+        super(config);
+    }
+
+    @Override
+    protected DriverStrategy getSortDriverStrategy() {
+        return DriverStrategy.FULL_OUTER_MERGE;
+    }
+
+    @Override
+    protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
+        return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2)
+                + (keyCnt2 > keyCnt1
+                        ? (keyCnt2 - keyCnt1) * valCnt2
+                        : (keyCnt1 - keyCnt2) * valCnt1);
+    }
+
+    @Override
+    protected AbstractOuterJoinDriver<
+                    Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+            getOuterJoinDriver() {
+        return new FullOuterJoinDriver<>();
+    }
 }

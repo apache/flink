@@ -45,25 +45,4 @@ class OnKeyedStreamTest extends AcceptPFTestBase {
     assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
       "reduceWith should produce a SingleOutputStreamOperator")
   }
-
-  @Test
-  def testFoldWithOnTuple(): Unit = {
-    val test =
-      keyedTuples.foldWith("") {
-        case (folding, (_, value)) => s"$folding $value"
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
-      "flatMapWith should produce a SingleOutputStreamOperator")
-  }
-
-  @Test
-  def testFoldWithOnCaseClass(): Unit = {
-    val test =
-      keyedCaseObjects.foldWith("") {
-        case (folding, KeyValuePair(_, value)) => s"$folding $value"
-      }
-    assert(test.javaStream.isInstanceOf[SingleOutputStreamOperator[_]],
-      "flatMapWith should produce a SingleOutputStreamOperator")
-  }
-
 }

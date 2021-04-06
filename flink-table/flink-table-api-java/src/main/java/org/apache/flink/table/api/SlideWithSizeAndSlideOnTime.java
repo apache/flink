@@ -23,46 +23,41 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
-/**
- * Sliding window on time.
- */
+/** Sliding window on time. */
 @PublicEvolving
 public final class SlideWithSizeAndSlideOnTime {
 
-	private final Expression timeField;
-	private final Expression size;
-	private final Expression slide;
+    private final Expression timeField;
+    private final Expression size;
+    private final Expression slide;
 
-	SlideWithSizeAndSlideOnTime(
-			Expression timeField,
-			Expression size,
-			Expression slide) {
-		this.timeField = ApiExpressionUtils.unwrapFromApi(timeField);
-		this.size = ApiExpressionUtils.unwrapFromApi(size);
-		this.slide = ApiExpressionUtils.unwrapFromApi(slide);
-	}
+    SlideWithSizeAndSlideOnTime(Expression timeField, Expression size, Expression slide) {
+        this.timeField = ApiExpressionUtils.unwrapFromApi(timeField);
+        this.size = ApiExpressionUtils.unwrapFromApi(size);
+        this.slide = ApiExpressionUtils.unwrapFromApi(slide);
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
-	 * clause can refer to. {@code select()} statement can access window properties such as window
-	 * start or end time.
-	 *
-	 * @param alias alias for this window
-	 * @return this window
-	 */
-	public SlideWithSizeAndSlideOnTimeWithAlias as(String alias) {
-		return as(ExpressionParser.parseExpression(alias));
-	}
+    /**
+     * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
+     * clause can refer to. {@code select()} statement can access window properties such as window
+     * start or end time.
+     *
+     * @param alias alias for this window
+     * @return this window
+     */
+    public SlideWithSizeAndSlideOnTimeWithAlias as(String alias) {
+        return as(ExpressionParser.parseExpression(alias));
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
-	 * clause can refer to. {@code select()} statement can access window properties such as window
-	 * start or end time.
-	 *
-	 * @param alias alias for this window
-	 * @return this window
-	 */
-	public SlideWithSizeAndSlideOnTimeWithAlias as(Expression alias) {
-		return new SlideWithSizeAndSlideOnTimeWithAlias(alias, timeField, size, slide);
-	}
+    /**
+     * Assigns an alias for this window that the following {@code groupBy()} and {@code select()}
+     * clause can refer to. {@code select()} statement can access window properties such as window
+     * start or end time.
+     *
+     * @param alias alias for this window
+     * @return this window
+     */
+    public SlideWithSizeAndSlideOnTimeWithAlias as(Expression alias) {
+        return new SlideWithSizeAndSlideOnTimeWithAlias(alias, timeField, size, slide);
+    }
 }

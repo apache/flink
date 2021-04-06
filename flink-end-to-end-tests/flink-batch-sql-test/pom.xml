@@ -24,14 +24,14 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-batch-sql-test_${scala.binary.version}</artifactId>
-	<name>flink-batch-sql-test</name>
+	<name>Flink : E2E Tests : Batch SQL</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

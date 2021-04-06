@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.reuse
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, FlinkRelOptUtil}
 
 import com.google.common.collect.{Maps, Sets}
@@ -152,11 +152,13 @@ object SubplanReuser {
     private def isNodeReusableDisabled(node: RelNode): Boolean = {
       node match {
         // TableSourceScan node can not be reused if reuse TableSource disabled
-        case _: FlinkLogicalTableSourceScan | _: PhysicalTableSourceScan => !tableSourceReuseEnabled
+        case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
+             _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan =>
+          !tableSourceReuseEnabled
         // Exchange node can not be reused if its input is reusable disabled
         case e: Exchange => isNodeReusableDisabled(e.getInput)
         // TableFunctionScan and sink can not be reused
-        case _: TableFunctionScan | _: Sink => true
+        case _: TableFunctionScan | _: LegacySink | _: Sink => true
         case _ => false
       }
     }

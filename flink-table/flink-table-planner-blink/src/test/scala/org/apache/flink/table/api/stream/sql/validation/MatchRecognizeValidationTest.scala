@@ -20,11 +20,11 @@ package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.ToMillis
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
@@ -35,7 +35,6 @@ import java.sql.Timestamp
 class MatchRecognizeValidationTest extends TableTestBase {
 
   private val streamUtil = scalaStreamTestUtil()
-  streamUtil.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   streamUtil.addDataStream[(Int, String, Timestamp)](
     "MyTable", 'a, 'b, 'rowtime.rowtime, 'proctime.proctime)
   streamUtil.addDataStream[(String, Long, Int, Int)](
@@ -59,7 +58,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test
   def testSortProcessingTimeDesc(): Unit = {
     thrown.expectMessage("Primary sort order of a streaming table must be ascending on time.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""
@@ -82,7 +81,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   def testSortProcessingTimeSecondaryField(): Unit = {
     thrown.expectMessage("You must specify either rowtime or proctime for order by as " +
       "the first one.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""
@@ -104,7 +103,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
   @Test
   def testSortNoOrder(): Unit = {
     thrown.expectMessage("You must specify either rowtime or proctime for order by.")
-    thrown.expect(classOf[ValidationException])
+    thrown.expect(classOf[TableException])
 
     val sqlQuery =
       s"""
@@ -124,8 +123,8 @@ class MatchRecognizeValidationTest extends TableTestBase {
 
   @Test
   def testUpdatesInUpstreamOperatorNotSupported(): Unit = {
-    thrown.expectMessage("Retraction on match recognize is not supported. Note: Match " +
-      "recognize should not follow a non-windowed GroupBy aggregation.")
+    thrown.expectMessage("Match Recognize doesn't support consuming update changes " +
+      "which is produced by node GroupAggregate(")
     thrown.expect(classOf[TableException])
 
     val sqlQuery =

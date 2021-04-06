@@ -26,69 +26,76 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A catalog function implementation.
- */
+/** A catalog function implementation. */
 public class CatalogFunctionImpl implements CatalogFunction {
-	private final String className; // Fully qualified class name of the function
-	private final FunctionLanguage functionLanguage;
+    private final String className; // Fully qualified class name of the function
+    private final FunctionLanguage functionLanguage;
 
-	public CatalogFunctionImpl(String className) {
-		this(className, FunctionLanguage.JAVA);
-	}
+    public CatalogFunctionImpl(String className) {
+        this(className, FunctionLanguage.JAVA);
+    }
 
-	public CatalogFunctionImpl(
-			String className,
-			FunctionLanguage functionLanguage) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
-		this.className = className;
-		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
-	}
+    public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage) {
+        checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(className),
+                "className cannot be null or empty");
+        this.className = className;
+        this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
+    }
 
-	@Override
-	public String getClassName() {
-		return this.className;
-	}
+    @Override
+    public String getClassName() {
+        return this.className;
+    }
 
-	@Override
-	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), functionLanguage);
-	}
+    @Override
+    public CatalogFunction copy() {
+        return new CatalogFunctionImpl(getClassName(), functionLanguage);
+    }
 
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.of("This is a user-defined function");
-	}
+    @Override
+    public Optional<String> getDescription() {
+        return Optional.of("This is a user-defined function");
+    }
 
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.of("This is a user-defined function");
-	}
+    @Override
+    public Optional<String> getDetailedDescription() {
+        return Optional.of("This is a user-defined function");
+    }
 
-	@Override
-	public boolean isGeneric() {
-		try {
-			Class c = Class.forName(className);
-			if (UserDefinedFunction.class.isAssignableFrom(c)) {
-				return true;
-			}
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
-		}
-		return false;
-	}
+    @Override
+    public boolean isGeneric() {
+        if (functionLanguage == FunctionLanguage.PYTHON) {
+            return true;
+        }
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            Class c = Class.forName(className, true, cl);
+            if (UserDefinedFunction.class.isAssignableFrom(c)) {
+                return true;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(String.format("Can't resolve udf class %s", className), e);
+        }
+        return false;
+    }
 
-	@Override
-	public FunctionLanguage getFunctionLanguage() {
-		return functionLanguage;
-	}
+    @Override
+    public FunctionLanguage getFunctionLanguage() {
+        return functionLanguage;
+    }
 
-	@Override
-	public String toString() {
-		return "CatalogFunctionImpl{" +
-			"className='" + getClassName() + "', " +
-			"functionLanguage='" + getFunctionLanguage() + "', " +
-			"isGeneric='" + isGeneric() +
-			"'}";
-	}
+    @Override
+    public String toString() {
+        return "CatalogFunctionImpl{"
+                + "className='"
+                + getClassName()
+                + "', "
+                + "functionLanguage='"
+                + getFunctionLanguage()
+                + "', "
+                + "isGeneric='"
+                + isGeneric()
+                + "'}";
+    }
 }

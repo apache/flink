@@ -25,48 +25,52 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import java.io.IOException;
 
 /**
- * A {@link CompletedCheckpointStorageLocation} that resides on a file system.
- * This location is internally represented through the checkpoint directory plus the metadata file.
+ * A {@link CompletedCheckpointStorageLocation} that resides on a file system. This location is
+ * internally represented through the checkpoint directory plus the metadata file.
  */
 public class FsCompletedCheckpointStorageLocation implements CompletedCheckpointStorageLocation {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Path exclusiveCheckpointDir;
+    private final Path exclusiveCheckpointDir;
 
-	private final FileStateHandle metadataFileHandle;
+    private final FileStateHandle metadataFileHandle;
 
-	private final String externalPointer;
+    private final String externalPointer;
 
-	private transient FileSystem fs;
+    private transient FileSystem fs;
 
-	public FsCompletedCheckpointStorageLocation(
-			FileSystem fs,
-			Path exclusiveCheckpointDir,
-			FileStateHandle metadataFileHandle,
-			String externalPointer) {
+    public FsCompletedCheckpointStorageLocation(
+            FileSystem fs,
+            Path exclusiveCheckpointDir,
+            FileStateHandle metadataFileHandle,
+            String externalPointer) {
 
-		this.fs = fs;
-		this.exclusiveCheckpointDir = exclusiveCheckpointDir;
-		this.metadataFileHandle = metadataFileHandle;
-		this.externalPointer = externalPointer;
-	}
+        this.fs = fs;
+        this.exclusiveCheckpointDir = exclusiveCheckpointDir;
+        this.metadataFileHandle = metadataFileHandle;
+        this.externalPointer = externalPointer;
+    }
 
-	@Override
-	public String getExternalPointer() {
-		return externalPointer;
-	}
+    @Override
+    public String getExternalPointer() {
+        return externalPointer;
+    }
 
-	@Override
-	public FileStateHandle getMetadataHandle() {
-		return metadataFileHandle;
-	}
+    public Path getExclusiveCheckpointDir() {
+        return exclusiveCheckpointDir;
+    }
 
-	@Override
-	public void disposeStorageLocation() throws IOException {
-		if (fs == null) {
-			fs = exclusiveCheckpointDir.getFileSystem();
-		}
-		fs.delete(exclusiveCheckpointDir, false);
-	}
+    @Override
+    public FileStateHandle getMetadataHandle() {
+        return metadataFileHandle;
+    }
+
+    @Override
+    public void disposeStorageLocation() throws IOException {
+        if (fs == null) {
+            fs = exclusiveCheckpointDir.getFileSystem();
+        }
+        fs.delete(exclusiveCheckpointDir, false);
+    }
 }

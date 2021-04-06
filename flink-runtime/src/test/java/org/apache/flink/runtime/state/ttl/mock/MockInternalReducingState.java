@@ -26,34 +26,33 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 /** In memory mock internal reducing state. */
-class MockInternalReducingState<K, N, T>
-	extends MockInternalMergingState<K, N, T, T, T> implements InternalReducingState<K, N, T> {
-	private final ReduceFunction<T> reduceFunction;
+class MockInternalReducingState<K, N, T> extends MockInternalMergingState<K, N, T, T, T>
+        implements InternalReducingState<K, N, T> {
+    private final ReduceFunction<T> reduceFunction;
 
-	private MockInternalReducingState(ReduceFunction<T> reduceFunction) {
-		this.reduceFunction = reduceFunction;
-	}
+    private MockInternalReducingState(ReduceFunction<T> reduceFunction) {
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public T get() {
-		return getInternal();
-	}
+    @Override
+    public T get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(T value) throws Exception {
-		updateInternal(reduceFunction.reduce(get(), value));
-	}
+    @Override
+    public void add(T value) throws Exception {
+        updateInternal(reduceFunction.reduce(get(), value));
+    }
 
-	@Override
-	T mergeState(T t, T nAcc) throws Exception {
-		return reduceFunction.reduce(t, nAcc);
-	}
+    @Override
+    T mergeState(T t, T nAcc) throws Exception {
+        return reduceFunction.reduce(t, nAcc);
+    }
 
-	@SuppressWarnings({"unchecked", "unused"})
-	static <N, T, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, T> stateDesc) {
-		ReducingStateDescriptor<T> reducingStateDesc = (ReducingStateDescriptor<T>) stateDesc;
-		return (IS) new MockInternalReducingState<>(reducingStateDesc.getReduceFunction());
-	}
+    @SuppressWarnings({"unchecked", "unused"})
+    static <N, T, S extends State, IS extends S> IS createState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, T> stateDesc) {
+        ReducingStateDescriptor<T> reducingStateDesc = (ReducingStateDescriptor<T>) stateDesc;
+        return (IS) new MockInternalReducingState<>(reducingStateDesc.getReduceFunction());
+    }
 }

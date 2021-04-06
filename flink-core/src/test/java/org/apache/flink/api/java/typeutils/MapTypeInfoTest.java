@@ -21,17 +21,15 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link MapTypeInfo}.
- */
+/** Test for {@link MapTypeInfo}. */
 public class MapTypeInfoTest extends TypeInformationTestBase<MapTypeInfo<?, ?>> {
 
-	@Override
-	protected MapTypeInfo<?, ?>[] getTestData() {
-		return new MapTypeInfo<?, ?>[] {
-			new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-			new MapTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-			new MapTypeInfo<>(String.class, Boolean.class)
-		};
-	}
+    @Override
+    protected MapTypeInfo<?, ?>[] getTestData() {
+        return new MapTypeInfo<?, ?>[] {
+            new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+            new MapTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+            new MapTypeInfo<>(String.class, Boolean.class)
+        };
+    }
 }

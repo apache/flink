@@ -1,0 +1,60 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+{{/* 
+  Generates an XML snippet for the maven artifact. 
+  IMPORTANT: the whitespace is relevant. Do not change without looking at the 
+  rendered documentation. 
+*/}}
+{{ $scalaVersion := "" }}
+{{ $testScope := "" }}
+{{ $testClassifier := "" }}
+
+{{ $artifactId := .Get 0 }}
+
+{{ $path := .Page.Path }}
+
+{{ range after 1 .Params }}
+  {{ if eq . "withScalaVersion" }}
+    {{ $scalaVersion = "true" }}
+  {{ else if eq . "withTestScope" }}
+    {{ $testScope = "true" }}
+  {{ else if eq . "withTestClassifier" }}
+    {{ $testClassifier = "true" }}
+  {{ else }}
+    {{ errorf "%q: Invalid use of artifact shortcode. Unknown flag `%s`" $path . }}
+  {{ end }}
+{{ end }}
+{{ $scalaVersion := .Get 1 }}
+
+{{ $hash := md5 now }}
+
+{{ if ne $scalaVersion "" }}
+  {{ $artifactId = printf "%s%s" $artifactId $.Site.Params.ScalaVersion }}
+{{ end }}
+
+<div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+    <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+    <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
+    <span class="nt">&ltversion&gt</span>{{- site.Params.Version -}}<span class="nt">&lt/version&gt</span>{{ if ne $testScope "" }}    
+    <span class="nt">&ltscope&gt</span>test<span class="nt">&lt/scope&gt</span>{{ end }}{{ if ne $testClassifier "" }}    
+    <span class="nt">&ltclassifer&gt</span>tests<span class="nt">&lt/classifier&gt</span>{{ end }}
+<span class="nt">&lt/dependency&gt</span></code></pre></div>
+<div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+  Copied to clipboard!
+</div> 

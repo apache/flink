@@ -21,26 +21,16 @@ package org.apache.flink.runtime.metrics.scope;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 
-/**
- * The scope format for the {@link org.apache.flink.runtime.metrics.groups.JobMetricGroup}.
- */
+/** The scope format for the {@link org.apache.flink.runtime.metrics.groups.JobMetricGroup}. */
 public class JobManagerJobScopeFormat extends ScopeFormat {
 
-	public JobManagerJobScopeFormat(String format, JobManagerScopeFormat parentFormat) {
-		super(format, parentFormat, new String[] {
-				SCOPE_HOST,
-				SCOPE_JOB_ID,
-				SCOPE_JOB_NAME
-		});
-	}
+    public JobManagerJobScopeFormat(String format, JobManagerScopeFormat parentFormat) {
+        super(format, parentFormat, new String[] {SCOPE_HOST, SCOPE_JOB_ID, SCOPE_JOB_NAME});
+    }
 
-	public String[] formatScope(JobManagerMetricGroup parent, JobID jid, String jobName) {
-		final String[] template = copyTemplate();
-		final String[] values = {
-				parent.hostname(),
-				valueOrNull(jid),
-				valueOrNull(jobName)
-		};
-		return bindVariables(template, values);
-	}
+    public String[] formatScope(JobManagerMetricGroup parent, JobID jid, String jobName) {
+        final String[] template = copyTemplate();
+        final String[] values = {parent.hostname(), valueOrNull(jid), valueOrNull(jobName)};
+        return bindVariables(template, values);
+    }
 }

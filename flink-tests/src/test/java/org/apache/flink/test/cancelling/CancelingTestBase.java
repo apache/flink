@@ -18,10 +18,9 @@
 
 package org.apache.flink.test.cancelling;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -33,103 +32,111 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-/**
- * Base class for testing job cancellation.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Base class for testing job cancellation. */
 public abstract class CancelingTestBase extends TestLogger {
 
-	private static final int MINIMUM_HEAP_SIZE_MB = 192;
+    private static final int MINIMUM_HEAP_SIZE_MB = 192;
 
-	protected static final int PARALLELISM = 4;
+    protected static final int PARALLELISM = 4;
 
-	protected static final long GET_FUTURE_TIMEOUT = 1000; // 1000 milliseconds
+    private static final Configuration configuration = getConfiguration();
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@ClassRule
-	public static final MiniClusterWithClientResource CLUSTER = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(2)
-			.setNumberSlotsPerTaskManager(4)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource CLUSTER =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(configuration)
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static void verifyJvmOptions() {
-		final long heap = Runtime.getRuntime().maxMemory() >> 20;
-		Assert.assertTrue("Insufficient java heap space " + heap + "mb - set JVM option: -Xmx" + MINIMUM_HEAP_SIZE_MB
-				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
-	}
+    private static void verifyJvmOptions() {
+        final long heap = Runtime.getRuntime().maxMemory() >> 20;
+        Assert.assertTrue(
+                "Insufficient java heap space "
+                        + heap
+                        + "mb - set JVM option: -Xmx"
+                        + MINIMUM_HEAP_SIZE_MB
+                        + "m",
+                heap > MINIMUM_HEAP_SIZE_MB - 50);
+    }
 
-	private static Configuration getConfiguration() {
-		verifyJvmOptions();
-		Configuration config = new Configuration();
-		config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
+    private static Configuration getConfiguration() {
+        verifyJvmOptions();
+        Configuration config = new Configuration();
+        config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+        config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
+        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 2048);
 
-		return config;
-	}
+        return config;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	protected void runAndCancelJob(Plan plan, final int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
-		// submit job
-		final JobGraph jobGraph = getJobGraph(plan);
+    protected void runAndCancelJob(Plan plan, final int msecsTillCanceling, int maxTimeTillCanceled)
+            throws Exception {
+        // submit job
+        final JobGraph jobGraph = getJobGraph(plan);
 
-		ClusterClient<?> client = CLUSTER.getClusterClient();
-		JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(client, jobGraph);
+        final long rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration).toMilliseconds();
 
-		Deadline submissionDeadLine = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+        ClusterClient<?> client = CLUSTER.getClusterClient();
+        JobID jobID = client.submitJob(jobGraph).get();
 
-		JobStatus jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
-		while (jobStatus != JobStatus.RUNNING && submissionDeadLine.hasTimeLeft()) {
-			Thread.sleep(50);
-			jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
-		}
-		if (jobStatus != JobStatus.RUNNING) {
-			Assert.fail("Job not in state RUNNING.");
-		}
+        Deadline submissionDeadLine = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 
-		Thread.sleep(msecsTillCanceling);
+        JobStatus jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
+        while (jobStatus != JobStatus.RUNNING && submissionDeadLine.hasTimeLeft()) {
+            Thread.sleep(50);
+            jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
+        }
+        if (jobStatus != JobStatus.RUNNING) {
+            Assert.fail("Job not in state RUNNING.");
+        }
 
-		client.cancel(jobSubmissionResult.getJobID()).get();
+        Thread.sleep(msecsTillCanceling);
 
-		Deadline cancelDeadline = new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS).fromNow();
+        client.cancel(jobID).get();
 
-		JobStatus jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
-		while (jobStatusAfterCancel != JobStatus.CANCELED && cancelDeadline.hasTimeLeft()) {
-			Thread.sleep(50);
-			jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(GET_FUTURE_TIMEOUT, TimeUnit.MILLISECONDS);
-		}
-		if (jobStatusAfterCancel != JobStatus.CANCELED) {
-			Assert.fail("Failed to cancel job with ID " + jobSubmissionResult.getJobID() + '.');
-		}
-	}
+        Deadline cancelDeadline =
+                new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS).fromNow();
 
-	private JobGraph getJobGraph(final Plan plan) {
-		final Optimizer pc = new Optimizer(new DataStatistics(), getConfiguration());
-		final OptimizedPlan op = pc.compile(plan);
-		final JobGraphGenerator jgg = new JobGraphGenerator();
-		return jgg.compileJobGraph(op);
-	}
+        JobStatus jobStatusAfterCancel =
+                client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
+        while (jobStatusAfterCancel != JobStatus.CANCELED && cancelDeadline.hasTimeLeft()) {
+            Thread.sleep(50);
+            jobStatusAfterCancel =
+                    client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
+        }
+        if (jobStatusAfterCancel != JobStatus.CANCELED) {
+            Assert.fail("Failed to cancel job with ID " + jobID + '.');
+        }
+    }
+
+    private JobGraph getJobGraph(final Plan plan) {
+        final Optimizer pc = new Optimizer(new DataStatistics(), getConfiguration());
+        final OptimizedPlan op = pc.compile(plan);
+        final JobGraphGenerator jgg = new JobGraphGenerator();
+        return jgg.compileJobGraph(op);
+    }
 }

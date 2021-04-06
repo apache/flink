@@ -28,120 +28,123 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Network throughput benchmarks executed by the external
- * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
+ * Network throughput benchmarks executed by the external <a
+ * href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class StreamNetworkThroughputBenchmark {
-	protected StreamNetworkBenchmarkEnvironment<LongValue> environment;
-	protected ReceiverThread receiver;
-	protected LongRecordWriterThread[] writerThreads;
+    protected StreamNetworkBenchmarkEnvironment<LongValue> environment;
+    protected ReceiverThread receiver;
+    protected LongRecordWriterThread[] writerThreads;
 
-	public void executeBenchmark(long records) throws Exception {
-		executeBenchmark(records, Long.MAX_VALUE);
-	}
+    public void executeBenchmark(long records) throws Exception {
+        executeBenchmark(records, Long.MAX_VALUE);
+    }
 
-	/**
-	 * Executes the throughput benchmark with the given number of records.
-	 *
-	 * @param records to pass through the network stack
-	 */
-	public void executeBenchmark(long records, long timeout) throws Exception {
-		final LongValue value = new LongValue();
-		value.setValue(0);
+    /**
+     * Executes the throughput benchmark with the given number of records.
+     *
+     * @param records to pass through the network stack
+     */
+    public void executeBenchmark(long records, long timeout) throws Exception {
+        final LongValue value = new LongValue();
+        value.setValue(0);
 
-		long lastRecord = records / writerThreads.length;
-		CompletableFuture<?> recordsReceived = receiver.setExpectedRecord(lastRecord);
+        long lastRecord = records / writerThreads.length;
+        CompletableFuture<?> recordsReceived = receiver.setExpectedRecord(lastRecord);
 
-		for (LongRecordWriterThread writerThread : writerThreads) {
-			writerThread.setRecordsToSend(lastRecord);
-		}
+        for (LongRecordWriterThread writerThread : writerThreads) {
+            writerThread.setRecordsToSend(lastRecord);
+        }
 
-		recordsReceived.get(timeout, TimeUnit.MILLISECONDS);
-	}
+        recordsReceived.get(timeout, TimeUnit.MILLISECONDS);
+    }
 
-	public void setUp(int recordWriters, int channels, int flushTimeout) throws Exception {
-		setUp(recordWriters, channels, flushTimeout, false);
-	}
+    public void setUp(int recordWriters, int channels, int flushTimeout) throws Exception {
+        setUp(recordWriters, channels, flushTimeout, false);
+    }
 
-	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
-		setUp(recordWriters, channels, flushTimeout, localMode, -1, -1);
-	}
+    public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode)
+            throws Exception {
+        setUp(recordWriters, channels, flushTimeout, localMode, -1, -1);
+    }
 
-	public void setUp(
-			int recordWriters,
-			int channels,
-			int flushTimeout,
-			boolean localMode,
-			int senderBufferPoolSize,
-			int receiverBufferPoolSize) throws Exception {
-		setUp(
-			recordWriters,
-			channels,
-			flushTimeout,
-			false,
-			localMode,
-			senderBufferPoolSize,
-			receiverBufferPoolSize,
-			new Configuration()
-		);
-	}
+    public void setUp(
+            int recordWriters,
+            int channels,
+            int flushTimeout,
+            boolean localMode,
+            int senderBufferPoolSize,
+            int receiverBufferPoolSize)
+            throws Exception {
+        setUp(
+                recordWriters,
+                channels,
+                flushTimeout,
+                false,
+                localMode,
+                senderBufferPoolSize,
+                receiverBufferPoolSize,
+                new Configuration());
+    }
 
-	/**
-	 * Initializes the throughput benchmark with the given parameters.
-	 *
-	 * @param recordWriters
-	 * 		number of senders, i.e.
-	 * 		{@link org.apache.flink.runtime.io.network.api.writer.RecordWriter} instances
-	 * @param channels
-	 * 		number of outgoing channels / receivers
-	 */
-	public void setUp(
-			int recordWriters,
-			int channels,
-			int flushTimeout,
-			boolean broadcastMode,
-			boolean localMode,
-			int senderBufferPoolSize,
-			int receiverBufferPoolSize,
-			Configuration config) throws Exception {
-		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(
-			recordWriters,
-			channels,
-			localMode,
-			senderBufferPoolSize,
-			receiverBufferPoolSize,
-			config);
-		writerThreads = new LongRecordWriterThread[recordWriters];
-		for (int writer = 0; writer < recordWriters; writer++) {
-			ResultPartitionWriter resultPartitionWriter = environment.createResultPartitionWriter(writer);
-			RecordWriterBuilder recordWriterBuilder = new RecordWriterBuilder().setTimeout(flushTimeout);
-			setChannelSelector(recordWriterBuilder, broadcastMode);
-			writerThreads[writer] = new LongRecordWriterThread(
-				recordWriterBuilder.build(resultPartitionWriter),
-				broadcastMode);
-			writerThreads[writer].start();
-		}
-		receiver = environment.createReceiver();
-	}
+    /**
+     * Initializes the throughput benchmark with the given parameters.
+     *
+     * @param recordWriters number of senders, i.e. {@link
+     *     org.apache.flink.runtime.io.network.api.writer.RecordWriter} instances
+     * @param channels number of outgoing channels / receivers
+     */
+    public void setUp(
+            int recordWriters,
+            int channels,
+            int flushTimeout,
+            boolean broadcastMode,
+            boolean localMode,
+            int senderBufferPoolSize,
+            int receiverBufferPoolSize,
+            Configuration config)
+            throws Exception {
+        environment = new StreamNetworkBenchmarkEnvironment<>();
+        environment.setUp(
+                recordWriters,
+                channels,
+                localMode,
+                senderBufferPoolSize,
+                receiverBufferPoolSize,
+                config);
+        writerThreads = new LongRecordWriterThread[recordWriters];
+        for (int writer = 0; writer < recordWriters; writer++) {
+            ResultPartitionWriter resultPartitionWriter =
+                    environment.createResultPartitionWriter(writer);
+            RecordWriterBuilder recordWriterBuilder =
+                    new RecordWriterBuilder().setTimeout(flushTimeout);
+            setChannelSelector(recordWriterBuilder, broadcastMode);
+            writerThreads[writer] =
+                    new LongRecordWriterThread(
+                            recordWriterBuilder.build(resultPartitionWriter), broadcastMode);
+            writerThreads[writer].start();
+        }
+        receiver = environment.createReceiver();
+    }
 
-	protected void setChannelSelector(RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
-		if (broadcastMode) {
-			recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
-		}
-	}
+    protected void setChannelSelector(
+            RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
+        if (broadcastMode) {
+            recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
+        }
+    }
 
-	/**
-	 * Shuts down a benchmark previously set up via {@link #setUp}.
-	 *
-	 * <p>This will wait for all senders to finish but timeout with an exception after 5 seconds.
-	 */
-	public void tearDown() throws Exception {
-		for (LongRecordWriterThread writerThread : writerThreads) {
-			writerThread.shutdown();
-			writerThread.sync(5000);
-		}
-		environment.tearDown();
-		receiver.shutdown();
-	}
+    /**
+     * Shuts down a benchmark previously set up via {@link #setUp}.
+     *
+     * <p>This will wait for all senders to finish but timeout with an exception after 5 seconds.
+     */
+    public void tearDown() throws Exception {
+        for (LongRecordWriterThread writerThread : writerThreads) {
+            writerThread.shutdown();
+            writerThread.sync(5000);
+        }
+        environment.tearDown();
+        receiver.shutdown();
+    }
 }

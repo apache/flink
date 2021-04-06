@@ -47,7 +47,7 @@ class ScalarSqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(name, scalarFunction, typeFactory),
     createEvalOperandTypeInference(name, scalarFunction, typeFactory),
-    createEvalOperandTypeChecker(name, scalarFunction),
+    createEvalOperandMetadata(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 

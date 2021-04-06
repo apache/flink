@@ -39,132 +39,137 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * A {@link CatalogTable} that wraps a {@link TableSource} and/or {@link TableSink}.
- * This allows registering those in a {@link Catalog}. It can not be persisted as the
- * source and/or sink might be inline implementations and not be representable in a
- * property based form.
+ * A {@link CatalogTable} that wraps a {@link TableSource} and/or {@link TableSink}. This allows
+ * registering those in a {@link Catalog}. It can not be persisted as the source and/or sink might
+ * be inline implementations and not be representable in a property based form.
  *
  * @param <T1> type of the produced elements by the {@link TableSource}
  * @param <T2> type of the expected elements by the {@link TableSink}
  */
 @Internal
 public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
-	private final TableSource<T1> tableSource;
-	private final TableSink<T2> tableSink;
-	// Flag that tells if the tableSource/tableSink is BatchTableSource/BatchTableSink.
-	// NOTES: this should be false in BLINK planner, because BLINK planner always uses StreamTableSource.
-	private final boolean isBatch;
+    private final TableSource<T1> tableSource;
+    private final TableSink<T2> tableSink;
+    // Flag that tells if the tableSource/tableSink is BatchTableSource/BatchTableSink.
+    // NOTES: this should be false in BLINK planner, because BLINK planner always uses
+    // StreamTableSource.
+    private final boolean isBatch;
 
-	public static <T1> ConnectorCatalogTable<T1, ?> source(TableSource<T1> source, boolean isBatch) {
-		final TableSchema tableSchema = calculateSourceSchema(source, isBatch);
-		return new ConnectorCatalogTable<>(source, null, tableSchema, isBatch);
-	}
+    public static <T1> ConnectorCatalogTable<T1, ?> source(
+            TableSource<T1> source, boolean isBatch) {
+        final TableSchema tableSchema = calculateSourceSchema(source, isBatch);
+        return new ConnectorCatalogTable<>(source, null, tableSchema, isBatch);
+    }
 
-	public static <T2> ConnectorCatalogTable<?, T2> sink(TableSink<T2> sink, boolean isBatch) {
-		return new ConnectorCatalogTable<>(null, sink, sink.getTableSchema(), isBatch);
-	}
+    public static <T2> ConnectorCatalogTable<?, T2> sink(TableSink<T2> sink, boolean isBatch) {
+        return new ConnectorCatalogTable<>(null, sink, sink.getTableSchema(), isBatch);
+    }
 
-	public static <T1, T2> ConnectorCatalogTable<T1, T2> sourceAndSink(
-			TableSource<T1> source,
-			TableSink<T2> sink,
-			boolean isBatch) {
-		TableSchema tableSchema = calculateSourceSchema(source, isBatch);
-		return new ConnectorCatalogTable<>(source, sink, tableSchema, isBatch);
-	}
+    public static <T1, T2> ConnectorCatalogTable<T1, T2> sourceAndSink(
+            TableSource<T1> source, TableSink<T2> sink, boolean isBatch) {
+        TableSchema tableSchema = calculateSourceSchema(source, isBatch);
+        return new ConnectorCatalogTable<>(source, sink, tableSchema, isBatch);
+    }
 
-	@VisibleForTesting
-	protected ConnectorCatalogTable(
-			TableSource<T1> tableSource,
-			TableSink<T2> tableSink,
-			TableSchema tableSchema,
-			boolean isBatch) {
-		super(tableSchema, Collections.emptyMap(), "");
-		this.tableSource = tableSource;
-		this.tableSink = tableSink;
-		this.isBatch = isBatch;
-	}
+    @VisibleForTesting
+    protected ConnectorCatalogTable(
+            TableSource<T1> tableSource,
+            TableSink<T2> tableSink,
+            TableSchema tableSchema,
+            boolean isBatch) {
+        super(tableSchema, Collections.emptyMap(), "");
+        this.tableSource = tableSource;
+        this.tableSink = tableSink;
+        this.isBatch = isBatch;
+    }
 
-	public Optional<TableSource<T1>> getTableSource() {
-		return Optional.ofNullable(tableSource);
-	}
+    public Optional<TableSource<T1>> getTableSource() {
+        return Optional.ofNullable(tableSource);
+    }
 
-	public Optional<TableSink<T2>> getTableSink() {
-		return Optional.ofNullable(tableSink);
-	}
+    public Optional<TableSink<T2>> getTableSink() {
+        return Optional.ofNullable(tableSink);
+    }
 
-	public boolean isBatch() {
-		return isBatch;
-	}
+    public boolean isBatch() {
+        return isBatch;
+    }
 
-	@Override
-	public Map<String, String> toProperties() {
-		// This effectively makes sure the table cannot be persisted in a catalog.
-		throw new UnsupportedOperationException("ConnectorCatalogTable cannot be converted to properties");
-	}
+    @Override
+    public Map<String, String> toProperties() {
+        // This effectively makes sure the table cannot be persisted in a catalog.
+        throw new UnsupportedOperationException(
+                "ConnectorCatalogTable cannot be converted to properties");
+    }
 
-	@Override
-	public CatalogBaseTable copy() {
-		return this;
-	}
+    @Override
+    public CatalogTable copy(Map<String, String> options) {
+        throw new UnsupportedOperationException(
+                "ConnectorCatalogTable cannot copy with new table options");
+    }
 
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.empty();
-	}
+    @Override
+    public CatalogBaseTable copy() {
+        return this;
+    }
 
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return Optional.empty();
-	}
+    @Override
+    public Optional<String> getDescription() {
+        return Optional.empty();
+    }
 
-	private static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
-		TableSchema tableSchema = source.getTableSchema();
-		if (isBatch) {
-			return tableSchema;
-		}
+    @Override
+    public Optional<String> getDetailedDescription() {
+        return Optional.empty();
+    }
 
-		DataType[] types = Arrays.copyOf(tableSchema.getFieldDataTypes(), tableSchema.getFieldCount());
-		String[] fieldNames = tableSchema.getFieldNames();
-		if (source instanceof DefinedRowtimeAttributes) {
-			updateRowtimeIndicators((DefinedRowtimeAttributes) source, fieldNames, types);
-		}
-		if (source instanceof DefinedProctimeAttribute) {
-			updateProctimeIndicator((DefinedProctimeAttribute) source, fieldNames, types);
-		}
-		return TableSchema.builder().fields(fieldNames, types).build();
-	}
+    public static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
+        TableSchema tableSchema = source.getTableSchema();
+        if (isBatch) {
+            return tableSchema;
+        }
 
-	private static void updateRowtimeIndicators(
-			DefinedRowtimeAttributes source,
-			String[] fieldNames,
-			DataType[] types) {
-		List<String> rowtimeAttributes = source.getRowtimeAttributeDescriptors()
-			.stream()
-			.map(RowtimeAttributeDescriptor::getAttributeName)
-			.collect(Collectors.toList());
+        DataType[] types =
+                Arrays.copyOf(tableSchema.getFieldDataTypes(), tableSchema.getFieldCount());
+        String[] fieldNames = tableSchema.getFieldNames();
+        if (source instanceof DefinedRowtimeAttributes) {
+            updateRowtimeIndicators((DefinedRowtimeAttributes) source, fieldNames, types);
+        }
+        if (source instanceof DefinedProctimeAttribute) {
+            updateProctimeIndicator((DefinedProctimeAttribute) source, fieldNames, types);
+        }
+        return TableSchema.builder().fields(fieldNames, types).build();
+    }
 
-		for (int i = 0; i < fieldNames.length; i++) {
-			if (rowtimeAttributes.contains(fieldNames[i])) {
-				// bridged to timestamp for compatible flink-planner
-				types[i] = new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3))
-						.bridgedTo(java.sql.Timestamp.class);
-			}
-		}
-	}
+    private static void updateRowtimeIndicators(
+            DefinedRowtimeAttributes source, String[] fieldNames, DataType[] types) {
+        List<String> rowtimeAttributes =
+                source.getRowtimeAttributeDescriptors().stream()
+                        .map(RowtimeAttributeDescriptor::getAttributeName)
+                        .collect(Collectors.toList());
 
-	private static void updateProctimeIndicator(
-			DefinedProctimeAttribute source,
-			String[] fieldNames,
-			DataType[] types) {
-		String proctimeAttribute = source.getProctimeAttribute();
+        for (int i = 0; i < fieldNames.length; i++) {
+            if (rowtimeAttributes.contains(fieldNames[i])) {
+                // bridged to timestamp for compatible flink-planner
+                types[i] =
+                        new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3))
+                                .bridgedTo(java.sql.Timestamp.class);
+            }
+        }
+    }
 
-		for (int i = 0; i < fieldNames.length; i++) {
-			if (fieldNames[i].equals(proctimeAttribute)) {
-				// bridged to timestamp for compatible flink-planner
-				types[i] = new AtomicDataType(new TimestampType(true, TimestampKind.PROCTIME, 3))
-						.bridgedTo(java.sql.Timestamp.class);
-				break;
-			}
-		}
-	}
+    private static void updateProctimeIndicator(
+            DefinedProctimeAttribute source, String[] fieldNames, DataType[] types) {
+        String proctimeAttribute = source.getProctimeAttribute();
+
+        for (int i = 0; i < fieldNames.length; i++) {
+            if (fieldNames[i].equals(proctimeAttribute)) {
+                // bridged to timestamp for compatible flink-planner
+                types[i] =
+                        new AtomicDataType(new TimestampType(true, TimestampKind.PROCTIME, 3))
+                                .bridgedTo(java.sql.Timestamp.class);
+                break;
+            }
+        }
+    }
 }

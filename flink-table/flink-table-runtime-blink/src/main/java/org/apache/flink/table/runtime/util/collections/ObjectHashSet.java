@@ -19,35 +19,32 @@ package org.apache.flink.table.runtime.util.collections;
 
 import java.util.HashSet;
 
-/**
- * Wrap {@link HashSet} with hashSet interface.
- */
+/** Wrap {@link HashSet} with hashSet interface. */
 public class ObjectHashSet<T> extends OptimizableHashSet {
 
-	private HashSet<T> set;
+    private HashSet<T> set;
 
-	public ObjectHashSet(final int expected, final float f) {
-		super(expected, f);
-		this.set = new HashSet<>(expected, f);
-	}
+    public ObjectHashSet(final int expected, final float f) {
+        super(expected, f);
+        this.set = new HashSet<>(expected, f);
+    }
 
-	public ObjectHashSet(final int expected) {
-		this(expected, DEFAULT_LOAD_FACTOR);
-	}
+    public ObjectHashSet(final int expected) {
+        this(expected, DEFAULT_LOAD_FACTOR);
+    }
 
-	public ObjectHashSet() {
-		this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
-	}
+    public ObjectHashSet() {
+        this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
+    }
 
-	public boolean add(T t) {
-		return set.add(t);
-	}
+    public boolean add(T t) {
+        return set.add(t);
+    }
 
-	public boolean contains(final T t) {
-		return set.contains(t);
-	}
+    public boolean contains(final T t) {
+        return set.contains(t);
+    }
 
-	@Override
-	public void optimize() {
-	}
+    @Override
+    public void optimize() {}
 }

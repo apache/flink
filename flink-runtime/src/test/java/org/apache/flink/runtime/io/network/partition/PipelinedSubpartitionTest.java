@@ -23,12 +23,9 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
@@ -39,7 +36,6 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -65,265 +60,255 @@ import static org.mockito.Mockito.when;
  */
 public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
-	/** Executor service for concurrent produce/consume tests. */
-	private static final ExecutorService executorService = Executors.newCachedThreadPool();
+    /** Executor service for concurrent produce/consume tests. */
+    private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
-	@AfterClass
-	public static void shutdownExecutorService() throws Exception {
-		executorService.shutdownNow();
-	}
+    @AfterClass
+    public static void shutdownExecutorService() throws Exception {
+        executorService.shutdownNow();
+    }
 
-	@Override
-	PipelinedSubpartition createSubpartition() {
-		final ResultPartition parent = PartitionTestUtils.createPartition();
+    @Override
+    PipelinedSubpartition createSubpartition() throws Exception {
+        return createPipelinedSubpartition();
+    }
 
-		return new PipelinedSubpartition(0, parent);
-	}
+    @Override
+    ResultSubpartition createFailingWritesSubpartition() throws Exception {
+        // the tests relating to this are currently not supported by the PipelinedSubpartition
+        Assume.assumeTrue(false);
+        return null;
+    }
 
-	@Override
-	ResultSubpartition createFailingWritesSubpartition() throws Exception {
-		// the tests relating to this are currently not supported by the PipelinedSubpartition
-		Assume.assumeTrue(false);
-		return null;
-	}
+    @Test
+    public void testIllegalReadViewRequest() throws Exception {
+        final PipelinedSubpartition subpartition = createSubpartition();
 
-	@Test
-	public void testIllegalReadViewRequest() throws Exception {
-		final PipelinedSubpartition subpartition = createSubpartition();
+        // Successful request
+        assertNotNull(subpartition.createReadView(new NoOpBufferAvailablityListener()));
 
-		// Successful request
-		assertNotNull(subpartition.createReadView(new NoOpBufferAvailablityListener()));
+        try {
+            subpartition.createReadView(new NoOpBufferAvailablityListener());
 
-		try {
-			subpartition.createReadView(new NoOpBufferAvailablityListener());
+            fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
+        } catch (IllegalStateException expected) {
+        }
+    }
 
-			fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
-		} catch (IllegalStateException expected) {
-		}
-	}
+    /** Verifies that the isReleased() check of the view checks the parent subpartition. */
+    @Test
+    public void testIsReleasedChecksParent() {
+        PipelinedSubpartition subpartition = mock(PipelinedSubpartition.class);
 
-	/**
-	 * Verifies that the isReleased() check of the view checks the parent
-	 * subpartition.
-	 */
-	@Test
-	public void testIsReleasedChecksParent() {
-		PipelinedSubpartition subpartition = mock(PipelinedSubpartition.class);
+        PipelinedSubpartitionView reader =
+                new PipelinedSubpartitionView(subpartition, mock(BufferAvailabilityListener.class));
 
-		PipelinedSubpartitionView reader = new PipelinedSubpartitionView(
-			subpartition, mock(BufferAvailabilityListener.class));
+        assertFalse(reader.isReleased());
+        verify(subpartition, times(1)).isReleased();
 
-		assertFalse(reader.isReleased());
-		verify(subpartition, times(1)).isReleased();
+        when(subpartition.isReleased()).thenReturn(true);
+        assertTrue(reader.isReleased());
+        verify(subpartition, times(2)).isReleased();
+    }
 
-		when(subpartition.isReleased()).thenReturn(true);
-		assertTrue(reader.isReleased());
-		verify(subpartition, times(2)).isReleased();
-	}
+    @Test
+    public void testConcurrentFastProduceAndFastConsume() throws Exception {
+        testProduceConsume(false, false);
+    }
 
-	@Test
-	public void testConcurrentFastProduceAndFastConsume() throws Exception {
-		testProduceConsume(false, false);
-	}
+    @Test
+    public void testConcurrentFastProduceAndSlowConsume() throws Exception {
+        testProduceConsume(false, true);
+    }
 
-	@Test
-	public void testConcurrentFastProduceAndSlowConsume() throws Exception {
-		testProduceConsume(false, true);
-	}
+    @Test
+    public void testConcurrentSlowProduceAndFastConsume() throws Exception {
+        testProduceConsume(true, false);
+    }
 
-	@Test
-	public void testConcurrentSlowProduceAndFastConsume() throws Exception {
-		testProduceConsume(true, false);
-	}
+    @Test
+    public void testConcurrentSlowProduceAndSlowConsume() throws Exception {
+        testProduceConsume(true, true);
+    }
 
-	@Test
-	public void testConcurrentSlowProduceAndSlowConsume() throws Exception {
-		testProduceConsume(true, true);
-	}
+    private void testProduceConsume(boolean isSlowProducer, boolean isSlowConsumer)
+            throws Exception {
+        // Config
+        final int producerNumberOfBuffersToProduce = 128;
+        final int bufferSize = 32 * 1024;
 
-	private void testProduceConsume(boolean isSlowProducer, boolean isSlowConsumer) throws Exception {
-		// Config
-		final int producerBufferPoolSize = 8;
-		final int producerNumberOfBuffersToProduce = 128;
+        // Producer behaviour
+        final TestProducerSource producerSource =
+                new TestProducerSource() {
 
-		// Producer behaviour
-		final TestProducerSource producerSource = new TestProducerSource() {
+                    private int numberOfBuffers;
 
-			private BufferProvider bufferProvider = new TestPooledBufferProvider(producerBufferPoolSize);
+                    @Override
+                    public BufferAndChannel getNextBuffer() throws Exception {
+                        if (numberOfBuffers == producerNumberOfBuffersToProduce) {
+                            return null;
+                        }
 
-			private int numberOfBuffers;
+                        MemorySegment segment =
+                                MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
 
-			@Override
-			public BufferConsumerAndChannel getNextBufferConsumer() throws Exception {
-				if (numberOfBuffers == producerNumberOfBuffersToProduce) {
-					return null;
-				}
+                        int next = numberOfBuffers * (bufferSize / Integer.BYTES);
 
-				final BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
-				final BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-				int segmentSize = bufferBuilder.getMaxCapacity();
+                        for (int i = 0; i < bufferSize; i += 4) {
+                            segment.putInt(i, next);
+                            next++;
+                        }
 
-				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
+                        numberOfBuffers++;
 
-				int next = numberOfBuffers * (segmentSize / Integer.BYTES);
+                        return new BufferAndChannel(segment.getArray(), 0);
+                    }
+                };
 
-				for (int i = 0; i < segmentSize; i += 4) {
-					segment.putInt(i, next);
-					next++;
-				}
+        // Consumer behaviour
+        final TestConsumerCallback consumerCallback =
+                new TestConsumerCallback() {
 
-				checkState(bufferBuilder.appendAndCommit(ByteBuffer.wrap(segment.getArray())) == segmentSize);
-				bufferBuilder.finish();
+                    private int numberOfBuffers;
 
-				numberOfBuffers++;
+                    @Override
+                    public void onBuffer(Buffer buffer) {
+                        final MemorySegment segment = buffer.getMemorySegment();
+                        assertEquals(segment.size(), buffer.getSize());
 
-				return new BufferConsumerAndChannel(bufferConsumer, 0);
-			}
-		};
+                        int expected = numberOfBuffers * (segment.size() / 4);
 
-		// Consumer behaviour
-		final TestConsumerCallback consumerCallback = new TestConsumerCallback() {
+                        for (int i = 0; i < segment.size(); i += 4) {
+                            assertEquals(expected, segment.getInt(i));
 
-			private int numberOfBuffers;
+                            expected++;
+                        }
 
-			@Override
-			public void onBuffer(Buffer buffer) {
-				final MemorySegment segment = buffer.getMemorySegment();
-				assertEquals(segment.size(), buffer.getSize());
+                        numberOfBuffers++;
 
-				int expected = numberOfBuffers * (segment.size() / 4);
+                        buffer.recycleBuffer();
+                    }
 
-				for (int i = 0; i < segment.size(); i += 4) {
-					assertEquals(expected, segment.getInt(i));
+                    @Override
+                    public void onEvent(AbstractEvent event) {
+                        // Nothing to do in this test
+                    }
+                };
 
-					expected++;
-				}
+        final PipelinedSubpartition subpartition = createSubpartition();
 
-				numberOfBuffers++;
+        TestSubpartitionProducer producer =
+                new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource);
+        TestSubpartitionConsumer consumer =
+                new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
+        final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
+        consumer.setSubpartitionView(view);
 
-				buffer.recycleBuffer();
-			}
+        CompletableFuture<Boolean> producerResult =
+                CompletableFuture.supplyAsync(
+                        CheckedSupplier.unchecked(producer::call), executorService);
+        CompletableFuture<Boolean> consumerResult =
+                CompletableFuture.supplyAsync(
+                        CheckedSupplier.unchecked(consumer::call), executorService);
 
-			@Override
-			public void onEvent(AbstractEvent event) {
-				// Nothing to do in this test
-			}
-		};
+        FutureUtils.waitForAll(Arrays.asList(producerResult, consumerResult))
+                .get(60_000L, TimeUnit.MILLISECONDS);
+    }
 
-		final PipelinedSubpartition subpartition = createSubpartition();
+    /** Tests cleanup of {@link PipelinedSubpartition#release()} with no read view attached. */
+    @Test
+    public void testCleanupReleasedPartitionNoView() throws Exception {
+        testCleanupReleasedPartition(false);
+    }
 
-		TestSubpartitionProducer producer = new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource);
-		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
-		final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
-		consumer.setSubpartitionView(view);
+    /** Tests cleanup of {@link PipelinedSubpartition#release()} with a read view attached. */
+    @Test
+    public void testCleanupReleasedPartitionWithView() throws Exception {
+        testCleanupReleasedPartition(true);
+    }
 
-		CompletableFuture<Boolean> producerResult = CompletableFuture.supplyAsync(
-			CheckedSupplier.unchecked(producer::call), executorService);
-		CompletableFuture<Boolean> consumerResult = CompletableFuture.supplyAsync(
-			CheckedSupplier.unchecked(consumer::call), executorService);
+    /**
+     * Tests cleanup of {@link PipelinedSubpartition#release()}.
+     *
+     * @param createView whether the partition should have a view attached to it (<tt>true</tt>) or
+     *     not (<tt>false</tt>)
+     */
+    private void testCleanupReleasedPartition(boolean createView) throws Exception {
+        PipelinedSubpartition partition = createSubpartition();
 
-		FutureUtils.waitForAll(Arrays.asList(producerResult, consumerResult))
-			.get(60_000L, TimeUnit.MILLISECONDS);
-	}
+        BufferConsumer buffer1 = createFilledFinishedBufferConsumer(4096);
+        BufferConsumer buffer2 = createFilledFinishedBufferConsumer(4096);
+        boolean buffer1Recycled;
+        boolean buffer2Recycled;
+        try {
+            partition.add(buffer1);
+            partition.add(buffer2);
+            // create the read view first
+            ResultSubpartitionView view = null;
+            if (createView) {
+                view = partition.createReadView(new NoOpBufferAvailablityListener());
+            }
 
-	/**
-	 * Tests cleanup of {@link PipelinedSubpartition#release()} with no read view attached.
-	 */
-	@Test
-	public void testCleanupReleasedPartitionNoView() throws Exception {
-		testCleanupReleasedPartition(false);
-	}
+            partition.release();
 
-	/**
-	 * Tests cleanup of {@link PipelinedSubpartition#release()} with a read view attached.
-	 */
-	@Test
-	public void testCleanupReleasedPartitionWithView() throws Exception {
-		testCleanupReleasedPartition(true);
-	}
+            assertTrue(partition.isReleased());
+            if (createView) {
+                assertTrue(view.isReleased());
+            }
+            assertTrue(buffer1.isRecycled());
+        } finally {
+            buffer1Recycled = buffer1.isRecycled();
+            if (!buffer1Recycled) {
+                buffer1.close();
+            }
+            buffer2Recycled = buffer2.isRecycled();
+            if (!buffer2Recycled) {
+                buffer2.close();
+            }
+        }
+        if (!buffer1Recycled) {
+            Assert.fail("buffer 1 not recycled");
+        }
+        if (!buffer2Recycled) {
+            Assert.fail("buffer 2 not recycled");
+        }
+        assertEquals(2, partition.getTotalNumberOfBuffers());
+        assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
+    }
 
-	/**
-	 * Tests cleanup of {@link PipelinedSubpartition#release()}.
-	 *
-	 * @param createView
-	 * 		whether the partition should have a view attached to it (<tt>true</tt>) or not (<tt>false</tt>)
-	 */
-	private void testCleanupReleasedPartition(boolean createView) throws Exception {
-		PipelinedSubpartition partition = createSubpartition();
+    @Test
+    public void testReleaseParent() throws Exception {
+        final ResultSubpartition partition = createSubpartition();
+        verifyViewReleasedAfterParentRelease(partition);
+    }
 
-		BufferConsumer buffer1 = createFilledFinishedBufferConsumer(4096);
-		BufferConsumer buffer2 = createFilledFinishedBufferConsumer(4096);
-		boolean buffer1Recycled;
-		boolean buffer2Recycled;
-		try {
-			partition.add(buffer1);
-			partition.add(buffer2);
-			// create the read view first
-			ResultSubpartitionView view = null;
-			if (createView) {
-				view = partition.createReadView(new NoOpBufferAvailablityListener());
-			}
+    private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)
+            throws Exception {
+        // Add a bufferConsumer
+        BufferConsumer bufferConsumer =
+                createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+        partition.add(bufferConsumer);
+        partition.finish();
 
-			partition.release();
+        // Create the view
+        BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
+        ResultSubpartitionView view = partition.createReadView(listener);
 
-			assertTrue(partition.isReleased());
-			if (createView) {
-				assertTrue(view.isReleased());
-			}
-			assertTrue(buffer1.isRecycled());
-		} finally {
-			buffer1Recycled = buffer1.isRecycled();
-			if (!buffer1Recycled) {
-				buffer1.close();
-			}
-			buffer2Recycled = buffer2.isRecycled();
-			if (!buffer2Recycled) {
-				buffer2.close();
-			}
-		}
-		if (!buffer1Recycled) {
-			Assert.fail("buffer 1 not recycled");
-		}
-		if (!buffer2Recycled) {
-			Assert.fail("buffer 2 not recycled");
-		}
-		assertEquals(2, partition.getTotalNumberOfBuffers());
-		assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed
-	}
+        // The added bufferConsumer and end-of-partition event
+        assertNotNull(view.getNextBuffer());
+        assertNotNull(view.getNextBuffer());
 
-	@Test
-	public void testReleaseParent() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		verifyViewReleasedAfterParentRelease(partition);
-	}
+        // Release the parent
+        assertFalse(view.isReleased());
+        partition.release();
 
-	@Test
-	public void testReleaseParentAfterSpilled() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		partition.releaseMemory();
+        // Verify that parent release is reflected at partition view
+        assertTrue(view.isReleased());
+    }
 
-		verifyViewReleasedAfterParentRelease(partition);
-	}
+    public static PipelinedSubpartition createPipelinedSubpartition() {
+        final ResultPartition parent = PartitionTestUtils.createPartition();
 
-	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
-		// Add a bufferConsumer
-		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
-		partition.add(bufferConsumer);
-		partition.finish();
-
-		// Create the view
-		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
-		ResultSubpartitionView view = partition.createReadView(listener);
-
-		// The added bufferConsumer and end-of-partition event
-		assertNotNull(view.getNextBuffer());
-		assertNotNull(view.getNextBuffer());
-
-		// Release the parent
-		assertFalse(view.isReleased());
-		partition.release();
-
-		// Verify that parent release is reflected at partition view
-		assertTrue(view.isReleased());
-	}
+        return new PipelinedSubpartition(0, parent);
+    }
 }

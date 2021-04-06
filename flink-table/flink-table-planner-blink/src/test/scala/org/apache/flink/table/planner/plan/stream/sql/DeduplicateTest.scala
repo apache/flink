@@ -19,10 +19,11 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+
+import java.time.Duration
 
 import org.junit.{Before, Test}
 
@@ -49,7 +50,7 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -64,14 +65,13 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testLastRowWithWindowOnRowtime(): Unit = {
-    // lastRow on rowtime followed by group window is not supported now.
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "500 ms")
+      .set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(500))
     util.addTable(
       """
         |CREATE TABLE T (
@@ -106,13 +106,13 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Retraction on windowed GroupBy Aggregate is not supported yet")
+    thrown.expectMessage("GroupWindowAggregate doesn't support consuming update " +
+      "and delete changes which is produced by node Deduplicate(")
     util.verifyExplain(windowSql)
   }
 
   @Test
   def testSimpleFirstRowOnRowtime(): Unit = {
-    // Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     val sql =
       """
         |SELECT a, b, c
@@ -123,12 +123,46 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testMiniBatchInferFirstRowOnRowtime(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
+    util.tableEnv.getConfig.getConfiguration.set(
+      TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |    a INT,
+         |    b VARCHAR,
+         |    rowtime TIMESTAMP(3),
+         |    proctime as PROCTIME(),
+         |    WATERMARK FOR rowtime AS rowtime
+         |) WITH (
+         | 'connector' = 'COLLECTION',
+         | 'is-bounded' = 'false'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl)
+    val sql =
+      """
+        |SELECT COUNT(b) FROM (
+        |  SELECT a, b
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
+        |    FROM T)
+        |  WHERE rank_num <= 1
+        |)
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testSimpleLastRowOnRowtime(): Unit = {
-    // Deduplicate does not support sort on rowtime now, so it is translated to Rank currently
     val sql =
       """
         |SELECT a, b, c
@@ -139,7 +173,42 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testMiniBatchInferLastRowOnRowtime(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
+    util.tableEnv.getConfig.getConfiguration.set(
+      TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |    a INT,
+         |    b VARCHAR,
+         |    rowtime TIMESTAMP(3),
+         |    proctime as PROCTIME(),
+         |    WATERMARK FOR rowtime AS rowtime
+         |) WITH (
+         | 'connector' = 'COLLECTION',
+         | 'is-bounded' = 'false'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl)
+    val sql =
+      """
+        |SELECT COUNT(b) FROM (
+        |  SELECT a, b
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
+        |    FROM T)
+        |  WHERE rank_num = 1
+        |)
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -154,7 +223,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -170,7 +239,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -185,7 +254,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -201,7 +270,7 @@ class DeduplicateTest extends TableTestBase {
         |WHERE rowNum = 1
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
 }

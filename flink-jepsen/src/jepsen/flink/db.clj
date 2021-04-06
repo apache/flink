@@ -38,21 +38,21 @@
 
 (defn- default-flink-configuration
   [test node]
-  {:high-availability                     "zookeeper"
-   :high-availability.zookeeper.quorum    (zookeeper-quorum test)
-   :high-availability.storageDir          "hdfs:///flink/ha"
-   :jobmanager.heap.size                  "2048m"
-   :jobmanager.rpc.address                node
-   :state.savepoints.dir                  "hdfs:///flink/savepoints"
-   :rest.address                          node
-   :rest.port                             8081
-   :rest.bind-address                     "0.0.0.0"
-   :taskmanager.numberOfTaskSlots         taskmanager-slots
-   :yarn.application-attempts             99999
-   :slotmanager.taskmanager-timeout       10000
-   :state.backend.local-recovery          "true"
-   :taskmanager.memory.process.size "2048m"
-   :taskmanager.registration.timeout      "30 s"})
+  {:high-availability                  "zookeeper"
+   :high-availability.zookeeper.quorum (zookeeper-quorum test)
+   :high-availability.storageDir       "hdfs:///flink/ha"
+   :jobmanager.memory.process.size     "2048m"
+   :jobmanager.rpc.address             node
+   :state.savepoints.dir               "hdfs:///flink/savepoints"
+   :rest.address                       node
+   :rest.port                          8081
+   :rest.bind-address                  "0.0.0.0"
+   :taskmanager.numberOfTaskSlots      taskmanager-slots
+   :yarn.application-attempts          99999
+   :slotmanager.taskmanager-timeout    10000
+   :state.backend.local-recovery       "true"
+   :taskmanager.memory.process.size    "2048m"
+   :taskmanager.registration.timeout   "30 s"})
 
 (defn flink-configuration
   [test node]
@@ -67,7 +67,7 @@
                                          (seq (flink-configuration test node))))]
     (c/exec :echo c :> conf-file)
     ;; TODO: write log4j.properties properly
-    (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
+    (c/exec (c/lit (str "sed -i'.bak' -e '/rootLogger\\.level/ s/=.*/= DEBUG/' " install-dir "/conf/log4j.properties")))))
 
 (defn- file-name
   [path]
@@ -109,7 +109,7 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db dbs] (db/teardown! db test node))
+          (doseq [db (reverse dbs)] (db/teardown! db test node))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
@@ -303,6 +303,7 @@
     "-Djobmanager.rpc.address=$(hostname -f)"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.cpus=1"
+    "-Dcontainerized.taskmanager.env.HADOOP_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)"
     "-Dtaskmanager.memory.process.size=2048m"
     "-Drest.bind-address=$(hostname -f)"))
 

@@ -31,51 +31,51 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-/**
- * A common base for both "mapred" and "mapreduce" Hadoop input formats.
- */
+/** A common base for both "mapred" and "mapreduce" Hadoop input formats. */
 @Internal
-public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit> extends RichInputFormat<T, SPITTYPE> {
-	protected transient Credentials credentials;
+public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit>
+        extends RichInputFormat<T, SPITTYPE> {
+    protected transient Credentials credentials;
 
-	protected HadoopInputFormatCommonBase(Credentials creds) {
-		this.credentials = creds;
-	}
+    protected HadoopInputFormatCommonBase(Credentials creds) {
+        this.credentials = creds;
+    }
 
-	protected void write(ObjectOutputStream out) throws IOException {
-		this.credentials.write(out);
-	}
+    protected void write(ObjectOutputStream out) throws IOException {
+        this.credentials.write(out);
+    }
 
-	public void read(ObjectInputStream in) throws IOException {
-		this.credentials = new Credentials();
-		credentials.readFields(in);
-	}
+    public void read(ObjectInputStream in) throws IOException {
+        this.credentials = new Credentials();
+        credentials.readFields(in);
+    }
 
-	/**
-	 * This method only exists because there is no UserGroupInformation.getCredentials() method
-	 * in Hadoop 1.x
-	 *
-	 * <p>Note that this method returns "null" in Hadoop 1.x environments.
-	 *
-	 * @param ugi The user information
-	 * @return new credentials object from the user information. MAY RETURN NULL!
-	 */
-	public static Credentials getCredentialsFromUGI(UserGroupInformation ugi) {
-		Method getCredentialsMethod = null;
-		for (Method m : ugi.getClass().getMethods()) {
-			if (m.getName().equals("getCredentials")) {
-				getCredentialsMethod = m;
-				break;
-			}
-		}
-		if (getCredentialsMethod == null) {
-			return null;
-		} else {
-			try {
-				return (Credentials) getCredentialsMethod.invoke(ugi);
-			} catch (InvocationTargetException | IllegalAccessException e) {
-				throw new RuntimeException("Unable to get credentials from UserGroupInformation. This is only supported by Hadoop 2.2.0+");
-			}
-		}
-	}
+    /**
+     * This method only exists because there is no UserGroupInformation.getCredentials() method in
+     * Hadoop 1.x
+     *
+     * <p>Note that this method returns "null" in Hadoop 1.x environments.
+     *
+     * @param ugi The user information
+     * @return new credentials object from the user information. MAY RETURN NULL!
+     */
+    public static Credentials getCredentialsFromUGI(UserGroupInformation ugi) {
+        Method getCredentialsMethod = null;
+        for (Method m : ugi.getClass().getMethods()) {
+            if (m.getName().equals("getCredentials")) {
+                getCredentialsMethod = m;
+                break;
+            }
+        }
+        if (getCredentialsMethod == null) {
+            return null;
+        } else {
+            try {
+                return (Credentials) getCredentialsMethod.invoke(ugi);
+            } catch (InvocationTargetException | IllegalAccessException e) {
+                throw new RuntimeException(
+                        "Unable to get credentials from UserGroupInformation. This is only supported by Hadoop 2.2.0+");
+            }
+        }
+    }
 }

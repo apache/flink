@@ -17,5 +17,5 @@
   -->
 
 <flink-monaco-editor [value]="logs"></flink-monaco-editor>
-<flink-refresh-download [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/log'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_log'" (reload)="reload()"></flink-refresh-download>
+<flink-refresh-download [compactMode]="true" [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/log'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_log'" (reload)="reload()"></flink-refresh-download>
 

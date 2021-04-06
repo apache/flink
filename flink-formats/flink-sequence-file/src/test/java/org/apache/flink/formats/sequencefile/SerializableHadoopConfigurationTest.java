@@ -31,68 +31,76 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-/**
- * Tests for the {@link SerializableHadoopConfiguration}.
- */
+/** Tests for the {@link SerializableHadoopConfiguration}. */
 public class SerializableHadoopConfigurationTest {
 
-	private static final String TEST_KEY = "test-key";
+    private static final String TEST_KEY = "test-key";
 
-	private static final String TEST_VALUE = "test-value";
+    private static final String TEST_VALUE = "test-value";
 
-	private Configuration configuration;
+    private Configuration configuration;
 
-	@Before
-	public void createConfigWithCustomProperty() {
-		this.configuration = new Configuration();
-		configuration.set(TEST_KEY, TEST_VALUE);
-	}
+    @Before
+    public void createConfigWithCustomProperty() {
+        this.configuration = new Configuration();
+        configuration.set(TEST_KEY, TEST_VALUE);
+    }
 
-	@Test
-	public void customPropertiesSurviveSerializationDeserialization() throws IOException, ClassNotFoundException {
-		final SerializableHadoopConfiguration serializableConfigUnderTest = new SerializableHadoopConfiguration(configuration);
-		final byte[] serializedConfigUnderTest = serializeAndGetBytes(serializableConfigUnderTest);
-		final SerializableHadoopConfiguration deserializableConfigUnderTest = deserializeAndGetConfiguration(serializedConfigUnderTest);
+    @Test
+    public void customPropertiesSurviveSerializationDeserialization()
+            throws IOException, ClassNotFoundException {
+        final SerializableHadoopConfiguration serializableConfigUnderTest =
+                new SerializableHadoopConfiguration(configuration);
+        final byte[] serializedConfigUnderTest = serializeAndGetBytes(serializableConfigUnderTest);
+        final SerializableHadoopConfiguration deserializableConfigUnderTest =
+                deserializeAndGetConfiguration(serializedConfigUnderTest);
 
-		Assert.assertThat(deserializableConfigUnderTest.get(), hasTheSamePropertiesAs(configuration));
-	}
+        Assert.assertThat(
+                deserializableConfigUnderTest.get(), hasTheSamePropertiesAs(configuration));
+    }
 
-	// ----------------------------------------	Matchers ---------------------------------------- //
+    // ----------------------------------------	Matchers ---------------------------------------- //
 
-	private static TypeSafeMatcher<Configuration> hasTheSamePropertiesAs(final Configuration expectedConfig) {
-		return new TypeSafeMatcher<Configuration>() {
-			@Override
-			protected boolean matchesSafely(Configuration actualConfig) {
-				final String value = actualConfig.get(TEST_KEY);
-				return actualConfig != expectedConfig && value != null && expectedConfig.get(TEST_KEY).equals(value);
-			}
+    private static TypeSafeMatcher<Configuration> hasTheSamePropertiesAs(
+            final Configuration expectedConfig) {
+        return new TypeSafeMatcher<Configuration>() {
+            @Override
+            protected boolean matchesSafely(Configuration actualConfig) {
+                final String value = actualConfig.get(TEST_KEY);
+                return actualConfig != expectedConfig
+                        && value != null
+                        && expectedConfig.get(TEST_KEY).equals(value);
+            }
 
-			@Override
-			public void describeTo(Description description) {
-				description.appendText("a Hadoop Configuration with property: key=")
-						.appendValue(TEST_KEY)
-						.appendText(" and value=")
-						.appendValue(TEST_VALUE);
-			}
-		};
-	}
+            @Override
+            public void describeTo(Description description) {
+                description
+                        .appendText("a Hadoop Configuration with property: key=")
+                        .appendValue(TEST_KEY)
+                        .appendText(" and value=")
+                        .appendValue(TEST_VALUE);
+            }
+        };
+    }
 
-	// ----------------------------------------	Helper Methods ---------------------------------------- //
+    // ----------------------------------------	Helper Methods
+    // ---------------------------------------- //
 
-	private byte[] serializeAndGetBytes(SerializableHadoopConfiguration serializableConfigUnderTest) throws IOException {
-		try (
-				ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-				ObjectOutputStream out = new ObjectOutputStream(byteStream)
-		) {
-			out.writeObject(serializableConfigUnderTest);
-			out.flush();
-			return byteStream.toByteArray();
-		}
-	}
+    private byte[] serializeAndGetBytes(SerializableHadoopConfiguration serializableConfigUnderTest)
+            throws IOException {
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                ObjectOutputStream out = new ObjectOutputStream(byteStream)) {
+            out.writeObject(serializableConfigUnderTest);
+            out.flush();
+            return byteStream.toByteArray();
+        }
+    }
 
-	private SerializableHadoopConfiguration deserializeAndGetConfiguration(byte[] serializedConfig) throws IOException, ClassNotFoundException {
-		try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(serializedConfig))) {
-			return (SerializableHadoopConfiguration) in.readObject();
-		}
-	}
+    private SerializableHadoopConfiguration deserializeAndGetConfiguration(byte[] serializedConfig)
+            throws IOException, ClassNotFoundException {
+        try (ObjectInputStream in =
+                new ObjectInputStream(new ByteArrayInputStream(serializedConfig))) {
+            return (SerializableHadoopConfiguration) in.readObject();
+        }
+    }
 }

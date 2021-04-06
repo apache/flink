@@ -38,9 +38,25 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>force-shading</artifactId>
-	<version>1.11-SNAPSHOT</version>
+	<version>1.13-SNAPSHOT</version>
+	<name>Flink : Tools : Force Shading</name>
 
 	<packaging>jar</packaging>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<!-- This only exists to allow shorthand invocations on the command-line
+						i.e., 'mvn spotless:check'
+						This is necessary because this module does not declare the flink-parent pom as its parent -->
+					<groupId>com.diffplug.spotless</groupId>
+					<artifactId>spotless-maven-plugin</artifactId>
+					<version>2.4.2</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
 
 	<profiles>
 		<profile>

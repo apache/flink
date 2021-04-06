@@ -27,30 +27,32 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/**
- * JSON serializer for {@link SerializedThrowable}.
- */
+/** JSON serializer for {@link SerializedThrowable}. */
 public class SerializedThrowableSerializer extends StdSerializer<SerializedThrowable> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	static final String FIELD_NAME_CLASS = "class";
+    static final String FIELD_NAME_CLASS = "class";
 
-	static final String FIELD_NAME_STACK_TRACE = "stack-trace";
+    static final String FIELD_NAME_STACK_TRACE = "stack-trace";
 
-	static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
+    static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
 
-	public SerializedThrowableSerializer() {
-		super(SerializedThrowable.class);
-	}
+    public SerializedThrowableSerializer() {
+        super(SerializedThrowable.class);
+    }
 
-	@Override
-	public void serialize(final SerializedThrowable value, final JsonGenerator gen, final SerializerProvider provider) throws IOException {
-		gen.writeStartObject();
-		gen.writeStringField(FIELD_NAME_CLASS, value.getOriginalErrorClassName());
-		gen.writeStringField(FIELD_NAME_STACK_TRACE, value.getFullStringifiedStackTrace());
-		gen.writeBinaryField(FIELD_NAME_SERIALIZED_THROWABLE, InstantiationUtil.serializeObject(value));
-		gen.writeEndObject();
-	}
-
+    @Override
+    public void serialize(
+            final SerializedThrowable value,
+            final JsonGenerator gen,
+            final SerializerProvider provider)
+            throws IOException {
+        gen.writeStartObject();
+        gen.writeStringField(FIELD_NAME_CLASS, value.getOriginalErrorClassName());
+        gen.writeStringField(FIELD_NAME_STACK_TRACE, value.getFullStringifiedStackTrace());
+        gen.writeBinaryField(
+                FIELD_NAME_SERIALIZED_THROWABLE, InstantiationUtil.serializeObject(value));
+        gen.writeEndObject();
+    }
 }

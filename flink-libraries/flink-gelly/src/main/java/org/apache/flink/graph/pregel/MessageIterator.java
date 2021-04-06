@@ -25,50 +25,50 @@ import org.apache.flink.types.NullValue;
 import java.util.Iterator;
 
 /**
- * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to support
- * the <i>foreach</i> syntax.
+ * An iterator that returns messages. The iterator is {@link java.lang.Iterable} at the same time to
+ * support the <i>foreach</i> syntax.
  */
-public final class MessageIterator<Message> implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
-	private static final long serialVersionUID = 1L;
+public final class MessageIterator<Message>
+        implements Iterator<Message>, Iterable<Message>, java.io.Serializable {
+    private static final long serialVersionUID = 1L;
 
-	private transient Iterator<Tuple2<?, Either<NullValue, Message>>> source;
-	private Message first = null;
+    private transient Iterator<Tuple2<?, Either<NullValue, Message>>> source;
+    private Message first = null;
 
-	void setSource(Iterator<Tuple2<?, Either<NullValue, Message>>> source) {
-		this.source = source;
-	}
+    void setSource(Iterator<Tuple2<?, Either<NullValue, Message>>> source) {
+        this.source = source;
+    }
 
-	void setFirst(Message msg) {
-		this.first = msg;
-	}
+    void setFirst(Message msg) {
+        this.first = msg;
+    }
 
-	@Override
-	public final boolean hasNext() {
-		if (first != null) {
-			return true;
-		}
-		else {
-			return ((this.source != null) && (this.source.hasNext()));
-		}
-	}
+    @Override
+    public final boolean hasNext() {
+        if (first != null) {
+            return true;
+        } else {
+            return ((this.source != null) && (this.source.hasNext()));
+        }
+    }
 
-	@Override
-	public final Message next() {
-		if (first != null) {
-			Message toReturn = first;
-			first = null;
-			return toReturn;
-		}
-		return this.source.next().f1.right();
-	}
+    @Override
+    public final Message next() {
+        if (first != null) {
+            Message toReturn = first;
+            first = null;
+            return toReturn;
+        }
+        return this.source.next().f1.right();
+    }
 
-	@Override
-	public final void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public final void remove() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Iterator<Message> iterator() {
-		return this;
-	}
+    @Override
+    public Iterator<Message> iterator() {
+        return this;
+    }
 }

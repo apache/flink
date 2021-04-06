@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-netty-shuffle-memory-control-test</artifactId>
-	<name>flink-netty-shuffle-memory-control-test</name>
+	<name>Flink : E2E Tests : Netty shuffle memory control</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

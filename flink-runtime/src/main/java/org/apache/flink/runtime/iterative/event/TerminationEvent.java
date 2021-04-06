@@ -24,16 +24,14 @@ import org.apache.flink.runtime.event.TaskEvent;
 
 import java.io.IOException;
 
-/**
- * Signals that the iteration is completely executed, participating tasks must terminate now.
- */
+/** Signals that the iteration is completely executed, participating tasks must terminate now. */
 public class TerminationEvent extends TaskEvent {
 
-	public static final TerminationEvent INSTANCE = new TerminationEvent();
+    public static final TerminationEvent INSTANCE = new TerminationEvent();
 
-	@Override
-	public void write(DataOutputView out) throws IOException {}
+    @Override
+    public void write(DataOutputView out) throws IOException {}
 
-	@Override
-	public void read(DataInputView in) throws IOException {}
+    @Override
+    public void read(DataInputView in) throws IOException {}
 }

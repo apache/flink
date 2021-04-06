@@ -26,12 +26,10 @@ import org.apache.flink.types.NullValue;
  *
  * @param <T> the type of the source value
  */
-public class ToNullValue<T>
-implements TranslateFunction<T, NullValue> {
+public class ToNullValue<T> implements TranslateFunction<T, NullValue> {
 
-	@Override
-	public NullValue translate(T value, NullValue reuse)
-			throws Exception {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue translate(T value, NullValue reuse) throws Exception {
+        return NullValue.getInstance();
+    }
 }

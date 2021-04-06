@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.utils.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.TimeZone
 import java.util.function.BiConsumer
 
@@ -28,13 +28,15 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.io.CollectionInputFormat
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 object PythonTableUtils {
 
@@ -54,6 +56,25 @@ object PythonTableUtils {
     val converter = convertTo(dataType)
     new CollectionInputFormat(data.map(converter(_).asInstanceOf[Row]),
       dataType.createSerializer(config))
+  }
+  
+  /**
+    * Wrap the unpickled python data with an InputFormat. It will be passed to
+    * StreamExecutionEnvironment.creatInput() to create an InputFormat later.
+    *
+    * @param data The unpickled python data.
+    * @param dataType The python data type.
+    * @param config The execution config used to create serializer.
+    * @return An InputFormat containing the python data.
+    */
+  def getCollectionInputFormat[T](
+    data: java.util.List[T],
+    dataType: TypeInformation[T],
+    config: ExecutionConfig): InputFormat[T, _] ={
+    val converter = convertTo(dataType)
+    new CollectionInputFormat[T](data.map(converter(_).asInstanceOf[T]),
+      dataType.createSerializer(config)
+    )
   }
 
   /**
@@ -122,6 +143,12 @@ object PythonTableUtils {
     case _ if dataType == Types.SQL_TIMESTAMP => (obj: Any) => nullSafeConvert(obj) {
       case c: Long => new Timestamp(c / 1000)
       case c: Int => new Timestamp(c.toLong / 1000)
+    }
+
+    case _ if dataType == org.apache.flink.api.common.typeinfo.Types.INSTANT =>
+      (obj: Any) => nullSafeConvert(obj) {
+        case c: Long => Instant.ofEpochMilli(c / 1000)
+        case c: Int => Instant.ofEpochMilli(c.toLong / 1000)
     }
 
     case _ if dataType == Types.INTERVAL_MILLIS() => (obj: Any) => nullSafeConvert(obj) {
@@ -205,6 +232,35 @@ object PythonTableUtils {
           }
           row
       }
+
+    case tupleType: TupleTypeInfo[_] =>
+      val fieldsTypes: Array[TypeInformation[_]] = new Array[TypeInformation[_]](tupleType.getArity)
+      for ( i <- 0 until tupleType.getArity) {
+        fieldsTypes(i) = tupleType.getTypeAt(i)
+      }
+      
+      val fieldsFromJava: Array[Any => Any] = fieldsTypes.map(f => convertTo(f))
+      
+      (obj: Any) => nullSafeConvert(obj) {
+        case c if c.getClass.isArray =>
+          val r = c.asInstanceOf[Array[_]]
+          if (r.length != tupleType.getArity) {
+            throw new IllegalStateException(
+              s"Input tuple doesn't have expected number of values required by the schema. " +
+                s"${tupleType.getArity} fields are required while ${r.length} " +
+                s"values are provided."
+            )
+          }
+          
+        val tuple = Tuple.newInstance(r.length)
+        var i: Int = 0
+        while(i < r.length){
+          tuple.setField(fieldsFromJava(i)(r(i)), i)
+          i += 1
+        }
+        tuple
+      }
+    
 
     // UserDefinedType
     case _ => (obj: Any) => obj

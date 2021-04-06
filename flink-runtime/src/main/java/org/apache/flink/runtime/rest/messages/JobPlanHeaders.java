@@ -23,54 +23,52 @@ import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobPlanHandler}.
- */
-public class JobPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanInfo, JobMessageParameters> {
+/** Message headers for the {@link JobPlanHandler}. */
+public class JobPlanHeaders
+        implements MessageHeaders<EmptyRequestBody, JobPlanInfo, JobMessageParameters> {
 
-	private static final JobPlanHeaders INSTANCE = new JobPlanHeaders();
+    private static final JobPlanHeaders INSTANCE = new JobPlanHeaders();
 
-	public static final String URL = "/jobs/:jobid/plan";
+    public static final String URL = "/jobs/:jobid/plan";
 
-	private JobPlanHeaders() {
-	}
+    private JobPlanHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobPlanInfo> getResponseClass() {
-		return JobPlanInfo.class;
-	}
+    @Override
+    public Class<JobPlanInfo> getResponseClass() {
+        return JobPlanInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobPlanHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobPlanHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns the dataflow plan of a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns the dataflow plan of a job.";
+    }
 }

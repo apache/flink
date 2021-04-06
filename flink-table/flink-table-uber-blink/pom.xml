@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table-uber-blink_${scala.binary.version}</artifactId>
-	<name>flink-table-uber-blink</name>
+	<name>Flink : Table : Uber Blink</name>
 	<description>
 		This module contains the entire Table/SQL distribution for writing table programs
 		within the table ecosystem or between other Flink APIs. This module uses the Blink planner
@@ -47,6 +47,11 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser-hive</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -111,8 +116,18 @@ under the License.
 									<include>org.apache.flink:flink-table-planner-blink_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-runtime-blink_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-cep_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-files</include>
+									<include>org.apache.flink:flink-connector-base</include>
+									<include>org.apache.flink:flink-file-sink-common</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<!-- icu4j's dependencies -->
+									<pattern>com.ibm.icu</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.com.ibm.icu</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

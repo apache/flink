@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) group by a1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
 +- LogicalProject(a1=[$0], a3=[$2])
@@ -28,17 +28,17 @@ LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS max$0, COUNT_RETRACT(*) AS count1$1], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[a1, a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS max$0, COUNT_RETRACT(*) AS count1$1], changelogMode=[I])
+      +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], changelogMode=[I,UB,UA])
+            +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], changelogMode=[I])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -46,7 +46,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], updateAsRe
     <Resource name="sql">
       <![CDATA[SELECT a1, MAX(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
 +- LogicalProject(a1=[$0], a3=[$2])
@@ -54,14 +54,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a1, a3], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -69,7 +69,7 @@ GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], updateAsRetraction=
     <Resource name="sql">
       <![CDATA[SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
 +- LogicalProject(a1=[$0], a3=[$2])
@@ -77,14 +77,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a1, a3], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ GroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS EXPR$1], updateAsRet
     <Resource name="sql">
       <![CDATA[SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
 +- LogicalProject(a1=[$0], a3=[$2])
@@ -100,17 +100,17 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS min$0, COUNT_RETRACT(*) AS count1$1], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[a1, a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I])
+   +- LocalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(a3) AS min$0, COUNT_RETRACT(*) AS count1$1], changelogMode=[I])
+      +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(max$0) AS a3], changelogMode=[I,UB,UA])
+            +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], changelogMode=[I])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -118,7 +118,7 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], up
     <Resource name="sql">
       <![CDATA[SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
 +- LogicalProject(a3=[$2])
@@ -126,17 +126,17 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GlobalGroupAggregate(select=[MIN(min$0) AS EXPR$0], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[single], updateAsRetraction=[true], accMode=[Acc])
-   +- LocalGroupAggregate(select=[MIN(a3) AS min$0, COUNT_RETRACT(*) AS count1$1], updateAsRetraction=[true], accMode=[Acc])
-      +- Calc(select=[a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(min$0) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-            +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS min$0], updateAsRetraction=[true], accMode=[Acc])
-                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], updateAsRetraction=[true], accMode=[Acc])
-                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GlobalGroupAggregate(select=[MIN(min$0) AS EXPR$0], changelogMode=[I,UA,D])
++- Exchange(distribution=[single], changelogMode=[I])
+   +- LocalGroupAggregate(select=[MIN(a3) AS min$0, COUNT_RETRACT(*) AS count1$1], changelogMode=[I])
+      +- Calc(select=[a3], changelogMode=[I,UB,UA])
+         +- GlobalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(min$0) AS a3], changelogMode=[I,UB,UA])
+            +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+               +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS min$0], changelogMode=[I])
+                  +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], changelogMode=[I])
+                     +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -144,7 +144,7 @@ GlobalGroupAggregate(select=[MIN(min$0) AS EXPR$0], updateAsRetraction=[false], 
     <Resource name="sql">
       <![CDATA[SELECT a1, MIN(a3) FROM (SELECT a1, a2, MIN(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
 +- LogicalProject(a1=[$0], a3=[$2])
@@ -152,14 +152,14 @@ LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[a1], select=[a1, MIN(a3) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc])
-+- Exchange(distribution=[hash[a1]], updateAsRetraction=[true], accMode=[AccRetract])
-   +- Calc(select=[a1, a3], updateAsRetraction=[true], accMode=[AccRetract])
-      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS a3], updateAsRetraction=[true], accMode=[AccRetract])
-         +- Exchange(distribution=[hash[a1, a2]], updateAsRetraction=[true], accMode=[Acc])
-            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], updateAsRetraction=[true], accMode=[Acc])
+GroupAggregate(groupBy=[a1], select=[a1, MIN(a3) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS a3], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

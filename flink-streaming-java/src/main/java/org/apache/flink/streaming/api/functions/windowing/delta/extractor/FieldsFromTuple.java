@@ -26,27 +26,26 @@ import org.apache.flink.api.java.tuple.Tuple;
 @Internal
 public class FieldsFromTuple implements Extractor<Tuple, double[]> {
 
-	private static final long serialVersionUID = -2554079091050273761L;
+    private static final long serialVersionUID = -2554079091050273761L;
 
-	int[] indexes;
+    int[] indexes;
 
-	/**
-	 * Extracts one or more fields of the type Double from a tuple and puts
-	 * them into a new double[] (in the specified order).
-	 *
-	 * @param indexes
-	 *            The indexes of the fields to be extracted.
-	 */
-	public FieldsFromTuple(int... indexes) {
-		this.indexes = indexes;
-	}
+    /**
+     * Extracts one or more fields of the type Double from a tuple and puts them into a new double[]
+     * (in the specified order).
+     *
+     * @param indexes The indexes of the fields to be extracted.
+     */
+    public FieldsFromTuple(int... indexes) {
+        this.indexes = indexes;
+    }
 
-	@Override
-	public double[] extract(Tuple in) {
-		double[] out = new double[indexes.length];
-		for (int i = 0; i < indexes.length; i++) {
-			out[i] = (Double) in.getField(indexes[i]);
-		}
-		return out;
-	}
+    @Override
+    public double[] extract(Tuple in) {
+        double[] out = new double[indexes.length];
+        for (int i = 0; i < indexes.length; i++) {
+            out[i] = (Double) in.getField(indexes[i]);
+        }
+        return out;
+    }
 }

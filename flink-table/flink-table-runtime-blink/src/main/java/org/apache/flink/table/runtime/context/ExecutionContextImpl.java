@@ -20,37 +20,32 @@ package org.apache.flink.table.runtime.context;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Preconditions;
 
-
-/**
- * Implementation of ExecutionContext.
- */
+/** Implementation of ExecutionContext. */
 public final class ExecutionContextImpl implements ExecutionContext {
 
-	private final AbstractStreamOperator<?> operator;
-	private final RuntimeContext runtimeContext;
+    private final AbstractStreamOperator<?> operator;
+    private final RuntimeContext runtimeContext;
 
-	public ExecutionContextImpl(
-			AbstractStreamOperator<?> operator,
-			RuntimeContext runtimeContext) {
-		this.operator = operator;
-		this.runtimeContext = Preconditions.checkNotNull(runtimeContext);
-	}
+    public ExecutionContextImpl(AbstractStreamOperator<?> operator, RuntimeContext runtimeContext) {
+        this.operator = operator;
+        this.runtimeContext = Preconditions.checkNotNull(runtimeContext);
+    }
 
-	@Override
-	public BaseRow currentKey() {
-		return (BaseRow) operator.getCurrentKey();
-	}
+    @Override
+    public RowData currentKey() {
+        return (RowData) operator.getCurrentKey();
+    }
 
-	@Override
-	public void setCurrentKey(BaseRow key) {
-		operator.setCurrentKey(key);
-	}
+    @Override
+    public void setCurrentKey(RowData key) {
+        operator.setCurrentKey(key);
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		return runtimeContext;
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        return runtimeContext;
+    }
 }

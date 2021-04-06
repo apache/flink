@@ -20,30 +20,26 @@ package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
-/**
- * Test security module factory class for service provider discovery.
- */
+/** Test security module factory class for service provider discovery. */
 public class TestSecurityModuleFactory implements SecurityModuleFactory {
 
-	@Override
-	public SecurityModule createModule(SecurityConfiguration securityConfig) {
-		return new TestSecurityModule();
-	}
+    @Override
+    public SecurityModule createModule(SecurityConfiguration securityConfig) {
+        return new TestSecurityModule();
+    }
 
-	/**
-	 * Test security module class.
-	 */
-	public static class TestSecurityModule implements SecurityModule {
-		public boolean installed;
+    /** Test security module class. */
+    public static class TestSecurityModule implements SecurityModule {
+        public boolean installed;
 
-		@Override
-		public void install() throws SecurityInstallException {
-			installed = true;
-		}
+        @Override
+        public void install() throws SecurityInstallException {
+            installed = true;
+        }
 
-		@Override
-		public void uninstall() throws SecurityInstallException {
-			installed = false;
-		}
-	}
+        @Override
+        public void uninstall() throws SecurityInstallException {
+            installed = false;
+        }
+    }
 }

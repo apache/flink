@@ -23,14 +23,17 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-avro-confluent-registry</artifactId>
 
+	<name>Flink : Formats : Avro confluent registry</name>
+
 	<properties>
-		<confluent.schema.registry.version>4.1.0</confluent.schema.registry.version>
+		<kafka.version>2.4.1</kafka.version>
+		<confluent.version>5.5.2</confluent.version>
 	</properties>
 
 	<repositories>
@@ -44,7 +47,7 @@ under the License.
 		<dependency>
 			<groupId>io.confluent</groupId>
 			<artifactId>kafka-schema-registry-client</artifactId>
-			<version>${confluent.schema.registry.version}</version>
+			<version>${confluent.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.avro</groupId>
@@ -53,6 +56,14 @@ under the License.
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.lz4</groupId>
+					<artifactId>lz4-java</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.swagger</groupId>
+					<artifactId>swagger-core</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -67,53 +78,47 @@ under the License.
 			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-	</dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes>
-									<include>io.confluent:*</include>
-									<include>com.fasterxml.jackson.core:*</include>
-									<include>org.apache.zookeeper:zookeeper</include>
-									<include>com.101tec:zkclient</include>
-								</includes>
-							</artifactSet>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.com.fasterxml.jackson</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.zookeeper</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.zookeeper</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.jute</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.apache.jute</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.I0Itec.zkclient</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.org.101tec</shadedPattern>
-								</relocation>
-							</relocations>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+		<!-- test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+	</dependencies>
 
 </project>

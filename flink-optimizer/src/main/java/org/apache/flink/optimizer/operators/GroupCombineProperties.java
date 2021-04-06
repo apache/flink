@@ -37,81 +37,88 @@ import java.util.List;
 /**
  * The properties file belonging to the GroupCombineNode. It translates the GroupCombine operation
  * to the driver strategy SORTED_GROUP_COMBINE and sets the relevant grouping and sorting keys.
+ *
  * @see org.apache.flink.optimizer.dag.GroupCombineNode
  */
 public final class GroupCombineProperties extends OperatorDescriptorSingle {
 
-	private final Ordering ordering;        // ordering that we need to use if an additional ordering is requested 
+    private final Ordering
+            ordering; // ordering that we need to use if an additional ordering is requested
 
-	public GroupCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
-		super(groupKeys);
+    public GroupCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+        super(groupKeys);
 
-		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
-		
-		this.ordering = new Ordering();
-		for (Integer key : this.keyList) {
-			this.ordering.appendOrdering(key, null, Order.ANY);
-		}
+        // if we have an additional ordering, construct the ordering to have primarily the grouping
+        // fields
 
-		// and next the additional order fields
-		if (additionalOrderKeys != null) {
-			for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
-				Integer field = additionalOrderKeys.getFieldNumber(i);
-				Order order = additionalOrderKeys.getOrder(i);
-				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
-			}
-		}
+        this.ordering = new Ordering();
+        for (Integer key : this.keyList) {
+            this.ordering.appendOrdering(key, null, Order.ANY);
+        }
 
-	}
+        // and next the additional order fields
+        if (additionalOrderKeys != null) {
+            for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
+                Integer field = additionalOrderKeys.getFieldNumber(i);
+                Order order = additionalOrderKeys.getOrder(i);
+                this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
+            }
+        }
+    }
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.SORTED_GROUP_COMBINE;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.SORTED_GROUP_COMBINE;
+    }
 
-	@Override
-	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		node.setParallelism(in.getSource().getParallelism());
-		
-		// sorting key info
-		SingleInputPlanNode singleInputPlanNode = new SingleInputPlanNode(
-				node, 
-				"GroupCombine (" + node.getOperator().getName() + ")",
-				in, // reuse the combine strategy also used in the group reduce
-				DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
+    @Override
+    public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
+        node.setParallelism(in.getSource().getParallelism());
 
-		// set sorting comparator key info
-		singleInputPlanNode.setDriverKeyInfo(this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections(), 0);
-		// set grouping comparator key info
-		singleInputPlanNode.setDriverKeyInfo(this.keyList, 1);
-		
-		return singleInputPlanNode;
-	}
+        // sorting key info
+        SingleInputPlanNode singleInputPlanNode =
+                new SingleInputPlanNode(
+                        node,
+                        "GroupCombine (" + node.getOperator().getName() + ")",
+                        in, // reuse the combine strategy also used in the group reduce
+                        DriverStrategy.SORTED_GROUP_COMBINE,
+                        this.keyList);
 
-	@Override
-	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		RequestedGlobalProperties props = new RequestedGlobalProperties();
-		props.setRandomPartitioning();
-		return Collections.singletonList(props);
-	}
+        // set sorting comparator key info
+        singleInputPlanNode.setDriverKeyInfo(
+                this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections(), 0);
+        // set grouping comparator key info
+        singleInputPlanNode.setDriverKeyInfo(this.keyList, 1);
 
-	@Override
-	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-		return Collections.singletonList(new RequestedLocalProperties());
-	}
+        return singleInputPlanNode;
+    }
 
-	@Override
-	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
-		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
-				gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED) {
-			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
-		}
-		gProps.clearUniqueFieldCombinations();
-		return gProps;
-	}
+    @Override
+    protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
+        RequestedGlobalProperties props = new RequestedGlobalProperties();
+        props.setRandomPartitioning();
+        return Collections.singletonList(props);
+    }
 
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		return lProps.clearUniqueFieldSets();
-	}
+    @Override
+    protected List<RequestedLocalProperties> createPossibleLocalProperties() {
+        return Collections.singletonList(new RequestedLocalProperties());
+    }
+
+    @Override
+    public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
+        if (gProps.getUniqueFieldCombination() != null
+                && gProps.getUniqueFieldCombination().size() > 0
+                && gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED) {
+            gProps.setAnyPartitioning(
+                    gProps.getUniqueFieldCombination().iterator().next().toFieldList());
+        }
+        gProps.clearUniqueFieldCombinations();
+        return gProps;
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties lProps) {
+        return lProps.clearUniqueFieldSets();
+    }
 }

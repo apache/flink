@@ -19,30 +19,30 @@
 package org.apache.flink.graph;
 
 /**
- * These bitmasks are used by edge-flipping algorithms to mark the edge order
- * relative to the original edge direction.
+ * These bitmasks are used by edge-flipping algorithms to mark the edge order relative to the
+ * original edge direction.
  */
 public enum EdgeOrder {
 
-	// bitmasks from triadic census
-	FORWARD(0b10),
-	REVERSE(0b01),
-	MUTUAL(0b11);
+    // bitmasks from triadic census
+    FORWARD(0b10),
+    REVERSE(0b01),
+    MUTUAL(0b11);
 
-	private final byte bitmask;
+    private final byte bitmask;
 
-	EdgeOrder(int bitmask) {
-		this.bitmask = (byte) bitmask;
-	}
+    EdgeOrder(int bitmask) {
+        this.bitmask = (byte) bitmask;
+    }
 
-	/**
-	 * Returns a bitmask used for marking whether an edge is in the same
-	 * direction as in the original edge set (FORWARD), is flipped relative
-	 * to the original edge set (REVERSE), or both (MUTUAL).
-	 *
-	 * @return edge order bitmask
-	 */
-	public byte getBitmask() {
-		return bitmask;
-	}
+    /**
+     * Returns a bitmask used for marking whether an edge is in the same direction as in the
+     * original edge set (FORWARD), is flipped relative to the original edge set (REVERSE), or both
+     * (MUTUAL).
+     *
+     * @return edge order bitmask
+     */
+    public byte getBitmask() {
+        return bitmask;
+    }
 }

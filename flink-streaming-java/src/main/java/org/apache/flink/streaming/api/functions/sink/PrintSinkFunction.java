@@ -23,66 +23,61 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 /**
- * Implementation of the SinkFunction writing every tuple to the standard
- * output or standard error stream.
+ * Implementation of the SinkFunction writing every tuple to the standard output or standard error
+ * stream.
  *
- * <p>
- * Four possible format options:
- *	{@code sinkIdentifier}:taskId> output  <- {@code sinkIdentifier} provided, parallelism > 1
- *	{@code sinkIdentifier}> output         <- {@code sinkIdentifier} provided, parallelism == 1
- *  taskId> output         				   <- no {@code sinkIdentifier} provided, parallelism > 1
- *  output                 				   <- no {@code sinkIdentifier} provided, parallelism == 1
- * </p>
+ * <p>Four possible format options: {@code sinkIdentifier}:taskId> output <- {@code sinkIdentifier}
+ * provided, parallelism > 1 {@code sinkIdentifier}> output <- {@code sinkIdentifier} provided,
+ * parallelism == 1 taskId> output <- no {@code sinkIdentifier} provided, parallelism > 1 output <-
+ * no {@code sinkIdentifier} provided, parallelism == 1
  *
  * @param <IN> Input record type
  */
 @PublicEvolving
 public class PrintSinkFunction<IN> extends RichSinkFunction<IN> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final PrintSinkOutputWriter<IN> writer;
+    private final PrintSinkOutputWriter<IN> writer;
 
-	/**
-	 * Instantiates a print sink function that prints to standard out.
-	 */
-	public PrintSinkFunction() {
-		writer = new PrintSinkOutputWriter<>(false);
-	}
+    /** Instantiates a print sink function that prints to standard out. */
+    public PrintSinkFunction() {
+        writer = new PrintSinkOutputWriter<>(false);
+    }
 
-	/**
-	 * Instantiates a print sink function that prints to standard out.
-	 *
-	 * @param stdErr True, if the format should print to standard error instead of standard out.
-	 */
-	public PrintSinkFunction(final boolean stdErr) {
-		writer = new PrintSinkOutputWriter<>(stdErr);
-	}
+    /**
+     * Instantiates a print sink function that prints to standard out.
+     *
+     * @param stdErr True, if the format should print to standard error instead of standard out.
+     */
+    public PrintSinkFunction(final boolean stdErr) {
+        writer = new PrintSinkOutputWriter<>(stdErr);
+    }
 
-	/**
-	 * Instantiates a print sink function that prints to standard out and gives a sink identifier.
-	 *
-	 * @param stdErr True, if the format should print to standard error instead of standard out.
-	 * @param sinkIdentifier Message that identify sink and is prefixed to the output of the value
-	 */
-	public PrintSinkFunction(final String sinkIdentifier, final boolean stdErr) {
-		writer = new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
-	}
+    /**
+     * Instantiates a print sink function that prints to standard out and gives a sink identifier.
+     *
+     * @param stdErr True, if the format should print to standard error instead of standard out.
+     * @param sinkIdentifier Message that identify sink and is prefixed to the output of the value
+     */
+    public PrintSinkFunction(final String sinkIdentifier, final boolean stdErr) {
+        writer = new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		writer.open(context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
+        writer.open(context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
+    }
 
-	@Override
-	public void invoke(IN record) {
-		writer.write(record);
-	}
+    @Override
+    public void invoke(IN record) {
+        writer.write(record);
+    }
 
-	@Override
-	public String toString() {
-		return writer.toString();
-	}
+    @Override
+    public String toString() {
+        return writer.toString();
+    }
 }

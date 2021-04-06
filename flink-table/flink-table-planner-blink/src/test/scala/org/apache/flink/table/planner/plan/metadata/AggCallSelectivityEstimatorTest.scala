@@ -19,20 +19,26 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.util.Preconditions
+
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
+import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, TableScan}
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
+import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
@@ -40,32 +46,23 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlAggFunction, SqlOperator}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
-import org.junit.runner.RunWith
 import org.junit.{Before, BeforeClass, Test}
-import org.powermock.api.mockito.PowerMockito._
-import org.powermock.core.classloader.annotations.PrepareForTest
-import org.powermock.modules.junit4.PowerMockRunner
-import java.math.BigDecimal
 
-import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.utils.CatalogManagerMocks
+import java.math.BigDecimal
+import java.util
 
 import scala.collection.JavaConversions._
 
 /**
   * Tests for [[AggCallSelectivityEstimator]].
-  *
-  * We use PowerMockito instead of Mockito here, because [[TableScan#getRowType]] is a final method.
   */
-@RunWith(classOf[PowerMockRunner])
-@PrepareForTest(Array(classOf[TableScan]))
 class AggCallSelectivityEstimatorTest {
   private val allFieldNames = Seq("name", "amount", "price")
   private val allFieldTypes = Seq(VARCHAR, INTEGER, DOUBLE)
   val (name_idx, amount_idx, price_idx) = (0, 1, 2)
 
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
-  var rexBuilder = new RexBuilder(typeFactory)
+  var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType),
     allFieldNames)
@@ -80,32 +77,27 @@ class AggCallSelectivityEstimatorTest {
 
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): TableScan = {
-    val tableScan = mock(classOf[TableScan])
-    val cluster = mock(classOf[RelOptCluster])
-    val planner = mock(classOf[AbstractRelOptPlanner])
+    val tableConfig = new TableConfig
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-    val moduleManager = mock(classOf[ModuleManager])
-    val config = new TableConfig
-    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
-    val context = new FlinkContextImpl(new TableConfig, functionCatalog, catalogManager, null)
-    when(tableScan, "getCluster").thenReturn(cluster)
-    when(cluster, "getRexBuilder").thenReturn(rexBuilder)
-    when(cluster, "getTypeFactory").thenReturn(typeFactory)
-    when(cluster, "getPlanner").thenReturn(planner)
-    when(planner, "getContext").thenReturn(context)
-    when(tableScan, "getRowType").thenReturn(relDataType)
-    val sourceTable = mock(classOf[TableSourceTable[_]])
-    when(sourceTable, "unwrap", classOf[TableSourceTable[_]]).thenReturn(sourceTable)
-    when(sourceTable, "getStatistic").thenReturn(statistic)
-    when(sourceTable, "getRowType").thenReturn(relDataType)
-    when(tableScan, "getTable").thenReturn(sourceTable)
-    val rowCount: JDouble = if (statistic != null && statistic.getRowCount != null) {
-      statistic.getRowCount
-    } else {
-      100D
-    }
-    when(tableScan, "estimateRowCount", mq).thenReturn(rowCount)
-    tableScan
+    val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
+    val table = new MockMetaTable(relDataType, statistic)
+    rootSchema.add("test", table)
+    val plannerContext: PlannerContext =
+      new PlannerContext(
+        tableConfig,
+        new FunctionCatalog(tableConfig, catalogManager, new ModuleManager),
+        catalogManager,
+        CalciteSchema.from(rootSchema),
+        util.Arrays.asList(
+          ConventionTraitDef.INSTANCE,
+          FlinkRelDistributionTraitDef.INSTANCE,
+          RelCollationTraitDef.INSTANCE
+        )
+      )
+
+    val relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    relBuilder.clear()
+    relBuilder.scan(util.Arrays.asList("test")).build().asInstanceOf[TableScan]
   }
 
   private def createAggregate(
@@ -628,10 +620,9 @@ object AggCallSelectivityEstimatorTest {
 
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }
 
 }
-

@@ -19,17 +19,16 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironmentTest._
-import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{ROWTIME_INDICATOR => ROWTIME}
-import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.tuple.{Tuple3 => JTuple3}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.UnitTypeInfo
+import org.apache.flink.table.api.TableEnvironmentTest._
+import org.apache.flink.table.api.Types._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR => PROCTIME, ROWTIME_INDICATOR => ROWTIME}
+import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -234,10 +233,6 @@ class TableEnvironmentTest extends TableTestBase {
 
       // pojo
       util.verifySchema(
-        util.addTable[PojoClass](),
-        Seq("pf1" -> INT, "pf2" -> STRING, "pf3" -> DOUBLE))
-
-      util.verifySchema(
         util.addTable[PojoClass]('pf1, 'pf2),
         Seq("pf1" -> INT, "pf2" -> STRING))
 
@@ -257,15 +252,6 @@ class TableEnvironmentTest extends TableTestBase {
       util.verifySchema(
         util.addTable[Class[_]](),
         Seq("f0" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
-
-      // any type info
-      util.verifySchema(
-        util.addTable[Unit](),
-        Seq("f0" -> new UnitTypeInfo()))
-
-      util.verifySchema(
-        util.addTable[Unit]('unit),
-        Seq("unit" -> new UnitTypeInfo()))
     }
   }
 

@@ -17,125 +17,124 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-/**
- * Gets probeRow and match rows for inner/left/right join.
- */
+/** Gets probeRow and match rows for inner/left/right join. */
 public abstract class SortMergeJoinIterator implements Closeable {
 
-	private final Projection<BaseRow, BinaryRow> probeProjection;
-	private final Projection<BaseRow, BinaryRow> bufferedProjection;
-	protected final RecordComparator keyComparator;
-	private final MutableObjectIterator<BaseRow> probeIterator;
-	private final MutableObjectIterator<BinaryRow> bufferedIterator;
+    private final Projection<RowData, BinaryRowData> probeProjection;
+    private final Projection<RowData, BinaryRowData> bufferedProjection;
+    protected final RecordComparator keyComparator;
+    private final MutableObjectIterator<RowData> probeIterator;
+    private final MutableObjectIterator<BinaryRowData> bufferedIterator;
 
-	private BaseRow probeRow;
-	protected BinaryRow probeKey;
-	protected BinaryRow bufferedRow;
-	protected BinaryRow bufferedKey;
+    private RowData probeRow;
+    protected BinaryRowData probeKey;
+    protected BinaryRowData bufferedRow;
+    protected BinaryRowData bufferedKey;
 
-	protected BinaryRow matchKey;
-	protected ResettableExternalBuffer matchBuffer;
-	private final int[] nullFilterKeys;
-	private final boolean nullSafe;
-	private final boolean filterAllNulls;
+    protected BinaryRowData matchKey;
+    protected ResettableExternalBuffer matchBuffer;
+    private final int[] nullFilterKeys;
+    private final boolean nullSafe;
+    private final boolean filterAllNulls;
 
-	public SortMergeJoinIterator(
-			BinaryRowSerializer probeSerializer,
-			BinaryRowSerializer bufferedSerializer,
-			Projection<BaseRow, BinaryRow> probeProjection,
-			Projection<BaseRow, BinaryRow> bufferedProjection,
-			RecordComparator keyComparator,
-			MutableObjectIterator<BaseRow> probeIterator,
-			MutableObjectIterator<BinaryRow> bufferedIterator,
-			ResettableExternalBuffer buffer,
-			boolean[] filterNulls) throws IOException {
-		this.probeProjection = probeProjection;
-		this.bufferedProjection = bufferedProjection;
-		this.keyComparator = keyComparator;
-		this.probeIterator = probeIterator;
-		this.bufferedIterator = bufferedIterator;
+    public SortMergeJoinIterator(
+            BinaryRowDataSerializer probeSerializer,
+            BinaryRowDataSerializer bufferedSerializer,
+            Projection<RowData, BinaryRowData> probeProjection,
+            Projection<RowData, BinaryRowData> bufferedProjection,
+            RecordComparator keyComparator,
+            MutableObjectIterator<RowData> probeIterator,
+            MutableObjectIterator<BinaryRowData> bufferedIterator,
+            ResettableExternalBuffer buffer,
+            boolean[] filterNulls)
+            throws IOException {
+        this.probeProjection = probeProjection;
+        this.bufferedProjection = bufferedProjection;
+        this.keyComparator = keyComparator;
+        this.probeIterator = probeIterator;
+        this.bufferedIterator = bufferedIterator;
 
-		this.probeRow = probeSerializer.createInstance();
-		this.bufferedRow = bufferedSerializer.createInstance();
-		this.matchBuffer = buffer;
-		this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNulls);
-		this.nullSafe = nullFilterKeys.length == 0;
-		this.filterAllNulls = nullFilterKeys.length == filterNulls.length;
+        this.probeRow = probeSerializer.createInstance();
+        this.bufferedRow = bufferedSerializer.createInstance();
+        this.matchBuffer = buffer;
+        this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNulls);
+        this.nullSafe = nullFilterKeys.length == 0;
+        this.filterAllNulls = nullFilterKeys.length == filterNulls.length;
 
-		advanceNextSuitableBufferedRow(); // advance first buffered row to compare with probe key.
-	}
+        advanceNextSuitableBufferedRow(); // advance first buffered row to compare with probe key.
+    }
 
-	protected boolean advanceNextSuitableProbeRow() throws IOException {
-		while (nextProbe() && shouldFilter(probeKey)) {}
-		return probeRow != null;
-	}
+    protected boolean advanceNextSuitableProbeRow() throws IOException {
+        while (nextProbe() && shouldFilter(probeKey)) {}
+        return probeRow != null;
+    }
 
-	protected boolean advanceNextSuitableBufferedRow() throws IOException {
-		while (nextBuffered() && shouldFilter(bufferedKey)) {}
-		return bufferedRow != null;
-	}
+    protected boolean advanceNextSuitableBufferedRow() throws IOException {
+        while (nextBuffered() && shouldFilter(bufferedKey)) {}
+        return bufferedRow != null;
+    }
 
-	private boolean shouldFilter(BinaryRow key) {
-		return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, key);
-	}
+    private boolean shouldFilter(BinaryRowData key) {
+        return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, key);
+    }
 
-	protected boolean nextProbe() throws IOException {
-		if ((probeRow = probeIterator.next(probeRow)) != null) {
-			probeKey = probeProjection.apply(probeRow);
-			return true;
-		} else {
-			probeRow = null;
-			probeKey = null;
-			return false;
-		}
-	}
+    protected boolean nextProbe() throws IOException {
+        if ((probeRow = probeIterator.next(probeRow)) != null) {
+            probeKey = probeProjection.apply(probeRow);
+            return true;
+        } else {
+            probeRow = null;
+            probeKey = null;
+            return false;
+        }
+    }
 
-	private boolean nextBuffered() throws IOException {
-		if ((bufferedRow = bufferedIterator.next(bufferedRow)) != null) {
-			bufferedKey = bufferedProjection.apply(bufferedRow);
-			return true;
-		} else {
-			bufferedRow = null;
-			bufferedKey = null;
-			return false;
-		}
-	}
+    private boolean nextBuffered() throws IOException {
+        if ((bufferedRow = bufferedIterator.next(bufferedRow)) != null) {
+            bufferedKey = bufferedProjection.apply(bufferedRow);
+            return true;
+        } else {
+            bufferedRow = null;
+            bufferedKey = null;
+            return false;
+        }
+    }
 
-	protected void bufferMatchingRows() throws IOException {
-		matchKey = probeKey.copy();
-		matchBuffer.reset();
-		do {
-			matchBuffer.add(bufferedRow);
-		} while (advanceNextSuitableBufferedRow()
-				&& keyComparator.compare(probeKey, bufferedKey) == 0);
-		matchBuffer.complete();
-	}
+    protected void bufferMatchingRows() throws IOException {
+        matchKey = probeKey.copy();
+        matchBuffer.reset();
+        do {
+            matchBuffer.add(bufferedRow);
+        } while (advanceNextSuitableBufferedRow()
+                && keyComparator.compare(probeKey, bufferedKey) == 0);
+        matchBuffer.complete();
+    }
 
-	public BaseRow getProbeRow() {
-		return probeRow;
-	}
+    public RowData getProbeRow() {
+        return probeRow;
+    }
 
-	public BinaryRow getMatchKey() {
-		return matchKey;
-	}
+    public BinaryRowData getMatchKey() {
+        return matchKey;
+    }
 
-	public ResettableExternalBuffer getMatchBuffer() {
-		return matchBuffer;
-	}
+    public ResettableExternalBuffer getMatchBuffer() {
+        return matchBuffer;
+    }
 
-	@Override
-	public void close() {
-		matchBuffer.close();
-	}
+    @Override
+    public void close() {
+        matchBuffer.close();
+    }
 }

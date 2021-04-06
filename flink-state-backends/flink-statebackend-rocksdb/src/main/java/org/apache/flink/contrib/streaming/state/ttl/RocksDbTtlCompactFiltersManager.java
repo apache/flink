@@ -50,167 +50,170 @@ import java.util.LinkedHashMap;
 
 /** RocksDB compaction filter utils for state with TTL. */
 public class RocksDbTtlCompactFiltersManager {
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkCompactionFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkCompactionFilter.class);
 
-	/** Enables RocksDb compaction filter for State with TTL. */
-	private final boolean enableTtlCompactionFilter;
+    private final TtlTimeProvider ttlTimeProvider;
 
-	private final TtlTimeProvider ttlTimeProvider;
+    /** Registered compaction filter factories. */
+    private final LinkedHashMap<String, FlinkCompactionFilterFactory> compactionFilterFactories;
 
-	/** Registered compaction filter factories. */
-	private final LinkedHashMap<String, FlinkCompactionFilterFactory> compactionFilterFactories;
+    public RocksDbTtlCompactFiltersManager(TtlTimeProvider ttlTimeProvider) {
+        this.ttlTimeProvider = ttlTimeProvider;
+        this.compactionFilterFactories = new LinkedHashMap<>();
+    }
 
-	public RocksDbTtlCompactFiltersManager(boolean enableTtlCompactionFilter, TtlTimeProvider ttlTimeProvider) {
-		this.enableTtlCompactionFilter = enableTtlCompactionFilter;
-		this.ttlTimeProvider = ttlTimeProvider;
-		this.compactionFilterFactories = new LinkedHashMap<>();
-	}
+    public void setAndRegisterCompactFilterIfStateTtl(
+            @Nonnull RegisteredStateMetaInfoBase metaInfoBase,
+            @Nonnull ColumnFamilyOptions options) {
 
-	public void setAndRegisterCompactFilterIfStateTtl(
-		@Nonnull RegisteredStateMetaInfoBase metaInfoBase,
-		@Nonnull ColumnFamilyOptions options) {
+        if (metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
+            RegisteredKeyValueStateBackendMetaInfo kvMetaInfoBase =
+                    (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
+            if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(
+                    kvMetaInfoBase.getStateSerializer())) {
+                createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
+            }
+        }
+    }
 
-		if (enableTtlCompactionFilter && metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
-			RegisteredKeyValueStateBackendMetaInfo kvMetaInfoBase = (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
-			if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(kvMetaInfoBase.getStateSerializer())) {
-				createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
-			}
-		}
-	}
+    private void createAndSetCompactFilterFactory(
+            String stateName, @Nonnull ColumnFamilyOptions options) {
 
-	private void createAndSetCompactFilterFactory(String stateName, @Nonnull ColumnFamilyOptions options) {
+        FlinkCompactionFilterFactory compactionFilterFactory =
+                new FlinkCompactionFilterFactory(
+                        new TimeProviderWrapper(ttlTimeProvider), createRocksDbNativeLogger());
+        //noinspection resource
+        options.setCompactionFilterFactory(compactionFilterFactory);
+        compactionFilterFactories.put(stateName, compactionFilterFactory);
+    }
 
-		FlinkCompactionFilterFactory compactionFilterFactory =
-			new FlinkCompactionFilterFactory(new TimeProviderWrapper(ttlTimeProvider), createRocksDbNativeLogger());
-		//noinspection resource
-		options.setCompactionFilterFactory(compactionFilterFactory);
-		compactionFilterFactories.put(stateName, compactionFilterFactory);
-	}
+    private static org.rocksdb.Logger createRocksDbNativeLogger() {
+        if (LOG.isDebugEnabled()) {
+            // options are always needed for org.rocksdb.Logger construction (no other constructor)
+            // the logger level gets configured from the options in native code
+            try (DBOptions opts = new DBOptions().setInfoLogLevel(InfoLogLevel.DEBUG_LEVEL)) {
+                return new org.rocksdb.Logger(opts) {
+                    @Override
+                    protected void log(InfoLogLevel infoLogLevel, String logMsg) {
+                        LOG.debug("RocksDB filter native code log: " + logMsg);
+                    }
+                };
+            }
+        } else {
+            return null;
+        }
+    }
 
-	private static org.rocksdb.Logger createRocksDbNativeLogger() {
-		if (LOG.isDebugEnabled()) {
-			// options are always needed for org.rocksdb.Logger construction (no other constructor)
-			// the logger level gets configured from the options in native code
-			try (DBOptions opts = new DBOptions().setInfoLogLevel(InfoLogLevel.DEBUG_LEVEL)) {
-				return new org.rocksdb.Logger(opts) {
-					@Override
-					protected void log(InfoLogLevel infoLogLevel, String logMsg) {
-						LOG.debug("RocksDB filter native code log: " + logMsg);
-					}
-				};
-			}
-		} else {
-			return null;
-		}
-	}
+    public void configCompactFilter(
+            @Nonnull StateDescriptor<?, ?> stateDesc, TypeSerializer<?> stateSerializer) {
+        StateTtlConfig ttlConfig = stateDesc.getTtlConfig();
+        if (ttlConfig.isEnabled() && ttlConfig.getCleanupStrategies().inRocksdbCompactFilter()) {
+            FlinkCompactionFilterFactory compactionFilterFactory =
+                    compactionFilterFactories.get(stateDesc.getName());
+            Preconditions.checkNotNull(compactionFilterFactory);
+            long ttl = ttlConfig.getTtl().toMilliseconds();
 
-	public void configCompactFilter(
-			@Nonnull StateDescriptor<?, ?> stateDesc,
-			TypeSerializer<?> stateSerializer) {
-		StateTtlConfig ttlConfig = stateDesc.getTtlConfig();
-		if (ttlConfig.isEnabled() && ttlConfig.getCleanupStrategies().inRocksdbCompactFilter()) {
-			if (!enableTtlCompactionFilter) {
-				LOG.warn("Cannot configure RocksDB TTL compaction filter for state <{}>: " +
-					"feature is disabled for the state backend.", stateDesc.getName());
-				return;
-			}
-			FlinkCompactionFilterFactory compactionFilterFactory = compactionFilterFactories.get(stateDesc.getName());
-			Preconditions.checkNotNull(compactionFilterFactory);
-			long ttl = ttlConfig.getTtl().toMilliseconds();
+            StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCompactFilterCleanupStrategy =
+                    ttlConfig.getCleanupStrategies().getRocksdbCompactFilterCleanupStrategy();
+            Preconditions.checkNotNull(rocksdbCompactFilterCleanupStrategy);
+            long queryTimeAfterNumEntries =
+                    rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries();
 
-			StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCompactFilterCleanupStrategy =
-				ttlConfig.getCleanupStrategies().getRocksdbCompactFilterCleanupStrategy();
-			Preconditions.checkNotNull(rocksdbCompactFilterCleanupStrategy);
-			long queryTimeAfterNumEntries =
-				rocksdbCompactFilterCleanupStrategy.getQueryTimeAfterNumEntries();
+            FlinkCompactionFilter.Config config;
+            if (stateDesc instanceof ListStateDescriptor) {
+                TypeSerializer<?> elemSerializer =
+                        ((ListSerializer<?>) stateSerializer).getElementSerializer();
+                int len = elemSerializer.getLength();
+                if (len > 0) {
+                    config =
+                            FlinkCompactionFilter.Config.createForFixedElementList(
+                                    ttl,
+                                    queryTimeAfterNumEntries,
+                                    len + 1); // plus one byte for list element delimiter
+                } else {
+                    config =
+                            FlinkCompactionFilter.Config.createForList(
+                                    ttl,
+                                    queryTimeAfterNumEntries,
+                                    new ListElementFilterFactory<>(elemSerializer.duplicate()));
+                }
+            } else if (stateDesc instanceof MapStateDescriptor) {
+                config = FlinkCompactionFilter.Config.createForMap(ttl, queryTimeAfterNumEntries);
+            } else {
+                config = FlinkCompactionFilter.Config.createForValue(ttl, queryTimeAfterNumEntries);
+            }
+            compactionFilterFactory.configure(config);
+        }
+    }
 
-			FlinkCompactionFilter.Config config;
-			if (stateDesc instanceof ListStateDescriptor) {
-				TypeSerializer<?> elemSerializer = ((ListSerializer<?>) stateSerializer).getElementSerializer();
-				int len = elemSerializer.getLength();
-				if (len > 0) {
-					config = FlinkCompactionFilter.Config.createForFixedElementList(
-						ttl, queryTimeAfterNumEntries, len + 1); // plus one byte for list element delimiter
-				} else {
-					config = FlinkCompactionFilter.Config.createForList(
-						ttl, queryTimeAfterNumEntries,
-						new ListElementFilterFactory<>(elemSerializer.duplicate()));
-				}
-			} else if (stateDesc instanceof MapStateDescriptor) {
-				config = FlinkCompactionFilter.Config.createForMap(ttl, queryTimeAfterNumEntries);
-			} else {
-				config = FlinkCompactionFilter.Config.createForValue(ttl, queryTimeAfterNumEntries);
-			}
-			compactionFilterFactory.configure(config);
-		}
-	}
+    private static class ListElementFilterFactory<T>
+            implements FlinkCompactionFilter.ListElementFilterFactory {
+        private final TypeSerializer<T> serializer;
 
-	private static class ListElementFilterFactory<T> implements FlinkCompactionFilter.ListElementFilterFactory {
-		private final TypeSerializer<T> serializer;
+        private ListElementFilterFactory(TypeSerializer<T> serializer) {
+            this.serializer = serializer;
+        }
 
-		private ListElementFilterFactory(TypeSerializer<T> serializer) {
-			this.serializer = serializer;
-		}
+        @Override
+        public FlinkCompactionFilter.ListElementFilter createListElementFilter() {
+            return new ListElementFilter<>(serializer);
+        }
+    }
 
-		@Override
-		public FlinkCompactionFilter.ListElementFilter createListElementFilter() {
-			return new ListElementFilter<>(serializer);
-		}
-	}
+    private static class TimeProviderWrapper implements FlinkCompactionFilter.TimeProvider {
+        private final TtlTimeProvider ttlTimeProvider;
 
-	private static class TimeProviderWrapper implements FlinkCompactionFilter.TimeProvider {
-		private final TtlTimeProvider ttlTimeProvider;
+        private TimeProviderWrapper(TtlTimeProvider ttlTimeProvider) {
+            this.ttlTimeProvider = ttlTimeProvider;
+        }
 
-		private TimeProviderWrapper(TtlTimeProvider ttlTimeProvider) {
-			this.ttlTimeProvider = ttlTimeProvider;
-		}
+        @Override
+        public long currentTimestamp() {
+            return ttlTimeProvider.currentTimestamp();
+        }
+    }
 
-		@Override
-		public long currentTimestamp() {
-			return ttlTimeProvider.currentTimestamp();
-		}
-	}
+    private static class ListElementFilter<T> implements FlinkCompactionFilter.ListElementFilter {
+        private final TypeSerializer<T> serializer;
+        private DataInputDeserializer input;
 
-	private static class ListElementFilter<T> implements FlinkCompactionFilter.ListElementFilter {
-		private final TypeSerializer<T> serializer;
-		private DataInputDeserializer input;
+        private ListElementFilter(TypeSerializer<T> serializer) {
+            this.serializer = serializer;
+            this.input = new DataInputDeserializer();
+        }
 
-		private ListElementFilter(TypeSerializer<T> serializer) {
-			this.serializer = serializer;
-			this.input = new DataInputDeserializer();
-		}
+        @Override
+        public int nextUnexpiredOffset(byte[] bytes, long ttl, long currentTimestamp) {
+            input.setBuffer(bytes);
+            int lastElementOffset = 0;
+            while (input.available() > 0) {
+                try {
+                    long timestamp = nextElementLastAccessTimestamp();
+                    if (!TtlUtils.expired(timestamp, ttl, currentTimestamp)) {
+                        break;
+                    }
+                    lastElementOffset = input.getPosition();
+                } catch (IOException e) {
+                    throw new FlinkRuntimeException(
+                            "Failed to deserialize list element for TTL compaction filter", e);
+                }
+            }
+            return lastElementOffset;
+        }
 
-		@Override
-		public int nextUnexpiredOffset(byte[] bytes, long ttl, long currentTimestamp) {
-			input.setBuffer(bytes);
-			int lastElementOffset = 0;
-			while (input.available() > 0) {
-				try {
-					long timestamp = nextElementLastAccessTimestamp();
-					if (!TtlUtils.expired(timestamp, ttl, currentTimestamp)) {
-						break;
-					}
-					lastElementOffset = input.getPosition();
-				} catch (IOException e) {
-					throw new FlinkRuntimeException("Failed to deserialize list element for TTL compaction filter", e);
-				}
-			}
-			return lastElementOffset;
-		}
+        private long nextElementLastAccessTimestamp() throws IOException {
+            TtlValue<?> ttlValue = (TtlValue<?>) serializer.deserialize(input);
+            if (input.available() > 0) {
+                input.skipBytesToRead(1);
+            }
+            return ttlValue.getLastAccessTimestamp();
+        }
+    }
 
-		private long nextElementLastAccessTimestamp() throws IOException {
-			TtlValue<?> ttlValue = (TtlValue<?>) serializer.deserialize(input);
-			if (input.available() > 0) {
-				input.skipBytesToRead(1);
-			}
-			return ttlValue.getLastAccessTimestamp();
-		}
-	}
-
-	public void disposeAndClearRegisteredCompactionFactories() {
-		for (FlinkCompactionFilterFactory factory : compactionFilterFactories.values()) {
-			IOUtils.closeQuietly(factory);
-		}
-		compactionFilterFactories.clear();
-	}
+    public void disposeAndClearRegisteredCompactionFactories() {
+        for (FlinkCompactionFilterFactory factory : compactionFilterFactories.values()) {
+            IOUtils.closeQuietly(factory);
+        }
+        compactionFilterFactories.clear();
+    }
 }

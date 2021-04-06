@@ -18,90 +18,93 @@
 
 package org.apache.flink.optimizer.dataproperties;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class GlobalPropertiesPushdownTest {
 
-	@Test
-	public void testAnyPartitioningPushedDown() {
-		try {
-			RequestedGlobalProperties req = new RequestedGlobalProperties();
-			req.setAnyPartitioning(new FieldSet(3, 1));
-			
-			RequestedGlobalProperties preserved = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
-			assertEquals(PartitioningProperty.ANY_PARTITIONING, preserved.getPartitioning());
-			assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
-			
-			RequestedGlobalProperties nonPreserved = req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
-			assertTrue(nonPreserved == null || nonPreserved.isTrivial());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testHashPartitioningPushedDown() {
-		try {
-			RequestedGlobalProperties req = new RequestedGlobalProperties();
-			req.setHashPartitioned(new FieldSet(3, 1));
-			
-			RequestedGlobalProperties preserved = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
-			assertEquals(PartitioningProperty.HASH_PARTITIONED, preserved.getPartitioning());
-			assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
-			
-			RequestedGlobalProperties nonPreserved = req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
-			assertTrue(nonPreserved == null || nonPreserved.isTrivial());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testCustomPartitioningNotPushedDown() {
-		try {
-			RequestedGlobalProperties req = new RequestedGlobalProperties();
-			req.setCustomPartitioned(new FieldSet(3, 1), new MockPartitioner());
-			
-			RequestedGlobalProperties pushedDown = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
-			assertTrue(pushedDown == null || pushedDown.isTrivial());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testForcedReblancingNotPushedDown() {
-		try {
-			RequestedGlobalProperties req = new RequestedGlobalProperties();
-			req.setForceRebalancing();
-			
-			RequestedGlobalProperties pushedDown = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
-			assertTrue(pushedDown == null || pushedDown.isTrivial());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private static SemanticProperties getAllPreservingSemProps() {
-		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-	}
-	
-	private static SemanticProperties getNonePreservingSemProps() {
-		return new SingleInputSemanticProperties();
-	}
+    @Test
+    public void testAnyPartitioningPushedDown() {
+        try {
+            RequestedGlobalProperties req = new RequestedGlobalProperties();
+            req.setAnyPartitioning(new FieldSet(3, 1));
+
+            RequestedGlobalProperties preserved =
+                    req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
+            assertEquals(PartitioningProperty.ANY_PARTITIONING, preserved.getPartitioning());
+            assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
+
+            RequestedGlobalProperties nonPreserved =
+                    req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
+            assertTrue(nonPreserved == null || nonPreserved.isTrivial());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testHashPartitioningPushedDown() {
+        try {
+            RequestedGlobalProperties req = new RequestedGlobalProperties();
+            req.setHashPartitioned(new FieldSet(3, 1));
+
+            RequestedGlobalProperties preserved =
+                    req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
+            assertEquals(PartitioningProperty.HASH_PARTITIONED, preserved.getPartitioning());
+            assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
+
+            RequestedGlobalProperties nonPreserved =
+                    req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
+            assertTrue(nonPreserved == null || nonPreserved.isTrivial());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testCustomPartitioningNotPushedDown() {
+        try {
+            RequestedGlobalProperties req = new RequestedGlobalProperties();
+            req.setCustomPartitioned(new FieldSet(3, 1), new MockPartitioner());
+
+            RequestedGlobalProperties pushedDown =
+                    req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
+            assertTrue(pushedDown == null || pushedDown.isTrivial());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testForcedReblancingNotPushedDown() {
+        try {
+            RequestedGlobalProperties req = new RequestedGlobalProperties();
+            req.setForceRebalancing();
+
+            RequestedGlobalProperties pushedDown =
+                    req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
+            assertTrue(pushedDown == null || pushedDown.isTrivial());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    private static SemanticProperties getAllPreservingSemProps() {
+        return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+    }
+
+    private static SemanticProperties getNonePreservingSemProps() {
+        return new SingleInputSemanticProperties();
+    }
 }

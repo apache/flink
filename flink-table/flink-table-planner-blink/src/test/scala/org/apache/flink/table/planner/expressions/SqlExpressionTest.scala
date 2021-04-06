@@ -44,6 +44,10 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("2 >= 2", "true")
     testSqlApi("5 < 2", "false")
     testSqlApi("2 <= 2", "true")
+    testSqlApi("x'0c' <= x'0b'", "false")
+    testSqlApi("x'0c' > x'0b'", "true")
+    testSqlApi("x'0c' = x'0c'", "true")
+    testSqlApi("x'0c' <> x'0c'", "false")
     testSqlApi("1 IS NULL", "false")
     testSqlApi("1 IS NOT NULL", "true")
     testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "false")
@@ -92,6 +96,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5-5", "0")
     testSqlApi("5*5", "25")
     testSqlApi("5/5", "1")
+    testSqlApi("5%2", "1");
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("ABS(-5)", "5")
     testSqlApi("MOD(-26, 5)", "-1")

@@ -19,31 +19,30 @@
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BinaryRow, Decimal, SqlTimestamp}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
+import org.apache.flink.table.data.{DecimalData, TimestampData}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.sort.SortUtil
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{DecimalType, LogicalType, TimestampType}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, RowType, TimestampType}
 
 import scala.collection.mutable
 
 /**
   * A code generator for generating [[NormalizedKeyComputer]] and [[RecordComparator]].
   *
-  * @param keys        key positions describe which fields are keys in what order.
-  * @param keyTypes       types for the key fields, in the same order as the key fields.
-  * @param orders      sorting orders for the key fields.
-  * @param nullsIsLast      Ordering of nulls.
+  * @param conf         config of the planner.
+  * @param input        input type.
+  * @param sortSpec     sort specification.
   */
 class SortCodeGenerator(
     conf: TableConfig,
-    val keys: Array[Int],
-    val keyTypes: Array[LogicalType],
-    val orders: Array[Boolean],
-    val nullsIsLast: Array[Boolean]) {
+    val input: RowType,
+    val sortSpec: SortSpec) {
 
   private val MAX_NORMALIZED_KEY_LEN = 16
 
@@ -69,10 +68,11 @@ class SortCodeGenerator(
     val keyLengths = new mutable.ArrayBuffer[Int]
     var break = false
     var i = 0
-    while (i < keys.length && !break) {
-      val t = keyTypes(i)
+    while (i < sortSpec.getFieldSize && !break) {
+      val fieldSpec = sortSpec.getFieldSpec(i)
+      val t = input.getTypeAt(fieldSpec.getFieldIndex)
       if (supportNormalizedKey(t)) {
-        val invert = !orders(i)
+        val invert = !fieldSpec.getIsAscendingOrder
 
         if (i == 0) {
           // the first comparator decides whether we need to invert the key direction
@@ -112,7 +112,7 @@ class SortCodeGenerator(
       // Anyway, we can't fit it, so align the most efficient 8 bytes.
       (false, Math.min(MAX_NORMALIZED_KEY_LEN, 8 * normalizedKeyNum))
     } else {
-      (normalizedKeyNum == keys.length, nullAwareNormalizedKeyLen)
+      (normalizedKeyNum == sortSpec.getFieldSize, nullAwareNormalizedKeyLen)
     }
   }
 
@@ -150,7 +150,7 @@ class SortCodeGenerator(
         }
 
         @Override
-        public void putKey($BASE_ROW record, $SEGMENT target, int offset) {
+        public void putKey($ROW_DATA record, $SEGMENT target, int offset) {
           ${putKeys.mkString}
           ${reverseKeys.mkString}
         }
@@ -189,10 +189,10 @@ class SortCodeGenerator(
   def generatePutNormalizedKeys(numKeyBytes: Int): mutable.ArrayBuffer[String] = {
     /* Example generated code, for int:
     if (record.isNullAt(0)) {
-      org.apache.flink.table.dataformat.util.BinaryRowUtil.minNormalizedKey(target, offset+0, 5);
+      org.apache.flink.table.data.binary.BinaryRowDataUtil.minNormalizedKey(target, offset+0, 5);
     } else {
       target.put(offset+0, (byte) 1);
-      org.apache.flink.table.dataformat.util.BinaryRowUtil.putIntNormalizedKey(
+      org.apache.flink.table.data.binary.BinaryRowDataUtil.putIntNormalizedKey(
         record.getInt(0), target, offset+1, 4);
     }
      */
@@ -202,10 +202,11 @@ class SortCodeGenerator(
     var keyIndex = 0
     while (bytesLeft > 0 && keyIndex < normalizedKeyNum) {
       var len = normalizedKeyLengths(keyIndex)
-      val index = keys(keyIndex)
-      val nullIsMaxValue = orders(keyIndex) == nullsIsLast(keyIndex)
+      val fieldSpec = sortSpec.getFieldSpec(keyIndex)
+      val index = fieldSpec.getFieldIndex
+      val nullIsMaxValue = fieldSpec.getIsAscendingOrder == fieldSpec.getNullIsLast
       len = if (bytesLeft >= len) len else bytesLeft
-      val t = keyTypes(keyIndex)
+      val t = input.getTypeAt(fieldSpec.getFieldIndex)
       val prefix = prefixGetFromBinaryRow(t)
       val putCode = t match {
         case _ if getNormalizeKeyLen(t) != Int.MaxValue =>
@@ -217,7 +218,7 @@ class SortCodeGenerator(
              |
          """.stripMargin
         case _ =>
-          // It is BinaryString/byte[].., we can omit the null aware byte(zero is the smallest),
+          // It is StringData/byte[].., we can omit the null aware byte(zero is the smallest),
           // because there is no other field behind, and is not keyFullyDetermines.
           s"""
              |$SORT_UTIL.put${prefixPutNormalizedKey(t)}NormalizedKey(
@@ -281,7 +282,7 @@ class SortCodeGenerator(
      */
     val reverseKeys = new mutable.ArrayBuffer[String]
     // If it is big endian, it would be better, no reverse.
-    if (BinaryRow.LITTLE_ENDIAN) {
+    if (BinaryRowData.LITTLE_ENDIAN) {
       var reverseOffset = 0
       for (chunk <- chunks) {
         val operator = BYTE_OPERATOR_MAPPING(chunk)
@@ -381,7 +382,11 @@ class SortCodeGenerator(
     * @return A GeneratedRecordComparator
     */
   def generateRecordComparator(name: String): GeneratedRecordComparator = {
-    ComparatorCodeGenerator.gen(conf, name, keys, keyTypes, orders, nullsIsLast)
+    ComparatorCodeGenerator.gen(
+        conf,
+        name,
+        input,
+        sortSpec)
   }
 
   def getter(t: LogicalType, index: Int): String = {
@@ -442,8 +447,8 @@ class SortCodeGenerator(
            DATE | TIME_WITHOUT_TIME_ZONE => true
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         // TODO: support normalize key for non-compact timestamp
-        SqlTimestamp.isCompact(t.asInstanceOf[TimestampType].getPrecision)
-      case DECIMAL => Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision)
+        TimestampData.isCompact(t.asInstanceOf[TimestampType].getPrecision)
+      case DECIMAL => DecimalData.isCompact(t.asInstanceOf[DecimalType].getPrecision)
       case _ => false
     }
   }
@@ -458,12 +463,12 @@ class SortCodeGenerator(
       case DOUBLE => 8
       case BIGINT => 8
       case TIMESTAMP_WITHOUT_TIME_ZONE
-        if SqlTimestamp.isCompact(t.asInstanceOf[TimestampType].getPrecision) => 8
+        if TimestampData.isCompact(t.asInstanceOf[TimestampType].getPrecision) => 8
       case INTERVAL_YEAR_MONTH => 4
       case INTERVAL_DAY_TIME => 8
       case DATE => 4
       case TIME_WITHOUT_TIME_ZONE => 4
-      case DECIMAL if Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
+      case DECIMAL if DecimalData.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
       case VARCHAR | CHAR | VARBINARY | BINARY => Int.MaxValue
     }
   }

@@ -20,30 +20,28 @@ package org.apache.flink.runtime.io.network.partition;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Test implementation of {@link BufferAvailabilityListener}.
- */
+/** Test implementation of {@link BufferAvailabilityListener}. */
 class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
-	private final AtomicLong numNotifications = new AtomicLong();
+    private final AtomicLong numNotifications = new AtomicLong();
 
-	@Override
-	public void notifyDataAvailable() {
-		numNotifications.getAndIncrement();
-	}
+    private final AtomicLong numPriorityEvents = new AtomicLong();
 
-	public long getNumNotifications() {
-		return numNotifications.get();
-	}
+    @Override
+    public void notifyDataAvailable() {
+        numNotifications.getAndIncrement();
+    }
 
-	public void resetNotificationCounters() {
-		numNotifications.set(0L);
-	}
+    public long getNumNotifications() {
+        return numNotifications.get();
+    }
 
-	void awaitNotifications(long awaitedNumNotifications, long timeoutMillis) throws InterruptedException {
-		long deadline = System.currentTimeMillis() + timeoutMillis;
-		while (numNotifications.get() < awaitedNumNotifications && System.currentTimeMillis() < deadline) {
-			Thread.sleep(1);
-		}
-	}
+    @Override
+    public void notifyPriorityEvent(int priorityBufferNumber) {
+        numPriorityEvents.getAndIncrement();
+    }
+
+    public long getNumPriorityEvents() {
+        return numPriorityEvents.get();
+    }
 }

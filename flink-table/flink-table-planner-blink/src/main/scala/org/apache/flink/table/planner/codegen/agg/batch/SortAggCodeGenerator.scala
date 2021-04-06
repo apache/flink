@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, JoinedRow}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
@@ -28,15 +31,13 @@ import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.tools.RelBuilder
-
 /**
   * Sort aggregation code generator to deal with all aggregate functions with keys.
   * It require input in keys order.
   */
 object SortAggCodeGenerator {
 
-  private[flink] def genWithKeys(
+  def genWithKeys(
       ctx: CodeGeneratorContext,
       builder: RelBuilder,
       aggInfoList: AggregateInfoList,
@@ -45,16 +46,20 @@ object SortAggCodeGenerator {
       grouping: Array[Int],
       auxGrouping: Array[Int],
       isMerge: Boolean,
-      isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      isFinal: Boolean)
+    : GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+
+    // prepare for aggregation
+    val aggInfos = aggInfoList.aggInfos
+    aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
+    val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
+
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
-
-    val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
-    val aggArgs = aggInfoList.aggInfos.map(_.argIndexes)
-
-    // register udaggs
-    aggCallToAggFunction.map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
-
     val lastKeyTerm = "lastKey"
     val currentKeyTerm = "currentKey"
     val currentKeyWriterTerm = "currentKeyWriter"
@@ -71,11 +76,6 @@ object SortAggCodeGenerator {
 
     val keyNotEquals = AggCodeGenHelper.genGroupKeyChangedCheckCode(currentKeyTerm, lastKeyTerm)
 
-    val aggregates = aggCallToAggFunction.map(_._2)
-    val udaggs = AggCodeGenHelper.getUdaggs(aggregates)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggregates)
-    val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
-
     val (initAggBufferCode, doAggregateCode, aggOutputExpr) = AggCodeGenHelper.genSortAggCodes(
       isMerge,
       isFinal,
@@ -83,11 +83,8 @@ object SortAggCodeGenerator {
       builder,
       grouping,
       auxGrouping,
-      aggCallToAggFunction,
-      aggArgs,
-      aggregates,
-      aggInfoList.aggInfos.map(_.externalResultType),
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       inputTerm,
       inputType,
       aggBufferNames,
@@ -95,8 +92,8 @@ object SortAggCodeGenerator {
       outputType)
 
     val joinedRow = "joinedRow"
-    ctx.addReusableOutputRecord(outputType, classOf[JoinedRow], joinedRow)
-    val binaryRow = classOf[BinaryRow].getName
+    ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], joinedRow)
+    val binaryRow = classOf[BinaryRowData].getName
     ctx.addReusableMember(s"$binaryRow $lastKeyTerm = null;")
 
     val processCode =
@@ -141,7 +138,7 @@ object SortAggCodeGenerator {
     AggCodeGenHelper.generateOperator(
       ctx,
       className,
-      classOf[TableStreamOperator[BaseRow]].getCanonicalName,
+      classOf[TableStreamOperator[RowData]].getCanonicalName,
       processCode,
       endInputCode,
       inputType)

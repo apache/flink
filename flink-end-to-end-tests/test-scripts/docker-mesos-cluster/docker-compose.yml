@@ -36,6 +36,7 @@ services:
     volumes:
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
       - ${FLINK_DIR}:${FLINK_DIR}
+      - ${MVN_REPO}:${MVN_REPO}
     environment:
       MESOS_PORT: 5050
       MESOS_QUORUM: 1

@@ -26,15 +26,15 @@ class ResettableIO(io.RawIOBase):
     def set_input_bytes(self, b):
         self._input_bytes = b
         self._input_offset = 0
+        self._size = len(b)
 
     def readinto(self, b):
         """
         Read up to len(b) bytes into the writable buffer *b* and return
         the number of bytes read. If no bytes are available, None is returned.
         """
-        input_len = len(self._input_bytes)
         output_buffer_len = len(b)
-        remaining = input_len - self._input_offset
+        remaining = self._size - self._input_offset
 
         if remaining >= output_buffer_len:
             b[:] = self._input_bytes[self._input_offset:self._input_offset + output_buffer_len]
@@ -42,7 +42,7 @@ class ResettableIO(io.RawIOBase):
             return output_buffer_len
         elif remaining > 0:
             b[:remaining] = self._input_bytes[self._input_offset:self._input_offset + remaining]
-            self._input_offset = input_len
+            self._input_offset = self._size
             return remaining
         else:
             return None
@@ -66,7 +66,7 @@ class ResettableIO(io.RawIOBase):
         return False
 
     def readable(self):
-        return True
+        return self._size - self._input_offset
 
     def writable(self):
         return True

@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
 public class TestIOData {
-	public static final String[] NAMES = { "Peter", "Bob", "Liddy", "Alexander", "Stan" };
-	public static final String[] RICH_NAMES = { "Peter01", "Bob01", "Liddy01", "Alexander01", "Stan01"};
+    public static final String[] NAMES = {"Peter", "Bob", "Liddy", "Alexander", "Stan"};
+    public static final String[] RICH_NAMES = {
+        "Peter01", "Bob01", "Liddy01", "Alexander01", "Stan01"
+    };
 }

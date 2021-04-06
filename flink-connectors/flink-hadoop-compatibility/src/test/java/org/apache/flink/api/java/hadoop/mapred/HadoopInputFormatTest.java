@@ -51,257 +51,276 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link HadoopInputFormat}.
- */
+/** Tests for {@link HadoopInputFormat}. */
 public class HadoopInputFormatTest {
 
-	@Test
-	public void testConfigureWithConfigurableInstance() {
-		ConfigurableDummyInputFormat inputFormat = mock(ConfigurableDummyInputFormat.class);
+    @Test
+    public void testConfigureWithConfigurableInstance() {
+        ConfigurableDummyInputFormat inputFormat = mock(ConfigurableDummyInputFormat.class);
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		verify(inputFormat, times(1)).setConf(any(JobConf.class));
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        verify(inputFormat, times(1)).setConf(any(JobConf.class));
 
-		hadoopInputFormat.configure(new org.apache.flink.configuration.Configuration());
-		verify(inputFormat, times(2)).setConf(any(JobConf.class));
-	}
+        hadoopInputFormat.configure(new org.apache.flink.configuration.Configuration());
+        verify(inputFormat, times(2)).setConf(any(JobConf.class));
+    }
 
-	@Test
-	public void testConfigureWithJobConfigurableInstance() {
-		JobConfigurableDummyInputFormat inputFormat = mock(JobConfigurableDummyInputFormat.class);
+    @Test
+    public void testConfigureWithJobConfigurableInstance() {
+        JobConfigurableDummyInputFormat inputFormat = mock(JobConfigurableDummyInputFormat.class);
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		verify(inputFormat, times(1)).configure(any(JobConf.class));
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        verify(inputFormat, times(1)).configure(any(JobConf.class));
 
-		hadoopInputFormat.configure(new org.apache.flink.configuration.Configuration());
-		verify(inputFormat, times(2)).configure(any(JobConf.class));
-	}
+        hadoopInputFormat.configure(new org.apache.flink.configuration.Configuration());
+        verify(inputFormat, times(2)).configure(any(JobConf.class));
+    }
 
-	@Test
-	public void testOpenClose() throws Exception {
-		DummyRecordReader recordReader = mock(DummyRecordReader.class);
-		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
-		when(inputFormat.getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class))).thenReturn(recordReader);
+    @Test
+    public void testOpenClose() throws Exception {
+        DummyRecordReader recordReader = mock(DummyRecordReader.class);
+        DummyInputFormat inputFormat = mock(DummyInputFormat.class);
+        when(inputFormat.getRecordReader(
+                        any(InputSplit.class), any(JobConf.class), any(Reporter.class)))
+                .thenReturn(recordReader);
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		hadoopInputFormat.open(getHadoopInputSplit());
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        hadoopInputFormat.open(getHadoopInputSplit());
 
-		verify(inputFormat, times(1)).getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class));
-		verify(recordReader, times(1)).createKey();
-		verify(recordReader, times(1)).createValue();
+        verify(inputFormat, times(1))
+                .getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class));
+        verify(recordReader, times(1)).createKey();
+        verify(recordReader, times(1)).createValue();
 
-		assertThat(hadoopInputFormat.fetched, is(false));
+        assertThat(hadoopInputFormat.fetched, is(false));
 
-		hadoopInputFormat.close();
-		verify(recordReader, times(1)).close();
-	}
+        hadoopInputFormat.close();
+        verify(recordReader, times(1)).close();
+    }
 
-	@Test
-	public void testOpenWithConfigurableReader() throws Exception {
-		ConfigurableDummyRecordReader recordReader = mock(ConfigurableDummyRecordReader.class);
-		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
-		when(inputFormat.getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class))).thenReturn(recordReader);
+    @Test
+    public void testOpenWithConfigurableReader() throws Exception {
+        ConfigurableDummyRecordReader recordReader = mock(ConfigurableDummyRecordReader.class);
+        DummyInputFormat inputFormat = mock(DummyInputFormat.class);
+        when(inputFormat.getRecordReader(
+                        any(InputSplit.class), any(JobConf.class), any(Reporter.class)))
+                .thenReturn(recordReader);
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		hadoopInputFormat.open(getHadoopInputSplit());
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        hadoopInputFormat.open(getHadoopInputSplit());
 
-		verify(inputFormat, times(1)).getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class));
-		verify(recordReader, times(1)).setConf(any(JobConf.class));
-		verify(recordReader, times(1)).createKey();
-		verify(recordReader, times(1)).createValue();
+        verify(inputFormat, times(1))
+                .getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class));
+        verify(recordReader, times(1)).setConf(any(JobConf.class));
+        verify(recordReader, times(1)).createKey();
+        verify(recordReader, times(1)).createValue();
 
-		assertThat(hadoopInputFormat.fetched, is(false));
+        assertThat(hadoopInputFormat.fetched, is(false));
+    }
 
-	}
+    @Test
+    public void testCreateInputSplits() throws Exception {
 
-	@Test
-	public void testCreateInputSplits() throws Exception {
+        FileSplit[] result = new FileSplit[1];
+        result[0] = getFileSplit();
+        DummyInputFormat inputFormat = mock(DummyInputFormat.class);
+        when(inputFormat.getSplits(any(JobConf.class), anyInt())).thenReturn(result);
 
-		FileSplit[] result = new FileSplit[1];
-		result[0] = getFileSplit();
-		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
-		when(inputFormat.getSplits(any(JobConf.class), anyInt())).thenReturn(result);
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        hadoopInputFormat.createInputSplits(2);
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		hadoopInputFormat.createInputSplits(2);
+        verify(inputFormat, times(1)).getSplits(any(JobConf.class), anyInt());
+    }
 
-		verify(inputFormat, times(1)).getSplits(any(JobConf.class), anyInt());
-	}
+    @Test
+    public void testReachedEndWithElementsRemaining() throws IOException {
 
-	@Test
-	public void testReachedEndWithElementsRemaining() throws IOException {
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(
+                        new DummyInputFormat(), String.class, Long.class, new JobConf());
+        hadoopInputFormat.fetched = true;
+        hadoopInputFormat.hasNext = true;
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(new DummyInputFormat(), String.class, Long.class, new JobConf());
-		hadoopInputFormat.fetched = true;
-		hadoopInputFormat.hasNext = true;
+        assertThat(hadoopInputFormat.reachedEnd(), is(false));
+    }
 
-		assertThat(hadoopInputFormat.reachedEnd(), is(false));
-	}
+    @Test
+    public void testReachedEndWithNoElementsRemaining() throws IOException {
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(
+                        new DummyInputFormat(), String.class, Long.class, new JobConf());
+        hadoopInputFormat.fetched = true;
+        hadoopInputFormat.hasNext = false;
 
-	@Test
-	public void testReachedEndWithNoElementsRemaining() throws IOException {
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(new DummyInputFormat(), String.class, Long.class, new JobConf());
-		hadoopInputFormat.fetched = true;
-		hadoopInputFormat.hasNext = false;
+        assertThat(hadoopInputFormat.reachedEnd(), is(true));
+    }
 
-		assertThat(hadoopInputFormat.reachedEnd(), is(true));
-	}
+    @Test
+    public void testFetchNext() throws IOException {
+        DummyRecordReader recordReader = mock(DummyRecordReader.class);
+        when(recordReader.next(nullable(String.class), nullable(Long.class))).thenReturn(true);
 
-	@Test
-	public void testFetchNext() throws IOException {
-		DummyRecordReader recordReader = mock(DummyRecordReader.class);
-		when(recordReader.next(nullable(String.class), nullable(Long.class))).thenReturn(true);
+        DummyInputFormat inputFormat = mock(DummyInputFormat.class);
+        when(inputFormat.getRecordReader(
+                        any(InputSplit.class), any(JobConf.class), any(Reporter.class)))
+                .thenReturn(recordReader);
 
-		DummyInputFormat inputFormat = mock(DummyInputFormat.class);
-		when(inputFormat.getRecordReader(any(InputSplit.class), any(JobConf.class), any(Reporter.class))).thenReturn(recordReader);
+        HadoopInputFormat<String, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
+        hadoopInputFormat.open(getHadoopInputSplit());
+        hadoopInputFormat.fetchNext();
 
-		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(inputFormat, String.class, Long.class, new JobConf());
-		hadoopInputFormat.open(getHadoopInputSplit());
-		hadoopInputFormat.fetchNext();
+        verify(recordReader, times(1)).next(nullable(String.class), anyLong());
+        assertThat(hadoopInputFormat.hasNext, is(true));
+        assertThat(hadoopInputFormat.fetched, is(true));
+    }
 
-		verify(recordReader, times(1)).next(nullable(String.class), anyLong());
-		assertThat(hadoopInputFormat.hasNext, is(true));
-		assertThat(hadoopInputFormat.fetched, is(true));
-	}
+    @Test
+    public void checkTypeInformation() throws Exception {
+        HadoopInputFormat<Void, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(
+                        new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
 
-	@Test
-	public void checkTypeInformation() throws Exception {
-		HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<>(
-				new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
+        TypeInformation<Tuple2<Void, Long>> tupleType = hadoopInputFormat.getProducedType();
+        TypeInformation<Tuple2<Void, Long>> expectedType =
+                new TupleTypeInfo<>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
-		TypeInformation<Tuple2<Void, Long>> tupleType = hadoopInputFormat.getProducedType();
-		TypeInformation<Tuple2<Void, Long>> expectedType = new TupleTypeInfo<>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+        assertThat(tupleType.isTupleType(), is(true));
+        assertThat(tupleType, is(equalTo(expectedType)));
+    }
 
-		assertThat(tupleType.isTupleType(), is(true));
-		assertThat(tupleType, is(equalTo(expectedType)));
-	}
+    @Test
+    public void testCloseWithoutOpen() throws Exception {
+        HadoopInputFormat<Void, Long> hadoopInputFormat =
+                new HadoopInputFormat<>(
+                        new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
+        hadoopInputFormat.close();
+    }
 
-	@Test
-	public void testCloseWithoutOpen() throws Exception {
-		HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<>(
-			new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
-		hadoopInputFormat.close();
-	}
+    private HadoopInputSplit getHadoopInputSplit() {
+        return new HadoopInputSplit(1, getFileSplit(), new JobConf());
+    }
 
-	private HadoopInputSplit getHadoopInputSplit() {
-		return new HadoopInputSplit(1, getFileSplit(), new JobConf());
-	}
+    private FileSplit getFileSplit() {
+        return new FileSplit(new Path("path"), 1, 2, new String[] {});
+    }
 
-	private FileSplit getFileSplit() {
-		return new FileSplit(new Path("path"), 1, 2, new String[]{});
-	}
+    private class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
 
-	private class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
+        public DummyVoidKeyInputFormat() {}
 
-		public DummyVoidKeyInputFormat() {}
+        @Override
+        public org.apache.hadoop.mapred.RecordReader<Void, T> getRecordReader(
+                org.apache.hadoop.mapred.InputSplit inputSplit, JobConf jobConf, Reporter reporter)
+                throws IOException {
+            return null;
+        }
+    }
 
-		@Override
-		public org.apache.hadoop.mapred.RecordReader<Void, T> getRecordReader(org.apache.hadoop.mapred.InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
-			return null;
-		}
-	}
+    private class DummyRecordReader implements RecordReader<String, Long> {
 
-	private class DummyRecordReader implements RecordReader<String, Long> {
+        @Override
+        public float getProgress() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public float getProgress() throws IOException {
-			return 0;
-		}
+        @Override
+        public boolean next(String s, Long aLong) throws IOException {
+            return false;
+        }
 
-		@Override
-		public boolean next(String s, Long aLong) throws IOException {
-			return false;
-		}
+        @Override
+        public String createKey() {
+            return null;
+        }
 
-		@Override
-		public String createKey() {
-			return null;
-		}
+        @Override
+        public Long createValue() {
+            return null;
+        }
 
-		@Override
-		public Long createValue() {
-			return null;
-		}
+        @Override
+        public long getPos() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public long getPos() throws IOException {
-			return 0;
-		}
+        @Override
+        public void close() throws IOException {}
+    }
 
-		@Override
-		public void close() throws IOException {
+    private class ConfigurableDummyRecordReader
+            implements RecordReader<String, Long>, Configurable {
 
-		}
-	}
+        @Override
+        public void setConf(Configuration configuration) {}
 
-	private class ConfigurableDummyRecordReader implements RecordReader<String, Long>, Configurable {
+        @Override
+        public Configuration getConf() {
+            return null;
+        }
 
-		@Override
-		public void setConf(Configuration configuration) {}
+        @Override
+        public boolean next(String s, Long aLong) throws IOException {
+            return false;
+        }
 
-		@Override
-		public Configuration getConf() {
-			return null;
-		}
+        @Override
+        public String createKey() {
+            return null;
+        }
 
-		@Override
-		public boolean next(String s, Long aLong) throws IOException {
-			return false;
-		}
+        @Override
+        public Long createValue() {
+            return null;
+        }
 
-		@Override
-		public String createKey() {
-			return null;
-		}
+        @Override
+        public long getPos() throws IOException {
+            return 0;
+        }
 
-		@Override
-		public Long createValue() {
-			return null;
-		}
+        @Override
+        public void close() throws IOException {}
 
-		@Override
-		public long getPos() throws IOException {
-			return 0;
-		}
+        @Override
+        public float getProgress() throws IOException {
+            return 0;
+        }
+    }
 
-		@Override
-		public void close() throws IOException {
+    private class DummyInputFormat implements InputFormat<String, Long> {
 
-		}
+        @Override
+        public InputSplit[] getSplits(JobConf jobConf, int i) throws IOException {
+            return new InputSplit[0];
+        }
 
-		@Override
-		public float getProgress() throws IOException {
-			return 0;
-		}
-	}
+        @Override
+        public RecordReader<String, Long> getRecordReader(
+                InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
+            return null;
+        }
+    }
 
-	private class DummyInputFormat implements InputFormat<String, Long> {
+    private class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
+        @Override
+        public void setConf(Configuration configuration) {}
 
-		@Override
-		public InputSplit[] getSplits(JobConf jobConf, int i) throws IOException {
-			return new InputSplit[0];
-		}
+        @Override
+        public Configuration getConf() {
+            return null;
+        }
+    }
 
-		@Override
-		public RecordReader<String, Long> getRecordReader(InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
-			return null;
-		}
-	}
+    private class JobConfigurableDummyInputFormat extends DummyInputFormat
+            implements JobConfigurable {
 
-	private class ConfigurableDummyInputFormat extends DummyInputFormat implements Configurable {
-		@Override
-		public void setConf(Configuration configuration) {}
-
-		@Override
-		public Configuration getConf() {
-			return null;
-		}
-	}
-
-	private class JobConfigurableDummyInputFormat extends DummyInputFormat implements JobConfigurable {
-
-		@Override
-		public void configure(JobConf jobConf) {}
-	}
+        @Override
+        public void configure(JobConf jobConf) {}
+    }
 }

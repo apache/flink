@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionConfigBuilder;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -45,53 +45,62 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Test for the {@link JobConfigHandler}.
- */
+/** Test for the {@link JobConfigHandler}. */
 public class JobConfigHandlerTest extends TestLogger {
 
-	@Test
-	public void handleRequest_executionConfigWithSecretValues_excludesSecretValuesFromResponse() throws HandlerRequestException {
-		final JobConfigHandler jobConfigHandler = new JobConfigHandler(
-			() -> null,
-			TestingUtils.TIMEOUT(),
-			Collections.emptyMap(),
-			JobConfigHeaders.getInstance(),
-			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
-			TestingUtils.defaultExecutor());
+    @Test
+    public void handleRequest_executionConfigWithSecretValues_excludesSecretValuesFromResponse()
+            throws HandlerRequestException {
+        final JobConfigHandler jobConfigHandler =
+                new JobConfigHandler(
+                        () -> null,
+                        TestingUtils.TIMEOUT(),
+                        Collections.emptyMap(),
+                        JobConfigHeaders.getInstance(),
+                        new DefaultExecutionGraphCache(
+                                TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
+                        TestingUtils.defaultExecutor());
 
-		final Map<String, String> globalJobParameters = new HashMap<>();
-		globalJobParameters.put("foobar", "barfoo");
-		globalJobParameters.put("bar.secret.foo", "my secret");
-		globalJobParameters.put("password.to.my.safe", "12345");
+        final Map<String, String> globalJobParameters = new HashMap<>();
+        globalJobParameters.put("foobar", "barfoo");
+        globalJobParameters.put("bar.secret.foo", "my secret");
+        globalJobParameters.put("password.to.my.safe", "12345");
 
-		final ArchivedExecutionConfig archivedExecutionConfig = new ArchivedExecutionConfigBuilder()
-			.setGlobalJobParameters(globalJobParameters)
-			.build();
-		final AccessExecutionGraph archivedExecutionGraph = new ArchivedExecutionGraphBuilder()
-			.setArchivedExecutionConfig(archivedExecutionConfig)
-			.build();
-		final HandlerRequest<EmptyRequestBody, JobMessageParameters> handlerRequest = createRequest(archivedExecutionGraph.getJobID());
+        final ArchivedExecutionConfig archivedExecutionConfig =
+                new ArchivedExecutionConfigBuilder()
+                        .setGlobalJobParameters(globalJobParameters)
+                        .build();
+        final AccessExecutionGraph archivedExecutionGraph =
+                new ArchivedExecutionGraphBuilder()
+                        .setArchivedExecutionConfig(archivedExecutionConfig)
+                        .build();
+        final HandlerRequest<EmptyRequestBody, JobMessageParameters> handlerRequest =
+                createRequest(archivedExecutionGraph.getJobID());
 
-		final JobConfigInfo jobConfigInfoResponse = jobConfigHandler.handleRequest(handlerRequest, archivedExecutionGraph);
+        final JobConfigInfo jobConfigInfoResponse =
+                jobConfigHandler.handleRequest(handlerRequest, archivedExecutionGraph);
 
-		final Map<String, String> filteredGlobalJobParameters = filterSecretValues(globalJobParameters);
+        final Map<String, String> filteredGlobalJobParameters =
+                filterSecretValues(globalJobParameters);
 
-		assertThat(jobConfigInfoResponse.getExecutionConfigInfo().getGlobalJobParameters(), is(equalTo(filteredGlobalJobParameters)));
-	}
+        assertThat(
+                jobConfigInfoResponse.getExecutionConfigInfo().getGlobalJobParameters(),
+                is(equalTo(filteredGlobalJobParameters)));
+    }
 
-	private Map<String, String> filterSecretValues(Map<String, String> globalJobParameters) {
-		return ConfigurationUtils.hideSensitiveValues(globalJobParameters);
-	}
+    private Map<String, String> filterSecretValues(Map<String, String> globalJobParameters) {
+        return ConfigurationUtils.hideSensitiveValues(globalJobParameters);
+    }
 
-	private HandlerRequest<EmptyRequestBody, JobMessageParameters> createRequest(JobID jobId) throws HandlerRequestException {
-		final Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
+    private HandlerRequest<EmptyRequestBody, JobMessageParameters> createRequest(JobID jobId)
+            throws HandlerRequestException {
+        final Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
 
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new JobMessageParameters(),
-			pathParameters,
-			Collections.emptyMap());
-	}
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                new JobMessageParameters(),
+                pathParameters,
+                Collections.emptyMap());
+    }
 }

@@ -37,116 +37,117 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Help class for downloading RocksDB state files.
- */
+/** Help class for downloading RocksDB state files. */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
-	public RocksDBStateDownloader(int restoringThreadNum) {
-		super(restoringThreadNum);
-	}
+    public RocksDBStateDownloader(int restoringThreadNum) {
+        super(restoringThreadNum);
+    }
 
-	/**
-	 * Transfer all state data to the target directory using specified number of threads.
-	 *
-	 * @param restoreStateHandle Handles used to retrieve the state data.
-	 * @param dest The target directory which the state data will be stored.
-	 *
-	 * @throws Exception Thrown if can not transfer all the state data.
-	 */
-	public void transferAllStateDataToDirectory(
-		IncrementalRemoteKeyedStateHandle restoreStateHandle,
-		Path dest,
-		CloseableRegistry closeableRegistry) throws Exception {
+    /**
+     * Transfer all state data to the target directory using specified number of threads.
+     *
+     * @param restoreStateHandle Handles used to retrieve the state data.
+     * @param dest The target directory which the state data will be stored.
+     * @throws Exception Thrown if can not transfer all the state data.
+     */
+    public void transferAllStateDataToDirectory(
+            IncrementalRemoteKeyedStateHandle restoreStateHandle,
+            Path dest,
+            CloseableRegistry closeableRegistry)
+            throws Exception {
 
-		final Map<StateHandleID, StreamStateHandle> sstFiles =
-			restoreStateHandle.getSharedState();
-		final Map<StateHandleID, StreamStateHandle> miscFiles =
-			restoreStateHandle.getPrivateState();
+        final Map<StateHandleID, StreamStateHandle> sstFiles = restoreStateHandle.getSharedState();
+        final Map<StateHandleID, StreamStateHandle> miscFiles =
+                restoreStateHandle.getPrivateState();
 
-		downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
-		downloadDataForAllStateHandles(miscFiles, dest, closeableRegistry);
-	}
+        downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
+        downloadDataForAllStateHandles(miscFiles, dest, closeableRegistry);
+    }
 
-	/**
-	 * Copies all the files from the given stream state handles to the given path, renaming the files w.r.t. their
-	 * {@link StateHandleID}.
-	 */
-	private void downloadDataForAllStateHandles(
-		Map<StateHandleID, StreamStateHandle> stateHandleMap,
-		Path restoreInstancePath,
-		CloseableRegistry closeableRegistry) throws Exception {
+    /**
+     * Copies all the files from the given stream state handles to the given path, renaming the
+     * files w.r.t. their {@link StateHandleID}.
+     */
+    private void downloadDataForAllStateHandles(
+            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            Path restoreInstancePath,
+            CloseableRegistry closeableRegistry)
+            throws Exception {
 
-		try {
-			List<Runnable> runnables = createDownloadRunnables(stateHandleMap, restoreInstancePath, closeableRegistry);
-			List<CompletableFuture<Void>> futures = new ArrayList<>(runnables.size());
-			for (Runnable runnable : runnables) {
-				futures.add(CompletableFuture.runAsync(runnable, executorService));
-			}
-			FutureUtils.waitForAll(futures).get();
-		} catch (ExecutionException e) {
-			Throwable throwable = ExceptionUtils.stripExecutionException(e);
-			throwable = ExceptionUtils.stripException(throwable, RuntimeException.class);
-			if (throwable instanceof IOException) {
-				throw (IOException) throwable;
-			} else {
-				throw new FlinkRuntimeException("Failed to download data for state handles.", e);
-			}
-		}
-	}
+        try {
+            List<Runnable> runnables =
+                    createDownloadRunnables(stateHandleMap, restoreInstancePath, closeableRegistry);
+            List<CompletableFuture<Void>> futures = new ArrayList<>(runnables.size());
+            for (Runnable runnable : runnables) {
+                futures.add(CompletableFuture.runAsync(runnable, executorService));
+            }
+            FutureUtils.waitForAll(futures).get();
+        } catch (ExecutionException e) {
+            Throwable throwable = ExceptionUtils.stripExecutionException(e);
+            throwable = ExceptionUtils.stripException(throwable, RuntimeException.class);
+            if (throwable instanceof IOException) {
+                throw (IOException) throwable;
+            } else {
+                throw new FlinkRuntimeException("Failed to download data for state handles.", e);
+            }
+        }
+    }
 
-	private List<Runnable> createDownloadRunnables(
-		Map<StateHandleID, StreamStateHandle> stateHandleMap,
-		Path restoreInstancePath,
-		CloseableRegistry closeableRegistry) {
-		List<Runnable> runnables = new ArrayList<>(stateHandleMap.size());
-		for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
-			StateHandleID stateHandleID = entry.getKey();
-			StreamStateHandle remoteFileHandle = entry.getValue();
+    private List<Runnable> createDownloadRunnables(
+            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            Path restoreInstancePath,
+            CloseableRegistry closeableRegistry) {
+        List<Runnable> runnables = new ArrayList<>(stateHandleMap.size());
+        for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
+            StateHandleID stateHandleID = entry.getKey();
+            StreamStateHandle remoteFileHandle = entry.getValue();
 
-			Path path = restoreInstancePath.resolve(stateHandleID.toString());
+            Path path = restoreInstancePath.resolve(stateHandleID.toString());
 
-			runnables.add(ThrowingRunnable.unchecked(
-				() -> downloadDataForStateHandle(path, remoteFileHandle, closeableRegistry)));
-		}
-		return runnables;
-	}
+            runnables.add(
+                    ThrowingRunnable.unchecked(
+                            () ->
+                                    downloadDataForStateHandle(
+                                            path, remoteFileHandle, closeableRegistry)));
+        }
+        return runnables;
+    }
 
-	/**
-	 * Copies the file from a single state handle to the given path.
-	 */
-	private void downloadDataForStateHandle(
-		Path restoreFilePath,
-		StreamStateHandle remoteFileHandle,
-		CloseableRegistry closeableRegistry) throws IOException {
+    /** Copies the file from a single state handle to the given path. */
+    private void downloadDataForStateHandle(
+            Path restoreFilePath,
+            StreamStateHandle remoteFileHandle,
+            CloseableRegistry closeableRegistry)
+            throws IOException {
 
-		FSDataInputStream inputStream = null;
-		OutputStream outputStream = null;
+        FSDataInputStream inputStream = null;
+        OutputStream outputStream = null;
 
-		try {
-			inputStream = remoteFileHandle.openInputStream();
-			closeableRegistry.registerCloseable(inputStream);
+        try {
+            inputStream = remoteFileHandle.openInputStream();
+            closeableRegistry.registerCloseable(inputStream);
 
-			Files.createDirectories(restoreFilePath.getParent());
-			outputStream = Files.newOutputStream(restoreFilePath);
-			closeableRegistry.registerCloseable(outputStream);
+            Files.createDirectories(restoreFilePath.getParent());
+            outputStream = Files.newOutputStream(restoreFilePath);
+            closeableRegistry.registerCloseable(outputStream);
 
-			byte[] buffer = new byte[8 * 1024];
-			while (true) {
-				int numBytes = inputStream.read(buffer);
-				if (numBytes == -1) {
-					break;
-				}
+            byte[] buffer = new byte[8 * 1024];
+            while (true) {
+                int numBytes = inputStream.read(buffer);
+                if (numBytes == -1) {
+                    break;
+                }
 
-				outputStream.write(buffer, 0, numBytes);
-			}
-		} finally {
-			if (closeableRegistry.unregisterCloseable(inputStream)) {
-				inputStream.close();
-			}
+                outputStream.write(buffer, 0, numBytes);
+            }
+        } finally {
+            if (closeableRegistry.unregisterCloseable(inputStream)) {
+                inputStream.close();
+            }
 
-			if (closeableRegistry.unregisterCloseable(outputStream)) {
-				outputStream.close();
-			}
-		}
-	}
+            if (closeableRegistry.unregisterCloseable(outputStream)) {
+                outputStream.close();
+            }
+        }
+    }
 }

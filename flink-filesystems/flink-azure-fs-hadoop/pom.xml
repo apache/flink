@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-azure-fs-hadoop</artifactId>
-	<name>flink-azure-fs-hadoop</name>
+	<name>Flink : FileSystems : Azure FS Hadoop</name>
 
 	<packaging>jar</packaging>
 

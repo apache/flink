@@ -34,178 +34,195 @@ import java.util.Objects;
 
 public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredStateMetaInfoBase {
 
-	/** The mode how elements in this state are assigned to tasks during restore. */
-	@Nonnull
-	private final OperatorStateHandle.Mode assignmentMode;
+    /** The mode how elements in this state are assigned to tasks during restore. */
+    @Nonnull private final OperatorStateHandle.Mode assignmentMode;
 
-	/** The type serializer for the keys in the map state. */
-	@Nonnull
-	private final StateSerializerProvider<K> keySerializerProvider;
+    /** The type serializer for the keys in the map state. */
+    @Nonnull private final StateSerializerProvider<K> keySerializerProvider;
 
-	/** The type serializer for the values in the map state. */
-	@Nonnull
-	private final StateSerializerProvider<V> valueSerializerProvider;
+    /** The type serializer for the values in the map state. */
+    @Nonnull private final StateSerializerProvider<V> valueSerializerProvider;
 
-	public RegisteredBroadcastStateBackendMetaInfo(
-			@Nonnull final String name,
-			@Nonnull final OperatorStateHandle.Mode assignmentMode,
-			@Nonnull final TypeSerializer<K> keySerializer,
-			@Nonnull final TypeSerializer<V> valueSerializer) {
+    public RegisteredBroadcastStateBackendMetaInfo(
+            @Nonnull final String name,
+            @Nonnull final OperatorStateHandle.Mode assignmentMode,
+            @Nonnull final TypeSerializer<K> keySerializer,
+            @Nonnull final TypeSerializer<V> valueSerializer) {
 
-		this(
-			name,
-			assignmentMode,
-			StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
-			StateSerializerProvider.fromNewRegisteredSerializer(valueSerializer));
-	}
+        this(
+                name,
+                assignmentMode,
+                StateSerializerProvider.fromNewRegisteredSerializer(keySerializer),
+                StateSerializerProvider.fromNewRegisteredSerializer(valueSerializer));
+    }
 
-	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
-		this(
-			Preconditions.checkNotNull(copy).name,
-			copy.assignmentMode,
-			copy.getKeySerializer().duplicate(),
-			copy.getValueSerializer().duplicate());
-	}
+    public RegisteredBroadcastStateBackendMetaInfo(
+            @Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
+        this(
+                Preconditions.checkNotNull(copy).name,
+                copy.assignmentMode,
+                copy.getKeySerializer().duplicate(),
+                copy.getValueSerializer().duplicate());
+    }
 
-	@SuppressWarnings("unchecked")
-	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
-		this(
-			snapshot.getName(),
-			OperatorStateHandle.Mode.valueOf(
-				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
-			StateSerializerProvider.fromPreviousSerializerSnapshot(
-				(TypeSerializerSnapshot<K>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER))),
-			StateSerializerProvider.fromPreviousSerializerSnapshot(
-				(TypeSerializerSnapshot<V>) Preconditions.checkNotNull(
-					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))));
+    @SuppressWarnings("unchecked")
+    public RegisteredBroadcastStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+        this(
+                snapshot.getName(),
+                OperatorStateHandle.Mode.valueOf(
+                        snapshot.getOption(
+                                StateMetaInfoSnapshot.CommonOptionsKeys
+                                        .OPERATOR_STATE_DISTRIBUTION_MODE)),
+                StateSerializerProvider.fromPreviousSerializerSnapshot(
+                        (TypeSerializerSnapshot<K>)
+                                Preconditions.checkNotNull(
+                                        snapshot.getTypeSerializerSnapshot(
+                                                StateMetaInfoSnapshot.CommonSerializerKeys
+                                                        .KEY_SERIALIZER))),
+                StateSerializerProvider.fromPreviousSerializerSnapshot(
+                        (TypeSerializerSnapshot<V>)
+                                Preconditions.checkNotNull(
+                                        snapshot.getTypeSerializerSnapshot(
+                                                StateMetaInfoSnapshot.CommonSerializerKeys
+                                                        .VALUE_SERIALIZER))));
 
-		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
-	}
+        Preconditions.checkState(
+                StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
+    }
 
-	/**
-	 * Creates a deep copy of the itself.
-	 */
-	@Nonnull
-	public RegisteredBroadcastStateBackendMetaInfo<K, V> deepCopy() {
-		return new RegisteredBroadcastStateBackendMetaInfo<>(this);
-	}
+    /** Creates a deep copy of the itself. */
+    @Nonnull
+    public RegisteredBroadcastStateBackendMetaInfo<K, V> deepCopy() {
+        return new RegisteredBroadcastStateBackendMetaInfo<>(this);
+    }
 
-	private RegisteredBroadcastStateBackendMetaInfo(
-		@Nonnull final String name,
-		@Nonnull final OperatorStateHandle.Mode assignmentMode,
-		@Nonnull final StateSerializerProvider<K> keySerializerProvider,
-		@Nonnull final StateSerializerProvider<V> valueSerializerProvider) {
+    private RegisteredBroadcastStateBackendMetaInfo(
+            @Nonnull final String name,
+            @Nonnull final OperatorStateHandle.Mode assignmentMode,
+            @Nonnull final StateSerializerProvider<K> keySerializerProvider,
+            @Nonnull final StateSerializerProvider<V> valueSerializerProvider) {
 
-		super(name);
-		Preconditions.checkArgument(assignmentMode == OperatorStateHandle.Mode.BROADCAST);
-		this.assignmentMode = assignmentMode;
-		this.keySerializerProvider = keySerializerProvider;
-		this.valueSerializerProvider = valueSerializerProvider;
-	}
+        super(name);
+        Preconditions.checkArgument(assignmentMode == OperatorStateHandle.Mode.BROADCAST);
+        this.assignmentMode = assignmentMode;
+        this.keySerializerProvider = keySerializerProvider;
+        this.valueSerializerProvider = valueSerializerProvider;
+    }
 
-	@Nonnull
-	@Override
-	public StateMetaInfoSnapshot snapshot() {
-		return computeSnapshot();
-	}
+    @Nonnull
+    @Override
+    public StateMetaInfoSnapshot snapshot() {
+        return computeSnapshot();
+    }
 
-	@Nonnull
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializerProvider.currentSchemaSerializer();
-	}
+    @Nonnull
+    public TypeSerializer<K> getKeySerializer() {
+        return keySerializerProvider.currentSchemaSerializer();
+    }
 
-	@Nonnull
-	public TypeSerializerSchemaCompatibility<K> updateKeySerializer(TypeSerializer<K> newKeySerializer) {
-		return keySerializerProvider.registerNewSerializerForRestoredState(newKeySerializer);
-	}
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<K> updateKeySerializer(
+            TypeSerializer<K> newKeySerializer) {
+        return keySerializerProvider.registerNewSerializerForRestoredState(newKeySerializer);
+    }
 
-	@Nullable
-	public TypeSerializer<K> getPreviousKeySerializer() {
-		return keySerializerProvider.previousSchemaSerializer();
-	}
+    @Nullable
+    public TypeSerializer<K> getPreviousKeySerializer() {
+        return keySerializerProvider.previousSchemaSerializer();
+    }
 
-	@Nonnull
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializerProvider.currentSchemaSerializer();
-	}
+    @Nonnull
+    public TypeSerializer<V> getValueSerializer() {
+        return valueSerializerProvider.currentSchemaSerializer();
+    }
 
-	@Nonnull
-	public TypeSerializerSchemaCompatibility<V> updateValueSerializer(TypeSerializer<V> newValueSerializer) {
-		return valueSerializerProvider.registerNewSerializerForRestoredState(newValueSerializer);
-	}
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<V> updateValueSerializer(
+            TypeSerializer<V> newValueSerializer) {
+        return valueSerializerProvider.registerNewSerializerForRestoredState(newValueSerializer);
+    }
 
-	@Nullable
-	public TypeSerializer<V> getPreviousValueSerializer() {
-		return valueSerializerProvider.previousSchemaSerializer();
-	}
+    @Nullable
+    public TypeSerializer<V> getPreviousValueSerializer() {
+        return valueSerializerProvider.previousSchemaSerializer();
+    }
 
-	@Nonnull
-	public OperatorStateHandle.Mode getAssignmentMode() {
-		return assignmentMode;
-	}
+    @Nonnull
+    public OperatorStateHandle.Mode getAssignmentMode() {
+        return assignmentMode;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
 
-		if (!(obj instanceof RegisteredBroadcastStateBackendMetaInfo)) {
-			return false;
-		}
+        if (!(obj instanceof RegisteredBroadcastStateBackendMetaInfo)) {
+            return false;
+        }
 
-		final RegisteredBroadcastStateBackendMetaInfo other =
-				(RegisteredBroadcastStateBackendMetaInfo) obj;
+        final RegisteredBroadcastStateBackendMetaInfo other =
+                (RegisteredBroadcastStateBackendMetaInfo) obj;
 
-		return Objects.equals(name, other.getName())
-				&& Objects.equals(assignmentMode, other.getAssignmentMode())
-				&& Objects.equals(getKeySerializer(), other.getKeySerializer())
-				&& Objects.equals(getValueSerializer(), other.getValueSerializer());
-	}
+        return Objects.equals(name, other.getName())
+                && Objects.equals(assignmentMode, other.getAssignmentMode())
+                && Objects.equals(getKeySerializer(), other.getKeySerializer())
+                && Objects.equals(getValueSerializer(), other.getValueSerializer());
+    }
 
-	@Override
-	public int hashCode() {
-		int result = name.hashCode();
-		result = 31 * result + assignmentMode.hashCode();
-		result = 31 * result + getKeySerializer().hashCode();
-		result = 31 * result + getValueSerializer().hashCode();
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + assignmentMode.hashCode();
+        result = 31 * result + getKeySerializer().hashCode();
+        result = 31 * result + getValueSerializer().hashCode();
+        return result;
+    }
 
-	@Override
-	public String toString() {
-		return "RegisteredBroadcastBackendStateMetaInfo{" +
-				"name='" + name + '\'' +
-				", keySerializer=" + getKeySerializer() +
-				", valueSerializer=" + getValueSerializer() +
-				", assignmentMode=" + assignmentMode +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "RegisteredBroadcastBackendStateMetaInfo{"
+                + "name='"
+                + name
+                + '\''
+                + ", keySerializer="
+                + getKeySerializer()
+                + ", valueSerializer="
+                + getValueSerializer()
+                + ", assignmentMode="
+                + assignmentMode
+                + '}';
+    }
 
-	@Nonnull
-	private StateMetaInfoSnapshot computeSnapshot() {
-		Map<String, String> optionsMap = Collections.singletonMap(
-			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
-			assignmentMode.toString());
-		Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
-		Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
-		String keySerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString();
-		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
+    @Nonnull
+    private StateMetaInfoSnapshot computeSnapshot() {
+        Map<String, String> optionsMap =
+                Collections.singletonMap(
+                        StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
+                                .toString(),
+                        assignmentMode.toString());
+        Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
+        Map<String, TypeSerializerSnapshot<?>> serializerConfigSnapshotsMap = new HashMap<>(2);
+        String keySerializerKey =
+                StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString();
+        String valueSerializerKey =
+                StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
 
-		TypeSerializer<K> keySerializer = getKeySerializer();
-		serializerMap.put(keySerializerKey, keySerializer.duplicate());
-		serializerConfigSnapshotsMap.put(keySerializerKey, keySerializer.snapshotConfiguration());
+        TypeSerializer<K> keySerializer = getKeySerializer();
+        serializerMap.put(keySerializerKey, keySerializer.duplicate());
+        serializerConfigSnapshotsMap.put(keySerializerKey, keySerializer.snapshotConfiguration());
 
-		TypeSerializer<V> valueSerializer = getValueSerializer();
-		serializerMap.put(valueSerializerKey, valueSerializer.duplicate());
-		serializerConfigSnapshotsMap.put(valueSerializerKey, valueSerializer.snapshotConfiguration());
+        TypeSerializer<V> valueSerializer = getValueSerializer();
+        serializerMap.put(valueSerializerKey, valueSerializer.duplicate());
+        serializerConfigSnapshotsMap.put(
+                valueSerializerKey, valueSerializer.snapshotConfiguration());
 
-		return new StateMetaInfoSnapshot(
-			name,
-			StateMetaInfoSnapshot.BackendStateType.BROADCAST,
-			optionsMap,
-			serializerConfigSnapshotsMap,
-			serializerMap);
-	}
+        return new StateMetaInfoSnapshot(
+                name,
+                StateMetaInfoSnapshot.BackendStateType.BROADCAST,
+                optionsMap,
+                serializerConfigSnapshotsMap,
+                serializerMap);
+    }
 }

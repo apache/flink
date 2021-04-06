@@ -21,8 +21,9 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -51,10 +52,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testDistinctUDAGG(): Unit = {
-    val testAgg = new DataViewTestAgg
     val t = failingDataSource(tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e)
-      .select('e, testAgg.distinct('d, 'e))
+      .select('e, call(classOf[DataViewTestAgg], 'd, 'e).distinct())
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -274,10 +274,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val testAgg = new DataViewTestAgg
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, distinct('c), testAgg('c, 'b))
+      .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink()
     t.toRetractStream[Row].addSink(sink)
@@ -307,9 +306,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val tableSink = new TestingUpsertTableSink(Array(0)).configure(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
-    tEnv.registerTableSink("testSink", tableSink)
-    tEnv.insertInto("testSink", t)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
+    t.executeInsert("testSink").await()
 
     val expected = List("A,1", "B,2", "C,3")
     assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
@@ -364,10 +362,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val testAgg = new DataViewTestAgg
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
-      .select('b, distinct('c), testAgg('c, 'b))
+      .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink
     t.toRetractStream[Row].addSink(sink).setParallelism(1)

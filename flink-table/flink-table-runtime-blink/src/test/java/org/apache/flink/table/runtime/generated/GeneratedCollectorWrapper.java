@@ -21,31 +21,32 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.util.Collector;
 
 /**
- * A wrapper for {@link GeneratedCollector} which wraps a class instead of generated code in it.
- * It is only used for easy testing.
+ * A wrapper for {@link GeneratedCollector} which wraps a class instead of generated code in it. It
+ * is only used for easy testing.
  */
 public class GeneratedCollectorWrapper<C extends Collector<?>> extends GeneratedCollector<C> {
 
-	private static final long serialVersionUID = 3964204655565783705L;
-	private final Class<C> clazz;
+    private static final long serialVersionUID = 3964204655565783705L;
+    private final Class<C> clazz;
 
-	public GeneratedCollectorWrapper(C collector) {
-		super(collector.getClass().getSimpleName(), "N/A", new Object[0]);
-		//noinspection unchecked
-		this.clazz = (Class<C>) collector.getClass();
-	}
+    public GeneratedCollectorWrapper(C collector) {
+        super(collector.getClass().getSimpleName(), "N/A", new Object[0]);
+        //noinspection unchecked
+        this.clazz = (Class<C>) collector.getClass();
+    }
 
-	@Override
-	public C newInstance(ClassLoader classLoader) {
-		try {
-			return clazz.newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException("Could not instantiate class " + clazz.getCanonicalName(), e);
-		}
-	}
+    @Override
+    public C newInstance(ClassLoader classLoader) {
+        try {
+            return clazz.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not instantiate class " + clazz.getCanonicalName(), e);
+        }
+    }
 
-	@Override
-	public Class<C> compile(ClassLoader classLoader) {
-		return clazz;
-	}
+    @Override
+    public Class<C> compile(ClassLoader classLoader) {
+        return clazz;
+    }
 }

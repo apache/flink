@@ -29,7 +29,7 @@ TEST_PROGRAM_JAR=$END_TO_END_DIR/flink-cli-test/target/PeriodicStreamingJob.jar
 
 function submit_job {
     local output_path=$1
-    docker exec mesos-master bash -c "${FLINK_DIR}/bin/flink run -d -p 1 ${TEST_PROGRAM_JAR} --durationInSecond ${DURATION} --outputPath ${output_path}" \
+    docker exec --env HADOOP_CLASSPATH=$HADOOP_CLASSPATH mesos-master bash -c "${FLINK_DIR}/bin/flink run -d -p 1 ${TEST_PROGRAM_JAR} --durationInSecond ${DURATION} --outputPath ${output_path}" \
         | grep "Job has been submitted with JobID" | sed 's/.* //g' | tr -d '\r'
 }
 
@@ -39,6 +39,8 @@ mkdir -p "${TEST_DATA_DIR}"
 # There should be only one TaskManager with one slot; Thus, there are not enough resources to allocate a complete new set of slots for the second job.
 # To ensure the old slots are being reused.
 set_config_key "mesos.resourcemanager.tasks.cpus" "${MESOS_AGENT_CPU}"
+
+set_hadoop_classpath
 
 start_flink_cluster_with_mesos
 

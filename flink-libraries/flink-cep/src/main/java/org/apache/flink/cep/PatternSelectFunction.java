@@ -25,31 +25,31 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Base interface for a pattern select function. A pattern select function is called with a
- * map containing the detected events which can be accessed by their names. The names depend on
- * the definition of the {@link org.apache.flink.cep.pattern.Pattern}. The select method returns
- * exactly one result. If you want to return more than one result, then you have to implement
- * a {@link PatternFlatSelectFunction}.
+ * Base interface for a pattern select function. A pattern select function is called with a map
+ * containing the detected events which can be accessed by their names. The names depend on the
+ * definition of the {@link org.apache.flink.cep.pattern.Pattern}. The select method returns exactly
+ * one result. If you want to return more than one result, then you have to implement a {@link
+ * PatternFlatSelectFunction}.
  *
  * <pre>{@code
  * PatternStream<IN> pattern = ...;
  *
  * DataStream<OUT> result = pattern.select(new MyPatternSelectFunction());
- *}</pre>
+ * }</pre>
  *
  * @param <IN> Type of the input elements
  * @param <OUT> Type of the output element
  */
 public interface PatternSelectFunction<IN, OUT> extends Function, Serializable {
 
-	/**
-	 * Generates a result from the given map of events. The events are identified by their names.
-	 * Only one resulting element can be generated.
-	 *
-	 * @param pattern Map containing the found pattern. Events are identified by their names
-	 * @return Resulting element
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-	 * 					 operation to fail and may trigger recovery.
-	 */
-	OUT select(Map<String, List<IN>> pattern) throws Exception;
+    /**
+     * Generates a result from the given map of events. The events are identified by their names.
+     * Only one resulting element can be generated.
+     *
+     * @param pattern Map containing the found pattern. Events are identified by their names
+     * @return Resulting element
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    OUT select(Map<String, List<IN>> pattern) throws Exception;
 }

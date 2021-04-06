@@ -25,7 +25,7 @@ import org.junit.{Before, Test}
 /**
   * Test for [[FlinkAggregateExpandDistinctAggregatesRule]].
   */
-class FlinkAggregateExpandDistinctAggregatesRuleTest extends DistinctAggregateTestBase {
+class FlinkAggregateExpandDistinctAggregatesRuleTest extends DistinctAggregateTestBase(false) {
 
   @Before
   override def setup(): Unit = {
@@ -35,11 +35,11 @@ class FlinkAggregateExpandDistinctAggregatesRuleTest extends DistinctAggregateTe
 
   @Test
   def testSingleDistinctAggOnMultiColumns(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a, b) FROM MyTable")
+    util.verifyRelPlan("SELECT COUNT(DISTINCT a, b) FROM MyTable")
   }
 
   @Test
   def testSingleDistinctAggOnMultiColumnsWithGroupingSets(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a, b) FROM MyTable2 GROUP BY GROUPING SETS (c, d)")
+    util.verifyRelPlan("SELECT COUNT(DISTINCT a, b) FROM MyTable2 GROUP BY GROUPING SETS (c, d)")
   }
 }

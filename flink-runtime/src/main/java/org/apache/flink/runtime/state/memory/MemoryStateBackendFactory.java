@@ -19,17 +19,15 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
-/**
- * A factory that creates an {@link MemoryStateBackend} from a configuration.
- */
+/** A factory that creates an {@link MemoryStateBackend} from a configuration. */
 @PublicEvolving
 public class MemoryStateBackendFactory implements StateBackendFactory<MemoryStateBackend> {
 
-	@Override
-	public MemoryStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
-		return new MemoryStateBackend().configure(config, classLoader);
-	}
+    @Override
+    public MemoryStateBackend createFromConfig(ReadableConfig config, ClassLoader classLoader) {
+        return new MemoryStateBackend().configure(config, classLoader);
+    }
 }

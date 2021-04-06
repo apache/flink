@@ -27,53 +27,52 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobDetailsHandler}.
- */
-public class JobDetailsHeaders implements MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+/** Message headers for the {@link JobDetailsHandler}. */
+public class JobDetailsHeaders
+        implements MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
 
-	private static final JobDetailsHeaders INSTANCE = new JobDetailsHeaders();
+    private static final JobDetailsHeaders INSTANCE = new JobDetailsHeaders();
 
-	public static final String URL = "/jobs/:" + JobIDPathParameter.KEY;
+    public static final String URL = "/jobs/:" + JobIDPathParameter.KEY;
 
-	private JobDetailsHeaders() {}
+    private JobDetailsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobDetailsInfo> getResponseClass() {
-		return JobDetailsInfo.class;
-	}
+    @Override
+    public Class<JobDetailsInfo> getResponseClass() {
+        return JobDetailsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
-	}
+    @Override
+    public JobMessageParameters getUnresolvedMessageParameters() {
+        return new JobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobDetailsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobDetailsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns details of a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns details of a job.";
+    }
 }

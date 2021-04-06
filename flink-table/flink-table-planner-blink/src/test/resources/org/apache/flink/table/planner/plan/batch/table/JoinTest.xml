@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testFilterJoinRule">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>=($0, 0)])
 +- LogicalProject(c1=[org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($2, org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($2, $5))])
@@ -26,21 +26,21 @@ LogicalFilter(condition=[>=($0, 0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Merger$(c, Merger$(c, f)) AS c1], where=[>=(Merger$(c, Merger$(c, f)), 0)])
-+- HashJoin(joinType=[LeftOuterJoin], where=[=(b, e)], select=[b, c, e, f], build=[right])
+Calc(select=[Merger$(c, Merger$(c, f)) AS c1], where=[(Merger$(c, Merger$(c, f)) >= 0)])
++- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, f], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[e, f])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testFullOuterJoinEquiAndLocalPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[full])
@@ -48,21 +48,21 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
++- HashJoin(joinType=[FullOuterJoin], where=[((a = z) AND (b < 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testFullOuterJoinEquiAndNonEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[full])
@@ -70,20 +70,20 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[FullOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
++- HashJoin(joinType=[FullOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testFullOuterJoinEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[full])
@@ -91,21 +91,21 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[FullOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
++- HashJoin(joinType=[FullOuterJoin], where=[(a = z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testLeftOuterJoinEquiAndLocalPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
@@ -113,21 +113,21 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, 2))], select=[a, b, y, z], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[((a = z) AND (b < 2))], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testLeftOuterJoinEquiAndNonEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[left])
@@ -135,20 +135,20 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[LeftOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testLeftOuterJoinEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -156,21 +156,21 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[LeftOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[(a = z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testNoEqualityJoinPredicate1">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], g=[$6])
 +- LogicalFilter(condition=[=($3, $5)])
@@ -179,19 +179,19 @@ LogicalProject(c=[$2], g=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[c, g], build=[right])
 :- Calc(select=[c])
-:  +- TableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
-   +- Calc(select=[g], where=[=(d, f)])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+   +- Calc(select=[g], where=[(d = f)])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testNoEqualityJoinPredicate2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], g=[$6])
 +- LogicalFilter(condition=[<($0, $3)])
@@ -200,20 +200,20 @@ LogicalProject(c=[$2], g=[$6])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[<(a, d)], select=[a, c, d, g], build=[left])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a < d)], select=[a, c, d, g], build=[left])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[a, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Calc(select=[d, g])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table5, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRightOuterJoinEquiAndLocalPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], x=[$3])
 +- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
@@ -221,21 +221,21 @@ LogicalProject(b=[$1], x=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, x])
-+- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), <(x, 2))], select=[a, b, x, z], build=[right])
++- HashJoin(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[x, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRightOuterJoinEquiAndNonEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[right])
@@ -243,20 +243,20 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[RightOuterJoin], where=[AND(=(a, z), <(b, x))], select=[a, b, x, y, z], build=[left])
++- HashJoin(joinType=[RightOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testRightOuterJoinEquiPred">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
@@ -264,34 +264,34 @@ LogicalProject(b=[$1], y=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, y])
-+- HashJoin(joinType=[RightOuterJoin], where=[=(a, z)], select=[a, b, y, z], build=[left])
++- HashJoin(joinType=[RightOuterJoin], where=[(a = z)], select=[a, b, y, z], build=[left])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- TableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, S, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testUDFInJoinCondition">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalJoin(condition=[AND(=($1, $4), =(org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50($0, $3), 10))], joinType=[inner])
 :- LogicalTableScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]])
 +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[AND(=(b, e), =(Merger$(a, d), 10))], select=[a, b, c, d, e, f], build=[right])
+HashJoin(joinType=[InnerJoin], where=[((b = e) AND (Merger$(a, d) = 10))], select=[a, b, c, d, e, f], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
-   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

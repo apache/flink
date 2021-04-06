@@ -60,13 +60,13 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def deriveRowType(): RelDataType = {
-    val baseRowType = table.getRowType
+    val rowType = table.getRowType
     selectedFields.map(idxs => {
-      val fields = baseRowType.getFieldList
+      val fields = rowType.getFieldList
       val builder = cluster.getTypeFactory.builder()
       idxs.map(fields.get).foreach(builder.add)
       builder.build()
-    }).getOrElse(baseRowType)
+    }).getOrElse(rowType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.sql.{Date, Timestamp}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.{Func1, Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -32,10 +30,13 @@ import org.apache.flink.table.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.sql.{Date, Timestamp}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -50,7 +51,7 @@ class CorrelateITCase(
   def testCrossJoin(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val func1 = new TableFunc1
     val result = in.joinLateral(func1('c) as 's).select('c, 's).toDataSet[Row]
@@ -71,7 +72,7 @@ class CorrelateITCase(
   def testLeftOuterJoinWithoutPredicates(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
@@ -86,7 +87,7 @@ class CorrelateITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
     tableEnv.getConfig.setMaxGeneratedCodeLength(1) // split every field
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l).toDataSet[Row]
@@ -103,7 +104,7 @@ class CorrelateITCase(
   def testLeftOuterJoinWithPredicates(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in
@@ -119,7 +120,7 @@ class CorrelateITCase(
   def testWithFilter(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -137,7 +138,7 @@ class CorrelateITCase(
   def testCustomReturnType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func2 = new TableFunc2
 
     val result = in
@@ -155,7 +156,7 @@ class CorrelateITCase(
   def testHierarchyType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val hierarchy = new HierarchyTableFunction
     val result = in
@@ -173,7 +174,7 @@ class CorrelateITCase(
   def testPojoType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
 
     val pojo = new PojoTableFunc()
     val result = in
@@ -191,7 +192,7 @@ class CorrelateITCase(
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func1 = new TableFunc1
 
     val result = in
@@ -209,7 +210,7 @@ class CorrelateITCase(
   def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -227,7 +228,7 @@ class CorrelateITCase(
   def testLongAndTemporalTypes(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func0 = new JavaTableFunc0
 
     val result = in
@@ -248,7 +249,7 @@ class CorrelateITCase(
   def testByteShortFloatArguments(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val tFunc = new TableFunc4
 
     val result = in
@@ -309,7 +310,7 @@ class CorrelateITCase(
   def testTableFunctionConstructorWithParams(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val in = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
     val func32 = new TableFunc3("TwoConf_")
@@ -371,7 +372,7 @@ class CorrelateITCase(
   def testTableFunctionCollectorOpenClose(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env, config)
-    val t = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tableEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val func20 = new Func20
 

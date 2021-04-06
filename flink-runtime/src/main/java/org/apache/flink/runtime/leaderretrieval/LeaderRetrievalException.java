@@ -26,17 +26,17 @@ import org.apache.flink.util.FlinkException;
  */
 public class LeaderRetrievalException extends FlinkException {
 
-	private static final long serialVersionUID = 42;
+    private static final long serialVersionUID = 42;
 
-	public LeaderRetrievalException(String message) {
-		super(message);
-	}
+    public LeaderRetrievalException(String message) {
+        super(message);
+    }
 
-	public LeaderRetrievalException(Throwable cause) {
-		super(cause);
-	}
+    public LeaderRetrievalException(Throwable cause) {
+        super(cause);
+    }
 
-	public LeaderRetrievalException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public LeaderRetrievalException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

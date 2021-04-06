@@ -26,8 +26,10 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 })
 export class JobManagerComponent {
   listOfNavigation = [
+    { path: 'metrics', title: 'Metrics' },
     { path: 'config', title: 'Configuration' },
     { path: 'logs', title: 'Logs' },
-    { path: 'stdout', title: 'Stdout' }
+    { path: 'stdout', title: 'Stdout' },
+    { path: 'log', title: 'Log List' }
   ];
 }

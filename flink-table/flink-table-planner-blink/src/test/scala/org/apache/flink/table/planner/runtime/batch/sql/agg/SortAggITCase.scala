@@ -24,6 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
@@ -49,16 +50,16 @@ class SortAggITCase
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())
-    registerFunction("weightedAvg", new WeightedAvgWithMergeAndReset())
+    registerTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMergeAndReset])
 
     registerFunction("myPrimitiveArrayUdaf", new MyPrimitiveArrayUdaf())
     registerFunction("myObjectArrayUdaf", new MyObjectArrayUdaf())
     registerFunction("myNestedLongArrayUdaf", new MyNestedLongArrayUdaf())
-    registerFunction("myNestedStringArrayUdaf", new MyNestedStringArrayUdaf())
+    registerTemporarySystemFunction("myNestedStringArrayUdaf", classOf[MyNestedStringArrayUdaf])
 
     registerFunction("myPrimitiveMapUdaf", new MyPrimitiveMapUdaf())
     registerFunction("myObjectMapUdaf", new MyObjectMapUdaf())
-    registerFunction("myNestedMapUdaf", new MyNestedMapUdf())
+    registerTemporarySystemFunction("myNestedMapUdaf", classOf[MyNestedMapUdf])
   }
 
   @Test
@@ -332,7 +333,7 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
   }
 
   override def getValue(acc: CountAccumulator): MyPojo = {
-    new MyPojo(acc.f0.asInstanceOf[Int], acc.f0.asInstanceOf[Int])
+    new MyPojo(acc.f0.toInt, acc.f0.toInt)
   }
 
   def merge(acc: CountAccumulator, its: JIterable[CountAccumulator]): Unit = {
@@ -346,10 +347,6 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
     new CountAccumulator
   }
 
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
-  }
-
   override def getAccumulatorType: TypeInformation[CountAccumulator] = {
     new TupleTypeInfo[CountAccumulator](classOf[CountAccumulator], Types.LONG)
   }
@@ -357,21 +354,21 @@ class MyPojoAggFunction extends AggregateFunction[MyPojo, CountAccumulator] {
   override def getResultType: TypeInformation[MyPojo] = MyToPojoFunc.getResultType(null)
 }
 
-class VarArgsAggFunction extends AggregateFunction[Long, CountAccumulator] {
+class VarArgsAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
   @varargs
-  def accumulate(acc: CountAccumulator, value: Long, args: String*): Unit = {
+  def accumulate(acc: CountAccumulator, value: JLong, args: String*): Unit = {
     acc.f0 += value
     args.foreach(s => acc.f0 += s.toLong)
   }
 
   @varargs
-  def retract(acc: CountAccumulator, value: Long, args: String*): Unit = {
+  def retract(acc: CountAccumulator, value: JLong, args: String*): Unit = {
     acc.f0 -= value
     args.foreach(s => acc.f0 -= s.toLong)
   }
 
-  override def getValue(acc: CountAccumulator): Long = {
+  override def getValue(acc: CountAccumulator): JLong = {
     acc.f0
   }
 
@@ -384,14 +381,6 @@ class VarArgsAggFunction extends AggregateFunction[Long, CountAccumulator] {
 
   override def createAccumulator(): CountAccumulator = {
     new CountAccumulator
-  }
-
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
-  }
-
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo[CountAccumulator](classOf[CountAccumulator], Types.LONG)
   }
 }
 
@@ -485,12 +474,6 @@ class MyNestedStringArrayUdaf extends AggregateFunction[
     accumulator(1)(0) = accumulator(1)(0) + c.charAt(c.length - 1)
     accumulator(1)(1) = accumulator(1)(1) + c.charAt(0)
   }
-
-  override def getAccumulatorType =
-    ObjectArrayTypeInfo.getInfoFor(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)
-
-  override def getResultType =
-    getAccumulatorType
 }
 
 class MyPrimitiveMapUdaf extends AggregateFunction[
@@ -538,28 +521,22 @@ class MyObjectMapUdaf extends AggregateFunction[
 }
 
 class MyNestedMapUdf extends AggregateFunction[
-    java.util.Map[Long, java.util.Map[String, Int]],
-    java.util.Map[Long, java.util.Map[String, Int]]] {
+    java.util.Map[JLong, java.util.Map[String, JInt]],
+    java.util.Map[JLong, java.util.Map[String, JInt]]] {
 
-  override def createAccumulator(): java.util.Map[Long, java.util.Map[String, Int]] =
-    new java.util.HashMap[Long, java.util.Map[String, Int]]()
+  override def createAccumulator(): java.util.Map[JLong, java.util.Map[String, JInt]] =
+    new java.util.HashMap[JLong, java.util.Map[String, JInt]]()
 
-  override def getValue(accumulator: java.util.Map[Long, java.util.Map[String, Int]])
-  : java.util.Map[Long, java.util.Map[String, Int]] =
+  override def getValue(accumulator: java.util.Map[JLong, java.util.Map[String, JInt]])
+  : java.util.Map[JLong, java.util.Map[String, JInt]] =
     accumulator
 
   def accumulate(
-      accumulator: java.util.Map[Long, java.util.Map[String, Int]],
-      a: Int, b: Long, c: String): Unit = {
+      accumulator: java.util.Map[JLong, java.util.Map[String, JInt]],
+      a: JInt, b: JLong, c: String): Unit = {
     val key = c.substring(0, 2)
-    accumulator.putIfAbsent(b, new java.util.HashMap[String, Int]())
+    accumulator.putIfAbsent(b, new java.util.HashMap[String, JInt]())
     accumulator.get(b).putIfAbsent(key, 0)
     accumulator.get(b).put(key, accumulator.get(b).get(key) + a)
   }
-
-  override def getAccumulatorType =
-    new MapTypeInfo(Types.LONG, new MapTypeInfo(Types.STRING, Types.INT))
-        .asInstanceOf[TypeInformation[java.util.Map[Long, java.util.Map[String, Int]]]]
-
-  override def getResultType = getAccumulatorType
 }

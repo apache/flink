@@ -20,6 +20,5 @@ package org.apache.flink.runtime.util.event;
 
 public interface NotificationListener {
 
-	void onNotification();
-
+    void onNotification();
 }

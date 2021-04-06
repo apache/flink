@@ -18,59 +18,49 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import java.io.IOException;
-
-/**
- * A dynamically sized buffer pool.
- */
+/** A dynamically sized buffer pool. */
 public interface BufferPool extends BufferProvider, BufferRecycler {
 
-	/**
-	 * Destroys this buffer pool.
-	 *
-	 * <p>If not all buffers are available, they are recycled lazily as soon as they are recycled.
-	 */
-	void lazyDestroy();
+    /**
+     * Destroys this buffer pool.
+     *
+     * <p>If not all buffers are available, they are recycled lazily as soon as they are recycled.
+     */
+    void lazyDestroy();
 
-	/**
-	 * Checks whether this buffer pool has been destroyed.
-	 */
-	@Override
-	boolean isDestroyed();
+    /** Checks whether this buffer pool has been destroyed. */
+    @Override
+    boolean isDestroyed();
 
-	/**
-	 * Returns the number of guaranteed (minimum number of) memory segments of this buffer pool.
-	 */
-	int getNumberOfRequiredMemorySegments();
+    /** Returns the number of guaranteed (minimum number of) memory segments of this buffer pool. */
+    int getNumberOfRequiredMemorySegments();
 
-	/**
-	 * Returns the maximum number of memory segments this buffer pool should use.
-	 *
-	 * @return maximum number of memory segments to use or <tt>-1</tt> if unlimited
-	 */
-	int getMaxNumberOfMemorySegments();
+    /**
+     * Returns the maximum number of memory segments this buffer pool should use.
+     *
+     * @return maximum number of memory segments to use or <tt>-1</tt> if unlimited
+     */
+    int getMaxNumberOfMemorySegments();
 
-	/**
-	 * Returns the current size of this buffer pool.
-	 *
-	 * <p>The size of the buffer pool can change dynamically at runtime.
-	 */
-	int getNumBuffers();
+    /**
+     * Returns the current size of this buffer pool.
+     *
+     * <p>The size of the buffer pool can change dynamically at runtime.
+     */
+    int getNumBuffers();
 
-	/**
-	 * Sets the current size of this buffer pool.
-	 *
-	 * <p>The size needs to be greater or equal to the guaranteed number of memory segments.
-	 */
-	void setNumBuffers(int numBuffers) throws IOException;
+    /**
+     * Sets the current size of this buffer pool.
+     *
+     * <p>The size needs to be greater or equal to the guaranteed number of memory segments.
+     */
+    void setNumBuffers(int numBuffers);
 
-	/**
-	 * Returns the number memory segments, which are currently held by this buffer pool.
-	 */
-	int getNumberOfAvailableMemorySegments();
+    /** Returns the number memory segments, which are currently held by this buffer pool. */
+    int getNumberOfAvailableMemorySegments();
 
-	/**
-	 * Returns the number of used buffers of this buffer pool.
-	 */
-	int bestEffortGetNumOfUsedBuffers();
+    /** Returns the number of used buffers of this buffer pool. */
+    int bestEffortGetNumOfUsedBuffers();
+
+    BufferRecycler[] getSubpartitionBufferRecyclers();
 }

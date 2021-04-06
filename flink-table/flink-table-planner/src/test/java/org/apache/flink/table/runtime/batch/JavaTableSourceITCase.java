@@ -21,7 +21,8 @@ package org.apache.flink.table.runtime.batch;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.runtime.utils.CommonTestData;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.sources.BatchTableSource;
@@ -33,63 +34,65 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Integration tests for {@link BatchTableSource}.
- */
+import static org.apache.flink.table.api.Expressions.$;
+
+/** Integration tests for {@link BatchTableSource}. */
 @RunWith(Parameterized.class)
 public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 
-	public JavaTableSourceITCase(TableConfigMode configMode) {
-		super(configMode);
-	}
+    public JavaTableSourceITCase(TableConfigMode configMode) {
+        super(configMode);
+    }
 
-	@Test
-	public void testBatchTableSourceTableAPI() throws Exception {
+    @Test
+    public void testBatchTableSourceTableAPI() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
-		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+        BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("persons", csvTable);
+        ((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
-		Table result = tableEnv.scan("persons")
-			.select("id, first, last, score");
+        Table result = tableEnv.scan("persons").select($("id"), $("first"), $("last"), $("score"));
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
+        DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+        List<Row> results = resultSet.collect();
 
-		String expected = "1,Mike,Smith,12.3\n" +
-			"2,Bob,Taylor,45.6\n" +
-			"3,Sam,Miller,7.89\n" +
-			"4,Peter,Smith,0.12\n" +
-			"5,Liz,Williams,34.5\n" +
-			"6,Sally,Miller,6.78\n" +
-			"7,Alice,Smith,90.1\n" +
-			"8,Kelly,Williams,2.34\n";
+        String expected =
+                "1,Mike,Smith,12.3\n"
+                        + "2,Bob,Taylor,45.6\n"
+                        + "3,Sam,Miller,7.89\n"
+                        + "4,Peter,Smith,0.12\n"
+                        + "5,Liz,Williams,34.5\n"
+                        + "6,Sally,Miller,6.78\n"
+                        + "7,Alice,Smith,90.1\n"
+                        + "8,Kelly,Williams,2.34\n";
 
-		compareResultAsText(results, expected);
-	}
+        compareResultAsText(results, expected);
+    }
 
-	@Test
-	public void testBatchTableSourceSQL() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
-		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
+    @Test
+    public void testBatchTableSourceSQL() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+        BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		tableEnv.registerTableSource("persons", csvTable);
+        ((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
-		Table result = tableEnv
-			.sqlQuery("SELECT `last`, FLOOR(id), score * 2 FROM persons WHERE score < 20");
+        Table result =
+                tableEnv.sqlQuery(
+                        "SELECT `last`, FLOOR(id), score * 2 FROM persons WHERE score < 20");
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
+        DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+        List<Row> results = resultSet.collect();
 
-		String expected = "Smith,1,24.6\n" +
-			"Miller,3,15.78\n" +
-			"Smith,4,0.24\n" +
-			"Miller,6,13.56\n" +
-			"Williams,8,4.68\n";
+        String expected =
+                "Smith,1,24.6\n"
+                        + "Miller,3,15.78\n"
+                        + "Smith,4,0.24\n"
+                        + "Miller,6,13.56\n"
+                        + "Williams,8,4.68\n";
 
-		compareResultAsText(results, expected);
-	}
+        compareResultAsText(results, expected);
+    }
 }

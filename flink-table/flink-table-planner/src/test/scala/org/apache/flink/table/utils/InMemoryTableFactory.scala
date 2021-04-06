@@ -142,7 +142,14 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
     // computed column
-    properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR)
+    properties.add(SCHEMA + ".#." + EXPR)
+
+    // table constraint
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+    // comment
+    properties.add(COMMENT);
+
     properties
   }
 }

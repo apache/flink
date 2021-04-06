@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.calcite.rex.RexCall
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newName
@@ -35,6 +34,9 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+
+import org.apache.calcite.rex.RexCall
 
 import scala.collection.JavaConversions._
 
@@ -116,7 +118,7 @@ class TableFunctionCallGen(
     val externalDataType = getExternalDataType
     val pojoFieldMapping = Some(UserDefinedFunctionUtils.getFieldInfo(externalDataType)._2)
     val externalType = fromDataTypeToLogicalType(externalDataType)
-    val wrappedInternalType = PlannerTypeUtils.toRowType(externalType)
+    val wrappedInternalType = LogicalTypeUtils.toRowType(externalType)
 
     val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
     val externalTerm = newName("externalRecord")
@@ -127,7 +129,7 @@ class TableFunctionCallGen(
         .bindInput(externalType, externalTerm, pojoFieldMapping)
       val wrappedResult = resultGenerator.generateConverterResultExpression(
         wrappedInternalType,
-        classOf[GenericRow])
+        classOf[GenericRowData])
       s"""
        |${wrappedResult.code}
        |outputResult(${wrappedResult.resultTerm});
@@ -145,7 +147,7 @@ class TableFunctionCallGen(
       "TableFunctionResultConverterCollector",
       externalType,
       externalTerm,
-      CodeGenUtils.genToInternal(ctx, externalDataType),
+      CodeGenUtils.genToInternalConverter(ctx, externalDataType),
       collectorCode)
     val resultCollectorTerm = newName("resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)

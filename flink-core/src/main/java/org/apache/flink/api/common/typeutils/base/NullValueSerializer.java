@@ -30,68 +30,65 @@ import java.io.IOException;
 @Internal
 public final class NullValueSerializer extends TypeSerializerSingleton<NullValue> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final NullValueSerializer INSTANCE = new NullValueSerializer();
+    public static final NullValueSerializer INSTANCE = new NullValueSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public NullValue createInstance() {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue createInstance() {
+        return NullValue.getInstance();
+    }
 
-	@Override
-	public NullValue copy(NullValue from) {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue copy(NullValue from) {
+        return NullValue.getInstance();
+    }
 
-	@Override
-	public NullValue copy(NullValue from, NullValue reuse) {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue copy(NullValue from, NullValue reuse) {
+        return NullValue.getInstance();
+    }
 
-	@Override
-	public int getLength() {
-		return 0;
-	}
+    @Override
+    public int getLength() {
+        return 0;
+    }
 
-	@Override
-	public void serialize(NullValue record, DataOutputView target) throws IOException {
-	}
+    @Override
+    public void serialize(NullValue record, DataOutputView target) throws IOException {}
 
-	@Override
-	public NullValue deserialize(DataInputView source) throws IOException {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue deserialize(DataInputView source) throws IOException {
+        return NullValue.getInstance();
+    }
 
-	@Override
-	public NullValue deserialize(NullValue reuse, DataInputView source) throws IOException {
-		return NullValue.getInstance();
-	}
+    @Override
+    public NullValue deserialize(NullValue reuse, DataInputView source) throws IOException {
+        return NullValue.getInstance();
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {}
 
-	@Override
-	public TypeSerializerSnapshot<NullValue> snapshotConfiguration() {
-		return new NullValueSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<NullValue> snapshotConfiguration() {
+        return new NullValueSerializerSnapshot();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class NullValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<NullValue> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class NullValueSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<NullValue> {
 
-		public NullValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public NullValueSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.expressions.validation
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{SqlParserException, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimePointUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.apache.calcite.avatica.util.TimeUnit
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
@@ -32,25 +32,19 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Math functions
   // ----------------------------------------------------------------------------------------------
 
-  @Ignore
   @Test
   def testInvalidLog1(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    // invalid arithmetic argument
     testSqlApi(
       "LOG(1, 100)",
-      "FAIL"
+      "Infinity"
     )
   }
 
-  @Ignore
   @Test
   def testInvalidLog2(): Unit ={
-    thrown.expect(classOf[ValidationException])
-    // invalid arithmetic argument
     testSqlApi(
       "LOG(-1)",
-      "FAIL"
+      "NaN"
     )
   }
 

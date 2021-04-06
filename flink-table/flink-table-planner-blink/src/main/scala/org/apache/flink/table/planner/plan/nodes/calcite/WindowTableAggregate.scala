@@ -18,16 +18,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import java.util
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.plan.logical.LogicalWindow
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.logical.LogicalWindow
+
+import java.util
 
 /**
   * Relational operator that represents a window table aggregate. A TableAggregate is similar to the
@@ -55,8 +56,8 @@ abstract class WindowTableAggregate(
     builder.addAll(aggregateRowType.getFieldList)
     namedProperties.foreach { namedProp =>
       builder.add(
-        namedProp.name,
-        typeFactory.createFieldTypeFromLogicalType(namedProp.property.resultType)
+        namedProp.getName,
+        typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
       )
     }
     builder.build()
@@ -65,6 +66,6 @@ abstract class WindowTableAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("window", window)
-      .item("properties", namedProperties.map(_.name).mkString(", "))
+      .item("properties", namedProperties.map(_.getName).mkString(", "))
   }
 }

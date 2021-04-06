@@ -33,42 +33,45 @@ import org.apache.flink.table.expressions.ExpressionParser;
 @PublicEvolving
 public final class SlideWithSizeAndSlide {
 
-	/** The size of the window either as time or row-count interval. */
-	private final Expression size;
-	private final Expression slide;
+    /** The size of the window either as time or row-count interval. */
+    private final Expression size;
 
-	SlideWithSizeAndSlide(Expression size, Expression slide) {
-		this.size = ApiExpressionUtils.unwrapFromApi(size);
-		this.slide = ApiExpressionUtils.unwrapFromApi(slide);
-	}
+    private final Expression slide;
 
-	/**
-	 * Specifies the time attribute on which rows are grouped.
-	 *
-	 * <p>For streaming tables you can specify grouping by a event-time or processing-time
-	 * attribute.
-	 *
-	 * <p>For batch tables you can specify grouping on a timestamp or long attribute.
-	 *
-	 * @param timeField time attribute for streaming and batch tables
-	 * @return a tumbling window on event-time
-	 */
-	public SlideWithSizeAndSlideOnTime on(String timeField) {
-		return on(ExpressionParser.parseExpression(timeField));
-	}
+    SlideWithSizeAndSlide(Expression size, Expression slide) {
+        this.size = ApiExpressionUtils.unwrapFromApi(size);
+        this.slide = ApiExpressionUtils.unwrapFromApi(slide);
+    }
 
-	/**
-	 * Specifies the time attribute on which rows are grouped.
-	 *
-	 * <p>For streaming tables you can specify grouping by a event-time or processing-time
-	 * attribute.
-	 *
-	 * <p>For batch tables you can specify grouping on a timestamp or long attribute.
-	 *
-	 * @param timeField time attribute for streaming and batch tables
-	 * @return a tumbling window on event-time
-	 */
-	public SlideWithSizeAndSlideOnTime on(Expression timeField) {
-		return new SlideWithSizeAndSlideOnTime(timeField, size, slide);
-	}
+    /**
+     * Specifies the time attribute on which rows are grouped.
+     *
+     * <p>For streaming tables you can specify grouping by a event-time or processing-time
+     * attribute.
+     *
+     * <p>For batch tables you can specify grouping on a timestamp or long attribute.
+     *
+     * @param timeField time attribute for streaming and batch tables
+     * @return a tumbling window on event-time
+     * @deprecated use {@link #on(Expression)}
+     */
+    @Deprecated
+    public SlideWithSizeAndSlideOnTime on(String timeField) {
+        return on(ExpressionParser.parseExpression(timeField));
+    }
+
+    /**
+     * Specifies the time attribute on which rows are grouped.
+     *
+     * <p>For streaming tables you can specify grouping by a event-time or processing-time
+     * attribute.
+     *
+     * <p>For batch tables you can specify grouping on a timestamp or long attribute.
+     *
+     * @param timeField time attribute for streaming and batch tables
+     * @return a tumbling window on event-time
+     */
+    public SlideWithSizeAndSlideOnTime on(Expression timeField) {
+        return new SlideWithSizeAndSlideOnTime(timeField, size, slide);
+    }
 }

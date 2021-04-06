@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -36,43 +37,50 @@ import java.util.Collection;
 /**
  * An abstract base implementation of the {@link StateBackend} interface.
  *
- * <p>This class has currently no contents and only kept to not break the prior class hierarchy for users.
+ * <p>This class has currently no contents and only kept to not break the prior class hierarchy for
+ * users.
  */
 @PublicEvolving
 public abstract class AbstractStateBackend implements StateBackend, java.io.Serializable {
 
-	private static final long serialVersionUID = 4620415814639230247L;
+    private static final long serialVersionUID = 4620415814639230247L;
 
-	public static StreamCompressionDecorator getCompressionDecorator(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
-		}
-	}
+    public static StreamCompressionDecorator getCompressionDecorator(
+            ExecutionConfig executionConfig) {
+        if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
+            return SnappyStreamCompressionDecorator.INSTANCE;
+        } else {
+            return UncompressedStreamCompressionDecorator.INSTANCE;
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  State Backend - State-Holding Backends
-	// ------------------------------------------------------------------------
+    protected LatencyTrackingStateConfig.Builder latencyTrackingConfigBuilder =
+            LatencyTrackingStateConfig.newBuilder();
 
-	@Override
-	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-		Environment env,
-		JobID jobID,
-		String operatorIdentifier,
-		TypeSerializer<K> keySerializer,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
-		TaskKvStateRegistry kvStateRegistry,
-		TtlTimeProvider ttlTimeProvider,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry) throws IOException;
+    // ------------------------------------------------------------------------
+    //  State Backend - State-Holding Backends
+    // ------------------------------------------------------------------------
 
-	@Override
-	public abstract OperatorStateBackend createOperatorStateBackend(
-		Environment env,
-		String operatorIdentifier,
-		@Nonnull Collection<OperatorStateHandle> stateHandles,
-		CloseableRegistry cancelStreamRegistry) throws Exception;
+    @Override
+    public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws IOException;
+
+    @Override
+    public abstract OperatorStateBackend createOperatorStateBackend(
+            Environment env,
+            String operatorIdentifier,
+            @Nonnull Collection<OperatorStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws Exception;
 }

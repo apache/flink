@@ -28,27 +28,21 @@ import java.io.IOException;
  * A service to retrieve permanent binary large objects (BLOBs).
  *
  * <p>These may include per-job BLOBs that are covered by high-availability (HA) mode, e.g. a job's
- * JAR files or (parts of) an off-loaded {@link org.apache.flink.runtime.deployment.TaskDeploymentDescriptor}
- * or files in the {@link org.apache.flink.api.common.cache.DistributedCache}.
+ * JAR files or (parts of) an off-loaded {@link
+ * org.apache.flink.runtime.deployment.TaskDeploymentDescriptor} or files in the {@link
+ * org.apache.flink.api.common.cache.DistributedCache}.
  */
 public interface PermanentBlobService extends Closeable {
 
-	/**
-	 * Returns the path to a local copy of the file associated with the provided job ID and blob
-	 * key.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 * @param key
-	 * 		BLOB key associated with the requested file
-	 *
-	 * @return The path to the file.
-	 *
-	 * @throws java.io.FileNotFoundException
-	 * 		if the BLOB does not exist;
-	 * @throws IOException
-	 * 		if any other error occurs when retrieving the file
-	 */
-	File getFile(JobID jobId, PermanentBlobKey key) throws IOException;
-
+    /**
+     * Returns the path to a local copy of the file associated with the provided job ID and blob
+     * key.
+     *
+     * @param jobId ID of the job this blob belongs to
+     * @param key BLOB key associated with the requested file
+     * @return The path to the file.
+     * @throws java.io.FileNotFoundException if the BLOB does not exist;
+     * @throws IOException if any other error occurs when retrieving the file
+     */
+    File getFile(JobID jobId, PermanentBlobKey key) throws IOException;
 }

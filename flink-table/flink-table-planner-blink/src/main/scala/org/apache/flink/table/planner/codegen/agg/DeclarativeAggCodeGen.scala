@@ -235,7 +235,7 @@ class DeclarativeAggCodeGen(
         val constantIndex = inputIndex - inputTypes.length
         val constant = constants(constantIndex)
         new RexNodeExpression(constant,
-          fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(constant.getType)))
+          fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(constant.getType)), null, null)
       } else { // it is a input field
         if (isDistinctMerge) { // this is called from distinct merge
           if (function.operandCount == 1) {
@@ -243,7 +243,7 @@ class DeclarativeAggCodeGen(
             val t = argTypes(localIndex)
             toRexDistinctKey(relBuilder, name, t)
           } else {
-            // the distinct key is a BaseRow
+            // the distinct key is a RowData
             toRexInputRef(relBuilder, localIndex, argTypes(localIndex))
           }
         } else {

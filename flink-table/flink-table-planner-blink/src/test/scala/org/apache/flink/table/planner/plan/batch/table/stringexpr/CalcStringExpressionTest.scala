@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.Types._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.CollectionBatchExecTable.CustomType
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -177,7 +176,7 @@ class CalcStringExpressionTest extends TableTestBase {
   def testFilterOnCustomType(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[CustomType]("Table3",'myInt, 'myLong, 'myString)
-      .as('i, 'l, 's)
+      .as("i", "l", "s")
 
     val t1 = t.filter( 's.like("%a%") )
     val t2 = t.filter("s.like('%a%')")

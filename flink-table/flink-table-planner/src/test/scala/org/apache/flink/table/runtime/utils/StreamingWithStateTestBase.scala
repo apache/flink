@@ -19,11 +19,16 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.AbstractTestBase
+
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 
 class StreamingWithStateTestBase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val expectedException = ExpectedException.none()
 

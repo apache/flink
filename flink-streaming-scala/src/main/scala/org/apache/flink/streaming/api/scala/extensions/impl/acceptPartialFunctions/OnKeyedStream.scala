@@ -40,16 +40,4 @@ class OnKeyedStream[T, K](stream: KeyedStream[T, K]) {
   @PublicEvolving
   def reduceWith(fun: (T, T) => T): DataStream[T] =
     stream.reduce(fun)
-
-  /**
-    * Folds the stream over a zero element with a reducer `fun`
-    *
-    * @param initialValue The zero element
-    * @param fun The reducing function to be applied on the keyed stream
-    * @return A data set of Rs
-    */
-  @PublicEvolving
-  def foldWith[R: TypeInformation](initialValue: R)(fun: (R, T) => R): DataStream[R] =
-    stream.fold(initialValue)(fun)
-
 }

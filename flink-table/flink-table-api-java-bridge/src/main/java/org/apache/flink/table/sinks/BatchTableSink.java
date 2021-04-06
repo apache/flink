@@ -18,18 +18,23 @@
 
 package org.apache.flink.table.sinks;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.table.api.Table;
 
-/** Defines an external {@link TableSink} to emit a batch {@link Table}.
+/**
+ * Defines an external {@link TableSink} to emit a batch {@link Table}.
  *
  * @param <T> Type of {@link DataSet} that this {@link TableSink} expects and supports.
- *
  * @deprecated use {@link OutputFormatTableSink} instead.
  */
 @Deprecated
 public interface BatchTableSink<T> extends TableSink<T> {
 
-	/** Emits the DataSet. */
-	void emitDataSet(DataSet<T> dataSet);
+    /**
+     * Consumes the DataSet and return the {@link DataSink}. The returned {@link DataSink} will be
+     * used to generate {@link Plan}.
+     */
+    DataSink<?> consumeDataSet(DataSet<T> dataSet);
 }

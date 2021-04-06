@@ -22,43 +22,39 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import javax.annotation.Nullable;
 
-/**
- * Utility routines to process {@link ByteBuf}.
- */
+/** Utility routines to process {@link ByteBuf}. */
 public class ByteBufUtils {
 
-	/**
-	 * Accumulates data from <tt>source</tt> to <tt>target</tt>. If no data has been
-	 * accumulated yet and <tt>source</tt> has enough data, <tt>source</tt> will be
-	 * returned directly. Otherwise, data will be copied into <tt>target</tt>. If the
-	 * size of data copied after this operation has reached <tt>targetAccumulationSize</tt>,
-	 * <tt>target</tt> will be returned, otherwise <tt>null</tt> will be returned to indicate
-	 * more data is required.
-	 *
-	 * @param target The target buffer.
-	 * @param source The source buffer.
-	 * @param targetAccumulationSize The target size of data to accumulate.
-	 * @param accumulatedSize The size of data accumulated so far.
-	 *
-	 * @return The ByteBuf containing accumulated data. If not enough data has been accumulated,
-	 * 		<tt>null</tt> will be returned.
-	 */
-	@Nullable
-	public static ByteBuf accumulate(ByteBuf target, ByteBuf source, int targetAccumulationSize, int accumulatedSize) {
-		if (accumulatedSize == 0 && source.readableBytes() >= targetAccumulationSize) {
-			return source;
-		}
+    /**
+     * Accumulates data from <tt>source</tt> to <tt>target</tt>. If no data has been accumulated yet
+     * and <tt>source</tt> has enough data, <tt>source</tt> will be returned directly. Otherwise,
+     * data will be copied into <tt>target</tt>. If the size of data copied after this operation has
+     * reached <tt>targetAccumulationSize</tt>, <tt>target</tt> will be returned, otherwise
+     * <tt>null</tt> will be returned to indicate more data is required.
+     *
+     * @param target The target buffer.
+     * @param source The source buffer.
+     * @param targetAccumulationSize The target size of data to accumulate.
+     * @param accumulatedSize The size of data accumulated so far.
+     * @return The ByteBuf containing accumulated data. If not enough data has been accumulated,
+     *     <tt>null</tt> will be returned.
+     */
+    @Nullable
+    public static ByteBuf accumulate(
+            ByteBuf target, ByteBuf source, int targetAccumulationSize, int accumulatedSize) {
+        if (accumulatedSize == 0 && source.readableBytes() >= targetAccumulationSize) {
+            return source;
+        }
 
-		int copyLength = Math.min(source.readableBytes(), targetAccumulationSize - accumulatedSize);
-		if (copyLength > 0) {
-			target.writeBytes(source, copyLength);
-		}
+        int copyLength = Math.min(source.readableBytes(), targetAccumulationSize - accumulatedSize);
+        if (copyLength > 0) {
+            target.writeBytes(source, copyLength);
+        }
 
-		if (accumulatedSize + copyLength == targetAccumulationSize) {
-			return target;
-		}
+        if (accumulatedSize + copyLength == targetAccumulationSize) {
+            return target;
+        }
 
-		return null;
-	}
-
+        return null;
+    }
 }

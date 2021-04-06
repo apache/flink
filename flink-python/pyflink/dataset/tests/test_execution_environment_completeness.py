@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import unittest
 
 from pyflink.dataset import ExecutionEnvironment
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
 class ExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
-                                            unittest.TestCase):
+                                            PyFlinkTestCase):
 
     @classmethod
     def python_class(cls):

@@ -18,45 +18,51 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
-/**
- * Describes a result to be expected from a table program.
- */
+/** Describes a result to be expected from a table program. */
 public class ResultDescriptor {
 
-	private final String resultId;
+    private final String resultId;
 
-	private final TableSchema resultSchema;
+    private final ResolvedSchema resultSchema;
 
-	private final boolean isMaterialized;
+    private final boolean isMaterialized;
 
-	private final boolean isTableauMode;
+    private final boolean isTableauMode;
 
-	public ResultDescriptor(
-			String resultId,
-			TableSchema resultSchema,
-			boolean isMaterialized,
-			boolean isTableauMode) {
-		this.resultId = resultId;
-		this.resultSchema = resultSchema;
-		this.isMaterialized = isMaterialized;
-		this.isTableauMode = isTableauMode;
-	}
+    private final boolean isStreamingMode;
 
-	public String getResultId() {
-		return resultId;
-	}
+    public ResultDescriptor(
+            String resultId,
+            ResolvedSchema resultSchema,
+            boolean isMaterialized,
+            boolean isTableauMode,
+            boolean isStreamingMode) {
+        this.resultId = resultId;
+        this.resultSchema = resultSchema;
+        this.isMaterialized = isMaterialized;
+        this.isTableauMode = isTableauMode;
+        this.isStreamingMode = isStreamingMode;
+    }
 
-	public TableSchema getResultSchema() {
-		return resultSchema;
-	}
+    public String getResultId() {
+        return resultId;
+    }
 
-	public boolean isMaterialized() {
-		return isMaterialized;
-	}
+    public ResolvedSchema getResultSchema() {
+        return resultSchema;
+    }
 
-	public boolean isTableauMode() {
-		return isTableauMode;
-	}
+    public boolean isMaterialized() {
+        return isMaterialized;
+    }
+
+    public boolean isTableauMode() {
+        return isTableauMode;
+    }
+
+    public boolean isStreamingMode() {
+        return isStreamingMode;
+    }
 }

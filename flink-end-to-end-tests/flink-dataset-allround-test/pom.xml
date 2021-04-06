@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-dataset-allround-test</artifactId>
-	<name>flink-dataset-allround-test</name>
+	<name>Flink : E2E Tests : Dataset allround</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

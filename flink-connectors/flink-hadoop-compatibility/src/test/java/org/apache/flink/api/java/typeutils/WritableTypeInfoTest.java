@@ -26,38 +26,35 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-/**
- * Test for {@link WritableTypeInfo}.
- */
+/** Test for {@link WritableTypeInfo}. */
 public class WritableTypeInfoTest extends TypeInformationTestBase<WritableTypeInfo<?>> {
 
-	@Override
-	protected WritableTypeInfo<?>[] getTestData() {
-		return new WritableTypeInfo<?>[] {
-			new WritableTypeInfo<>(TestClass.class),
-			new WritableTypeInfo<>(AlternateClass.class)
-		};
-	}
+    @Override
+    protected WritableTypeInfo<?>[] getTestData() {
+        return new WritableTypeInfo<?>[] {
+            new WritableTypeInfo<>(TestClass.class), new WritableTypeInfo<>(AlternateClass.class)
+        };
+    }
 
-	// ------------------------------------------------------------------------
-	//  test types
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test types
+    // ------------------------------------------------------------------------
 
-	private static class TestClass implements Writable {
+    private static class TestClass implements Writable {
 
-		@Override
-		public void write(DataOutput dataOutput) throws IOException {}
+        @Override
+        public void write(DataOutput dataOutput) throws IOException {}
 
-		@Override
-		public void readFields(DataInput dataInput) throws IOException {}
-	}
+        @Override
+        public void readFields(DataInput dataInput) throws IOException {}
+    }
 
-	private static class AlternateClass implements Writable {
+    private static class AlternateClass implements Writable {
 
-		@Override
-		public void write(DataOutput dataOutput) throws IOException {}
+        @Override
+        public void write(DataOutput dataOutput) throws IOException {}
 
-		@Override
-		public void readFields(DataInput dataInput) throws IOException {}
-	}
+        @Override
+        public void readFields(DataInput dataInput) throws IOException {}
+    }
 }

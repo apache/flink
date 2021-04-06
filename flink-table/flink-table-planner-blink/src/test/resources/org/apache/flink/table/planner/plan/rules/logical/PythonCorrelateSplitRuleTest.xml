@@ -16,11 +16,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testJavaTableFunctionWithPythonCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, x FROM MyTable, LATERAL TABLE(javaFunc(pyFunc(c))) AS T(x)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableFunctionScan(invocation=[javaFunc(pyFunc($cor0.c))], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, f00 AS f0])
++- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- FlinkLogicalCalc(select=[a, b, c, pyFunc(f0) AS f0])
+   :  +- FlinkLogicalCalc(select=[a, b, c, $cor0.c AS f0])
+   :     +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalTableFunctionScan(invocation=[javaFunc($3)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPythonTableFunctionWithJavaFunc">
     <Resource name="sql">
       <![CDATA[SELECT a, b, c, x, y FROM MyTable, LATERAL TABLE(func(a * a, pyFunc(b, c))) AS T(x, y)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
@@ -28,13 +51,58 @@ LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4])
    +- LogicalTableFunctionScan(invocation=[func(*($cor0.a, $cor0.a), pyFunc($cor0.b, $cor0.c))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, c, f00 AS f0, f1])
+FlinkLogicalCalc(select=[a, b, c, f00 AS f0, f10 AS f1])
 +- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
-   :- FlinkLogicalCalc(select=[a, b, c, *($cor0.a, $cor0.a) AS f0])
-   :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-   +- FlinkLogicalTableFunctionScan(invocation=[func($3, pyFunc($cor0.b, $cor0.c))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+   :- FlinkLogicalCalc(select=[a, b, c, *($cor0.a, $cor0.a) AS f0, $cor0.b AS f1, $cor0.c AS f2])
+   :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- FlinkLogicalTableFunctionScan(invocation=[func($3, pyFunc($4, $5))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJavaTableFunctionWithPythonCalcCompositeInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, x FROM MyTable, LATERAL TABLE(javaFunc(pyFunc(d._1))) AS T(x)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+   +- LogicalTableFunctionScan(invocation=[javaFunc(pyFunc($cor0.d._1))], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, f00 AS x])
++- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- FlinkLogicalCalc(select=[a, b, c, d, pyFunc(f0) AS f0])
+   :  +- FlinkLogicalCalc(select=[a, b, c, d, $cor0.d._1 AS f0])
+   :     +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- FlinkLogicalTableFunctionScan(invocation=[javaFunc($4)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonTableFunctionWithCompositeInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c, x, y FROM MyTable, LATERAL TABLE(func(d._1 * a, pyFunc(d._2, c))) AS T(x, y)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4], y=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+   +- LogicalTableFunctionScan(invocation=[func(*($cor0.d._1, $cor0.a), pyFunc($cor0.d._2, $cor0.c))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, f00 AS x, f10 AS y])
++- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
+   :- FlinkLogicalCalc(select=[a, b, c, d, *($cor0.d._1, $cor0.a) AS f0, $cor0.d._2 AS f1, $cor0.c AS f2])
+   :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+   +- FlinkLogicalTableFunctionScan(invocation=[func($4, pyFunc($5, $6))], rowType=[RecordType(INTEGER f0, INTEGER f1)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
   </TestCase>

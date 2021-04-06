@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.api.batch.sql.validation
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestBase
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class OverWindowValidationTest extends TableTestBase {
 

@@ -1,0 +1,153 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCumulate_DistinctSplitEnabled">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+   a,
+   window_start,
+   window_end,
+   count(*),
+   sum(d),
+   max(d) filter (where b > 1000),
+   count(distinct c) AS uv
+FROM TABLE(
+  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+GROUP BY a, window_start, window_end
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[MAX($3) FILTER $4], uv=[COUNT(DISTINCT $5)])
++- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], d=[$3], $f4=[IS TRUE(>($1, 1000))], c=[$2])
+   +- LogicalTableFunctionScan(invocation=[CUMULATE($6, DESCRIPTOR($5), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIME ATTRIBUTE(ROWTIME) rowtime, TIME ATTRIBUTE(PROCTIME) proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIME ATTRIBUTE(ROWTIME) window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
++- WindowAggregate(groupBy=[a], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, $SUM0($f5) AS $f1, SUM($f6_0) AS $f2, MAX($f7_0) AS $f3, $SUM0($f8) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
+         +- WindowAggregate(groupBy=[a, $f6, $f7], window=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], select=[a, $f6, $f7, COUNT(*) FILTER $g_3 AS $f3, SUM(d) FILTER $g_3 AS $f4, MAX(d) FILTER $g_1 AS $f5, COUNT(DISTINCT c) FILTER $g_2 AS $f6_0, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a, $f6, $f7]])
+               +- Calc(select=[a, window_start, window_end, d, $f4, c, $f6, $f7, =($e, 3) AS $g_3, AND(=($e, 1), $f4) AS $g_1, =($e, 2) AS $g_2])
+                  +- WindowTableFunction(window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])])
+                     +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
+                        +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
+                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumble_DistinctSplitEnabled">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+   a,
+   window_start,
+   window_end,
+   count(*),
+   sum(d),
+   max(d) filter (where b > 1000),
+   count(distinct c) AS uv
+FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+GROUP BY a, window_start, window_end
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[MAX($3) FILTER $4], uv=[COUNT(DISTINCT $5)])
++- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], d=[$3], $f4=[IS TRUE(>($1, 1000))], c=[$2])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE($6, DESCRIPTOR($5), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIME ATTRIBUTE(ROWTIME) rowtime, TIME ATTRIBUTE(PROCTIME) proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIME ATTRIBUTE(ROWTIME) window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
++- WindowAggregate(groupBy=[a], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, $SUM0($f5) AS $f1, SUM($f6_0) AS $f2, MAX($f7_0) AS $f3, $SUM0($f8) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
+         +- WindowAggregate(groupBy=[a, $f6, $f7], window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], select=[a, $f6, $f7, COUNT(*) FILTER $g_3 AS $f3, SUM(d) FILTER $g_3 AS $f4, MAX(d) FILTER $g_1 AS $f5, COUNT(DISTINCT c) FILTER $g_2 AS $f6_0, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a, $f6, $f7]])
+               +- Calc(select=[a, window_start, window_end, d, $f4, c, $f6, $f7, =($e, 3) AS $g_3, AND(=($e, 1), $f4) AS $g_1, =($e, 2) AS $g_2])
+                  +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])])
+                     +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
+                        +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
+                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHop_DistinctSplitEnabled">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+   a,
+   window_start,
+   window_end,
+   count(*),
+   sum(d),
+   max(d) filter (where b > 1000),
+   count(distinct c) AS uv
+FROM TABLE(
+   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+GROUP BY a, window_start, window_end
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()], EXPR$4=[SUM($3)], EXPR$5=[MAX($3) FILTER $4], uv=[COUNT(DISTINCT $5)])
++- LogicalProject(a=[$0], window_start=[$7], window_end=[$8], d=[$3], $f4=[IS TRUE(>($1, 1000))], c=[$2])
+   +- LogicalTableFunctionScan(invocation=[HOP($6, DESCRIPTOR($5), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, BIGINT e, TIME ATTRIBUTE(ROWTIME) rowtime, TIME ATTRIBUTE(PROCTIME) proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIME ATTRIBUTE(ROWTIME) window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[$6])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], rowtime=[$5], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, window_start, window_end, $f1 AS $f3, $f2 AS $f4, $f3 AS $f5, $f4 AS $f6])
++- WindowAggregate(groupBy=[a], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, $SUM0($f5) AS $f1, SUM($f6_0) AS $f2, MAX($f7_0) AS $f3, $SUM0($f8) AS $f4, start('w$) AS window_start, end('w$) AS window_end])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, window_start, window_end, $f6, $f7, $f3 AS $f5, $f4 AS $f6_0, $f5 AS $f7_0, $f6_0 AS $f8])
+         +- WindowAggregate(groupBy=[a, $f6, $f7], window=[HOP(win_start=[window_start], win_end=[window_end], size=[10 min], slide=[5 min])], select=[a, $f6, $f7, COUNT(*) FILTER $g_3 AS $f3, SUM(d) FILTER $g_3 AS $f4, MAX(d) FILTER $g_1 AS $f5, COUNT(DISTINCT c) FILTER $g_2 AS $f6_0, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a, $f6, $f7]])
+               +- Calc(select=[a, window_start, window_end, d, $f4, c, $f6, $f7, =($e, 3) AS $g_3, AND(=($e, 1), $f4) AS $g_1, =($e, 2) AS $g_2])
+                  +- WindowTableFunction(window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])])
+                     +- Expand(projects=[{a, d, $f4, c, $f6, null AS $f7, 1 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, $f7, 2 AS $e, rowtime}, {a, d, $f4, c, null AS $f6, null AS $f7, 3 AS $e, rowtime}])
+                        +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, MOD(HASH_CODE(d), 1024) AS $f6, MOD(HASH_CODE(c), 1024) AS $f7, rowtime])
+                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                              +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

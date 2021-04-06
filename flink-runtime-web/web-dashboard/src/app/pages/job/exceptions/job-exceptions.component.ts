@@ -18,8 +18,8 @@
 
 import { formatDate } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { JobExceptionItemInterface } from 'interfaces';
-import { distinctUntilChanged, flatMap } from 'rxjs/operators';
+import { ExceptionInfoInterface } from 'interfaces';
+import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
 import { JobService } from 'services';
 
 @Component({
@@ -30,29 +30,44 @@ import { JobService } from 'services';
 })
 export class JobExceptionsComponent implements OnInit {
   rootException = '';
-  listOfException: JobExceptionItemInterface[] = [];
+  listOfException: ExceptionInfoInterface[] = [];
+  truncated = false;
+  isLoading = false;
+  maxExceptions = 0;
+  total = 0;
 
-  trackExceptionBy(_: number, node: JobExceptionItemInterface) {
+  trackExceptionBy(_: number, node: ExceptionInfoInterface) {
     return node.timestamp;
+  }
+  loadMore() {
+    this.isLoading = true;
+    this.maxExceptions += 10;
+    this.jobService.jobDetail$
+      .pipe(
+        distinctUntilChanged((pre, next) => pre.jid === next.jid),
+        flatMap(job => this.jobService.loadExceptions(job.jid, this.maxExceptions)),
+        tap(() => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        })
+      )
+      .subscribe(data => {
+        // @ts-ignore
+        var exceptionHistory = data.exceptionHistory
+        if (exceptionHistory.entries.length > 0) {
+          var mostRecentException = exceptionHistory.entries[0]
+          this.rootException = formatDate(mostRecentException.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + mostRecentException.stacktrace;
+        } else {
+          this.rootException = 'No Root Exception';
+        }
+        this.truncated = exceptionHistory.truncated;
+        this.listOfException = exceptionHistory.entries;
+      });
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.jobService.jobDetail$
-      .pipe(
-        distinctUntilChanged((pre, next) => pre.jid === next.jid),
-        flatMap(job => this.jobService.loadExceptions(job.jid))
-      )
-      .subscribe(data => {
-        // @ts-ignore
-        if (data['root-exception']) {
-          this.rootException = formatDate(data.timestamp, 'yyyy-MM-dd HH:mm:ss', 'en') + '\n' + data['root-exception'];
-        } else {
-          this.rootException = 'No Root Exception';
-        }
-        this.listOfException = data['all-exceptions'];
-        this.cdr.markForCheck();
-      });
+    this.loadMore();
   }
 }

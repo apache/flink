@@ -24,7 +24,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
@@ -66,14 +65,12 @@ class DataStreamCalc(
       ruleDescription)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     val config = planner.getConfig
 
     val inputDataStream =
-      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner)
 
     // materialize time attributes in condition
     val condition = if (calcProgram.getCondition != null) {

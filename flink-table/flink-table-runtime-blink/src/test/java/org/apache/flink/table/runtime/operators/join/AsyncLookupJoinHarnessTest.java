@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -30,10 +27,14 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.runtime.collector.TableFunctionCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
@@ -42,11 +43,11 @@ import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunne
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -63,287 +64,328 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
-import static org.apache.flink.table.dataformat.BinaryString.fromString;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.data.StringData.fromString;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
-/**
- * Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}.
- */
+/** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
 public class AsyncLookupJoinHarnessTest {
 
-	private static final int ASYNC_BUFFER_CAPACITY = 100;
-	private static final int ASYNC_TIMEOUT_MS = 3000;
+    private static final int ASYNC_BUFFER_CAPACITY = 100;
+    private static final int ASYNC_TIMEOUT_MS = 3000;
 
-	private final TypeSerializer<BaseRow> inSerializer = new BaseRowSerializer(
-		new ExecutionConfig(),
-		new IntType(),
-		new VarCharType(VarCharType.MAX_LENGTH));
+    private final TypeSerializer<RowData> inSerializer =
+            new RowDataSerializer(
+                    DataTypes.INT().getLogicalType(), DataTypes.STRING().getLogicalType());
 
-	private final BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(new TypeInformation[]{
-		Types.INT,
-		Types.STRING,
-		Types.INT,
-		Types.STRING
-	});
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new LogicalType[] {
+                        DataTypes.INT().getLogicalType(),
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.INT().getLogicalType(),
+                        DataTypes.STRING().getLogicalType()
+                    });
 
-	private BaseRowTypeInfo rightRowTypeInfo = new BaseRowTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
-	private TypeInformation<?> fetcherReturnType = rightRowTypeInfo;
+    private final DataType rightRowDataType =
+            DataTypes.ROW(
+                            DataTypes.FIELD("f0", DataTypes.INT()),
+                            DataTypes.FIELD("f1", DataTypes.STRING()))
+                    .bridgedTo(RowData.class);
 
-	@Test
-	public void testTemporalInnerAsyncJoin() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createHarness(
-			JoinType.INNER_JOIN,
-			FilterOnTable.WITHOUT_FILTER);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private final DataStructureConverter<RowData, Object> fetcherConverter =
+            (DataStructureConverter) DataStructureConverters.getConverter(rightRowDataType);
 
-		testHarness.open();
+    private final RowDataSerializer rightRowSerializer =
+            (RowDataSerializer)
+                    InternalSerializers.<RowData>create(rightRowDataType.getLogicalType());
 
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
-		}
+    @Test
+    public void testTemporalInnerAsyncJoin() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER);
 
-		// wait until all async collectors in the buffer have been emitted out.
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.endInput();
-			testHarness.close();
-		}
+        testHarness.open();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(3, "c", 3, "Jark"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(insertRecord(1, "a"));
+            testHarness.processElement(insertRecord(2, "b"));
+            testHarness.processElement(insertRecord(3, "c"));
+            testHarness.processElement(insertRecord(4, "d"));
+            testHarness.processElement(insertRecord(5, "e"));
+        }
 
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        // wait until all async collectors in the buffer have been emitted out.
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
 
-	@Test
-	public void testTemporalInnerAsyncJoinWithFilter() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createHarness(
-			JoinType.INNER_JOIN,
-			FilterOnTable.WITH_FILTER);
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
-		testHarness.open();
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
-		}
+    @Test
+    public void testTemporalInnerAsyncJoinWithFilter() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER);
 
-		// wait until all async collectors in the buffer have been emitted out.
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.endInput();
-			testHarness.close();
-		}
+        testHarness.open();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(insertRecord(1, "a"));
+            testHarness.processElement(insertRecord(2, "b"));
+            testHarness.processElement(insertRecord(3, "c"));
+            testHarness.processElement(insertRecord(4, "d"));
+            testHarness.processElement(insertRecord(5, "e"));
+        }
 
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        // wait until all async collectors in the buffer have been emitted out.
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
 
-	@Test
-	public void testTemporalLeftAsyncJoin() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createHarness(
-			JoinType.LEFT_JOIN,
-			FilterOnTable.WITHOUT_FILTER);
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
-		testHarness.open();
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
-		}
+    @Test
+    public void testTemporalLeftAsyncJoin() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER);
 
-		// wait until all async collectors in the buffer have been emitted out.
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.endInput();
-			testHarness.close();
-		}
+        testHarness.open();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(2, "b", null, null));
-		expectedOutput.add(record(3, "c", 3, "Jark"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
-		expectedOutput.add(record(5, "e", null, null));
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(insertRecord(1, "a"));
+            testHarness.processElement(insertRecord(2, "b"));
+            testHarness.processElement(insertRecord(3, "c"));
+            testHarness.processElement(insertRecord(4, "d"));
+            testHarness.processElement(insertRecord(5, "e"));
+        }
 
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        // wait until all async collectors in the buffer have been emitted out.
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
 
-	@Test
-	public void testTemporalLeftAsyncJoinWithFilter() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createHarness(
-			JoinType.LEFT_JOIN,
-			FilterOnTable.WITH_FILTER);
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
+        expectedOutput.add(insertRecord(5, "e", null, null));
 
-		testHarness.open();
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
-		}
+    @Test
+    public void testTemporalLeftAsyncJoinWithFilter() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER);
 
-		// wait until all async collectors in the buffer have been emitted out.
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.endInput();
-			testHarness.close();
-		}
+        testHarness.open();
 
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(2, "b", null, null));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
-		expectedOutput.add(record(5, "e", null, null));
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(insertRecord(1, "a"));
+            testHarness.processElement(insertRecord(2, "b"));
+            testHarness.processElement(insertRecord(3, "c"));
+            testHarness.processElement(insertRecord(4, "d"));
+            testHarness.processElement(insertRecord(5, "e"));
+        }
 
-		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
-	}
+        // wait until all async collectors in the buffer have been emitted out.
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
 
-	// ---------------------------------------------------------------------------------
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
+        expectedOutput.add(insertRecord(5, "e", null, null));
 
-	@SuppressWarnings("unchecked")
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createHarness(
-			JoinType joinType,
-			FilterOnTable filterOnTable) throws Exception {
-		RichAsyncFunction<BaseRow, BaseRow> joinRunner;
-		boolean isLeftJoin = joinType == JoinType.LEFT_JOIN;
-		if (filterOnTable == FilterOnTable.WITHOUT_FILTER) {
-			joinRunner = new AsyncLookupJoinRunner(
-				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
-				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-				fetcherReturnType,
-				rightRowTypeInfo,
-				isLeftJoin,
-				ASYNC_BUFFER_CAPACITY);
-		} else {
-			joinRunner = new AsyncLookupJoinWithCalcRunner(
-				new GeneratedFunctionWrapper(new TestingFetcherFunction()),
-				new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
-				new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-				fetcherReturnType,
-				rightRowTypeInfo,
-				isLeftJoin,
-				ASYNC_BUFFER_CAPACITY);
-		}
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+    }
 
-		return new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperatorFactory<>(
-				joinRunner,
-				ASYNC_TIMEOUT_MS,
-				ASYNC_BUFFER_CAPACITY,
-				AsyncDataStream.OutputMode.ORDERED),
-			inSerializer);
-	}
+    // ---------------------------------------------------------------------------------
 
-	/**
-	 * Whether this is a inner join or left join.
-	 */
-	private enum JoinType {
-		INNER_JOIN,
-		LEFT_JOIN
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
+            JoinType joinType, FilterOnTable filterOnTable) throws Exception {
+        RichAsyncFunction<RowData, RowData> joinRunner;
+        boolean isLeftJoin = joinType == JoinType.LEFT_JOIN;
+        if (filterOnTable == FilterOnTable.WITHOUT_FILTER) {
+            joinRunner =
+                    new AsyncLookupJoinRunner(
+                            new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+                            fetcherConverter,
+                            new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            rightRowSerializer,
+                            isLeftJoin,
+                            ASYNC_BUFFER_CAPACITY);
+        } else {
+            joinRunner =
+                    new AsyncLookupJoinWithCalcRunner(
+                            new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+                            fetcherConverter,
+                            new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
+                            new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            rightRowSerializer,
+                            isLeftJoin,
+                            ASYNC_BUFFER_CAPACITY);
+        }
 
-	/**
-	 * Whether there is a filter on temporal table.
-	 */
-	private enum FilterOnTable {
-		WITH_FILTER,
-		WITHOUT_FILTER
-	}
+        return new OneInputStreamOperatorTestHarness<>(
+                new AsyncWaitOperatorFactory<>(
+                        joinRunner,
+                        ASYNC_TIMEOUT_MS,
+                        ASYNC_BUFFER_CAPACITY,
+                        AsyncDataStream.OutputMode.ORDERED),
+                inSerializer);
+    }
 
-	// ---------------------------------------------------------------------------------
+    @Test
+    public void testCloseAsyncLookupJoinRunner() throws Exception {
+        final AsyncLookupJoinRunner joinRunner =
+                new AsyncLookupJoinRunner(
+                        new GeneratedFunctionWrapper(new TestingFetcherFunction()),
+                        fetcherConverter,
+                        new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                        rightRowSerializer,
+                        true,
+                        100);
+        assertNull(joinRunner.getAllResultFutures());
+        closeAsyncLookupJoinRunner(joinRunner);
 
-	/**
-	 * The {@link TestingFetcherFunction} only accepts a single integer lookup key and
-	 * returns zero or one or more BaseRows.
-	 */
-	public static final class TestingFetcherFunction
-			extends AbstractRichFunction
-			implements AsyncFunction<BaseRow, BaseRow> {
+        joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        joinRunner.open(new Configuration());
+        assertNotNull(joinRunner.getAllResultFutures());
+        closeAsyncLookupJoinRunner(joinRunner);
 
-		private static final long serialVersionUID = 4018474964018227081L;
+        joinRunner.open(new Configuration());
+        joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
+        assertNotNull(joinRunner.getAllResultFutures());
+        closeAsyncLookupJoinRunner(joinRunner);
+    }
 
-		private static final Map<Integer, List<BaseRow>> data = new HashMap<>();
+    private void closeAsyncLookupJoinRunner(AsyncLookupJoinRunner joinRunner) throws Exception {
+        try {
+            joinRunner.close();
+        } catch (NullPointerException e) {
+            fail("Unexpected close to fail with null pointer exception.");
+        }
+    }
 
-		static {
-			data.put(1, Collections.singletonList(
-				GenericRow.of(1, fromString("Julian"))));
-			data.put(3, Arrays.asList(
-				GenericRow.of(3, fromString("Jark")),
-				GenericRow.of(3, fromString("Jackson"))));
-			data.put(4, Collections.singletonList(
-				GenericRow.of(4, fromString("Fabian"))));
-		}
+    /** Whether this is a inner join or left join. */
+    private enum JoinType {
+        INNER_JOIN,
+        LEFT_JOIN
+    }
 
-		private transient ExecutorService executor;
+    /** Whether there is a filter on temporal table. */
+    private enum FilterOnTable {
+        WITH_FILTER,
+        WITHOUT_FILTER
+    }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			this.executor = Executors.newSingleThreadExecutor();
-		}
+    // ---------------------------------------------------------------------------------
 
-		@Override
-		public void asyncInvoke(BaseRow input, ResultFuture<BaseRow> resultFuture) throws Exception {
-			int id = input.getInt(0);
-			CompletableFuture
-				.supplyAsync((Supplier<Collection<BaseRow>>) () -> data.get(id), executor)
-				.thenAcceptAsync(resultFuture::complete, executor);
-		}
+    /**
+     * The {@link TestingFetcherFunction} only accepts a single integer lookup key and returns zero
+     * or one or more RowData.
+     */
+    public static final class TestingFetcherFunction extends AbstractRichFunction
+            implements AsyncFunction<RowData, RowData> {
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			if (null != executor && !executor.isShutdown()) {
-				executor.shutdown();
-			}
-		}
-	}
+        private static final long serialVersionUID = 4018474964018227081L;
 
-	/**
-	 * The {@link TestingFetcherResultFuture} is a simple implementation of
-	 * {@link TableFunctionCollector} which forwards the collected collection.
-	 */
-	public static final class TestingFetcherResultFuture extends TableFunctionResultFuture<BaseRow> {
-		private static final long serialVersionUID = -312754413938303160L;
+        private static final Map<Integer, List<RowData>> data = new HashMap<>();
 
-		@Override
-		public void complete(Collection<BaseRow> result) {
-			//noinspection unchecked
-			getResultFuture().complete((Collection) result);
-		}
-	}
+        static {
+            data.put(1, Collections.singletonList(GenericRowData.of(1, fromString("Julian"))));
+            data.put(
+                    3,
+                    Arrays.asList(
+                            GenericRowData.of(3, fromString("Jark")),
+                            GenericRowData.of(3, fromString("Jackson"))));
+            data.put(4, Collections.singletonList(GenericRowData.of(4, fromString("Fabian"))));
+        }
 
-	/**
-	 * The {@link CalculateOnTemporalTable} is a filter on temporal table which only accepts
-	 * length of name greater than or equal to 6.
-	 */
-	public static final class CalculateOnTemporalTable implements FlatMapFunction<BaseRow, BaseRow> {
+        private transient ExecutorService executor;
 
-		private static final long serialVersionUID = -1860345072157431136L;
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            this.executor = Executors.newSingleThreadExecutor();
+        }
 
-		@Override
-		public void flatMap(BaseRow value, Collector<BaseRow> out) throws Exception {
-			BinaryString name = value.getString(1);
-			if (name.getSizeInBytes() >= 6) {
-				out.collect(value);
-			}
-		}
-	}
+        @Override
+        public void asyncInvoke(RowData input, ResultFuture<RowData> resultFuture)
+                throws Exception {
+            int id = input.getInt(0);
+            CompletableFuture.supplyAsync(
+                            (Supplier<Collection<RowData>>) () -> data.get(id), executor)
+                    .thenAcceptAsync(resultFuture::complete, executor);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            if (null != executor && !executor.isShutdown()) {
+                executor.shutdown();
+            }
+        }
+    }
+
+    /**
+     * The {@link TestingFetcherResultFuture} is a simple implementation of {@link
+     * TableFunctionCollector} which forwards the collected collection.
+     */
+    public static final class TestingFetcherResultFuture
+            extends TableFunctionResultFuture<RowData> {
+        private static final long serialVersionUID = -312754413938303160L;
+
+        @Override
+        public void complete(Collection<RowData> result) {
+            //noinspection unchecked
+            getResultFuture().complete((Collection) result);
+        }
+    }
+
+    /**
+     * The {@link CalculateOnTemporalTable} is a filter on temporal table which only accepts length
+     * of name greater than or equal to 6.
+     */
+    public static final class CalculateOnTemporalTable
+            implements FlatMapFunction<RowData, RowData> {
+
+        private static final long serialVersionUID = -1860345072157431136L;
+
+        @Override
+        public void flatMap(RowData value, Collector<RowData> out) throws Exception {
+            BinaryStringData name = (BinaryStringData) value.getString(1);
+            if (name.getSizeInBytes() >= 6) {
+                out.collect(value);
+            }
+        }
+    }
 }

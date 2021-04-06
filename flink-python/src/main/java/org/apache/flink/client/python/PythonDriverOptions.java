@@ -18,9 +18,6 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.Path;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -29,79 +26,35 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Options for the {@link PythonDriver}.
- */
+/** Options for the {@link PythonDriver}. */
 final class PythonDriverOptions {
 
-	@Nonnull
-	private String entrypointModule;
+    @Nullable private String entryPointModule;
 
-	@Nonnull
-	private List<Path> pythonLibFiles;
+    @Nullable private String entryPointScript;
 
-	@Nonnull
-	private List<String> programArgs;
+    @Nonnull private List<String> programArgs;
 
-	@Nonnull
-	private final List<String> pyFiles;
+    @Nullable
+    String getEntryPointModule() {
+        return entryPointModule;
+    }
 
-	@Nullable
-	private final Tuple2<String, String> pyRequirements;
+    Optional<String> getEntryPointScript() {
+        return Optional.ofNullable(entryPointScript);
+    }
 
-	@Nullable
-	private final String pyExecutable;
+    @Nonnull
+    List<String> getProgramArgs() {
+        return programArgs;
+    }
 
-	@Nonnull
-	private final List<Tuple2<String, String>> pyArchives;
-
-	@Nonnull
-	String getEntrypointModule() {
-		return entrypointModule;
-	}
-
-	@Nonnull
-	List<Path> getPythonLibFiles() {
-		return pythonLibFiles;
-	}
-
-	@Nonnull
-	List<String> getProgramArgs() {
-		return programArgs;
-	}
-
-	@Nonnull
-	List<String> getPyFiles() {
-		return pyFiles;
-	}
-
-	Optional<Tuple2<String, String>> getPyRequirements() {
-		return Optional.ofNullable(pyRequirements);
-	}
-
-	Optional<String> getPyExecutable() {
-		return Optional.ofNullable(pyExecutable);
-	}
-
-	@Nonnull
-	List<Tuple2<String, String>> getPyArchives() {
-		return pyArchives;
-	}
-
-	PythonDriverOptions(
-			String entrypointModule,
-			List<Path> pythonLibFiles,
-			List<String> programArgs,
-			List<String> pyFiles,
-			Tuple2<String, String> pyRequirements,
-			String pyExecutable,
-			List<Tuple2<String, String>> pyArchives) {
-		this.entrypointModule = requireNonNull(entrypointModule, "entrypointModule");
-		this.pythonLibFiles = requireNonNull(pythonLibFiles, "pythonLibFiles");
-		this.programArgs = requireNonNull(programArgs, "programArgs");
-		this.pyFiles = requireNonNull(pyFiles, "pyFiles");
-		this.pyRequirements = pyRequirements;
-		this.pyExecutable = pyExecutable;
-		this.pyArchives = requireNonNull(pyArchives, "pyArchives");
-	}
+    PythonDriverOptions(
+            @Nullable String entryPointModule,
+            @Nullable String entryPointScript,
+            List<String> programArgs) {
+        this.entryPointModule = entryPointModule;
+        this.entryPointScript = entryPointScript;
+        this.programArgs = requireNonNull(programArgs, "programArgs");
+    }
 }

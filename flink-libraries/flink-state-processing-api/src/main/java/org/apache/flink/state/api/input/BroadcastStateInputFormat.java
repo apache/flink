@@ -37,30 +37,32 @@ import java.util.stream.StreamSupport;
 @Internal
 public class BroadcastStateInputFormat<K, V> extends OperatorStateInputFormat<Tuple2<K, V>> {
 
-	private static final long serialVersionUID = -7625225340801402409L;
+    private static final long serialVersionUID = -7625225340801402409L;
 
-	private final MapStateDescriptor<K, V> descriptor;
+    private final MapStateDescriptor<K, V> descriptor;
 
-	/**
-	 * Creates an input format for reading broadcast state from an operator in a savepoint.
-	 *
-	 * @param operatorState The state to be queried.
-	 * @param descriptor The descriptor for this state, providing a name and serializer.
-	 */
-	public BroadcastStateInputFormat(OperatorState operatorState, MapStateDescriptor<K, V> descriptor) {
-		super(operatorState, true);
+    /**
+     * Creates an input format for reading broadcast state from an operator in a savepoint.
+     *
+     * @param operatorState The state to be queried.
+     * @param descriptor The descriptor for this state, providing a name and serializer.
+     */
+    public BroadcastStateInputFormat(
+            OperatorState operatorState, MapStateDescriptor<K, V> descriptor) {
+        super(operatorState, true);
 
-		this.descriptor = Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
-	}
+        this.descriptor =
+                Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
+    }
 
-	@Override
-	protected final Iterable<Tuple2<K, V>> getElements(OperatorStateBackend restoredBackend) throws Exception {
-		Iterable<Map.Entry<K, V>> entries = restoredBackend
-			.getBroadcastState(descriptor)
-			.entries();
+    @Override
+    protected final Iterable<Tuple2<K, V>> getElements(OperatorStateBackend restoredBackend)
+            throws Exception {
+        Iterable<Map.Entry<K, V>> entries = restoredBackend.getBroadcastState(descriptor).entries();
 
-		return () -> StreamSupport.stream(entries.spliterator(), false)
-			.map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
-			.iterator();
-	}
+        return () ->
+                StreamSupport.stream(entries.spliterator(), false)
+                        .map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
+                        .iterator();
+    }
 }

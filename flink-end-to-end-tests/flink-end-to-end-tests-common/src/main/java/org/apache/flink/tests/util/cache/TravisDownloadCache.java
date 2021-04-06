@@ -23,8 +23,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Travis-specific {@link DownloadCache} implementation that caches downloaded files in a configured directory. Cached
- * files that are older than the configured number of builds will be removed.
+ * Travis-specific {@link DownloadCache} implementation that caches downloaded files in a configured
+ * directory. Cached files that are older than the configured number of builds will be removed.
  *
  * @see TravisDownloadCacheFactory
  * @see TravisDownloadCacheFactory#TMP_DIR
@@ -32,47 +32,56 @@ import java.util.regex.Pattern;
  */
 public final class TravisDownloadCache extends AbstractDownloadCache {
 
-	private static final String CACHE_FILE_NAME_DELIMITER = "__";
-	private static final Pattern CACHE_FILE_NAME_PATTERN =
-		Pattern.compile("(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<build>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
+    private static final String CACHE_FILE_NAME_DELIMITER = "__";
+    private static final Pattern CACHE_FILE_NAME_PATTERN =
+            Pattern.compile(
+                    "(?<hash>.*)"
+                            + CACHE_FILE_NAME_DELIMITER
+                            + "(?<build>.*)"
+                            + CACHE_FILE_NAME_DELIMITER
+                            + "(?<name>.*)");
 
-	private final int ttl;
-	private final int buildNumber;
+    private final int ttl;
+    private final int buildNumber;
 
-	public TravisDownloadCache(final Path path, final int ttl, final int buildNumber) {
-		super(path);
-		this.ttl = ttl;
-		this.buildNumber = buildNumber;
-	}
+    public TravisDownloadCache(final Path path, final int ttl, final int buildNumber) {
+        super(path);
+        this.ttl = ttl;
+        this.buildNumber = buildNumber;
+    }
 
-	@Override
-	Matcher createCacheFileMatcher(final String cacheFileName) {
-		return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
-	}
+    @Override
+    Matcher createCacheFileMatcher(final String cacheFileName) {
+        return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
+    }
 
-	@Override
-	String generateCacheFileName(final String url, final String fileName) {
-		final String hash = String.valueOf(url.hashCode());
+    @Override
+    String generateCacheFileName(final String url, final String fileName) {
+        final String hash = String.valueOf(url.hashCode());
 
-		return hash + CACHE_FILE_NAME_DELIMITER + buildNumber + CACHE_FILE_NAME_DELIMITER + fileName;
-	}
+        return hash
+                + CACHE_FILE_NAME_DELIMITER
+                + buildNumber
+                + CACHE_FILE_NAME_DELIMITER
+                + fileName;
+    }
 
-	@Override
-	String regenerateOriginalFileName(final Matcher matcher) {
-		return matcher.group("name");
-	}
+    @Override
+    String regenerateOriginalFileName(final Matcher matcher) {
+        return matcher.group("name");
+    }
 
-	@Override
-	boolean exceedsTimeToLive(final Matcher matcher) {
-		int cachedBuildNumber = Integer.parseInt(matcher.group("build"));
+    @Override
+    boolean exceedsTimeToLive(final Matcher matcher) {
+        int cachedBuildNumber = Integer.parseInt(matcher.group("build"));
 
-		return buildNumber - cachedBuildNumber > ttl;
-	}
+        return buildNumber - cachedBuildNumber > ttl;
+    }
 
-	@Override
-	boolean matchesCachedFile(final Matcher matcher, final String url) {
-		final String hash = matcher.group("hash");
+    @Override
+    boolean matchesCachedFile(final Matcher matcher, final String url) {
+        final String hash = matcher.group("hash");
 
-		return url.hashCode() == Integer.parseInt(hash);
-	}
+        return url.hashCode() == Integer.parseInt(hash);
+    }
 }

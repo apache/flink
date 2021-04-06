@@ -18,36 +18,45 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Module of default core metadata in Flink.
- */
+/** Module of default core metadata in Flink. */
 public class CoreModule implements Module {
-	public static final CoreModule INSTANCE = new CoreModule();
+    public static final CoreModule INSTANCE = new CoreModule();
+    private final List<BuiltInFunctionDefinition> functionDefinitions;
+    private Set<String> functionNames;
 
-	private CoreModule() {
-	}
+    private CoreModule() {
+        this.functionDefinitions = BuiltInFunctionDefinitions.getDefinitions();
+        this.functionNames = new HashSet<>();
+    }
 
-	@Override
-	public Set<String> listFunctions() {
-		return BuiltInFunctionDefinitions.getDefinitions()
-			.stream()
-			.map(f -> f.getName())
-			.collect(Collectors.toSet());
-	}
+    @Override
+    public Set<String> listFunctions() {
+        // lazy initialize
+        if (functionNames.isEmpty()) {
+            functionNames =
+                    functionDefinitions.stream()
+                            .map(BuiltInFunctionDefinition::getName)
+                            .collect(Collectors.toSet());
+        }
+        return functionNames;
+    }
 
-	@Override
-	public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-		return BuiltInFunctionDefinitions.getDefinitions().stream()
-				.filter(f -> f.getName().equalsIgnoreCase(name))
-				.findFirst()
-				.map(Function.identity());
-	}
+    @Override
+    public Optional<FunctionDefinition> getFunctionDefinition(String name) {
+        return functionDefinitions.stream()
+                .filter(f -> f.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .map(Function.identity());
+    }
 }

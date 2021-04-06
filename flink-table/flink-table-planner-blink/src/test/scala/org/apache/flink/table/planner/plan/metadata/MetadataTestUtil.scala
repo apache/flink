@@ -19,13 +19,16 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.catalog.{CatalogTable, CatalogTableImpl, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
@@ -34,6 +37,7 @@ import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.sql.{SqlCall, SqlNode}
 
+import java.util
 import java.util.Collections
 
 import scala.collection.JavaConversions._
@@ -52,6 +56,7 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable1", createTemporalTable1())
     rootSchema.add("TemporalTable2", createTemporalTable2())
     rootSchema.add("TemporalTable3", createTemporalTable3())
+    rootSchema.add("projected_table_source_table", createProjectedTableSourceTable())
     rootSchema
   }
 
@@ -233,6 +238,46 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
+  private def createProjectedTableSourceTable(): Table = {
+    val catalogTable = CatalogTable.fromProperties(
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true",
+        "schema.0.name" -> "a",
+        "schema.0.data-type" -> "BIGINT NOT NULL",
+        "schema.1.name" -> "b",
+        "schema.1.data-type" -> "INT",
+        "schema.2.name" -> "c",
+        "schema.2.data-type" -> "VARCHAR(2147483647)",
+        "schema.3.name" -> "d",
+        "schema.3.data-type" -> "BIGINT NOT NULL",
+        "schema.primary-key.name" -> "PK_1",
+        "schema.primary-key.columns" -> "a,d")
+    )
+
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT()),
+        Column.physical("c", DataTypes.STRING()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")))
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "c", "d"),
+      Seq(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
+
+    new MockTableSourceTable(
+      ObjectIdentifier.of("default_catalog", "default_database", "projected_table_source_table"),
+      rowType,
+      new TestTableSource(),
+      true,
+      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      Array("project=[a, c, d]"))
+  }
+
   private def getMetadataTable(
       tableSchema: TableSchema,
       statistic: FlinkStatistic,
@@ -267,4 +312,44 @@ class MockMetaTable(rowType: RelDataType, statistic: FlinkStatistic)
 
   override def rolledUpColumnValidInsideAgg(column: String,
     call: SqlCall, parent: SqlNode, config: CalciteConnectionConfig): Boolean = false
+}
+
+class TestTableSource extends ScanTableSource {
+  override def getChangelogMode: ChangelogMode = ChangelogMode.insertOnly()
+
+  override def getScanRuntimeProvider(
+      context: ScanTableSource.ScanContext): ScanTableSource.ScanRuntimeProvider = {
+    throw new TableException("Unsupported operation")
+  }
+
+  override def copy = new TestTableSource()
+
+  override def asSummaryString = "test-source"
+}
+
+class MockTableSourceTable(
+    tableIdentifier: ObjectIdentifier,
+    rowType: RelDataType,
+    tableSource: DynamicTableSource,
+    isStreamingMode: Boolean,
+    catalogTable: ResolvedCatalogTable,
+    extraDigests: Array[String] = Array.empty)
+  extends TableSourceTable(
+    null,
+    tableIdentifier,
+    rowType,
+    FlinkStatistic.UNKNOWN,
+    tableSource,
+    isStreamingMode,
+    catalogTable,
+    extraDigests)
+  with Table {
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType
+
+  override def getJdbcTableType: Schema.TableType = TableType.TABLE
+
+  override def isRolledUp(column: String): Boolean = false
+
+  override def rolledUpColumnValidInsideAgg(column: String,
+      call: SqlCall, parent: SqlNode, config: CalciteConnectionConfig): Boolean = false
 }

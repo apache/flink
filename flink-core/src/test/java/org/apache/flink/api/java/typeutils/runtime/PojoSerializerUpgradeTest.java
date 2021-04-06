@@ -25,84 +25,111 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}. */
 @RunWith(Parameterized.class)
 public class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-	public PojoSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-		super(testSpecification);
-	}
+    public PojoSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : migrationVersions) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-identical-schema",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.IdenticalPojoSchemaSetup.class,
-					PojoSerializerUpgradeTestSpecifications.IdenticalPojoSchemaVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-modified-schema",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.ModifiedPojoSchemaSetup.class,
-					PojoSerializerUpgradeTestSpecifications.ModifiedPojoSchemaVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-different-field-types",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.DifferentFieldTypePojoSchemaSetup.class,
-					PojoSerializerUpgradeTestSpecifications.DifferentFieldTypePojoSchemaVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-modified-schema-in-registered-subclass",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.ModifiedRegisteredPojoSubclassSchemaSetup.class,
-					PojoSerializerUpgradeTestSpecifications.ModifiedRegisteredPojoSubclassSchemaVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-different-field-types-in-registered-subclass",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.DifferentFieldTypePojoSubclassSchemaSetup.class,
-					PojoSerializerUpgradeTestSpecifications.DifferentFieldTypePojoSubclassSchemaVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-non-registered-subclass",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.NonRegisteredPojoSubclassSetup.class,
-					PojoSerializerUpgradeTestSpecifications.NonRegisteredPojoSubclassVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-different-subclass-registration-order",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.DifferentPojoSubclassRegistrationOrderSetup.class,
-					PojoSerializerUpgradeTestSpecifications.DifferentPojoSubclassRegistrationOrderVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-missing-registered-subclass",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.MissingRegisteredPojoSubclassSetup.class,
-					PojoSerializerUpgradeTestSpecifications.MissingRegisteredPojoSubclassVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-new-registered-subclass",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.NewRegisteredPojoSubclassSetup.class,
-					PojoSerializerUpgradeTestSpecifications.NewRegisteredPojoSubclassVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"pojo-serializer-with-new-and-missing-registered-subclasses",
-					migrationVersion,
-					PojoSerializerUpgradeTestSpecifications.NewAndMissingRegisteredPojoSubclassesSetup.class,
-					PojoSerializerUpgradeTestSpecifications.NewAndMissingRegisteredPojoSubclassesVerifier.class));
-		}
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        // for PojoSerializer we also test against 1.7, 1.8, and 1.9 because we have snapshots
+        // for this which go beyond what we have for the usual subclasses of
+        // TypeSerializerUpgradeTestBase. We don't have snapshot data for 1.10, but the
+        // PojoSerializer has not been changed in quite a while anyways.
+        List<MigrationVersion> testVersions = new ArrayList<>();
+        testVersions.add(MigrationVersion.v1_7);
+        testVersions.add(MigrationVersion.v1_8);
+        testVersions.add(MigrationVersion.v1_9);
+        testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
+        for (MigrationVersion migrationVersion : testVersions) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-identical-schema",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications.IdenticalPojoSchemaSetup.class,
+                            PojoSerializerUpgradeTestSpecifications.IdenticalPojoSchemaVerifier
+                                    .class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-modified-schema",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications.ModifiedPojoSchemaSetup.class,
+                            PojoSerializerUpgradeTestSpecifications.ModifiedPojoSchemaVerifier
+                                    .class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-different-field-types",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentFieldTypePojoSchemaSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentFieldTypePojoSchemaVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-modified-schema-in-registered-subclass",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .ModifiedRegisteredPojoSubclassSchemaSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .ModifiedRegisteredPojoSubclassSchemaVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-different-field-types-in-registered-subclass",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentFieldTypePojoSubclassSchemaSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentFieldTypePojoSubclassSchemaVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-non-registered-subclass",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications.NonRegisteredPojoSubclassSetup
+                                    .class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .NonRegisteredPojoSubclassVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-different-subclass-registration-order",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentPojoSubclassRegistrationOrderSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .DifferentPojoSubclassRegistrationOrderVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-missing-registered-subclass",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .MissingRegisteredPojoSubclassSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .MissingRegisteredPojoSubclassVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-new-registered-subclass",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications.NewRegisteredPojoSubclassSetup
+                                    .class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .NewRegisteredPojoSubclassVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "pojo-serializer-with-new-and-missing-registered-subclasses",
+                            migrationVersion,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .NewAndMissingRegisteredPojoSubclassesSetup.class,
+                            PojoSerializerUpgradeTestSpecifications
+                                    .NewAndMissingRegisteredPojoSubclassesVerifier.class));
+        }
 
-		return testSpecifications;
-	}
+        return testSpecifications;
+    }
 }

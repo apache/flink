@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.plan.stats._
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil.ColumnRelatedVisitor
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil.{ColumnRelatedVisitor, getLiteralValueByBroadType}
 
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.SqlKind
@@ -190,16 +190,17 @@ object ColumnIntervalUtil {
     * (originInterval intersect with (-1, Inf])
     *
     * @param originInterval origin interval of the column
-    * @param predicate      the predicate expression
+    * @param oriPred        the predicate expression
     * @param inputRef       the index of the given column
     * @param rexBuilder     RexBuilder instance to analyze the predicate expression
     * @return
     */
   def getColumnIntervalWithFilter(
       originInterval: Option[ValueInterval],
-      predicate: RexNode,
+      oriPred: RexNode,
       inputRef: Int,
       rexBuilder: RexBuilder): ValueInterval = {
+    val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
     val isRelated = (r: RexNode) => r.accept(new ColumnRelatedVisitor(inputRef))
     val (relatedSubRexNode, _) = FlinkRelOptUtil.partition(predicate, rexBuilder, isRelated)
     val beginInterval = originInterval match {
@@ -208,13 +209,24 @@ object ColumnIntervalUtil {
     }
     val interval = relatedSubRexNode match {
       case Some(rexNode) =>
-        val orParts = RexUtil.flattenOr(Vector(RexUtil.toDnf(rexBuilder, rexNode)))
-        orParts.map(or => {
-          val andParts = RexUtil.flattenAnd(Vector(or))
-          val andIntervals = andParts.map(and => columnIntervalOfSinglePredicate(and))
-          val res = andIntervals.filter(_ != null).foldLeft(beginInterval)(ValueInterval.intersect)
-          res
-        }).reduceLeft(ValueInterval.union)
+        if (rexNode.isAlwaysTrue) {
+          beginInterval
+        } else if (rexNode.isAlwaysFalse) {
+          ValueInterval.empty
+        } else if (RexUtil.isConstant(rexNode)) {
+          // this should not happen, just protect the following code
+          ValueInterval.infinite
+        } else {
+          val orParts = RexUtil.flattenOr(Vector(RexUtil.toDnf(rexBuilder, rexNode)))
+          orParts.map(or => {
+            val andParts = RexUtil.flattenAnd(Vector(or))
+            val andIntervals = andParts.map(and => columnIntervalOfSinglePredicate(and))
+            val res = andIntervals
+              .filter(_ != null)
+              .foldLeft(beginInterval)(ValueInterval.intersect)
+            res
+          }).reduceLeft(ValueInterval.union)
+        }
       case _ => beginInterval
     }
     if (interval == ValueInterval.infinite) null else interval
@@ -228,13 +240,13 @@ object ColumnIntervalUtil {
       val (literalValue, op) = (convertedCondition.operands.head, convertedCondition.operands.last)
       match {
         case (_: RexInputRef, literal: RexLiteral) =>
-          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind)
+          (getLiteralValueByBroadType(literal), convertedCondition.getKind)
         case (rex: RexCall, literal: RexLiteral) if rex.getKind == SqlKind.AS =>
-          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind)
+          (getLiteralValueByBroadType(literal), convertedCondition.getKind)
         case (literal: RexLiteral, _: RexInputRef) =>
-          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind.reverse())
+          (getLiteralValueByBroadType(literal), convertedCondition.getKind.reverse())
         case (literal: RexLiteral, rex: RexCall) if rex.getKind == SqlKind.AS =>
-          (FlinkRelOptUtil.getLiteralValue(literal), convertedCondition.getKind.reverse())
+          (getLiteralValueByBroadType(literal), convertedCondition.getKind.reverse())
         case _ => (null, null)
       }
       if (op == null || literalValue == null) {
@@ -293,40 +305,6 @@ object ColumnIntervalUtil {
     case sFloat: scala.Float => Some(sFloat.toString)
     case sDouble: scala.Double => Some(sDouble.toString)
     case _ => None
-  }
-
-  def convertStringToNumber(number: String, clazz: Class[_]): Option[Comparable[_]] = {
-    if (clazz == classOf[java.lang.Byte]) {
-      Some(java.lang.Byte.valueOf(number))
-    } else if (clazz == classOf[java.lang.Short]) {
-      Some(java.lang.Short.valueOf(number))
-    } else if (clazz == classOf[java.lang.Integer]) {
-      Some(java.lang.Integer.valueOf(number))
-    } else if (clazz == classOf[java.lang.Float]) {
-      Some(java.lang.Float.valueOf(number))
-    } else if (clazz == classOf[java.lang.Long]) {
-      Some(java.lang.Long.valueOf(number))
-    } else if (clazz == classOf[java.lang.Double]) {
-      Some(java.lang.Double.valueOf(number))
-    } else if (clazz == classOf[java.math.BigDecimal]) {
-      Some(new java.math.BigDecimal(number))
-    } else if (clazz == classOf[java.math.BigInteger]) {
-      Some(new java.math.BigInteger(number))
-    } else if (clazz == classOf[scala.Byte]) {
-      Some(number.toByte)
-    } else if (clazz == classOf[scala.Short]) {
-      Some(number.toShort)
-    } else if (clazz == classOf[scala.Int]) {
-      Some(number.toInt)
-    } else if (clazz == classOf[scala.Long]) {
-      Some(number.toLong)
-    } else if (clazz == classOf[scala.Float]) {
-      Some(number.toFloat)
-    } else if (clazz == classOf[scala.Double]) {
-      Some(number.toDouble)
-    } else {
-      None
-    }
   }
 
 }

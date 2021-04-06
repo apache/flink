@@ -28,60 +28,54 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test base for testing {@link Descriptor} together with {@link DescriptorValidator}.
- */
+/** Test base for testing {@link Descriptor} together with {@link DescriptorValidator}. */
 public abstract class DescriptorTestBase {
 
-	/**
-	 * Returns a set of valid descriptors.
-	 */
-	protected abstract List<Descriptor> descriptors();
+    /** Returns a set of valid descriptors. */
+    protected abstract List<Descriptor> descriptors();
 
-	/**
-	 * Returns a set of properties for each valid descriptor.
-	 */
-	protected abstract List<Map<String, String>> properties();
+    /** Returns a set of properties for each valid descriptor. */
+    protected abstract List<Map<String, String>> properties();
 
-	/**
-	 * Returns a validator that can validate all valid descriptors.
-	 */
-	protected abstract DescriptorValidator validator();
+    /** Returns a validator that can validate all valid descriptors. */
+    protected abstract DescriptorValidator validator();
 
-	@Test
-	public void testValidation() {
-		final List<Descriptor> descriptors = descriptors();
-		final List<Map<String, String>> properties = properties();
+    @Test
+    public void testValidation() {
+        final List<Descriptor> descriptors = descriptors();
+        final List<Map<String, String>> properties = properties();
 
-		Preconditions.checkArgument(descriptors.size() == properties.size());
+        Preconditions.checkArgument(descriptors.size() == properties.size());
 
-		for (int i = 0; i < descriptors.size(); i++) {
-			verifyProperties(descriptors.get(i), properties.get(i));
-		}
-	}
+        for (int i = 0; i < descriptors.size(); i++) {
+            verifyProperties(descriptors.get(i), properties.get(i));
+        }
+    }
 
-	protected void verifyProperties(Descriptor descriptor, Map<String, String> expected) {
-		// test produced properties
-		assertEquals(expected, descriptor.toProperties());
+    protected void verifyProperties(Descriptor descriptor, Map<String, String> expected) {
+        // test produced properties
+        assertEquals(expected, descriptor.toProperties());
 
-		// test validation logic
-		final DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(expected);
-		validator().validate(properties);
-	}
+        // test validation logic
+        final DescriptorProperties properties = new DescriptorProperties();
+        properties.putProperties(expected);
+        validator().validate(properties);
+    }
 
-	protected void addPropertyAndVerify(Descriptor descriptor, String property, String newValue) {
-		final DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(descriptor.toProperties());
-		final DescriptorProperties copy = properties.withoutKeys(Collections.singletonList(property));
-		copy.putString(property, newValue);
-		validator().validate(copy);
-	}
+    protected void addPropertyAndVerify(Descriptor descriptor, String property, String newValue) {
+        final DescriptorProperties properties = new DescriptorProperties();
+        properties.putProperties(descriptor.toProperties());
+        final DescriptorProperties copy =
+                properties.withoutKeys(Collections.singletonList(property));
+        copy.putString(property, newValue);
+        validator().validate(copy);
+    }
 
-	protected void removePropertyAndVerify(Descriptor descriptor, String property) {
-		final DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(descriptor.toProperties());
-		final DescriptorProperties copy = properties.withoutKeys(Collections.singletonList(property));
-		validator().validate(copy);
-	}
+    protected void removePropertyAndVerify(Descriptor descriptor, String property) {
+        final DescriptorProperties properties = new DescriptorProperties();
+        properties.putProperties(descriptor.toProperties());
+        final DescriptorProperties copy =
+                properties.withoutKeys(Collections.singletonList(property));
+        validator().validate(copy);
+    }
 }

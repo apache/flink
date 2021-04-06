@@ -25,53 +25,53 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Headers for the {@link TaskManagerDetailsHandler} which serves the TaskManager details.
- */
-public class TaskManagerDetailsHeaders implements MessageHeaders<EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
+/** Headers for the {@link TaskManagerDetailsHandler} which serves the TaskManager details. */
+public class TaskManagerDetailsHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
 
-	private static final TaskManagerDetailsHeaders INSTANCE = new TaskManagerDetailsHeaders();
+    private static final TaskManagerDetailsHeaders INSTANCE = new TaskManagerDetailsHeaders();
 
-	public static final String URL = "/taskmanagers/:" + TaskManagerIdPathParameter.KEY;
+    public static final String URL = "/taskmanagers/:" + TaskManagerIdPathParameter.KEY;
 
-	private TaskManagerDetailsHeaders() {}
+    private TaskManagerDetailsHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<TaskManagerDetailsInfo> getResponseClass() {
-		return TaskManagerDetailsInfo.class;
-	}
+    @Override
+    public Class<TaskManagerDetailsInfo> getResponseClass() {
+        return TaskManagerDetailsInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-		return new TaskManagerMessageParameters();
-	}
+    @Override
+    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static TaskManagerDetailsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static TaskManagerDetailsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns details for a task manager.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns details for a task manager. \"metrics.memorySegmentsAvailable\" and \"metrics.memorySegmentsTotal\" are deprecated. Please use \"metrics.nettyShuffleMemorySegmentsAvailable\" and \"metrics.nettyShuffleMemorySegmentsTotal\" instead.";
+    }
 }

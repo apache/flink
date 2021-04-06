@@ -18,36 +18,34 @@
 
 package org.apache.flink.runtime.rpc.messages;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Message for asynchronous runnable invocations
- */
+/** Message for asynchronous runnable invocations */
 public final class RunAsync {
 
-	private final Runnable runnable;
+    private final Runnable runnable;
 
-	/** The delay after which the runnable should be called */
-	private final long atTimeNanos;
+    /** The delay after which the runnable should be called */
+    private final long atTimeNanos;
 
-	/**
-	 * Creates a new {@code RunAsync} message.
-	 * 
-	 * @param runnable    The Runnable to run.
-	 * @param atTimeNanos The time (as for System.nanoTime()) when to execute the runnable.
-	 */
-	public RunAsync(Runnable runnable, long atTimeNanos) {
-		checkArgument(atTimeNanos >= 0);
-		this.runnable = checkNotNull(runnable);
-		this.atTimeNanos = atTimeNanos;
-	}
+    /**
+     * Creates a new {@code RunAsync} message.
+     *
+     * @param runnable The Runnable to run.
+     * @param atTimeNanos The time (as for System.nanoTime()) when to execute the runnable.
+     */
+    public RunAsync(Runnable runnable, long atTimeNanos) {
+        checkArgument(atTimeNanos >= 0);
+        this.runnable = checkNotNull(runnable);
+        this.atTimeNanos = atTimeNanos;
+    }
 
-	public Runnable getRunnable() {
-		return runnable;
-	}
+    public Runnable getRunnable() {
+        return runnable;
+    }
 
-	public long getTimeNanos() {
-		return atTimeNanos;
-	}
+    public long getTimeNanos() {
+        return atTimeNanos;
+    }
 }

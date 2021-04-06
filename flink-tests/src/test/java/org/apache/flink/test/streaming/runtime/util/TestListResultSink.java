@@ -31,49 +31,49 @@ import java.util.List;
  */
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 
-	private static final long serialVersionUID = 1L;
-	private int resultListId;
+    private static final long serialVersionUID = 1L;
+    private int resultListId;
 
-	public TestListResultSink() {
-		this.resultListId = TestListWrapper.getInstance().createList();
-	}
+    public TestListResultSink() {
+        this.resultListId = TestListWrapper.getInstance().createList();
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+    }
 
-	@Override
-	public void invoke(T value) throws Exception {
-		synchronized (resultList()) {
-			resultList().add(value);
-		}
-	}
+    @Override
+    public void invoke(T value) throws Exception {
+        synchronized (resultList()) {
+            resultList().add(value);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+    }
 
-	@SuppressWarnings("unchecked")
-	private List<T> resultList() {
-		synchronized (TestListWrapper.getInstance()) {
-			return (List<T>) TestListWrapper.getInstance().getList(resultListId);
-		}
-	}
+    @SuppressWarnings("unchecked")
+    private List<T> resultList() {
+        synchronized (TestListWrapper.getInstance()) {
+            return (List<T>) TestListWrapper.getInstance().getList(resultListId);
+        }
+    }
 
-	public List<T> getResult() {
-		synchronized (resultList()) {
-			ArrayList<T> copiedList = new ArrayList<T>(resultList());
-			return copiedList;
-		}
-	}
+    public List<T> getResult() {
+        synchronized (resultList()) {
+            ArrayList<T> copiedList = new ArrayList<T>(resultList());
+            return copiedList;
+        }
+    }
 
-	public List<T> getSortedResult() {
-		synchronized (resultList()) {
-			ArrayList<T> sortedList = new ArrayList<T>(resultList());
-			Collections.sort((List) sortedList);
-			return sortedList;
-		}
-	}
+    public List<T> getSortedResult() {
+        synchronized (resultList()) {
+            ArrayList<T> sortedList = new ArrayList<T>(resultList());
+            Collections.sort((List) sortedList);
+            return sortedList;
+        }
+    }
 }

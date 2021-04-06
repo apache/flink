@@ -19,10 +19,14 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.table.api.TableException
+import org.apache.flink.api.java.ExecutionEnvironment
+import org.apache.flink.configuration.{ConfigOption, Configuration}
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.util.DummyStreamExecutionEnvironment
 
 import scala.collection.mutable
 import scala.collection.JavaConversions._
@@ -81,4 +85,45 @@ trait CommonPythonBase {
         createPythonFunctionInfo(pythonRexCall, inputNodes, tfc.getTableFunction)
     }
   }
+
+  protected def getMergedConfig(
+      env: ExecutionEnvironment,
+      tableConfig: TableConfig): Configuration = {
+    val clazz = loadClass(CommonPythonBase.PythonConfigUtil)
+    val method = clazz.getDeclaredMethod(
+      "getMergedConfig", classOf[ExecutionEnvironment], classOf[TableConfig])
+    val config = method.invoke(null, env, tableConfig).asInstanceOf[Configuration]
+    config
+  }
+
+  protected def getMergedConfig(
+      env: StreamExecutionEnvironment,
+      tableConfig: TableConfig): Configuration = {
+    val clazz = loadClass(CommonPythonBase.PythonConfigUtil)
+    val realEnv = getRealEnvironment(env)
+    val method = clazz.getDeclaredMethod(
+      "getMergedConfig", classOf[StreamExecutionEnvironment], classOf[TableConfig])
+    val config = method.invoke(null, realEnv, tableConfig).asInstanceOf[Configuration]
+    config
+  }
+
+  private def getRealEnvironment(env: StreamExecutionEnvironment): StreamExecutionEnvironment = {
+    val realExecEnvField = classOf[DummyStreamExecutionEnvironment].getDeclaredField("realExecEnv")
+    realExecEnvField.setAccessible(true)
+    var realEnv = env
+    while (realEnv.isInstanceOf[DummyStreamExecutionEnvironment]) {
+      realEnv = realExecEnvField.get(realEnv).asInstanceOf[StreamExecutionEnvironment]
+    }
+    realEnv
+  }
+
+  protected def isPythonWorkerUsingManagedMemory(config: Configuration): Boolean = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    config.getBoolean(clazz.getField("USE_MANAGED_MEMORY").get(null)
+      .asInstanceOf[ConfigOption[java.lang.Boolean]])
+  }
+}
+
+object CommonPythonBase {
+  val PythonConfigUtil = "org.apache.flink.python.util.PythonConfigUtil"
 }

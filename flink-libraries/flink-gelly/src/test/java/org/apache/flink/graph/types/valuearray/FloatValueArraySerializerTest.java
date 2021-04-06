@@ -24,70 +24,69 @@ import org.apache.flink.types.FloatValue;
 
 import java.util.Random;
 
-/**
- * A test for the {@link FloatValueArraySerializer}.
- */
+/** A test for the {@link FloatValueArraySerializer}. */
 public class FloatValueArraySerializerTest extends ValueArraySerializerTestBase<FloatValueArray> {
 
-	@Override
-	protected TypeSerializer<FloatValueArray> createSerializer() {
-		return new FloatValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<FloatValueArray> createSerializer() {
+        return new FloatValueArraySerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<FloatValueArray> getTypeClass() {
-		return FloatValueArray.class;
-	}
+    @Override
+    protected Class<FloatValueArray> getTypeClass() {
+        return FloatValueArray.class;
+    }
 
-	@Override
-	protected FloatValueArray[] getTestData() {
-		int defaultElements = FloatValueArray.DEFAULT_CAPACITY_IN_BYTES / FloatValueArray.ELEMENT_LENGTH_IN_BYTES;
+    @Override
+    protected FloatValueArray[] getTestData() {
+        int defaultElements =
+                FloatValueArray.DEFAULT_CAPACITY_IN_BYTES / FloatValueArray.ELEMENT_LENGTH_IN_BYTES;
 
-		Random rnd = new Random(874597969123412341L);
-		int rndLong = rnd.nextInt();
+        Random rnd = new Random(874597969123412341L);
+        int rndLong = rnd.nextInt();
 
-		FloatValueArray lva0 = new FloatValueArray();
+        FloatValueArray lva0 = new FloatValueArray();
 
-		FloatValueArray lva1 = new FloatValueArray();
-		lva1.addAll(lva0);
-		lva1.add(new FloatValue(0));
+        FloatValueArray lva1 = new FloatValueArray();
+        lva1.addAll(lva0);
+        lva1.add(new FloatValue(0));
 
-		FloatValueArray lva2 = new FloatValueArray();
-		lva2.addAll(lva1);
-		lva2.add(new FloatValue(1));
+        FloatValueArray lva2 = new FloatValueArray();
+        lva2.addAll(lva1);
+        lva2.add(new FloatValue(1));
 
-		FloatValueArray lva3 = new FloatValueArray();
-		lva3.addAll(lva2);
-		lva3.add(new FloatValue(-1));
+        FloatValueArray lva3 = new FloatValueArray();
+        lva3.addAll(lva2);
+        lva3.add(new FloatValue(-1));
 
-		FloatValueArray lva4 = new FloatValueArray();
-		lva4.addAll(lva3);
-		lva4.add(new FloatValue(Float.MAX_VALUE));
+        FloatValueArray lva4 = new FloatValueArray();
+        lva4.addAll(lva3);
+        lva4.add(new FloatValue(Float.MAX_VALUE));
 
-		FloatValueArray lva5 = new FloatValueArray();
-		lva5.addAll(lva4);
-		lva5.add(new FloatValue(Float.MIN_VALUE));
+        FloatValueArray lva5 = new FloatValueArray();
+        lva5.addAll(lva4);
+        lva5.add(new FloatValue(Float.MIN_VALUE));
 
-		FloatValueArray lva6 = new FloatValueArray();
-		lva6.addAll(lva5);
-		lva6.add(new FloatValue(rndLong));
+        FloatValueArray lva6 = new FloatValueArray();
+        lva6.addAll(lva5);
+        lva6.add(new FloatValue(rndLong));
 
-		FloatValueArray lva7 = new FloatValueArray();
-		lva7.addAll(lva6);
-		lva7.add(new FloatValue(-rndLong));
+        FloatValueArray lva7 = new FloatValueArray();
+        lva7.addAll(lva6);
+        lva7.add(new FloatValue(-rndLong));
 
-		FloatValueArray lva8 = new FloatValueArray();
-		lva8.addAll(lva7);
-		for (int i = 0; i < 1.5 * defaultElements; i++) {
-			lva8.add(new FloatValue(i));
-		}
-		lva8.addAll(lva8);
+        FloatValueArray lva8 = new FloatValueArray();
+        lva8.addAll(lva7);
+        for (int i = 0; i < 1.5 * defaultElements; i++) {
+            lva8.add(new FloatValue(i));
+        }
+        lva8.addAll(lva8);
 
-		return new FloatValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
-	}
+        return new FloatValueArray[] {lva0, lva1, lva2, lva3, lva4, lva5, lva6, lva7, lva8};
+    }
 }

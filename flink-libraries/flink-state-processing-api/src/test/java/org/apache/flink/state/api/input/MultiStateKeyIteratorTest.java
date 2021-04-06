@@ -41,86 +41,88 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Test for the multi-state key iterator.
- */
+/** Test for the multi-state key iterator. */
 public class MultiStateKeyIteratorTest {
-	private static final List<ValueStateDescriptor<Integer>> descriptors;
+    private static final List<ValueStateDescriptor<Integer>> descriptors;
 
-	static {
-		descriptors = new ArrayList<>(2);
-		descriptors.add(new ValueStateDescriptor<>("state-1", Types.INT));
-		descriptors.add(new ValueStateDescriptor<>("state-2", Types.INT));
-	}
+    static {
+        descriptors = new ArrayList<>(2);
+        descriptors.add(new ValueStateDescriptor<>("state-1", Types.INT));
+        descriptors.add(new ValueStateDescriptor<>("state-2", Types.INT));
+    }
 
-	private static AbstractKeyedStateBackend<Integer> createKeyedStateBackend() {
-		MockStateBackend backend = new MockStateBackend();
+    private static AbstractKeyedStateBackend<Integer> createKeyedStateBackend() {
+        MockStateBackend backend = new MockStateBackend();
 
-		return backend.createKeyedStateBackend(
-			new DummyEnvironment(),
-			new JobID(),
-			"mock-backend",
-			IntSerializer.INSTANCE,
-			129,
-			KeyGroupRange.of(0, 128),
-			null,
-			TtlTimeProvider.DEFAULT,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
-	}
+        return backend.createKeyedStateBackend(
+                new DummyEnvironment(),
+                new JobID(),
+                "mock-backend",
+                IntSerializer.INSTANCE,
+                129,
+                KeyGroupRange.of(0, 128),
+                null,
+                TtlTimeProvider.DEFAULT,
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
+                Collections.emptyList(),
+                new CloseableRegistry());
+    }
 
-	private static void setKey(
-		AbstractKeyedStateBackend<Integer> backend,
-		ValueStateDescriptor<Integer> descriptor,
-		int key) throws Exception {
-		backend.setCurrentKey(key);
-		backend
-			.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor)
-			.update(0);
-	}
+    private static void setKey(
+            AbstractKeyedStateBackend<Integer> backend,
+            ValueStateDescriptor<Integer> descriptor,
+            int key)
+            throws Exception {
+        backend.setCurrentKey(key);
+        backend.getPartitionedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor)
+                .update(0);
+    }
 
-	@Test
-	public void testIteratorPullsKeyFromAllDescriptors() throws Exception {
-		AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
+    @Test
+    public void testIteratorPullsKeyFromAllDescriptors() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
 
-		setKey(keyedStateBackend, descriptors.get(0), 1);
-		setKey(keyedStateBackend, descriptors.get(1), 2);
+        setKey(keyedStateBackend, descriptors.get(0), 1);
+        setKey(keyedStateBackend, descriptors.get(1), 2);
 
-		MultiStateKeyIterator<Integer> iterator = new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
+        MultiStateKeyIterator<Integer> iterator =
+                new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
 
-		List<Integer> keys = new ArrayList<>();
+        List<Integer> keys = new ArrayList<>();
 
-		while (iterator.hasNext()) {
-			keys.add(iterator.next());
-		}
+        while (iterator.hasNext()) {
+            keys.add(iterator.next());
+        }
 
-		Assert.assertEquals("Unexpected number of keys", 2, keys.size());
-		Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
-	}
+        Assert.assertEquals("Unexpected number of keys", 2, keys.size());
+        Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
+    }
 
-	@Test
-	public void testIteratorRemovesFromAllDescriptors() throws Exception {
-		AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
+    @Test
+    public void testIteratorRemovesFromAllDescriptors() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedStateBackend = createKeyedStateBackend();
 
-		setKey(keyedStateBackend, descriptors.get(0), 1);
-		setKey(keyedStateBackend, descriptors.get(1), 1);
+        setKey(keyedStateBackend, descriptors.get(0), 1);
+        setKey(keyedStateBackend, descriptors.get(1), 1);
 
-		MultiStateKeyIterator<Integer> iterator =
-			new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
+        MultiStateKeyIterator<Integer> iterator =
+                new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
 
-		int key = iterator.next();
-		Assert.assertEquals("Unexpected keys pulled from state backend", 1, key);
+        int key = iterator.next();
+        Assert.assertEquals("Unexpected keys pulled from state backend", 1, key);
 
-		iterator.remove();
-		Assert.assertFalse("Failed to drop key from all descriptors in state backend", iterator.hasNext());
+        iterator.remove();
+        Assert.assertFalse(
+                "Failed to drop key from all descriptors in state backend", iterator.hasNext());
 
-		for (StateDescriptor<?, ?> descriptor : descriptors) {
-			Assert.assertEquals(
-				"Failed to drop key for state descriptor",
-				0,
-				keyedStateBackend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE).count());
-		}
-	}
+        for (StateDescriptor<?, ?> descriptor : descriptors) {
+            Assert.assertEquals(
+                    "Failed to drop key for state descriptor",
+                    0,
+                    keyedStateBackend
+                            .getKeys(descriptor.getName(), VoidNamespace.INSTANCE)
+                            .count());
+        }
+    }
 }
-

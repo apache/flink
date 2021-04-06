@@ -19,18 +19,20 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
@@ -38,156 +40,152 @@ import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.containsPythonDependencyOptions;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.createPythonProgramOptions;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.isPythonEntryPoint;
 
-/**
- * Base class for command line options that refer to a JAR file program.
- */
+/** Base class for command line options that refer to a JAR file program. */
 public class ProgramOptions extends CommandLineOptions {
 
-	private final String jarFilePath;
+    private String jarFilePath;
 
-	private final String entryPointClass;
+    protected String entryPointClass;
 
-	private final List<URL> classpaths;
+    private final List<URL> classpaths;
 
-	private final String[] programArgs;
+    private final String[] programArgs;
 
-	private final int parallelism;
+    private final int parallelism;
 
-	private final boolean detachedMode;
+    private final boolean detachedMode;
 
-	private final boolean shutdownOnAttachedExit;
+    private final boolean shutdownOnAttachedExit;
 
-	private final SavepointRestoreSettings savepointSettings;
+    private final SavepointRestoreSettings savepointSettings;
 
-	/**
-	 * Flag indicating whether the job is a Python job.
-	 */
-	private final boolean isPython;
+    protected ProgramOptions(CommandLine line) throws CliArgsException {
+        super(line);
 
-	public ProgramOptions(CommandLine line) throws CliArgsException {
-		super(line);
+        this.entryPointClass =
+                line.hasOption(CLASS_OPTION.getOpt())
+                        ? line.getOptionValue(CLASS_OPTION.getOpt())
+                        : null;
 
-		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
-			line.getOptionValues(ARGS_OPTION.getOpt()) :
-			line.getArgs();
+        this.jarFilePath =
+                line.hasOption(JAR_OPTION.getOpt())
+                        ? line.getOptionValue(JAR_OPTION.getOpt())
+                        : null;
 
-		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
+        this.programArgs = extractProgramArgs(line);
 
-		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt())
-			| "org.apache.flink.client.python.PythonGatewayServer".equals(entryPointClass);
-		if (isPython) {
-			// copy python related parameters to program args and place them in front of user parameters
-			List<String> pyArgList = new ArrayList<>();
-			Set<Option> pyOptions = new HashSet<>();
-			pyOptions.add(PY_OPTION);
-			pyOptions.add(PYMODULE_OPTION);
-			pyOptions.add(PYFILES_OPTION);
-			pyOptions.add(PYREQUIREMENTS_OPTION);
-			pyOptions.add(PYARCHIVE_OPTION);
-			pyOptions.add(PYEXEC_OPTION);
-			for (Option option: line.getOptions()) {
-				if (pyOptions.contains(option)) {
-					pyArgList.add("--" + option.getLongOpt());
-					pyArgList.add(option.getValue());
-				}
-			}
-			String[] newArgs = pyArgList.toArray(new String[args.length + pyArgList.size()]);
-			System.arraycopy(args, 0, newArgs, pyArgList.size(), args.length);
-			args = newArgs;
-		}
+        List<URL> classpaths = new ArrayList<URL>();
+        if (line.hasOption(CLASSPATH_OPTION.getOpt())) {
+            for (String path : line.getOptionValues(CLASSPATH_OPTION.getOpt())) {
+                try {
+                    classpaths.add(new URL(path));
+                } catch (MalformedURLException e) {
+                    throw new CliArgsException("Bad syntax for classpath: " + path);
+                }
+            }
+        }
+        this.classpaths = classpaths;
 
-		if (line.hasOption(JAR_OPTION.getOpt())) {
-			this.jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-		} else if (!isPython && args.length > 0) {
-			jarFilePath = args[0];
-			args = Arrays.copyOfRange(args, 1, args.length);
-		}
-		else {
-			jarFilePath = null;
-		}
+        if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
+            String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
+            try {
+                parallelism = Integer.parseInt(parString);
+                if (parallelism <= 0) {
+                    throw new NumberFormatException();
+                }
+            } catch (NumberFormatException e) {
+                throw new CliArgsException(
+                        "The parallelism must be a positive number: " + parString);
+            }
+        } else {
+            parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+        }
 
-		this.programArgs = args;
+        detachedMode =
+                line.hasOption(DETACHED_OPTION.getOpt())
+                        || line.hasOption(YARN_DETACHED_OPTION.getOpt());
+        shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
-		List<URL> classpaths = new ArrayList<URL>();
-		if (line.hasOption(CLASSPATH_OPTION.getOpt())) {
-			for (String path : line.getOptionValues(CLASSPATH_OPTION.getOpt())) {
-				try {
-					classpaths.add(new URL(path));
-				} catch (MalformedURLException e) {
-					throw new CliArgsException("Bad syntax for classpath: " + path);
-				}
-			}
-		}
-		this.classpaths = classpaths;
+        this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
+    }
 
-		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
-			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
-			try {
-				parallelism = Integer.parseInt(parString);
-				if (parallelism <= 0) {
-					throw new NumberFormatException();
-				}
-			}
-			catch (NumberFormatException e) {
-				throw new CliArgsException("The parallelism must be a positive number: " + parString);
-			}
-		}
-		else {
-			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-		}
+    protected String[] extractProgramArgs(CommandLine line) {
+        String[] args =
+                line.hasOption(ARGS_OPTION.getOpt())
+                        ? line.getOptionValues(ARGS_OPTION.getOpt())
+                        : line.getArgs();
 
-		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(YARN_DETACHED_OPTION.getOpt());
-		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
+        if (args.length > 0 && !line.hasOption(JAR_OPTION.getOpt())) {
+            jarFilePath = args[0];
+            args = Arrays.copyOfRange(args, 1, args.length);
+        }
 
-		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
-	}
+        return args;
+    }
 
-	public String getJarFilePath() {
-		return jarFilePath;
-	}
+    public void validate() throws CliArgsException {
+        // Java program should be specified a JAR file
+        if (getJarFilePath() == null) {
+            throw new CliArgsException("Java program should be specified a JAR file.");
+        }
+    }
 
-	public String getEntryPointClassName() {
-		return entryPointClass;
-	}
+    public String getJarFilePath() {
+        return jarFilePath;
+    }
 
-	public List<URL> getClasspaths() {
-		return classpaths;
-	}
+    public String getEntryPointClassName() {
+        return entryPointClass;
+    }
 
-	public String[] getProgramArgs() {
-		return programArgs;
-	}
+    public List<URL> getClasspaths() {
+        return classpaths;
+    }
 
-	public int getParallelism() {
-		return parallelism;
-	}
+    public String[] getProgramArgs() {
+        return programArgs;
+    }
 
-	public boolean getDetachedMode() {
-		return detachedMode;
-	}
+    public int getParallelism() {
+        return parallelism;
+    }
 
-	public boolean isShutdownOnAttachedExit() {
-		return shutdownOnAttachedExit;
-	}
+    public boolean getDetachedMode() {
+        return detachedMode;
+    }
 
-	public SavepointRestoreSettings getSavepointRestoreSettings() {
-		return savepointSettings;
-	}
+    public boolean isShutdownOnAttachedExit() {
+        return shutdownOnAttachedExit;
+    }
 
-	/**
-	 * Indicates whether the job is a Python job.
-	 */
-	public boolean isPython() {
-		return isPython;
-	}
+    public SavepointRestoreSettings getSavepointRestoreSettings() {
+        return savepointSettings;
+    }
+
+    public void applyToConfiguration(Configuration configuration) {
+        if (getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT) {
+            configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
+        }
+
+        configuration.setBoolean(DeploymentOptions.ATTACHED, !getDetachedMode());
+        configuration.setBoolean(
+                DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
+        ConfigUtils.encodeCollectionToConfig(
+                configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
+        SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);
+    }
+
+    public static ProgramOptions create(CommandLine line) throws CliArgsException {
+        if (isPythonEntryPoint(line) || containsPythonDependencyOptions(line)) {
+            return createPythonProgramOptions(line);
+        } else {
+            return new ProgramOptions(line);
+        }
+    }
 }

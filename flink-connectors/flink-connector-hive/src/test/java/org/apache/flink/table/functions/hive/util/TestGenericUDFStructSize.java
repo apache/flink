@@ -29,28 +29,26 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Test Struct in generic UDF.
- */
+/** Test Struct in generic UDF. */
 public class TestGenericUDFStructSize extends GenericUDF {
 
-	private StructObjectInspector inspector;
+    private StructObjectInspector inspector;
 
-	@Override
-	public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
-		checkArgument(arguments.length == 1);
-		inspector = (StructObjectInspector) arguments[0];
-		return PrimitiveObjectInspectorFactory.javaIntObjectInspector;
-	}
+    @Override
+    public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
+        checkArgument(arguments.length == 1);
+        inspector = (StructObjectInspector) arguments[0];
+        return PrimitiveObjectInspectorFactory.javaIntObjectInspector;
+    }
 
-	@Override
-	public Object evaluate(DeferredObject[] arguments) throws HiveException {
-		List<Object> data = inspector.getStructFieldsDataAsList(arguments[0].get());
-		return data.size();
-	}
+    @Override
+    public Object evaluate(DeferredObject[] arguments) throws HiveException {
+        List<Object> data = inspector.getStructFieldsDataAsList(arguments[0].get());
+        return data.size();
+    }
 
-	@Override
-	public String getDisplayString(String[] children) {
-		return "TestGenericUDFStructSize";
-	}
+    @Override
+    public String getDisplayString(String[] children) {
+        return "TestGenericUDFStructSize";
+    }
 }

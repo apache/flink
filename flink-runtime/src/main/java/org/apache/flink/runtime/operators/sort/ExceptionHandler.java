@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 /**
  * Interface to be implemented by classes that handle exceptions.
- * 
+ *
  * @param <E> The type of exception thrown.
  */
 public interface ExceptionHandler<E extends Throwable> {
-	/**
-	 * This method is called when the handler should deal with an exception.
-	 * 
-	 * @param exception
-	 *        The exception to handle.
-	 */
-	void handleException(E exception);
+    /**
+     * This method is called when the handler should deal with an exception.
+     *
+     * @param exception The exception to handle.
+     */
+    void handleException(E exception);
 }

@@ -24,11 +24,10 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -36,218 +35,196 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Utility to create a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}.
- */
+/** Utility to create a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
 public final class JoinRecordStateViews {
 
-	/**
-	 * Creates a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}.
-	 */
-	public static JoinRecordStateView create(
-			RuntimeContext ctx,
-			String stateName,
-			JoinInputSideSpec inputSideSpec,
-			BaseRowTypeInfo recordType,
-			long retentionTime,
-			boolean stateCleaningEnabled) {
-		StateTtlConfig ttlConfig = createTtlConfig(retentionTime, stateCleaningEnabled);
-		if (inputSideSpec.hasUniqueKey()) {
-			if (inputSideSpec.joinKeyContainsUniqueKey()) {
-				return new JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
-			} else {
-				return new InputSideHasUniqueKey(
-					ctx,
-					stateName,
-					recordType,
-					inputSideSpec.getUniqueKeyType(),
-					inputSideSpec.getUniqueKeySelector(),
-					ttlConfig);
-			}
-		} else {
-			return new InputSideHasNoUniqueKey(ctx, stateName, recordType, ttlConfig);
-		}
-	}
+    /** Creates a {@link JoinRecordStateView} depends on {@link JoinInputSideSpec}. */
+    public static JoinRecordStateView create(
+            RuntimeContext ctx,
+            String stateName,
+            JoinInputSideSpec inputSideSpec,
+            InternalTypeInfo<RowData> recordType,
+            long retentionTime) {
+        StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
+        if (inputSideSpec.hasUniqueKey()) {
+            if (inputSideSpec.joinKeyContainsUniqueKey()) {
+                return new JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
+            } else {
+                return new InputSideHasUniqueKey(
+                        ctx,
+                        stateName,
+                        recordType,
+                        inputSideSpec.getUniqueKeyType(),
+                        inputSideSpec.getUniqueKeySelector(),
+                        ttlConfig);
+            }
+        } else {
+            return new InputSideHasNoUniqueKey(ctx, stateName, recordType, ttlConfig);
+        }
+    }
 
-	static StateTtlConfig createTtlConfig(long retentionTime, boolean stateCleaningEnabled) {
-		if (stateCleaningEnabled) {
-			checkArgument(retentionTime > 0);
-			return StateTtlConfig
-				.newBuilder(Time.milliseconds(retentionTime))
-				.setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-				.setStateVisibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
-				.build();
-		} else {
-			return StateTtlConfig.DISABLED;
-		}
-	}
+    // ------------------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------------------
+    private static final class JoinKeyContainsUniqueKey implements JoinRecordStateView {
 
-	private static final class JoinKeyContainsUniqueKey implements JoinRecordStateView {
+        private final ValueState<RowData> recordState;
+        private final List<RowData> reusedList;
 
-		private final ValueState<BaseRow> recordState;
-		private final List<BaseRow> reusedList;
+        private JoinKeyContainsUniqueKey(
+                RuntimeContext ctx,
+                String stateName,
+                InternalTypeInfo<RowData> recordType,
+                StateTtlConfig ttlConfig) {
+            ValueStateDescriptor<RowData> recordStateDesc =
+                    new ValueStateDescriptor<>(stateName, recordType);
+            if (ttlConfig.isEnabled()) {
+                recordStateDesc.enableTimeToLive(ttlConfig);
+            }
+            this.recordState = ctx.getState(recordStateDesc);
+            // the result records always not more than 1
+            this.reusedList = new ArrayList<>(1);
+        }
 
-		private JoinKeyContainsUniqueKey(
-				RuntimeContext ctx,
-				String stateName,
-				BaseRowTypeInfo recordType,
-				StateTtlConfig ttlConfig) {
-			ValueStateDescriptor<BaseRow> recordStateDesc = new ValueStateDescriptor<>(
-				stateName,
-				recordType);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
-				recordStateDesc.enableTimeToLive(ttlConfig);
-			}
-			this.recordState = ctx.getState(recordStateDesc);
-			// the result records always not more than 1
-			this.reusedList = new ArrayList<>(1);
-		}
+        @Override
+        public void addRecord(RowData record) throws Exception {
+            recordState.update(record);
+        }
 
-		@Override
-		public void addRecord(BaseRow record) throws Exception {
-			recordState.update(record);
-		}
+        @Override
+        public void retractRecord(RowData record) throws Exception {
+            recordState.clear();
+        }
 
-		@Override
-		public void retractRecord(BaseRow record) throws Exception {
-			recordState.clear();
-		}
+        @Override
+        public Iterable<RowData> getRecords() throws Exception {
+            reusedList.clear();
+            RowData record = recordState.value();
+            if (record != null) {
+                reusedList.add(record);
+            }
+            return reusedList;
+        }
+    }
 
-		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
-			reusedList.clear();
-			BaseRow record = recordState.value();
-			if (record != null) {
-				reusedList.add(record);
-			}
-			return reusedList;
-		}
-	}
+    private static final class InputSideHasUniqueKey implements JoinRecordStateView {
 
-	private static final class InputSideHasUniqueKey implements JoinRecordStateView {
+        // stores record in the mapping <UK, Record>
+        private final MapState<RowData, RowData> recordState;
+        private final KeySelector<RowData, RowData> uniqueKeySelector;
 
-		// stores record in the mapping <UK, Record>
-		private final MapState<BaseRow, BaseRow> recordState;
-		private final KeySelector<BaseRow, BaseRow> uniqueKeySelector;
+        private InputSideHasUniqueKey(
+                RuntimeContext ctx,
+                String stateName,
+                InternalTypeInfo<RowData> recordType,
+                InternalTypeInfo<RowData> uniqueKeyType,
+                KeySelector<RowData, RowData> uniqueKeySelector,
+                StateTtlConfig ttlConfig) {
+            checkNotNull(uniqueKeyType);
+            checkNotNull(uniqueKeySelector);
+            MapStateDescriptor<RowData, RowData> recordStateDesc =
+                    new MapStateDescriptor<>(stateName, uniqueKeyType, recordType);
+            if (ttlConfig.isEnabled()) {
+                recordStateDesc.enableTimeToLive(ttlConfig);
+            }
+            this.recordState = ctx.getMapState(recordStateDesc);
+            this.uniqueKeySelector = uniqueKeySelector;
+        }
 
-		private InputSideHasUniqueKey(
-				RuntimeContext ctx,
-				String stateName,
-				BaseRowTypeInfo recordType,
-				BaseRowTypeInfo uniqueKeyType,
-				KeySelector<BaseRow, BaseRow> uniqueKeySelector,
-				StateTtlConfig ttlConfig) {
-			checkNotNull(uniqueKeyType);
-			checkNotNull(uniqueKeySelector);
-			MapStateDescriptor<BaseRow, BaseRow> recordStateDesc = new MapStateDescriptor<>(
-				stateName,
-				uniqueKeyType,
-				recordType);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
-				recordStateDesc.enableTimeToLive(ttlConfig);
-			}
-			this.recordState = ctx.getMapState(recordStateDesc);
-			this.uniqueKeySelector = uniqueKeySelector;
-		}
+        @Override
+        public void addRecord(RowData record) throws Exception {
+            RowData uniqueKey = uniqueKeySelector.getKey(record);
+            recordState.put(uniqueKey, record);
+        }
 
-		@Override
-		public void addRecord(BaseRow record) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
-			recordState.put(uniqueKey, record);
-		}
+        @Override
+        public void retractRecord(RowData record) throws Exception {
+            RowData uniqueKey = uniqueKeySelector.getKey(record);
+            recordState.remove(uniqueKey);
+        }
 
-		@Override
-		public void retractRecord(BaseRow record) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
-			recordState.remove(uniqueKey);
-		}
+        @Override
+        public Iterable<RowData> getRecords() throws Exception {
+            return recordState.values();
+        }
+    }
 
-		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
-			return recordState.values();
-		}
-	}
+    private static final class InputSideHasNoUniqueKey implements JoinRecordStateView {
 
-	private static final class InputSideHasNoUniqueKey implements JoinRecordStateView {
+        private final MapState<RowData, Integer> recordState;
 
-		private final MapState<BaseRow, Integer> recordState;
+        private InputSideHasNoUniqueKey(
+                RuntimeContext ctx,
+                String stateName,
+                InternalTypeInfo<RowData> recordType,
+                StateTtlConfig ttlConfig) {
+            MapStateDescriptor<RowData, Integer> recordStateDesc =
+                    new MapStateDescriptor<>(stateName, recordType, Types.INT);
+            if (ttlConfig.isEnabled()) {
+                recordStateDesc.enableTimeToLive(ttlConfig);
+            }
+            this.recordState = ctx.getMapState(recordStateDesc);
+        }
 
-		private InputSideHasNoUniqueKey(
-				RuntimeContext ctx,
-				String stateName,
-				BaseRowTypeInfo recordType,
-				StateTtlConfig ttlConfig) {
-			MapStateDescriptor<BaseRow, Integer> recordStateDesc = new MapStateDescriptor<>(
-				stateName,
-				recordType,
-				Types.INT);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
-				recordStateDesc.enableTimeToLive(ttlConfig);
-			}
-			this.recordState = ctx.getMapState(recordStateDesc);
-		}
+        @Override
+        public void addRecord(RowData record) throws Exception {
+            Integer cnt = recordState.get(record);
+            if (cnt != null) {
+                cnt += 1;
+            } else {
+                cnt = 1;
+            }
+            recordState.put(record, cnt);
+        }
 
-		@Override
-		public void addRecord(BaseRow record) throws Exception {
-			Integer cnt = recordState.get(record);
-			if (cnt != null) {
-				cnt += 1;
-			} else {
-				cnt = 1;
-			}
-			recordState.put(record, cnt);
-		}
+        @Override
+        public void retractRecord(RowData record) throws Exception {
+            Integer cnt = recordState.get(record);
+            if (cnt != null) {
+                if (cnt > 1) {
+                    recordState.put(record, cnt - 1);
+                } else {
+                    recordState.remove(record);
+                }
+            }
+            // ignore cnt == null, which means state may be expired
+        }
 
-		@Override
-		public void retractRecord(BaseRow record) throws Exception {
-			Integer cnt = recordState.get(record);
-			if (cnt != null) {
-				if (cnt > 1) {
-					recordState.put(record, cnt - 1);
-				} else {
-					recordState.remove(record);
-				}
-			}
-			// ignore cnt == null, which means state may be expired
-		}
+        @Override
+        public Iterable<RowData> getRecords() throws Exception {
+            return new IterableIterator<RowData>() {
 
-		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
-			return new IterableIterator<BaseRow>() {
+                private final Iterator<Map.Entry<RowData, Integer>> backingIterable =
+                        recordState.entries().iterator();
+                private RowData record;
+                private int remainingTimes = 0;
 
-				private final Iterator<Map.Entry<BaseRow, Integer>> backingIterable = recordState.entries().iterator();
-				private BaseRow record;
-				private int remainingTimes = 0;
+                @Override
+                public boolean hasNext() {
+                    return backingIterable.hasNext() || remainingTimes > 0;
+                }
 
-				@Override
-				public boolean hasNext() {
-					return backingIterable.hasNext() || remainingTimes > 0;
-				}
+                @Override
+                public RowData next() {
+                    if (remainingTimes > 0) {
+                        checkNotNull(record);
+                        remainingTimes--;
+                        return record;
+                    } else {
+                        Map.Entry<RowData, Integer> entry = backingIterable.next();
+                        record = entry.getKey();
+                        remainingTimes = entry.getValue() - 1;
+                        return record;
+                    }
+                }
 
-				@Override
-				public BaseRow next() {
-					if (remainingTimes > 0) {
-						checkNotNull(record);
-						remainingTimes--;
-						return record;
-					} else {
-						Map.Entry<BaseRow, Integer> entry = backingIterable.next();
-						record = entry.getKey();
-						remainingTimes = entry.getValue() - 1;
-						return record;
-					}
-				}
-
-				@Override
-				public Iterator<BaseRow> iterator() {
-					return this;
-				}
-			};
-		}
-	}
+                @Override
+                public Iterator<RowData> iterator() {
+                    return this;
+                }
+            };
+        }
+    }
 }

@@ -28,10 +28,12 @@ import java.io.Serializable;
  * data partition receives an Iterable with data elements of that partition. It may return an
  * arbitrary number of data elements.
  *
- * <p>This function is intended to provide enhanced flexibility in the processing of elements in a partition.
- * For most of the simple use cases, consider using the {@link MapFunction} or {@link FlatMapFunction}.
+ * <p>This function is intended to provide enhanced flexibility in the processing of elements in a
+ * partition. For most of the simple use cases, consider using the {@link MapFunction} or {@link
+ * FlatMapFunction}.
  *
  * <p>The basic syntax for a MapPartitionFunction is as follows:
+ *
  * <pre>{@code
  * DataSet<X> input = ...;
  *
@@ -45,13 +47,13 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface MapPartitionFunction<T, O> extends Function, Serializable {
 
-	/**
-	 * A user-implemented function that modifies or transforms an incoming object.
-	 *
-	 * @param values All records for the mapper
-	 * @param out The collector to hand results to.
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 *                   to fail and may trigger recovery.
-	 */
-	void mapPartition(Iterable<T> values, Collector<O> out) throws Exception;
+    /**
+     * A user-implemented function that modifies or transforms an incoming object.
+     *
+     * @param values All records for the mapper
+     * @param out The collector to hand results to.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    void mapPartition(Iterable<T> values, Collector<O> out) throws Exception;
 }

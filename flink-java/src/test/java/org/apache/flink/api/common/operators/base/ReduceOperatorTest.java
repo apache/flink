@@ -48,137 +48,152 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link ReduceOperator}.
- */
+/** Tests for {@link ReduceOperator}. */
 @SuppressWarnings({"serial", "unchecked"})
-public class ReduceOperatorTest extends TestLogger implements Serializable{
+public class ReduceOperatorTest extends TestLogger implements Serializable {
 
-	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
-			TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){});
+    private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
+            TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
 
-	@Test
-	public void testReduceCollection() {
-		try {
-			final ReduceFunction<Tuple2<String, Integer>> reducer =
-					(value1, value2) -> new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+    @Test
+    public void testReduceCollection() {
+        try {
+            final ReduceFunction<Tuple2<String, Integer>> reducer =
+                    (value1, value2) -> new Tuple2<>(value1.f0, value1.f1 + value2.f1);
 
-			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>> op =
-					new ReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+            ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>>
+                    op =
+                            new ReduceOperatorBase<>(
+                                    reducer,
+                                    new UnaryOperatorInformation<>(
+                                            STRING_INT_TUPLE, STRING_INT_TUPLE),
+                                    new int[] {0},
+                                    "TestReducer");
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+            List<Tuple2<String, Integer>> input =
+                    new ArrayList<>(
+                            asList(
+                                    new Tuple2<>("foo", 1),
+                                    new Tuple2<>("foo", 3),
+                                    new Tuple2<>("bar", 2),
+                                    new Tuple2<>("bar", 4)));
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			executionConfig.disableObjectReuse();
-			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, null, executionConfig);
-			executionConfig.enableObjectReuse();
-			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, null, executionConfig);
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.disableObjectReuse();
+            List<Tuple2<String, Integer>> resultMutableSafe =
+                    op.executeOnCollections(input, null, executionConfig);
+            executionConfig.enableObjectReuse();
+            List<Tuple2<String, Integer>> resultRegular =
+                    op.executeOnCollections(input, null, executionConfig);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+            Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
+            Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+            Set<Tuple2<String, Integer>> expectedResult =
+                    new HashSet<>(asList(new Tuple2<>("foo", 4), new Tuple2<>("bar", 6)));
 
-			assertEquals(expectedResult, resultSetMutableSafe);
-			assertEquals(expectedResult, resultSetRegular);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(expectedResult, resultSetMutableSafe);
+            assertEquals(expectedResult, resultSetRegular);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testReduceCollectionWithRuntimeContext() {
-		try {
-			final String taskName = "Test Task";
-			final AtomicBoolean opened = new AtomicBoolean();
-			final AtomicBoolean closed = new AtomicBoolean();
+    @Test
+    public void testReduceCollectionWithRuntimeContext() {
+        try {
+            final String taskName = "Test Task";
+            final AtomicBoolean opened = new AtomicBoolean();
+            final AtomicBoolean closed = new AtomicBoolean();
 
-			final ReduceFunction<Tuple2<String, Integer>> reducer = new RichReduceFunction<Tuple2<String, Integer>>() {
+            final ReduceFunction<Tuple2<String, Integer>> reducer =
+                    new RichReduceFunction<Tuple2<String, Integer>>() {
 
-				@Override
-				public Tuple2<String, Integer> reduce(
-						Tuple2<String, Integer> value1,
-						Tuple2<String, Integer> value2) throws Exception {
+                        @Override
+                        public Tuple2<String, Integer> reduce(
+                                Tuple2<String, Integer> value1, Tuple2<String, Integer> value2)
+                                throws Exception {
 
-					return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
-				}
+                            return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+                        }
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					opened.set(true);
-					RuntimeContext ctx = getRuntimeContext();
-					assertEquals(0, ctx.getIndexOfThisSubtask());
-					assertEquals(1, ctx.getNumberOfParallelSubtasks());
-					assertEquals(taskName, ctx.getTaskName());
-				}
+                        @Override
+                        public void open(Configuration parameters) throws Exception {
+                            opened.set(true);
+                            RuntimeContext ctx = getRuntimeContext();
+                            assertEquals(0, ctx.getIndexOfThisSubtask());
+                            assertEquals(1, ctx.getNumberOfParallelSubtasks());
+                            assertEquals(taskName, ctx.getTaskName());
+                        }
 
-				@Override
-				public void close() throws Exception {
-					closed.set(true);
-				}
-			};
+                        @Override
+                        public void close() throws Exception {
+                            closed.set(true);
+                        }
+                    };
 
-			ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>> op =
-					new ReduceOperatorBase<>(
-							reducer,
-							new UnaryOperatorInformation<>(STRING_INT_TUPLE, STRING_INT_TUPLE),
-							new int[]{0},
-							"TestReducer");
+            ReduceOperatorBase<Tuple2<String, Integer>, ReduceFunction<Tuple2<String, Integer>>>
+                    op =
+                            new ReduceOperatorBase<>(
+                                    reducer,
+                                    new UnaryOperatorInformation<>(
+                                            STRING_INT_TUPLE, STRING_INT_TUPLE),
+                                    new int[] {0},
+                                    "TestReducer");
 
-			List<Tuple2<String, Integer>> input = new ArrayList<>(asList(
-					new Tuple2<>("foo", 1),
-					new Tuple2<>("foo", 3),
-					new Tuple2<>("bar", 2),
-					new Tuple2<>("bar", 4)));
+            List<Tuple2<String, Integer>> input =
+                    new ArrayList<>(
+                            asList(
+                                    new Tuple2<>("foo", 1),
+                                    new Tuple2<>("foo", 3),
+                                    new Tuple2<>("bar", 2),
+                                    new Tuple2<>("bar", 4)));
 
-			final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
+            final TaskInfo taskInfo = new TaskInfo(taskName, 1, 0, 1, 0);
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
+            ExecutionConfig executionConfig = new ExecutionConfig();
 
-			executionConfig.disableObjectReuse();
-			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input,
-					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
-							new UnregisteredMetricsGroup()),
-					executionConfig);
+            executionConfig.disableObjectReuse();
+            List<Tuple2<String, Integer>> resultMutableSafe =
+                    op.executeOnCollections(
+                            input,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    new HashMap<>(),
+                                    new HashMap<>(),
+                                    new UnregisteredMetricsGroup()),
+                            executionConfig);
 
-			executionConfig.enableObjectReuse();
-			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input,
-					new RuntimeUDFContext(taskInfo, null, executionConfig,
-							new HashMap<>(),
-							new HashMap<>(),
-							new UnregisteredMetricsGroup()),
-					executionConfig);
+            executionConfig.enableObjectReuse();
+            List<Tuple2<String, Integer>> resultRegular =
+                    op.executeOnCollections(
+                            input,
+                            new RuntimeUDFContext(
+                                    taskInfo,
+                                    null,
+                                    executionConfig,
+                                    new HashMap<>(),
+                                    new HashMap<>(),
+                                    new UnregisteredMetricsGroup()),
+                            executionConfig);
 
-			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
-			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
+            Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);
+            Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<>(resultRegular);
 
-			Set<Tuple2<String, Integer>> expectedResult = new HashSet<>(asList(
-					new Tuple2<>("foo", 4),
-					new Tuple2<>("bar", 6)));
+            Set<Tuple2<String, Integer>> expectedResult =
+                    new HashSet<>(asList(new Tuple2<>("foo", 4), new Tuple2<>("bar", 6)));
 
-			assertEquals(expectedResult, resultSetMutableSafe);
-			assertEquals(expectedResult, resultSetRegular);
+            assertEquals(expectedResult, resultSetMutableSafe);
+            assertEquals(expectedResult, resultSetRegular);
 
-			assertTrue(opened.get());
-			assertTrue(closed.get());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertTrue(opened.get());
+            assertTrue(closed.get());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

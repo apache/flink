@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-nifi_${scala.binary.version}</artifactId>
-	<name>flink-connector-nifi</name>
+	<name>Flink : Connectors : Nifi</name>
 
 	<packaging>jar</packaging>
 

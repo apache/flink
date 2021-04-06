@@ -26,19 +26,18 @@ import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.Callable;
 
 /**
- * Hadoop security context which runs a Callable with the previously
- * initialized UGI and appropriate security credentials.
+ * Hadoop security context which runs a Callable with the previously initialized UGI and appropriate
+ * security credentials.
  */
 public class HadoopSecurityContext implements SecurityContext {
 
-	private final UserGroupInformation ugi;
+    private final UserGroupInformation ugi;
 
-	public HadoopSecurityContext(UserGroupInformation ugi) {
-		this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
-	}
+    public HadoopSecurityContext(UserGroupInformation ugi) {
+        this.ugi = Preconditions.checkNotNull(ugi, "UGI passed cannot be null");
+    }
 
-	public <T> T runSecured(final Callable<T> securedCallable) throws Exception {
-		return ugi.doAs((PrivilegedExceptionAction<T>) securedCallable::call);
-	}
-
+    public <T> T runSecured(final Callable<T> securedCallable) throws Exception {
+        return ugi.doAs((PrivilegedExceptionAction<T>) securedCallable::call);
+    }
 }

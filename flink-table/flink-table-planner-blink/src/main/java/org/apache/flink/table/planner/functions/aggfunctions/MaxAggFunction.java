@@ -32,197 +32,177 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThe
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 
-/**
- * built-in max aggregate function.
- */
+/** built-in max aggregate function. */
 public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
-	private UnresolvedReferenceExpression max = unresolvedRef("max");
+    private UnresolvedReferenceExpression max = unresolvedRef("max");
 
-	@Override
-	public int operandCount() {
-		return 1;
-	}
+    @Override
+    public int operandCount() {
+        return 1;
+    }
 
-	@Override
-	public UnresolvedReferenceExpression[] aggBufferAttributes() {
-		return new UnresolvedReferenceExpression[] { max };
-	}
+    @Override
+    public UnresolvedReferenceExpression[] aggBufferAttributes() {
+        return new UnresolvedReferenceExpression[] {max};
+    }
 
-	@Override
-	public DataType[] getAggBufferTypes() {
-		return new DataType[] { getResultType() };
-	}
+    @Override
+    public DataType[] getAggBufferTypes() {
+        return new DataType[] {getResultType()};
+    }
 
-	@Override
-	public Expression[] initialValuesExpressions() {
-		return new Expression[] {
-				/* max = */ nullOf(getResultType())
-		};
-	}
+    @Override
+    public Expression[] initialValuesExpressions() {
+        return new Expression[] {/* max = */ nullOf(getResultType())};
+    }
 
-	@Override
-	public Expression[] accumulateExpressions() {
-		return new Expression[] {
-				/* max = */
-				ifThenElse(isNull(operand(0)), max,
-						ifThenElse(isNull(max), operand(0),
-								ifThenElse(greaterThan(operand(0), max), operand(0), max)))
-		};
-	}
+    @Override
+    public Expression[] accumulateExpressions() {
+        return new Expression[] {
+            /* max = */ ifThenElse(
+                    isNull(operand(0)),
+                    max,
+                    ifThenElse(
+                            isNull(max),
+                            operand(0),
+                            ifThenElse(greaterThan(operand(0), max), operand(0), max)))
+        };
+    }
 
-	@Override
-	public Expression[] retractExpressions() {
-		// TODO FLINK-12295, ignore exception now
-//		throw new TableException("This function does not support retraction, Please choose MaxWithRetractAggFunction.");
-		return new Expression[0];
-	}
+    @Override
+    public Expression[] retractExpressions() {
+        // TODO FLINK-12295, ignore exception now
+        //		throw new TableException("This function does not support retraction, Please choose
+        // MaxWithRetractAggFunction.");
+        return new Expression[0];
+    }
 
-	@Override
-	public Expression[] mergeExpressions() {
-		return new Expression[] {
-				/* max = */
-				ifThenElse(isNull(mergeOperand(max)), max,
-						ifThenElse(isNull(max), mergeOperand(max),
-								ifThenElse(greaterThan(mergeOperand(max), max), mergeOperand(max), max)))
-		};
-	}
+    @Override
+    public Expression[] mergeExpressions() {
+        return new Expression[] {
+            /* max = */ ifThenElse(
+                    isNull(mergeOperand(max)),
+                    max,
+                    ifThenElse(
+                            isNull(max),
+                            mergeOperand(max),
+                            ifThenElse(
+                                    greaterThan(mergeOperand(max), max), mergeOperand(max), max)))
+        };
+    }
 
-	@Override
-	public Expression getValueExpression() {
-		return max;
-	}
+    @Override
+    public Expression getValueExpression() {
+        return max;
+    }
 
-	/**
-	 * Built-in Int Max aggregate function.
-	 */
-	public static class IntMaxAggFunction extends MaxAggFunction {
+    /** Built-in Int Max aggregate function. */
+    public static class IntMaxAggFunction extends MaxAggFunction {
 
-		@Override
-		public DataType getResultType() {
-			return DataTypes.INT();
-		}
-	}
+        @Override
+        public DataType getResultType() {
+            return DataTypes.INT();
+        }
+    }
 
-	/**
-	 * Built-in Byte Max aggregate function.
-	 */
-	public static class ByteMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.TINYINT();
-		}
-	}
+    /** Built-in Byte Max aggregate function. */
+    public static class ByteMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.TINYINT();
+        }
+    }
 
-	/**
-	 * Built-in Short Max aggregate function.
-	 */
-	public static class ShortMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.SMALLINT();
-		}
-	}
+    /** Built-in Short Max aggregate function. */
+    public static class ShortMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.SMALLINT();
+        }
+    }
 
-	/**
-	 * Built-in Long Max aggregate function.
-	 */
-	public static class LongMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.BIGINT();
-		}
-	}
+    /** Built-in Long Max aggregate function. */
+    public static class LongMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.BIGINT();
+        }
+    }
 
-	/**
-	 * Built-in Float Max aggregate function.
-	 */
-	public static class FloatMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.FLOAT();
-		}
-	}
+    /** Built-in Float Max aggregate function. */
+    public static class FloatMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.FLOAT();
+        }
+    }
 
-	/**
-	 * Built-in Double Max aggregate function.
-	 */
-	public static class DoubleMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.DOUBLE();
-		}
-	}
+    /** Built-in Double Max aggregate function. */
+    public static class DoubleMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.DOUBLE();
+        }
+    }
 
-	/**
-	 * Built-in Decimal Max aggregate function.
-	 */
-	public static class DecimalMaxAggFunction extends MaxAggFunction {
-		private DecimalType decimalType;
+    /** Built-in Decimal Max aggregate function. */
+    public static class DecimalMaxAggFunction extends MaxAggFunction {
+        private DecimalType decimalType;
 
-		public DecimalMaxAggFunction(DecimalType decimalType) {
-			this.decimalType = decimalType;
-		}
+        public DecimalMaxAggFunction(DecimalType decimalType) {
+            this.decimalType = decimalType;
+        }
 
-		@Override
-		public DataType getResultType() {
-			return DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
-		}
-	}
+        @Override
+        public DataType getResultType() {
+            return DataTypes.DECIMAL(decimalType.getPrecision(), decimalType.getScale());
+        }
+    }
 
-	/**
-	 * Built-in Boolean Max aggregate function.
-	 */
-	public static class BooleanMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.BOOLEAN();
-		}
-	}
+    /** Built-in Boolean Max aggregate function. */
+    public static class BooleanMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.BOOLEAN();
+        }
+    }
 
-	/**
-	 * Built-in String Max aggregate function.
-	 */
-	public static class StringMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.STRING();
-		}
-	}
+    /** Built-in String Max aggregate function. */
+    public static class StringMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.STRING();
+        }
+    }
 
-	/**
-	 * Built-in Date Max aggregate function.
-	 */
-	public static class DateMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.DATE();
-		}
-	}
+    /** Built-in Date Max aggregate function. */
+    public static class DateMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.DATE();
+        }
+    }
 
-	/**
-	 * Built-in Time Max aggregate function.
-	 */
-	public static class TimeMaxAggFunction extends MaxAggFunction {
-		@Override
-		public DataType getResultType() {
-			return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
-		}
-	}
+    /** Built-in Time Max aggregate function. */
+    public static class TimeMaxAggFunction extends MaxAggFunction {
+        @Override
+        public DataType getResultType() {
+            return DataTypes.TIME(TimeType.DEFAULT_PRECISION);
+        }
+    }
 
-	/**
-	 * Built-in Timestamp Max aggregate function.
-	 */
-	public static class TimestampMaxAggFunction extends MaxAggFunction {
+    /** Built-in Timestamp Max aggregate function. */
+    public static class TimestampMaxAggFunction extends MaxAggFunction {
 
-		private final TimestampType type;
+        private final TimestampType type;
 
-		public TimestampMaxAggFunction(TimestampType type) {
-			this.type = type;
-		}
+        public TimestampMaxAggFunction(TimestampType type) {
+            this.type = type;
+        }
 
-		@Override
-		public DataType getResultType() {
-			return DataTypes.TIMESTAMP(type.getPrecision());
-		}
-	}
+        @Override
+        public DataType getResultType() {
+            return DataTypes.TIMESTAMP(type.getPrecision());
+        }
+    }
 }

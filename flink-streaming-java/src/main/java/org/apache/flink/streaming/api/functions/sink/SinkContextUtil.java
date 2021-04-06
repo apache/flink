@@ -20,32 +20,30 @@ package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Utility for creating Sink {@link SinkFunction.Context Contexts}.
- */
+/** Utility for creating Sink {@link SinkFunction.Context Contexts}. */
 @Internal
 public class SinkContextUtil {
 
-	/**
-	 * Creates a {@link SinkFunction.Context} that
-	 * throws an exception when trying to access the current watermark or processing time.
-	 */
-	public static <T> SinkFunction.Context<T> forTimestamp(long timestamp) {
-		return new SinkFunction.Context<T>() {
-			@Override
-			public long currentProcessingTime() {
-				throw new RuntimeException("Not implemented");
-			}
+    /**
+     * Creates a {@link SinkFunction.Context} that throws an exception when trying to access the
+     * current watermark or processing time.
+     */
+    public static SinkFunction.Context forTimestamp(long timestamp) {
+        return new SinkFunction.Context() {
+            @Override
+            public long currentProcessingTime() {
+                throw new RuntimeException("Not implemented");
+            }
 
-			@Override
-			public long currentWatermark() {
-				throw new RuntimeException("Not implemented");
-			}
+            @Override
+            public long currentWatermark() {
+                throw new RuntimeException("Not implemented");
+            }
 
-			@Override
-			public Long timestamp() {
-				return timestamp;
-			}
-		};
-	}
+            @Override
+            public Long timestamp() {
+                return timestamp;
+            }
+        };
+    }
 }

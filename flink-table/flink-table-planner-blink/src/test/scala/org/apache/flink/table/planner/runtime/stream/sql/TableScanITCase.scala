@@ -20,15 +20,13 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime}
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
@@ -37,33 +35,12 @@ import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
 
-import scala.collection.JavaConversions._
-
 class TableScanITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-
-    val tableSource = new StreamTableSource[Row]() {
-      private val fieldNames: Array[String] = Array("name", "id", "value")
-      private val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG, Types.INT)
-
-      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-        val data = Seq(
-          Row.of("Mary", new JLong(1L), new JInt(1)),
-          Row.of("Bob", new JLong(2L), new JInt(3))
-        )
-        val dataStream = execEnv.fromCollection(data).returns(getReturnType)
-        dataStream.getTransformation.setMaxParallelism(1)
-        dataStream
-      }
-
-      override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
-
-      override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
-    }
-    tEnv.registerTableSource(tableName, tableSource)
+    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     val sink = new TestingAppendSink
@@ -84,7 +61,7 @@ class TableScanITCase extends StreamingTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -119,7 +96,7 @@ class TableScanITCase extends StreamingTestBase {
       rowtime = "rowtime",
       mapping = mapping,
       existingTs = "ts")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery =
       s"""
@@ -161,7 +138,7 @@ class TableScanITCase extends StreamingTestBase {
       fieldNames)
 
     val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 

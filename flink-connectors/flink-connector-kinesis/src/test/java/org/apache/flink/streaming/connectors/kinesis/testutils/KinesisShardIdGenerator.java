@@ -23,7 +23,7 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
  * <p>Kinesis shard ids are in the form of: shardId-\d{12}
  */
 public class KinesisShardIdGenerator {
-	public static String generateFromShardOrder(int order) {
-		return String.format("shardId-%012d", order);
-	}
+    public static String generateFromShardOrder(int order) {
+        return String.format("shardId-%012d", order);
+    }
 }

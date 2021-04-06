@@ -24,13 +24,12 @@ import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
  * OutputFormat to write Flink {@link Tuple}s into a Cassandra cluster.
  *
  * @param <OUT> Type of {@link Tuple} to write to Cassandra.
- *
  * @deprecated Please use CassandraTupleOutputFormat instead.
  */
 @Deprecated
 public class CassandraOutputFormat<OUT extends Tuple> extends CassandraTupleOutputFormat<OUT> {
 
-	public CassandraOutputFormat(String insertQuery, ClusterBuilder builder) {
-		super(insertQuery, builder);
-	}
+    public CassandraOutputFormat(String insertQuery, ClusterBuilder builder) {
+        super(insertQuery, builder);
+    }
 }

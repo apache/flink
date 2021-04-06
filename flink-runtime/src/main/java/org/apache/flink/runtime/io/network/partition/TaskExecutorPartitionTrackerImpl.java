@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.CollectionUtil;
@@ -25,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,74 +35,118 @@ import java.util.stream.Collectors;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public class TaskExecutorPartitionTrackerImpl extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo> implements TaskExecutorPartitionTracker {
+public class TaskExecutorPartitionTrackerImpl
+        extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo>
+        implements TaskExecutorPartitionTracker {
 
-	private final Map<TaskExecutorPartitionInfo, Set<ResultPartitionID>> clusterPartitions = new HashMap<>();
-	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private final Map<IntermediateDataSetID, DataSetEntry> clusterPartitions = new HashMap<>();
+    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
 
-	public TaskExecutorPartitionTrackerImpl(ShuffleEnvironment<?, ?> shuffleEnvironment) {
-		this.shuffleEnvironment = shuffleEnvironment;
-	}
+    public TaskExecutorPartitionTrackerImpl(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+        this.shuffleEnvironment = shuffleEnvironment;
+    }
 
-	@Override
-	public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
-		Preconditions.checkNotNull(producingJobId);
-		Preconditions.checkNotNull(partitionInfo);
+    @Override
+    public void startTrackingPartition(
+            JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
+        Preconditions.checkNotNull(producingJobId);
+        Preconditions.checkNotNull(partitionInfo);
 
-		startTrackingPartition(producingJobId, partitionInfo.getResultPartitionId(), partitionInfo);
-	}
+        startTrackingPartition(producingJobId, partitionInfo.getResultPartitionId(), partitionInfo);
+    }
 
-	@Override
-	public void stopTrackingAndReleaseJobPartitions(Collection<ResultPartitionID> partitionsToRelease) {
-		stopTrackingPartitions(partitionsToRelease);
-		shuffleEnvironment.releasePartitionsLocally(partitionsToRelease);
-	}
+    @Override
+    public void stopTrackingAndReleaseJobPartitions(
+            Collection<ResultPartitionID> partitionsToRelease) {
+        if (partitionsToRelease.isEmpty()) {
+            return;
+        }
 
-	@Override
-	public void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId) {
-		Collection<ResultPartitionID> partitionsForJob = CollectionUtil.project(
-			stopTrackingPartitionsFor(producingJobId),
-			PartitionTrackerEntry::getResultPartitionId);
-		shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
-	}
+        stopTrackingPartitions(partitionsToRelease);
+        shuffleEnvironment.releasePartitionsLocally(partitionsToRelease);
+    }
 
-	@Override
-	public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
-		final Collection<PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo>> partitionTrackerEntries = stopTrackingPartitions(partitionsToPromote);
+    @Override
+    public void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId) {
+        Collection<ResultPartitionID> partitionsForJob =
+                CollectionUtil.project(
+                        stopTrackingPartitionsFor(producingJobId),
+                        PartitionTrackerEntry::getResultPartitionId);
+        shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
+    }
 
-		final Map<TaskExecutorPartitionInfo, Set<ResultPartitionID>> newClusterPartitions = partitionTrackerEntries.stream()
-			.collect(Collectors.groupingBy(
-				PartitionTrackerEntry::getMetaInfo,
-				Collectors.mapping(PartitionTrackerEntry::getResultPartitionId, Collectors.toSet())));
+    @Override
+    public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+        if (partitionsToPromote.isEmpty()) {
+            return;
+        }
 
-		newClusterPartitions.forEach(
-			(dataSetMetaInfo, newPartitionEntries) -> clusterPartitions.compute(dataSetMetaInfo, (ignored, existingPartitions) -> {
-				if (existingPartitions == null) {
-					return newPartitionEntries;
-				} else {
-					existingPartitions.addAll(newPartitionEntries);
-					return existingPartitions;
-				}
-			}));
-	}
+        final Collection<PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo>>
+                partitionTrackerEntries = stopTrackingPartitions(partitionsToPromote);
 
-	@Override
-	public void stopTrackingAndReleaseAllClusterPartitions() {
-		clusterPartitions.values().forEach(shuffleEnvironment::releasePartitionsLocally);
-		clusterPartitions.clear();
-	}
+        for (PartitionTrackerEntry<JobID, TaskExecutorPartitionInfo> partitionTrackerEntry :
+                partitionTrackerEntries) {
+            final TaskExecutorPartitionInfo dataSetMetaInfo = partitionTrackerEntry.getMetaInfo();
+            final DataSetEntry dataSetEntry =
+                    clusterPartitions.computeIfAbsent(
+                            dataSetMetaInfo.getIntermediateDataSetId(),
+                            ignored -> new DataSetEntry(dataSetMetaInfo.getNumberOfPartitions()));
+            dataSetEntry.addPartition(partitionTrackerEntry.getResultPartitionId());
+        }
+    }
 
-	@Override
-	public ClusterPartitionReport createClusterPartitionReport() {
-		List<ClusterPartitionReport.ClusterPartitionReportEntry> collect = clusterPartitions.entrySet().stream().map(entry -> {
-			TaskExecutorPartitionInfo dataSetMetaInfo = entry.getKey();
-			Set<ResultPartitionID> partitionsIds = entry.getValue();
-			return new ClusterPartitionReport.ClusterPartitionReportEntry(
-				dataSetMetaInfo.getIntermediateDataSetId(),
-				partitionsIds,
-				dataSetMetaInfo.getNumberOfPartitions());
-		}).collect(Collectors.toList());
+    @Override
+    public void stopTrackingAndReleaseClusterPartitions(
+            Collection<IntermediateDataSetID> dataSetsToRelease) {
+        for (IntermediateDataSetID dataSetID : dataSetsToRelease) {
+            final DataSetEntry dataSetEntry = clusterPartitions.remove(dataSetID);
+            final Set<ResultPartitionID> partitionIds = dataSetEntry.getPartitionIds();
+            shuffleEnvironment.releasePartitionsLocally(partitionIds);
+        }
+    }
 
-		return new ClusterPartitionReport(collect);
-	}
+    @Override
+    public void stopTrackingAndReleaseAllClusterPartitions() {
+        clusterPartitions.values().stream()
+                .map(DataSetEntry::getPartitionIds)
+                .forEach(shuffleEnvironment::releasePartitionsLocally);
+        clusterPartitions.clear();
+    }
+
+    @Override
+    public ClusterPartitionReport createClusterPartitionReport() {
+        List<ClusterPartitionReport.ClusterPartitionReportEntry> reportEntries =
+                clusterPartitions.entrySet().stream()
+                        .map(
+                                entry ->
+                                        new ClusterPartitionReport.ClusterPartitionReportEntry(
+                                                entry.getKey(),
+                                                entry.getValue().getPartitionIds(),
+                                                entry.getValue().getTotalNumberOfPartitions()))
+                        .collect(Collectors.toList());
+
+        return new ClusterPartitionReport(reportEntries);
+    }
+
+    private static class DataSetEntry {
+
+        private final Set<ResultPartitionID> partitionIds = new HashSet<>();
+        private final int totalNumberOfPartitions;
+
+        private DataSetEntry(int totalNumberOfPartitions) {
+            this.totalNumberOfPartitions = totalNumberOfPartitions;
+        }
+
+        void addPartition(ResultPartitionID resultPartitionId) {
+            partitionIds.add(resultPartitionId);
+        }
+
+        public Set<ResultPartitionID> getPartitionIds() {
+            return partitionIds;
+        }
+
+        public int getTotalNumberOfPartitions() {
+            return totalNumberOfPartitions;
+        }
+    }
 }

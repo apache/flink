@@ -27,23 +27,25 @@ import java.util.HashSet;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Type information for numeric fractional primitive types (double, float).
- */
+/** Type information for numeric fractional primitive types (double, float). */
 @Public
 public class FractionalTypeInfo<T> extends NumericTypeInfo<T> {
 
-	private static final long serialVersionUID = 554334260950199994L;
+    private static final long serialVersionUID = 554334260950199994L;
 
-	private static final HashSet<Class<?>> fractionalTypes = new HashSet<>(
-			Arrays.asList(
-				Double.class,
-				Float.class));
+    private static final HashSet<Class<?>> fractionalTypes =
+            new HashSet<>(Arrays.asList(Double.class, Float.class));
 
-	protected FractionalTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
-		super(clazz, possibleCastTargetTypes, serializer, comparatorClass);
+    protected FractionalTypeInfo(
+            Class<T> clazz,
+            Class<?>[] possibleCastTargetTypes,
+            TypeSerializer<T> serializer,
+            Class<? extends TypeComparator<T>> comparatorClass) {
+        super(clazz, possibleCastTargetTypes, serializer, comparatorClass);
 
-		checkArgument(fractionalTypes.contains(clazz),
-				"The given class %s is not a fractional type.", clazz.getSimpleName());
-	}
+        checkArgument(
+                fractionalTypes.contains(clazz),
+                "The given class %s is not a fractional type.",
+                clazz.getSimpleName());
+    }
 }

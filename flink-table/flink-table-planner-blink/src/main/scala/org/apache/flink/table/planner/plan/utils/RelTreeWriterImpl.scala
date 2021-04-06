@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import org.apache.calcite.rel.RelNode
@@ -37,7 +36,7 @@ class RelTreeWriterImpl(
     pw: PrintWriter,
     explainLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
     withIdPrefix: Boolean = false,
-    withRetractTraits: Boolean = false,
+    withChangelogTraits: Boolean = false,
     withRowType: Boolean = false,
     withTreeStyle: Boolean = true)
   extends RelWriterImpl(pw, explainLevel, withIdPrefix) {
@@ -71,7 +70,9 @@ class RelTreeWriterImpl(
 
     rel.getRelTypeName match {
       case name if name.startsWith("BatchExec") => s.append(name.substring(9))
+      case name if name.startsWith("BatchPhysical") => s.append(name.substring(13))
       case name if name.startsWith("StreamExec") => s.append(name.substring(10))
+      case name if name.startsWith("StreamPhysical") => s.append(name.substring(14))
       case name => s.append(name)
     }
 
@@ -80,14 +81,11 @@ class RelTreeWriterImpl(
       printValues.addAll(values)
     }
 
-    if (withRetractTraits) rel match {
+    if (withChangelogTraits) rel match {
       case streamRel: StreamPhysicalRel =>
-        val traitSet = streamRel.getTraitSet
+        val changelogMode = ChangelogPlanUtils.getChangelogMode(streamRel)
         printValues.add(
-          Pair.of("updateAsRetraction",
-            traitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)))
-        printValues.add(
-          Pair.of("accMode", traitSet.getTrait(AccModeTraitDef.INSTANCE)))
+          Pair.of("changelogMode", ChangelogPlanUtils.stringifyChangelogMode(changelogMode)))
       case _ => // ignore
     }
 
@@ -114,6 +112,7 @@ class RelTreeWriterImpl(
         .append(mq.getCumulativeCost(rel))
     }
     pw.println(s)
+
     if (inputs.length > 1) inputs.toSeq.init.foreach { rel =>
       if (withTreeStyle) {
         depth = depth + 1

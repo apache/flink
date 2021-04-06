@@ -30,25 +30,22 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Response for {@link JarRunHandler}.
- */
+/** Response for {@link JarRunHandler}. */
 public class JarRunResponseBody implements ResponseBody {
 
-	@JsonProperty("jobid")
-	@JsonDeserialize(using = JobIDDeserializer.class)
-	@JsonSerialize(using = JobIDSerializer.class)
-	private final JobID jobId;
+    @JsonProperty("jobid")
+    @JsonDeserialize(using = JobIDDeserializer.class)
+    @JsonSerialize(using = JobIDSerializer.class)
+    private final JobID jobId;
 
-	@JsonCreator
-	public JarRunResponseBody(
-			@JsonProperty("jobid")
-			@JsonDeserialize(using = JobIDDeserializer.class) final JobID jobId) {
-		this.jobId = requireNonNull(jobId);
-	}
+    @JsonCreator
+    public JarRunResponseBody(
+            @JsonProperty("jobid") @JsonDeserialize(using = JobIDDeserializer.class)
+                    final JobID jobId) {
+        this.jobId = requireNonNull(jobId);
+    }
 
-	public JobID getJobId() {
-		return jobId;
-	}
-
+    public JobID getJobId() {
+        return jobId;
+    }
 }

@@ -21,23 +21,22 @@ package org.apache.flink.runtime.io.network.partition;
 import java.io.IOException;
 import java.nio.file.Path;
 
-/**
- * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
- */
+/** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
 public class FileChannelMemoryMappedBoundedDataTest extends BoundedDataTestBase {
 
-	@Override
-	protected boolean isRegionBased() {
-		return true;
-	}
+    @Override
+    protected boolean isRegionBased() {
+        return true;
+    }
 
-	@Override
-	protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
-		return FileChannelMemoryMappedBoundedData.create(tempFilePath);
-	}
+    @Override
+    protected BoundedData createBoundedData(Path tempFilePath) throws IOException {
+        return FileChannelMemoryMappedBoundedData.create(tempFilePath);
+    }
 
-	@Override
-	protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException {
-		return FileChannelMemoryMappedBoundedData.createWithRegionSize(tempFilePath, regionSize);
-	}
+    @Override
+    protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize)
+            throws IOException {
+        return FileChannelMemoryMappedBoundedData.createWithRegionSize(tempFilePath, regionSize);
+    }
 }

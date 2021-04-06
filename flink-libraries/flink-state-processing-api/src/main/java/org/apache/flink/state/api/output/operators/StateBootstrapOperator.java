@@ -35,59 +35,61 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  */
 @Internal
 public class StateBootstrapOperator<IN>
-	extends AbstractUdfStreamOperator<TaggedOperatorSubtaskState, StateBootstrapFunction<IN>>
-	implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>,
-	BoundedOneInput {
+        extends AbstractUdfStreamOperator<TaggedOperatorSubtaskState, StateBootstrapFunction<IN>>
+        implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long timestamp;
+    private final long timestamp;
 
-	private final Path savepointPath;
+    private final Path savepointPath;
 
-	private transient ContextImpl context;
+    private transient ContextImpl context;
 
-	public StateBootstrapOperator(long timestamp, Path savepointPath, StateBootstrapFunction<IN> function) {
-		super(function);
+    public StateBootstrapOperator(
+            long timestamp, Path savepointPath, StateBootstrapFunction<IN> function) {
+        super(function);
 
-		this.timestamp = timestamp;
-		this.savepointPath = savepointPath;
-	}
+        this.timestamp = timestamp;
+        this.savepointPath = savepointPath;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		context = new ContextImpl(getProcessingTimeService());
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        context = new ContextImpl(getProcessingTimeService());
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		userFunction.processElement(element.getValue(), context);
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        userFunction.processElement(element.getValue(), context);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		TaggedOperatorSubtaskState state = SnapshotUtils.snapshot(
-			this,
-			getRuntimeContext().getIndexOfThisSubtask(),
-			timestamp,
-			getContainingTask().getCheckpointStorage(),
-			savepointPath);
+    @Override
+    public void endInput() throws Exception {
+        TaggedOperatorSubtaskState state =
+                SnapshotUtils.snapshot(
+                        this,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        timestamp,
+                        getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
+                        getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
+                        getContainingTask().getCheckpointStorage(),
+                        savepointPath);
 
-		output.collect(new StreamRecord<>(state));
-	}
+        output.collect(new StreamRecord<>(state));
+    }
 
-	private class ContextImpl implements StateBootstrapFunction.Context {
-		private final ProcessingTimeService processingTimeService;
+    private class ContextImpl implements StateBootstrapFunction.Context {
+        private final ProcessingTimeService processingTimeService;
 
-		ContextImpl(ProcessingTimeService processingTimeService) {
-			this.processingTimeService = processingTimeService;
-		}
+        ContextImpl(ProcessingTimeService processingTimeService) {
+            this.processingTimeService = processingTimeService;
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
-	}
+        @Override
+        public long currentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
+    }
 }
-

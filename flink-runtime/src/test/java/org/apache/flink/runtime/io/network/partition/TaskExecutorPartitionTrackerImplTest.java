@@ -38,6 +38,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.not;
@@ -47,157 +48,224 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 
-/**
- * Tests for the {@link TaskExecutorPartitionTrackerImpl}.
- */
+/** Tests for the {@link TaskExecutorPartitionTrackerImpl}. */
 public class TaskExecutorPartitionTrackerImplTest extends TestLogger {
 
-	@Test
-	public void createClusterPartitionReport() {
-		final TaskExecutorPartitionTrackerImpl partitionTracker = new TaskExecutorPartitionTrackerImpl(new NettyShuffleEnvironmentBuilder().build());
+    @Test
+    public void createClusterPartitionReport() {
+        final TaskExecutorPartitionTrackerImpl partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(new NettyShuffleEnvironmentBuilder().build());
 
-		assertThat(partitionTracker.createClusterPartitionReport().getEntries(), is(empty()));
+        assertThat(partitionTracker.createClusterPartitionReport().getEntries(), is(empty()));
 
-		final IntermediateDataSetID dataSetId = new IntermediateDataSetID();
-		final JobID jobId = new JobID();
-		final ResultPartitionID clusterPartitionId = new ResultPartitionID();
-		final ResultPartitionID jobPartitionId = new ResultPartitionID();
-		final int numberOfPartitions = 1;
+        final IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+        final JobID jobId = new JobID();
+        final ResultPartitionID clusterPartitionId = new ResultPartitionID();
+        final ResultPartitionID jobPartitionId = new ResultPartitionID();
+        final int numberOfPartitions = 1;
 
-		partitionTracker.startTrackingPartition(jobId, new TaskExecutorPartitionInfo(clusterPartitionId, dataSetId, numberOfPartitions));
-		partitionTracker.startTrackingPartition(jobId, new TaskExecutorPartitionInfo(jobPartitionId, dataSetId, numberOfPartitions + 1));
+        partitionTracker.startTrackingPartition(
+                jobId,
+                new TaskExecutorPartitionInfo(clusterPartitionId, dataSetId, numberOfPartitions));
+        partitionTracker.startTrackingPartition(
+                jobId,
+                new TaskExecutorPartitionInfo(jobPartitionId, dataSetId, numberOfPartitions + 1));
 
-		partitionTracker.promoteJobPartitions(Collections.singleton(clusterPartitionId));
+        partitionTracker.promoteJobPartitions(Collections.singleton(clusterPartitionId));
 
-		final ClusterPartitionReport clusterPartitionReport = partitionTracker.createClusterPartitionReport();
+        final ClusterPartitionReport clusterPartitionReport =
+                partitionTracker.createClusterPartitionReport();
 
-		final ClusterPartitionReport.ClusterPartitionReportEntry reportEntry = Iterables.getOnlyElement(clusterPartitionReport.getEntries());
-		assertThat(reportEntry.getDataSetId(), is(dataSetId));
-		assertThat(reportEntry.getNumTotalPartitions(), is(numberOfPartitions));
-		assertThat(reportEntry.getHostedPartitions(), hasItems(clusterPartitionId));
-	}
+        final ClusterPartitionReport.ClusterPartitionReportEntry reportEntry =
+                Iterables.getOnlyElement(clusterPartitionReport.getEntries());
+        assertThat(reportEntry.getDataSetId(), is(dataSetId));
+        assertThat(reportEntry.getNumTotalPartitions(), is(numberOfPartitions));
+        assertThat(reportEntry.getHostedPartitions(), hasItems(clusterPartitionId));
+    }
 
-	@Test
-	public void testStopTrackingAndReleaseJobPartitions() throws Exception {
-		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
-		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
-		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+    @Test
+    public void testStopTrackingAndReleaseJobPartitions() throws Exception {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+        final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
+                new CompletableFuture<>();
+        testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
 
-		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
-		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
-		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
-		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-		partitionTracker.stopTrackingAndReleaseJobPartitions(Collections.singleton(resultPartitionId1));
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        partitionTracker.startTrackingPartition(
+                new JobID(),
+                new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
+        partitionTracker.startTrackingPartition(
+                new JobID(),
+                new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
+        partitionTracker.stopTrackingAndReleaseJobPartitions(
+                Collections.singleton(resultPartitionId1));
 
-		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
-	}
+        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+    }
 
-	@Test
-	public void testStopTrackingAndReleaseJobPartitionsFor() throws Exception {
-		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
-		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
-		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+    @Test
+    public void testStopTrackingAndReleaseJobPartitionsFor() throws Exception {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+        final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
+                new CompletableFuture<>();
+        testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
 
-		final JobID jobId1 = new JobID();
-		final JobID jobId2 = new JobID();
-		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
-		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+        final JobID jobId1 = new JobID();
+        final JobID jobId2 = new JobID();
+        final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
-		partitionTracker.startTrackingPartition(jobId1, new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
-		partitionTracker.startTrackingPartition(jobId2, new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-		partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId1);
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        partitionTracker.startTrackingPartition(
+                jobId1,
+                new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
+        partitionTracker.startTrackingPartition(
+                jobId2,
+                new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
+        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId1);
 
-		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
-	}
+        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+    }
 
-	@Test
-	public void promoteJobPartitions() throws Exception {
-		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
-		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
-		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+    @Test
+    public void promoteJobPartitions() throws Exception {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+        final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
+                new CompletableFuture<>();
+        testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
 
-		final JobID jobId = new JobID();
-		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
-		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+        final JobID jobId = new JobID();
+        final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
-		partitionTracker.startTrackingPartition(jobId, new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
-		partitionTracker.startTrackingPartition(jobId, new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-		partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        partitionTracker.startTrackingPartition(
+                jobId,
+                new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
+        partitionTracker.startTrackingPartition(
+                jobId,
+                new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
+        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
-		partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
-		assertThat(shuffleReleaseFuture.get(), not(hasItem(resultPartitionId1)));
-	}
+        partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+        assertThat(shuffleReleaseFuture.get(), not(hasItem(resultPartitionId1)));
+    }
 
-	@Test
-	public void stopTrackingAndReleaseAllClusterPartitions() throws Exception {
-		final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
-		final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture = new CompletableFuture<>();
-		testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
+    @Test
+    public void stopTrackingAndReleaseAllClusterPartitions() throws Exception {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+        final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
+                new CompletableFuture<>();
+        testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
 
-		final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
-		final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
-		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
-		partitionTracker.startTrackingPartition(new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
-		partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        partitionTracker.startTrackingPartition(
+                new JobID(),
+                new TaskExecutorPartitionInfo(resultPartitionId1, new IntermediateDataSetID(), 1));
+        partitionTracker.startTrackingPartition(
+                new JobID(),
+                new TaskExecutorPartitionInfo(resultPartitionId2, new IntermediateDataSetID(), 1));
+        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
-		partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
-		assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
-	}
+        partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
+        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+    }
 
-	private static class TestingShuffleEnvironment implements ShuffleEnvironment<ResultPartition, SingleInputGate> {
+    @Test
+    public void stopTrackingAndReleaseClusterPartitions() throws Exception {
+        final TestingShuffleEnvironment testingShuffleEnvironment = new TestingShuffleEnvironment();
+        final CompletableFuture<Collection<ResultPartitionID>> shuffleReleaseFuture =
+                new CompletableFuture<>();
+        testingShuffleEnvironment.releasePartitionsLocallyFuture = shuffleReleaseFuture;
 
-		private final ShuffleEnvironment<ResultPartition, SingleInputGate> backingShuffleEnvironment =
-			new NettyShuffleEnvironmentBuilder().build();
+        final ResultPartitionID resultPartitionId1 = new ResultPartitionID();
+        final ResultPartitionID resultPartitionId2 = new ResultPartitionID();
 
-		CompletableFuture<Collection<ResultPartitionID>> releasePartitionsLocallyFuture = null;
+        final IntermediateDataSetID dataSetId1 = new IntermediateDataSetID();
+        final IntermediateDataSetID dataSetId2 = new IntermediateDataSetID();
 
-		@Override
-		public int start() throws IOException {
-			return backingShuffleEnvironment.start();
-		}
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(testingShuffleEnvironment);
+        partitionTracker.startTrackingPartition(
+                new JobID(), new TaskExecutorPartitionInfo(resultPartitionId1, dataSetId1, 1));
+        partitionTracker.startTrackingPartition(
+                new JobID(), new TaskExecutorPartitionInfo(resultPartitionId2, dataSetId2, 1));
+        partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
-		@Override
-		public ShuffleIOOwnerContext createShuffleIOOwnerContext(String ownerName, ExecutionAttemptID executionAttemptID, MetricGroup parentGroup) {
-			return backingShuffleEnvironment.createShuffleIOOwnerContext(ownerName, executionAttemptID, parentGroup);
-		}
+        partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
+        assertThat(shuffleReleaseFuture.get(), hasItem(resultPartitionId1));
+    }
 
-		@Override
-		public Collection<ResultPartition> createResultPartitionWriters(ShuffleIOOwnerContext ownerContext, Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
-			return backingShuffleEnvironment.createResultPartitionWriters(ownerContext, resultPartitionDeploymentDescriptors);
-		}
+    private static class TestingShuffleEnvironment
+            implements ShuffleEnvironment<ResultPartition, SingleInputGate> {
 
-		@Override
-		public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
-			backingShuffleEnvironment.releasePartitionsLocally(partitionIds);
-			if (releasePartitionsLocallyFuture != null) {
-				releasePartitionsLocallyFuture.complete(partitionIds);
-			}
-		}
+        private final ShuffleEnvironment<ResultPartition, SingleInputGate>
+                backingShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
-		@Override
-		public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
-			return backingShuffleEnvironment.getPartitionsOccupyingLocalResources();
-		}
+        CompletableFuture<Collection<ResultPartitionID>> releasePartitionsLocallyFuture = null;
 
-		@Override
-		public Collection<SingleInputGate> createInputGates(ShuffleIOOwnerContext ownerContext, PartitionProducerStateProvider partitionProducerStateProvider, Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
-			return backingShuffleEnvironment.createInputGates(ownerContext, partitionProducerStateProvider, inputGateDeploymentDescriptors);
-		}
+        @Override
+        public int start() throws IOException {
+            return backingShuffleEnvironment.start();
+        }
 
-		@Override
-		public boolean updatePartitionInfo(ExecutionAttemptID consumerID, PartitionInfo partitionInfo) throws IOException, InterruptedException {
-			return backingShuffleEnvironment.updatePartitionInfo(consumerID, partitionInfo);
-		}
+        @Override
+        public ShuffleIOOwnerContext createShuffleIOOwnerContext(
+                String ownerName, ExecutionAttemptID executionAttemptID, MetricGroup parentGroup) {
+            return backingShuffleEnvironment.createShuffleIOOwnerContext(
+                    ownerName, executionAttemptID, parentGroup);
+        }
 
-		@Override
-		public void close() throws Exception {
-			backingShuffleEnvironment.close();
-		}
-	}
+        @Override
+        public List<ResultPartition> createResultPartitionWriters(
+                ShuffleIOOwnerContext ownerContext,
+                List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors) {
+            return backingShuffleEnvironment.createResultPartitionWriters(
+                    ownerContext, resultPartitionDeploymentDescriptors);
+        }
+
+        @Override
+        public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
+            backingShuffleEnvironment.releasePartitionsLocally(partitionIds);
+            if (releasePartitionsLocallyFuture != null) {
+                releasePartitionsLocallyFuture.complete(partitionIds);
+            }
+        }
+
+        @Override
+        public Collection<ResultPartitionID> getPartitionsOccupyingLocalResources() {
+            return backingShuffleEnvironment.getPartitionsOccupyingLocalResources();
+        }
+
+        @Override
+        public List<SingleInputGate> createInputGates(
+                ShuffleIOOwnerContext ownerContext,
+                PartitionProducerStateProvider partitionProducerStateProvider,
+                List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+            return backingShuffleEnvironment.createInputGates(
+                    ownerContext, partitionProducerStateProvider, inputGateDeploymentDescriptors);
+        }
+
+        @Override
+        public boolean updatePartitionInfo(
+                ExecutionAttemptID consumerID, PartitionInfo partitionInfo)
+                throws IOException, InterruptedException {
+            return backingShuffleEnvironment.updatePartitionInfo(consumerID, partitionInfo);
+        }
+
+        @Override
+        public void close() throws Exception {
+            backingShuffleEnvironment.close();
+        }
+    }
 }

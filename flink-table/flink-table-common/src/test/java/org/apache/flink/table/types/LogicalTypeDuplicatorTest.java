@@ -47,113 +47,108 @@ import java.util.List;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link LogicalTypeDuplicator}.
- */
+/** Tests for {@link LogicalTypeDuplicator}. */
 @RunWith(Parameterized.class)
 public class LogicalTypeDuplicatorTest {
 
-	private static final LogicalTypeDuplicator DUPLICATOR = new LogicalTypeDuplicator();
+    private static final LogicalTypeDuplicator DUPLICATOR = new LogicalTypeDuplicator();
 
-	private static final LogicalTypeDuplicator INT_REPLACER = new IntReplacer();
+    private static final LogicalTypeDuplicator INT_REPLACER = new IntReplacer();
 
-	@Parameters(name = "{index}: {0}")
-	public static List<Object[]> testData() {
-		return Arrays.asList(
-			new Object[][]{
-				{new CharType(2), new CharType(2)},
-				{createMultisetType(new IntType()), createMultisetType(new BigIntType())},
-				{createArrayType(new IntType()), createArrayType(new BigIntType())},
-				{createMapType(new IntType()), createMapType(new BigIntType())},
-				{createRowType(new IntType()), createRowType(new BigIntType())},
-				{createDistinctType(new IntType()), createDistinctType(new BigIntType())},
-				{createUserType(new IntType()), createUserType(new BigIntType())},
-				{createHumanType(), createHumanType()}
-			}
-		);
-	}
+    @Parameters(name = "{index}: {0}")
+    public static List<Object[]> testData() {
+        return Arrays.asList(
+                new Object[][] {
+                    {new CharType(2), new CharType(2)},
+                    {createMultisetType(new IntType()), createMultisetType(new BigIntType())},
+                    {createArrayType(new IntType()), createArrayType(new BigIntType())},
+                    {createMapType(new IntType()), createMapType(new BigIntType())},
+                    {createRowType(new IntType()), createRowType(new BigIntType())},
+                    {createDistinctType(new IntType()), createDistinctType(new BigIntType())},
+                    {createUserType(new IntType()), createUserType(new BigIntType())},
+                    {createHumanType(), createHumanType()}
+                });
+    }
 
-	@Parameter
-	public LogicalType logicalType;
+    @Parameter public LogicalType logicalType;
 
-	@Parameter(1)
-	public LogicalType replacedLogicalType;
+    @Parameter(1)
+    public LogicalType replacedLogicalType;
 
-	@Test
-	public void testDuplication() {
-		assertThat(logicalType.accept(DUPLICATOR), equalTo(logicalType));
-	}
+    @Test
+    public void testDuplication() {
+        assertThat(logicalType.accept(DUPLICATOR), equalTo(logicalType));
+    }
 
-	@Test
-	public void testReplacement() {
-		assertThat(logicalType.accept(INT_REPLACER), equalTo(replacedLogicalType));
-	}
+    @Test
+    public void testReplacement() {
+        assertThat(logicalType.accept(INT_REPLACER), equalTo(replacedLogicalType));
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static class IntReplacer extends LogicalTypeDuplicator {
-		@Override
-		public LogicalType visit(IntType intType) {
-			return new BigIntType();
-		}
-	}
+    private static class IntReplacer extends LogicalTypeDuplicator {
+        @Override
+        public LogicalType visit(IntType intType) {
+            return new BigIntType();
+        }
+    }
 
-	private static MultisetType createMultisetType(LogicalType replacedType) {
-		return new MultisetType(new MultisetType(replacedType));
-	}
+    private static MultisetType createMultisetType(LogicalType replacedType) {
+        return new MultisetType(new MultisetType(replacedType));
+    }
 
-	private static ArrayType createArrayType(LogicalType replacedType) {
-		return new ArrayType(new ArrayType(replacedType));
-	}
+    private static ArrayType createArrayType(LogicalType replacedType) {
+        return new ArrayType(new ArrayType(replacedType));
+    }
 
-	private static MapType createMapType(LogicalType replacedType) {
-		return new MapType(replacedType, new SmallIntType());
-	}
+    private static MapType createMapType(LogicalType replacedType) {
+        return new MapType(replacedType, new SmallIntType());
+    }
 
-	private static DistinctType createDistinctType(LogicalType replacedType) {
-		return new DistinctType.Builder(
-				ObjectIdentifier.of("cat", "db", "Money"),
-				replacedType)
-			.description("Money type desc.")
-			.build();
-	}
+    private static DistinctType createDistinctType(LogicalType replacedType) {
+        return new DistinctType.Builder(ObjectIdentifier.of("cat", "db", "Money"), replacedType)
+                .description("Money type desc.")
+                .build();
+    }
 
-	private static RowType createRowType(LogicalType replacedType) {
-		return new RowType(
-			Arrays.asList(
-				new RowType.RowField("field1", new CharType(2)),
-				new RowType.RowField("field2", new BooleanType()),
-				new RowType.RowField("field3", replacedType)));
-	}
+    private static RowType createRowType(LogicalType replacedType) {
+        return new RowType(
+                Arrays.asList(
+                        new RowType.RowField("field1", new CharType(2)),
+                        new RowType.RowField("field2", new BooleanType()),
+                        new RowType.RowField("field3", replacedType)));
+    }
 
-	private static StructuredType createHumanType() {
-		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "Human"), Human.class)
-			.attributes(
-				Collections.singletonList(
-					new StructuredType.StructuredAttribute("name", new VarCharType(), "Description.")))
-			.description("Human type desc.")
-			.setFinal(false)
-			.setInstantiable(false)
-			.build();
-	}
+    private static StructuredType createHumanType() {
+        return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "Human"), Human.class)
+                .attributes(
+                        Collections.singletonList(
+                                new StructuredType.StructuredAttribute(
+                                        "name", new VarCharType(), "Description.")))
+                .description("Human type desc.")
+                .setFinal(false)
+                .setInstantiable(false)
+                .build();
+    }
 
-	private static StructuredType createUserType(LogicalType replacedType) {
-		return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
-			.attributes(
-				Collections.singletonList(
-					new StructuredType.StructuredAttribute("setting", replacedType)))
-			.description("User type desc.")
-			.setFinal(false)
-			.setInstantiable(true)
-			.superType(createHumanType())
-			.build();
-	}
+    private static StructuredType createUserType(LogicalType replacedType) {
+        return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
+                .attributes(
+                        Collections.singletonList(
+                                new StructuredType.StructuredAttribute("setting", replacedType)))
+                .description("User type desc.")
+                .setFinal(false)
+                .setInstantiable(true)
+                .superType(createHumanType())
+                .build();
+    }
 
-	private abstract static class Human {
-		public String name;
-	}
+    private abstract static class Human {
+        public String name;
+    }
 
-	private static final class User extends Human {
-		public int setting;
-	}
+    private static final class User extends Human {
+        public int setting;
+    }
 }

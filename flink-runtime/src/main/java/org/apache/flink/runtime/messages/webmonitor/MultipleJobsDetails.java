@@ -24,60 +24,55 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Objects;
 
 /**
- * An actor messages describing details of various jobs. This message is sent for example
- * in response to the {@link RequestJobDetails} message.
+ * An actor messages describing details of various jobs. This message is sent for example in
+ * response to the {@link RequestJobDetails} message.
  */
 public class MultipleJobsDetails implements ResponseBody, Serializable {
 
-	private static final long serialVersionUID = -1526236139616019127L;
-	
-	public static final String FIELD_NAME_JOBS = "jobs";
+    private static final long serialVersionUID = -1526236139616019127L;
 
-	@JsonProperty(FIELD_NAME_JOBS)
-	private final Collection<JobDetails> jobs;
+    public static final String FIELD_NAME_JOBS = "jobs";
 
-	@JsonCreator
-	public MultipleJobsDetails(
-			@JsonProperty(FIELD_NAME_JOBS) Collection<JobDetails> jobs) {
-		this.jobs = Preconditions.checkNotNull(jobs);
-	}
-	
-	// ------------------------------------------------------------------------
+    @JsonProperty(FIELD_NAME_JOBS)
+    private final Collection<JobDetails> jobs;
 
+    @JsonCreator
+    public MultipleJobsDetails(@JsonProperty(FIELD_NAME_JOBS) Collection<JobDetails> jobs) {
+        this.jobs = Preconditions.checkNotNull(jobs);
+    }
 
-	public Collection<JobDetails> getJobs() {
-		return jobs;
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "MultipleJobsDetails{" +
-			"jobs=" + jobs +
-			'}';
-	}
+    public Collection<JobDetails> getJobs() {
+        return jobs;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		MultipleJobsDetails that = (MultipleJobsDetails) o;
-		return Objects.equals(jobs, that.jobs);
-	}
+    @Override
+    public String toString() {
+        return "MultipleJobsDetails{" + "jobs=" + jobs + '}';
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(jobs);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        MultipleJobsDetails that = (MultipleJobsDetails) o;
+        return Objects.equals(jobs, that.jobs);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public int hashCode() {
+        return Objects.hash(jobs);
+    }
+
+    // ------------------------------------------------------------------------
 }

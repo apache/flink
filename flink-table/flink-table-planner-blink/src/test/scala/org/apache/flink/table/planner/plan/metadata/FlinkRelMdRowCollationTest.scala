@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject, LogicalValues}
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{LESS_THAN, PLUS}
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 import scala.collection.JavaConversions._
@@ -94,6 +96,41 @@ class FlinkRelMdRowCollationTest extends FlinkRelMdHandlerTestBase {
       relBuilder.project(projects).build().asInstanceOf[LogicalProject]
     }
     assertEquals(ImmutableList.of(RelCollations.of(2)), mq.collations(project))
+
+    // SELECT a, UNIX_TIMESTAMP(b) as ts FROM (VALUES (3, '2015-07-24 10:00:00')) T(a, b)
+    relBuilder.clear()
+    val valuesType = relBuilder.getTypeFactory
+      .builder()
+      .add("a", SqlTypeName.BIGINT)
+      .add("ts", SqlTypeName.VARCHAR)
+      .build()
+    val tupleList = List(List("3", "2015-07-24 10:00:00")).map(createLiteralList(valuesType, _))
+    relBuilder.values(tupleList, valuesType)
+    val project2 = relBuilder.project(
+      // a
+      relBuilder.field(0),
+      // UNIX_TIMESTAMP(ts)
+      relBuilder.call(FlinkSqlOperatorTable.UNIX_TIMESTAMP, relBuilder.field(1))
+    ).build()
+    assertTrue(mq.collations(project2).isEmpty)
+
+    // SELECT a, UNIX_TIMESTAMP() as ts FROM (VALUES (3, '2015-07-24 10:00:00')) T(a, b)
+    relBuilder.clear()
+    relBuilder.values(tupleList, valuesType)
+    val project3 = relBuilder.project(
+      relBuilder.field(0), // a
+      relBuilder.call(FlinkSqlOperatorTable.UNIX_TIMESTAMP) // UNIX_TIMESTAMP()
+    ).build()
+    assertEquals(ImmutableList.of(RelCollations.of(1)), mq.collations(project3))
+
+    // SELECT a, UUID() as ts FROM (VALUES (3, '2015-07-24 10:00:00')) T(a, b)
+    relBuilder.clear()
+    relBuilder.values(tupleList, valuesType)
+    val project4 = relBuilder.project(
+      relBuilder.field(0), // a
+      relBuilder.call(FlinkSqlOperatorTable.UUID) // UUID()
+    ).build()
+    assertTrue(mq.collations(project4).isEmpty)
   }
 
   @Test

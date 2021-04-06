@@ -18,72 +18,67 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 
-/**
- * Test {@link AggsHandleFunction}.
- */
+/** Test {@link AggsHandleFunction}. */
 public class SumAggsHandleFunction implements AggsHandleFunction {
 
-	private final int inputIndex;
-	private long sum;
+    private final int inputIndex;
+    private long sum;
 
-	public SumAggsHandleFunction(int inputIndex) {
-		this.inputIndex = inputIndex;
-	}
+    public SumAggsHandleFunction(int inputIndex) {
+        this.inputIndex = inputIndex;
+    }
 
-	@Override
-	public void open(StateDataViewStore store) throws Exception {
-	}
+    @Override
+    public void open(StateDataViewStore store) throws Exception {}
 
-	@Override
-	public void accumulate(BaseRow input) throws Exception {
-		sum += input.getLong(inputIndex);
-	}
+    @Override
+    public void accumulate(RowData input) throws Exception {
+        sum += input.getLong(inputIndex);
+    }
 
-	@Override
-	public void retract(BaseRow input) throws Exception {
-		sum -= input.getLong(inputIndex);
-	}
+    @Override
+    public void retract(RowData input) throws Exception {
+        sum -= input.getLong(inputIndex);
+    }
 
-	@Override
-	public void merge(BaseRow accumulator) throws Exception {
-		sum += accumulator.getLong(0);
-	}
+    @Override
+    public void merge(RowData accumulator) throws Exception {
+        sum += accumulator.getLong(0);
+    }
 
-	@Override
-	public void setAccumulators(BaseRow accumulator) throws Exception {
-		sum = accumulator.getLong(0);
-	}
+    @Override
+    public void setAccumulators(RowData accumulator) throws Exception {
+        sum = accumulator.getLong(0);
+    }
 
-	@Override
-	public void resetAccumulators() throws Exception {
-		sum  = 0L;
-	}
+    @Override
+    public void resetAccumulators() throws Exception {
+        sum = 0L;
+    }
 
-	@Override
-	public BaseRow getAccumulators() throws Exception {
-		return GenericRow.of(sum);
-	}
+    @Override
+    public RowData getAccumulators() throws Exception {
+        return GenericRowData.of(sum);
+    }
 
-	@Override
-	public BaseRow createAccumulators() throws Exception {
-		return GenericRow.of(0L);
-	}
+    @Override
+    public RowData createAccumulators() throws Exception {
+        return GenericRowData.of(0L);
+    }
 
-	@Override
-	public BaseRow getValue() throws Exception {
-		return getAccumulators();
-	}
+    @Override
+    public RowData getValue() throws Exception {
+        return getAccumulators();
+    }
 
-	@Override
-	public void cleanup() throws Exception {
-	}
+    @Override
+    public void cleanup() throws Exception {}
 
-	@Override
-	public void close() throws Exception {
-	}
+    @Override
+    public void close() throws Exception {}
 }

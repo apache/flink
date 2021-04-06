@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class CalcTest extends TableTestBase {
@@ -53,12 +54,12 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).map(i => s"$i:BIGINT").mkString(", ")
+    val resultStr = (1 to 30).map(i => s"${i}L:BIGINT").mkString("Sarg[", ", ", "]:BIGINT")
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(table),
       term("select", "a", "b", "c"),
-      term("where", s"IN(b, $resultStr)")
+      term("where", s"SEARCH(b, $resultStr)")
     )
 
     val inStr = (1 to 30).mkString(", ")
@@ -72,12 +73,14 @@ class CalcTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val resultStr = (1 to 30).map(i => s"$i:BIGINT").mkString(", ")
+    val partialStr = (1 to 29)
+        .map(i => s"(${i}L:BIGINT..${i + 1}L:BIGINT)").mkString(", ")
+    val resultStr = s"Sarg[(-∞..1L:BIGINT), $partialStr, (30L:BIGINT..+∞)]:BIGINT"
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(table),
       term("select", "a", "b", "c"),
-      term("where", s"NOT IN(b, $resultStr)")
+      term("where", s"SEARCH(b, $resultStr)")
     )
 
     val notInStr = (1 to 30).mkString(", ")

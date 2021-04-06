@@ -18,88 +18,35 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-
-import javax.annotation.Nullable;
+import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * A specific result partition writer implementation only used to control the output
- * availability state in tests.
+ * A specific result partition writer implementation only used to control the output availability
+ * state in tests.
  */
-public class AvailabilityTestResultPartitionWriter implements ResultPartitionWriter {
+public class AvailabilityTestResultPartitionWriter extends MockResultPartitionWriter {
 
-	/** This state is only valid in the first call of {@link #isAvailable()}. */
-	private final boolean isAvailable;
+    /** This state is only valid in the first call of {@link #isAvailable()}. */
+    private final boolean isAvailable;
 
-	private final CompletableFuture future = new CompletableFuture();
+    private final CompletableFuture future = new CompletableFuture();
 
-	/** The counter used to record how many calls of {@link #isAvailable()}. */
-	private int counter;
+    /** The counter used to record how many calls of {@link #isAvailable()}. */
+    private int counter;
 
-	public AvailabilityTestResultPartitionWriter(boolean isAvailable) {
-		this.isAvailable = isAvailable;
-	}
+    public AvailabilityTestResultPartitionWriter(boolean isAvailable) {
+        this.isAvailable = isAvailable;
+    }
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return isAvailable ? AVAILABLE : future;
+    }
 
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return new ResultPartitionID();
-	}
-
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
-
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
-	}
-
-	@Override
-	public BufferBuilder getBufferBuilder() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) {
-		return true;
-	}
-
-	@Override
-	public void flushAll() {
-	}
-
-	@Override
-	public void flush(int subpartitionIndex) {
-	}
-
-	@Override
-	public void close() {
-	}
-
-	@Override
-	public void fail(@Nullable Throwable throwable) {
-	}
-
-	@Override
-	public void finish() {
-	}
-
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return isAvailable ? AVAILABLE : future;
-	}
-
-	@Override
-	public boolean isAvailable() {
-		return counter++ == 0 ? isAvailable : true;
-	}
+    @Override
+    public boolean isAvailable() {
+        return counter++ == 0 ? isAvailable : true;
+    }
 }

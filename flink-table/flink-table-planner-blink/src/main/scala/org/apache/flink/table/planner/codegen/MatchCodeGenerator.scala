@@ -23,7 +23,7 @@ import org.apache.flink.cep.functions.PatternProcessFunction
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateNullLiteral, generateRowtimeAccess}
@@ -47,7 +47,6 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.lang.{Long => JLong}
 import java.util
@@ -173,7 +172,7 @@ class MatchCodeGenerator(
     * @return a code generated condition that can be used in constructing a
     *         [[org.apache.flink.cep.pattern.Pattern]]
     */
-  def generateIterativeCondition(patternDefinition: RexNode): IterativeCondition[BaseRow] = {
+  def generateIterativeCondition(patternDefinition: RexNode): IterativeCondition[RowData] = {
     val condition = generateCondition(patternDefinition)
     val body =
       s"""
@@ -183,7 +182,7 @@ class MatchCodeGenerator(
 
     val genCondition = generateMatchFunction(
       "MatchRecognizeCondition",
-      classOf[RichIterativeCondition[BaseRow]],
+      classOf[RichIterativeCondition[RowData]],
       body)
     new IterativeConditionRunner(genCondition)
   }
@@ -201,7 +200,7 @@ class MatchCodeGenerator(
     */
   def generateOneRowPerMatchExpression(
       returnType: RowType,
-      partitionKeys: ImmutableBitSet,
+      partitionKeys: Array[Int],
       measures: util.Map[String, RexNode])
     : PatternProcessFunctionRunner = {
     val resultExpression = generateOneRowPerMatchExpression(
@@ -216,7 +215,7 @@ class MatchCodeGenerator(
 
     val genFunction = generateMatchFunction(
       "MatchRecognizePatternProcessFunction",
-      classOf[PatternProcessFunction[BaseRow, BaseRow]],
+      classOf[PatternProcessFunction[RowData, RowData]],
       body)
     new PatternProcessFunctionRunner(genFunction)
   }
@@ -297,7 +296,7 @@ class MatchCodeGenerator(
   }
 
   private def generateOneRowPerMatchExpression(
-      partitionKeys: ImmutableBitSet,
+      partitionKeys: Array[Int],
       measures: java.util.Map[String, RexNode],
       returnType: RowType): GeneratedExpression = {
 
@@ -305,7 +304,7 @@ class MatchCodeGenerator(
     // 1) the partition columns;
     // 2) the columns defined in the measures clause.
     val resultExprs =
-    partitionKeys.toArray.map(generatePartitionKeyAccess) ++
+    partitionKeys.map(generatePartitionKeyAccess) ++
       returnType.getFieldNames
         .filter(measures.containsKey(_))
         .map { fieldName =>
@@ -317,7 +316,7 @@ class MatchCodeGenerator(
     val resultExpression = resultCodeGenerator.generateResultExpression(
       resultExprs,
       returnType,
-      classOf[GenericRow])
+      classOf[GenericRowData])
 
     aggregatesPerVariable.values.foreach(_.generateAggFunction())
 
@@ -393,7 +392,7 @@ class MatchCodeGenerator(
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis($contextTerm.currentProcessingTime());
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.currentProcessingTime());
          |""".stripMargin.trim
     // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, resultType)
@@ -682,8 +681,8 @@ class MatchCodeGenerator(
         matchAgg.inputExprs.indices.map(i => s"TMP$i"))
 
       val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        FlinkTypeFactory.toLogicalRowType(inputRelType),
         aggCalls,
-        inputRelType,
         needRetraction,
         needInputCount = false,
         isStateBackendDataViews = false,
@@ -755,7 +754,7 @@ class MatchCodeGenerator(
            |private $GENERIC_ROW $calculateAggFuncName(java.util.List input)
            |    throws Exception {
            |  $aggsHandlerTerm.setAccumulators($aggsHandlerTerm.createAccumulators());
-           |  for ($BASE_ROW row : input) {
+           |  for ($ROW_DATA row : input) {
            |    $aggsHandlerTerm.accumulate($transformFuncName(row));
            |  }
            |  $GENERIC_ROW result = ($GENERIC_ROW) $aggsHandlerTerm.getValue();
@@ -789,7 +788,7 @@ class MatchCodeGenerator(
       isWithinAggExprState = false
 
       j"""
-         |private $GENERIC_ROW $funcName($BASE_ROW $inputAggRowTerm) {
+         |private $GENERIC_ROW $funcName($ROW_DATA $inputAggRowTerm) {
          |  $GENERIC_ROW $resultTerm = new $GENERIC_ROW(${inputExprs.size});
          |  $exprs
          |  return $resultTerm;

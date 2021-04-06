@@ -32,52 +32,56 @@ import javax.security.auth.login.AppConfigurationEntry;
 import java.util.Map;
 
 /**
- * Test security context to support handling both client and server principals in MiniKDC.
- * This class is used only in integration test code for connectors like Kafka, HDFS etc.,
+ * Test security context to support handling both client and server principals in MiniKDC. This
+ * class is used only in integration test code for connectors like Kafka, HDFS etc.,
  */
 @Internal
 public class TestingSecurityContext {
 
-	public static void install(SecurityConfiguration config,
-						Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
-			throws Exception {
+    public static void install(
+            SecurityConfiguration config,
+            Map<String, ClientSecurityConfiguration> clientSecurityConfigurationMap)
+            throws Exception {
 
-		SecurityUtils.install(config);
+        SecurityUtils.install(config);
 
-		// install dynamic JAAS entries
-		for (String factoryClassName : config.getSecurityModuleFactories()) {
-			SecurityModuleFactory factory = SecurityFactoryServiceLoader.findModuleFactory(factoryClassName);
-			if (factory instanceof JaasModuleFactory) {
-				DynamicConfiguration jaasConf = (DynamicConfiguration) javax.security.auth.login.Configuration.getConfiguration();
-				for (Map.Entry<String, ClientSecurityConfiguration> e : clientSecurityConfigurationMap.entrySet()) {
-					AppConfigurationEntry entry = KerberosUtils.keytabEntry(
-						e.getValue().getKeytab(),
-						e.getValue().getPrincipal());
-					jaasConf.addAppConfigurationEntry(e.getKey(), entry);
-				}
-				break;
-			}
-		}
-	}
+        // install dynamic JAAS entries
+        for (String factoryClassName : config.getSecurityModuleFactories()) {
+            SecurityModuleFactory factory =
+                    SecurityFactoryServiceLoader.findModuleFactory(factoryClassName);
+            if (factory instanceof JaasModuleFactory) {
+                DynamicConfiguration jaasConf =
+                        (DynamicConfiguration)
+                                javax.security.auth.login.Configuration.getConfiguration();
+                for (Map.Entry<String, ClientSecurityConfiguration> e :
+                        clientSecurityConfigurationMap.entrySet()) {
+                    AppConfigurationEntry entry =
+                            KerberosUtils.keytabEntry(
+                                    e.getValue().getKeytab(), e.getValue().getPrincipal());
+                    jaasConf.addAppConfigurationEntry(e.getKey(), entry);
+                }
+                break;
+            }
+        }
+    }
 
-	static class ClientSecurityConfiguration {
+    static class ClientSecurityConfiguration {
 
-		private final String principal;
+        private final String principal;
 
-		private final String keytab;
+        private final String keytab;
 
-		public String getPrincipal() {
-			return principal;
-		}
+        public String getPrincipal() {
+            return principal;
+        }
 
-		public String getKeytab() {
-			return keytab;
-		}
+        public String getKeytab() {
+            return keytab;
+        }
 
-		public ClientSecurityConfiguration(String principal, String keytab) {
-			this.principal = principal;
-			this.keytab = keytab;
-		}
-	}
-
+        public ClientSecurityConfiguration(String principal, String keytab) {
+            this.principal = principal;
+            this.keytab = keytab;
+        }
+    }
 }

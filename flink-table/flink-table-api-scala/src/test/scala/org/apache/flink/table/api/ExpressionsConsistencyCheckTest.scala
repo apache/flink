@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.api.Expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, PLUS, TRIM}
@@ -56,7 +55,7 @@ class ExpressionsConsistencyCheckTest {
   val explicitScalaToJavaStaticMethodsMapping = Map(
     "FieldExpression" -> "$",
     "UnresolvedFieldExpression" -> "$",
-    "UserDefinedAggregateFunctionCall" -> "call",
+    "ImperativeAggregateFunctionCall" -> "call",
     "ScalarFunctionCall" -> "call",
     "TableFunctionCall" -> "call",
     "concat_ws" -> "concatWs"
@@ -90,7 +89,7 @@ class ExpressionsConsistencyCheckTest {
     //  Scala implicit conversions to ImplicitExpressionOperations
     //-----------------------------------------------------------------------------------
     "WithOperations",
-    "apiExpressionToExpression",
+    "AnyWithOperations",
     "LiteralScalaDecimalExpression",
     "LiteralJavaDecimalExpression",
     "LiteralShortExpression",
@@ -127,6 +126,11 @@ class ExpressionsConsistencyCheckTest {
     "localDate2Literal",
     "float2Literal",
     "array2ArrayConstructor",
+    "seq2ArrayConstructor",
+    "javaList2ArrayConstructor",
+    "map2MapConstructor",
+    "javaMap2MapConstructor",
+    "row2RowConstructor",
     "tableSymbolToExpression",
 
     //-----------------------------------------------------------------------------------
@@ -248,9 +252,7 @@ class ExpressionsConsistencyCheckTest {
   def testInteroperability(): Unit = {
     // In most cases it should be just fine to mix the two APIs.
     // It should be discouraged though as it might have unforeseen side effects
-    object Conversions extends ImplicitExpressionConversions
-    import Conversions._
-    val expr = lit("ABC") === $"f0".plus($("f1")).trim()
+    val expr = lit("ABC") === $"f0".plus(Expressions.$("f1")).plus($("f2")).trim()
 
     assertThat(
       expr,
@@ -265,8 +267,12 @@ class ExpressionsConsistencyCheckTest {
             valueLiteral(" "),
             unresolvedCall(
               PLUS,
-              unresolvedRef("f0"),
-              unresolvedRef("f1")
+              unresolvedCall(
+              PLUS,
+                unresolvedRef("f0"),
+                unresolvedRef("f1")
+              ),
+              unresolvedRef("f2")
             )
           )
         )

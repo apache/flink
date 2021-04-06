@@ -31,75 +31,81 @@ import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 
 /**
- * A utility {@link QueryOperationVisitor} that calls
- * {@link QueryOperationDefaultVisitor#defaultMethod(QueryOperation)}
- * by default, unless other methods are overridden explicitly.
+ * A utility {@link QueryOperationVisitor} that calls {@link
+ * QueryOperationDefaultVisitor#defaultMethod(QueryOperation)} by default, unless other methods are
+ * overridden explicitly.
  */
 @Internal
 public abstract class QueryOperationDefaultVisitor<T> implements QueryOperationVisitor<T> {
 
-	@Override
-	public T visit(ProjectQueryOperation projection) {
-		return defaultMethod(projection);
-	}
+    @Override
+    public T visit(ProjectQueryOperation projection) {
+        return defaultMethod(projection);
+    }
 
-	@Override
-	public T visit(AggregateQueryOperation aggregation) {
-		return defaultMethod(aggregation);
-	}
+    @Override
+    public T visit(AggregateQueryOperation aggregation) {
+        return defaultMethod(aggregation);
+    }
 
-	@Override
-	public T visit(WindowAggregateQueryOperation windowAggregate) {
-		return defaultMethod(windowAggregate);
-	}
+    @Override
+    public T visit(WindowAggregateQueryOperation windowAggregate) {
+        return defaultMethod(windowAggregate);
+    }
 
-	@Override
-	public T visit(JoinQueryOperation join) {
-		return defaultMethod(join);
-	}
+    @Override
+    public T visit(JoinQueryOperation join) {
+        return defaultMethod(join);
+    }
 
-	@Override
-	public T visit(SetQueryOperation setOperation) {
-		return defaultMethod(setOperation);
-	}
+    @Override
+    public T visit(SetQueryOperation setOperation) {
+        return defaultMethod(setOperation);
+    }
 
-	@Override
-	public T visit(FilterQueryOperation filter) {
-		return defaultMethod(filter);
-	}
+    @Override
+    public T visit(FilterQueryOperation filter) {
+        return defaultMethod(filter);
+    }
 
-	@Override
-	public T visit(DistinctQueryOperation distinct) {
-		return defaultMethod(distinct);
-	}
+    @Override
+    public T visit(DistinctQueryOperation distinct) {
+        return defaultMethod(distinct);
+    }
 
-	@Override
-	public T visit(SortQueryOperation sort) {
-		return defaultMethod(sort);
-	}
+    @Override
+    public T visit(SortQueryOperation sort) {
+        return defaultMethod(sort);
+    }
 
-	@Override
-	public T visit(CalculatedQueryOperation calculatedTable) {
-		return defaultMethod(calculatedTable);
-	}
+    @Override
+    public T visit(CalculatedQueryOperation calculatedTable) {
+        return defaultMethod(calculatedTable);
+    }
 
-	@Override
-	public T visit(CatalogQueryOperation catalogTable) {
-		return defaultMethod(catalogTable);
-	}
+    @Override
+    public T visit(CatalogQueryOperation catalogTable) {
+        return defaultMethod(catalogTable);
+    }
 
-	@Override
-	public <U> T visit(TableSourceQueryOperation<U> tableSourceTable) {
-		return defaultMethod(tableSourceTable);
-	}
+    @Override
+    public T visit(ValuesQueryOperation values) {
+        return defaultMethod(values);
+    }
 
-	@Override
-	public T visit(QueryOperation other) {
-		return defaultMethod(other);
-	}
+    @Override
+    public <U> T visit(TableSourceQueryOperation<U> tableSourceTable) {
+        return defaultMethod(tableSourceTable);
+    }
 
-	public abstract T defaultMethod(QueryOperation other);
+    @Override
+    public T visit(QueryOperation other) {
+        return defaultMethod(other);
+    }
+
+    public abstract T defaultMethod(QueryOperation other);
 }

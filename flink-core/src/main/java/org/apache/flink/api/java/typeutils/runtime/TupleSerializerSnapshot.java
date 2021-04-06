@@ -31,60 +31,62 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Snapshot of a tuple serializer's configuration.
- */
+/** Snapshot of a tuple serializer's configuration. */
 @Internal
 public final class TupleSerializerSnapshot<T extends Tuple>
-	extends CompositeTypeSerializerSnapshot<T, TupleSerializer<T>> {
+        extends CompositeTypeSerializerSnapshot<T, TupleSerializer<T>> {
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	private Class<T> tupleClass;
+    private Class<T> tupleClass;
 
-	@SuppressWarnings("unused")
-	public TupleSerializerSnapshot() {
-		super(TupleSerializer.class);
-	}
+    @SuppressWarnings("unused")
+    public TupleSerializerSnapshot() {
+        super(TupleSerializer.class);
+    }
 
-	TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
-		super(serializerInstance);
-		this.tupleClass = checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
-	}
+    TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
+        super(serializerInstance);
+        this.tupleClass =
+                checkNotNull(serializerInstance.getTupleClass(), "tuple class can not be NULL");
+    }
 
-	/**
-	 * Constructor for backwards compatibility, used by
-	 * {@link TupleSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass}.
-	 */
-	TupleSerializerSnapshot(Class<T> tupleClass) {
-		super(TupleSerializer.class);
-		this.tupleClass = checkNotNull(tupleClass, "tuple class can not be NULL");
-	}
+    /**
+     * Constructor for backwards compatibility, used by {@link
+     * TupleSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass}.
+     */
+    TupleSerializerSnapshot(Class<T> tupleClass) {
+        super(TupleSerializer.class);
+        this.tupleClass = checkNotNull(tupleClass, "tuple class can not be NULL");
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return VERSION;
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(TupleSerializer<T> outerSerializer) {
-		return outerSerializer.getFieldSerializers();
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(TupleSerializer<T> outerSerializer) {
+        return outerSerializer.getFieldSerializers();
+    }
 
-	@Override
-	protected TupleSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		checkState(tupleClass != null, "tuple class can not be NULL");
-		return new TupleSerializer<>(tupleClass, nestedSerializers);
-	}
+    @Override
+    protected TupleSerializer<T> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        checkState(tupleClass != null, "tuple class can not be NULL");
+        return new TupleSerializer<>(tupleClass, nestedSerializers);
+    }
 
-	@Override
-	protected void writeOuterSnapshot(DataOutputView out) throws IOException {
-		checkState(tupleClass != null, "tuple class can not be NULL");
-		out.writeUTF(tupleClass.getName());
-	}
+    @Override
+    protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+        checkState(tupleClass != null, "tuple class can not be NULL");
+        out.writeUTF(tupleClass.getName());
+    }
 
-	@Override
-	protected void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.tupleClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
-	}
+    @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        this.tupleClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+    }
 }

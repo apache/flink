@@ -26,10 +26,9 @@ import org.apache.flink.annotation.Internal;
  */
 @Internal
 public enum TimestampKind {
+    REGULAR,
 
-	REGULAR,
+    ROWTIME,
 
-	ROWTIME,
-
-	PROCTIME
+    PROCTIME
 }

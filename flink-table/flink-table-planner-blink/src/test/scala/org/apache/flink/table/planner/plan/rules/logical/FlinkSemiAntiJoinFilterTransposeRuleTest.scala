@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 
@@ -60,7 +60,7 @@ class FlinkSemiAntiJoinFilterTransposeRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
         |    WHERE b IN (SELECT e FROM MyTable2)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -70,7 +70,7 @@ class FlinkSemiAntiJoinFilterTransposeRuleTest extends TableTestBase {
         |SELECT * FROM (SELECT * FROM MyTable1 WHERE a > 10) t
         |    WHERE b NOT IN (SELECT e FROM MyTable2)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

@@ -26,62 +26,60 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 
 import java.util.List;
 
-/**
- * Type information for Python class ExamplePoint.
- */
+/** Type information for Python class ExamplePoint. */
 public final class ExamplePointUserDefinedType extends TypeInformation<List<Double>> {
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<List<Double>> getTypeClass() {
-		return (Class<List<Double>>) (Class<?>) List.class;
-	}
+    @Override
+    public Class<List<Double>> getTypeClass() {
+        return (Class<List<Double>>) (Class<?>) List.class;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+    @Override
+    public boolean isKeyType() {
+        return true;
+    }
 
-	@Override
-	public TypeSerializer<List<Double>> createSerializer(ExecutionConfig config) {
-		return new ListSerializer<>(DoubleSerializer.INSTANCE);
-	}
+    @Override
+    public TypeSerializer<List<Double>> createSerializer(ExecutionConfig config) {
+        return new ListSerializer<>(DoubleSerializer.INSTANCE);
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getCanonicalName();
-	}
+    @Override
+    public String toString() {
+        return getClass().getCanonicalName();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof ExamplePointUserDefinedType;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof ExamplePointUserDefinedType;
+    }
 
-	@Override
-	public int hashCode() {
-		return 0;
-	}
+    @Override
+    public int hashCode() {
+        return 0;
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof ExamplePointUserDefinedType;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof ExamplePointUserDefinedType;
+    }
 }

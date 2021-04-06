@@ -38,47 +38,80 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Tests for {@link StreamProject}. These test that:
  *
  * <ul>
- *     <li>Timestamps of processed elements match the input timestamp</li>
- *     <li>Watermarks are correctly forwarded</li>
+ *   <li>Timestamps of processed elements match the input timestamp
+ *   <li>Watermarks are correctly forwarded
  * </ul>
  */
 public class StreamProjectTest {
 
-	@Test
-	public void testProject() throws Exception {
+    @Test
+    public void testProject() throws Exception {
 
-		TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType = TypeExtractor
-				.getForObject(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));
+        TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType =
+                TypeExtractor.getForObject(
+                        new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));
 
-		int[] fields = new int[]{4, 4, 3};
+        int[] fields = new int[] {4, 4, 3};
 
-		TupleSerializer<Tuple3<Integer, Integer, String>> serializer =
-				new TupleTypeInfo<Tuple3<Integer, Integer, String>>(StreamProjection.extractFieldTypes(fields, inType))
-						.createSerializer(new ExecutionConfig());
-		@SuppressWarnings("unchecked")
-		StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> operator =
-				new StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
-						fields, serializer);
+        TupleSerializer<Tuple3<Integer, Integer, String>> serializer =
+                new TupleTypeInfo<Tuple3<Integer, Integer, String>>(
+                                StreamProjection.extractFieldTypes(fields, inType))
+                        .createSerializer(new ExecutionConfig());
+        @SuppressWarnings("unchecked")
+        StreamProject<
+                        Tuple5<Integer, String, Integer, String, Integer>,
+                        Tuple3<Integer, Integer, String>>
+                operator =
+                        new StreamProject<
+                                Tuple5<Integer, String, Integer, String, Integer>,
+                                Tuple3<Integer, Integer, String>>(fields, serializer);
 
-		OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> testHarness = new OneInputStreamOperatorTestHarness<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(operator);
+        OneInputStreamOperatorTestHarness<
+                        Tuple5<Integer, String, Integer, String, Integer>,
+                        Tuple3<Integer, Integer, String>>
+                testHarness =
+                        new OneInputStreamOperatorTestHarness<
+                                Tuple5<Integer, String, Integer, String, Integer>,
+                                Tuple3<Integer, Integer, String>>(operator);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4), initialTime + 1));
-		testHarness.processElement(new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(new Tuple5<Integer, String, Integer, String, Integer>(2, "s", 3, "c", 2), initialTime + 2));
-		testHarness.processElement(new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "c", 2), initialTime + 3));
-		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "a", 7), initialTime + 4));
+        testHarness.processElement(
+                new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
+                        new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4),
+                        initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
+                        new Tuple5<Integer, String, Integer, String, Integer>(2, "s", 3, "c", 2),
+                        initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
+                        new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "c", 2),
+                        initialTime + 3));
+        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<Tuple5<Integer, String, Integer, String, Integer>>(
+                        new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "a", 7),
+                        initialTime + 4));
 
-		expectedOutput.add(new StreamRecord<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(4, 4, "b"), initialTime + 1));
-		expectedOutput.add(new StreamRecord<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 2));
-		expectedOutput.add(new StreamRecord<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 3));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<Tuple3<Integer, Integer, String>>(new Tuple3<Integer, Integer, String>(7, 7, "a"), initialTime + 4));
+        expectedOutput.add(
+                new StreamRecord<Tuple3<Integer, Integer, String>>(
+                        new Tuple3<Integer, Integer, String>(4, 4, "b"), initialTime + 1));
+        expectedOutput.add(
+                new StreamRecord<Tuple3<Integer, Integer, String>>(
+                        new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 2));
+        expectedOutput.add(
+                new StreamRecord<Tuple3<Integer, Integer, String>>(
+                        new Tuple3<Integer, Integer, String>(2, 2, "c"), initialTime + 3));
+        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(
+                new StreamRecord<Tuple3<Integer, Integer, String>>(
+                        new Tuple3<Integer, Integer, String>(7, 7, "a"), initialTime + 4));
 
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 }

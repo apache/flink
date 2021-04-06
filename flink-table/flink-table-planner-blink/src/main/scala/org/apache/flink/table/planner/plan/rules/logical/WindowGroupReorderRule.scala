@@ -22,12 +22,13 @@ import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalWindow}
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexInputRef
 
 import java.util
-import java.util.Comparator
+import java.util.{Collections, Comparator}
 
 import scala.collection.JavaConversions._
 
@@ -102,6 +103,7 @@ class WindowGroupReorderRule extends RelOptRule(
       }
       val project = LogicalProject.create(
         newLogicalWindow,
+        Collections.emptyList[RelHint](),
         projects.toList,
         window.getRowType)
       call.transformTo(project)

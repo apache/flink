@@ -18,36 +18,55 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import java.util.List;
 
 /** rankStart and rankEnd are inclusive, rankStart always start from one. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeName("Constant")
 public class ConstantRankRange implements RankRange {
 
-	private static final long serialVersionUID = 9062345289888078376L;
-	private long rankStart;
-	private long rankEnd;
+    public static final String FIELD_NAME_START = "start";
+    public static final String FIELD_NAME_END = "end";
 
-	public ConstantRankRange(long rankStart, long rankEnd) {
-		this.rankStart = rankStart;
-		this.rankEnd = rankEnd;
-	}
+    private static final long serialVersionUID = 9062345289888078376L;
 
-	public long getRankStart() {
-		return rankStart;
-	}
+    @JsonProperty(FIELD_NAME_START)
+    private final long rankStart;
 
-	public long getRankEnd() {
-		return rankEnd;
-	}
+    @JsonProperty(FIELD_NAME_END)
+    private final long rankEnd;
 
-	@Override
-	public String toString(List<String> inputFieldNames) {
-		return toString();
-	}
+    @JsonCreator
+    public ConstantRankRange(
+            @JsonProperty(FIELD_NAME_START) long rankStart,
+            @JsonProperty(FIELD_NAME_END) long rankEnd) {
+        this.rankStart = rankStart;
+        this.rankEnd = rankEnd;
+    }
 
-	@Override
-	public String toString() {
-		return "rankStart=" + rankStart + ", rankEnd=" + rankEnd;
-	}
+    @JsonIgnore
+    public long getRankStart() {
+        return rankStart;
+    }
 
+    @JsonIgnore
+    public long getRankEnd() {
+        return rankEnd;
+    }
+
+    @Override
+    public String toString(List<String> inputFieldNames) {
+        return toString();
+    }
+
+    @Override
+    public String toString() {
+        return "rankStart=" + rankStart + ", rankEnd=" + rankEnd;
+    }
 }

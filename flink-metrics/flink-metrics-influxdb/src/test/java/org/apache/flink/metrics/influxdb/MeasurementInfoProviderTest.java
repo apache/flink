@@ -35,36 +35,35 @@ import static org.mockito.ArgumentMatchers.anyChar;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-/**
- * Test for {@link MeasurementInfoProvider}.
- */
+/** Test for {@link MeasurementInfoProvider}. */
 public class MeasurementInfoProviderTest extends TestLogger {
-	private final MeasurementInfoProvider provider = new MeasurementInfoProvider();
+    private final MeasurementInfoProvider provider = new MeasurementInfoProvider();
 
-	@Test
-	public void simpleTestGetMetricInfo() {
-		String logicalScope = "myService.Status.JVM.ClassLoader";
-		Map<String, String> variables = new HashMap<>();
-		variables.put("<A>", "a");
-		variables.put("<B>", "b");
-		variables.put("<C>", "c");
-		String metricName = "ClassesLoaded";
-		FrontMetricGroup metricGroup = mock(
-			FrontMetricGroup.class,
-			(invocation) -> {
-				throw new UnsupportedOperationException("unexpected method call");
-			});
-		doReturn(variables).when(metricGroup).getAllVariables();
-		doReturn(logicalScope).when(metricGroup).getLogicalScope(any(), anyChar());
+    @Test
+    public void simpleTestGetMetricInfo() {
+        String logicalScope = "myService.Status.JVM.ClassLoader";
+        Map<String, String> variables = new HashMap<>();
+        variables.put("<A>", "a");
+        variables.put("<B>", "b");
+        variables.put("<C>", "c");
+        String metricName = "ClassesLoaded";
+        FrontMetricGroup metricGroup =
+                mock(
+                        FrontMetricGroup.class,
+                        (invocation) -> {
+                            throw new UnsupportedOperationException("unexpected method call");
+                        });
+        doReturn(variables).when(metricGroup).getAllVariables();
+        doReturn(logicalScope).when(metricGroup).getLogicalScope(any(), anyChar());
 
-		MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
-		assertNotNull(info);
-		assertEquals(
-			String.join("" + MeasurementInfoProvider.SCOPE_SEPARATOR, logicalScope, metricName),
-			info.getName());
-		assertThat(info.getTags(), hasEntry("A", "a"));
-		assertThat(info.getTags(), hasEntry("B", "b"));
-		assertThat(info.getTags(), hasEntry("C", "c"));
-		assertEquals(3, info.getTags().size());
-	}
+        MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
+        assertNotNull(info);
+        assertEquals(
+                String.join("" + MeasurementInfoProvider.SCOPE_SEPARATOR, logicalScope, metricName),
+                info.getName());
+        assertThat(info.getTags(), hasEntry("A", "a"));
+        assertThat(info.getTags(), hasEntry("B", "b"));
+        assertThat(info.getTags(), hasEntry("C", "c"));
+        assertEquals(3, info.getTags().size());
+    }
 }

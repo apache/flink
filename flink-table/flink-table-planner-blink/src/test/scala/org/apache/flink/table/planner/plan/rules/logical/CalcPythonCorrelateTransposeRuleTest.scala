@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
@@ -61,7 +62,7 @@ class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
   def testPythonFunctionInCorrelateCondition(): Unit = {
     val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, LATERAL TABLE(func(a * a, b)) AS T(x, y) " +
       "WHERE x = a and pyFunc(x, x) = 2 and y + 1 = y * y"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

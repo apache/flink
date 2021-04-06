@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -46,8 +46,9 @@ abstract class RowTimeUnboundedOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -258,13 +259,15 @@ class RowTimeUnboundedRowsOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
     rowTimeIdx,
-    queryConfig) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],
@@ -299,13 +302,15 @@ class RowTimeUnboundedRangeOver[K](
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[CRow],
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends RowTimeUnboundedOver[K](
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType,
     rowTimeIdx,
-    queryConfig) {
+    minRetentionTime,
+    maxRetentionTime) {
 
   override def processElementsWithSameTimestamp(
     curRowList: JList[Row],

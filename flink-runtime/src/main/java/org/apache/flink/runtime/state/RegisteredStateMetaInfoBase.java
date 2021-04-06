@@ -22,41 +22,41 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnull;
 
-/**
- * Base class for all registered state in state backends.
- */
+/** Base class for all registered state in state backends. */
 public abstract class RegisteredStateMetaInfoBase {
 
-	/** The name of the state */
-	@Nonnull
-	protected final String name;
+    /** The name of the state */
+    @Nonnull protected final String name;
 
-	public RegisteredStateMetaInfoBase(@Nonnull String name) {
-		this.name = name;
-	}
+    public RegisteredStateMetaInfoBase(@Nonnull String name) {
+        this.name = name;
+    }
 
-	@Nonnull
-	public String getName() {
-		return name;
-	}
+    @Nonnull
+    public String getName() {
+        return name;
+    }
 
-	@Nonnull
-	public abstract StateMetaInfoSnapshot snapshot();
+    @Nonnull
+    public abstract StateMetaInfoSnapshot snapshot();
 
-	public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(@Nonnull StateMetaInfoSnapshot snapshot) {
+    public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(
+            @Nonnull StateMetaInfoSnapshot snapshot) {
 
-		final StateMetaInfoSnapshot.BackendStateType backendStateType = snapshot.getBackendStateType();
-		switch (backendStateType) {
-			case KEY_VALUE:
-				return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
-			case OPERATOR:
-				return new RegisteredOperatorStateBackendMetaInfo<>(snapshot);
-			case BROADCAST:
-				return new RegisteredBroadcastStateBackendMetaInfo<>(snapshot);
-			case PRIORITY_QUEUE:
-				return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
-			default:
-				throw new IllegalArgumentException("Unknown backend state type: " + backendStateType);
-		}
-	}
+        final StateMetaInfoSnapshot.BackendStateType backendStateType =
+                snapshot.getBackendStateType();
+        switch (backendStateType) {
+            case KEY_VALUE:
+                return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
+            case OPERATOR:
+                return new RegisteredOperatorStateBackendMetaInfo<>(snapshot);
+            case BROADCAST:
+                return new RegisteredBroadcastStateBackendMetaInfo<>(snapshot);
+            case PRIORITY_QUEUE:
+                return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown backend state type: " + backendStateType);
+        }
+    }
 }

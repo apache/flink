@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-orc-nohive_${scala.binary.version}</artifactId>
-	<name>flink-orc-nohive</name>
+	<name>Flink : Formats : Orc nohive</name>
 
 	<packaging>jar</packaging>
 
@@ -63,26 +63,13 @@ under the License.
 			<version>${orc.version}</version>
 			<classifier>nohive</classifier>
 			<exclusions>
-				<!-- Exclude ORC's Hadoop dependency and pull in Flink's shaded Hadoop. -->
-				<exclusion>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-storage-api</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
-
-		<!-- Replacement for ORC's Hadoop dependency. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
+		
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -93,6 +80,22 @@ under the License.
 		</dependency>
 
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- This profile adds dependencies needed to execute the tests
+			with Hadoop 3 -->
+			<id>hadoop3-tests</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs-client</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

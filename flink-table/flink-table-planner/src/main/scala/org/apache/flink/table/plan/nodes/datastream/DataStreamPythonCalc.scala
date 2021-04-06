@@ -23,8 +23,8 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonPythonCalc
 import org.apache.flink.table.plan.schema.RowSchema
@@ -67,11 +67,9 @@ class DataStreamPythonCalc(
       ruleDescription)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
     val inputDataStream =
-      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+      getInput.asInstanceOf[DataStreamRel].translateToPlan(planner)
     val inputParallelism = inputDataStream.getParallelism
 
     val pythonOperatorResultTypeInfo = new RowTypeInfo(
@@ -83,18 +81,24 @@ class DataStreamPythonCalc(
       inputSchema.typeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
+    val config = getMergedConfig(planner.getExecutionEnvironment, planner.getConfig)
     val pythonOperator = getPythonScalarFunctionOperator(
-      planner.getConfig.getConfiguration,
+      config,
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       calcProgram)
 
-    inputDataStream
+    val ret = inputDataStream
       .transform(
         calcOpName(calcProgram, getExpressionString),
         CRowTypeInfo(pythonOperatorResultTypeInfo),
         pythonOperator)
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputParallelism)
+
+    if (isPythonWorkerUsingManagedMemory(config)) {
+      ret.getTransformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
+    }
+    ret
   }
 }

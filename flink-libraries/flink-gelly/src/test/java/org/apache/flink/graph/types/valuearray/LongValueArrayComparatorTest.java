@@ -23,32 +23,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.LongValue;
 
-/**
- * Tests for {@link LongValueArrayComparator}.
- */
+/** Tests for {@link LongValueArrayComparator}. */
 public class LongValueArrayComparatorTest extends ComparatorTestBase<LongValueArray> {
 
-	@Override
-	protected TypeComparator<LongValueArray> createComparator(boolean ascending) {
-		return new LongValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<LongValueArray> createComparator(boolean ascending) {
+        return new LongValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<LongValueArray> createSerializer() {
-		return new LongValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<LongValueArray> createSerializer() {
+        return new LongValueArraySerializer();
+    }
 
-	@Override
-	protected LongValueArray[] getSortedTestData() {
-		LongValueArray lva0 = new LongValueArray();
+    @Override
+    protected LongValueArray[] getSortedTestData() {
+        LongValueArray lva0 = new LongValueArray();
 
-		LongValueArray lva1 = new LongValueArray();
-		lva1.add(new LongValue(5));
+        LongValueArray lva1 = new LongValueArray();
+        lva1.add(new LongValue(5));
 
-		LongValueArray lva2 = new LongValueArray();
-		lva2.add(new LongValue(5));
-		lva2.add(new LongValue(10));
+        LongValueArray lva2 = new LongValueArray();
+        lva2.add(new LongValue(5));
+        lva2.add(new LongValue(10));
 
-		return new LongValueArray[]{ lva0, lva1, lva2 };
-	}
+        return new LongValueArray[] {lva0, lva1, lva2};
+    }
 }

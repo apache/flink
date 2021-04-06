@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -30,10 +33,10 @@ import java.lang.reflect.Method
 
 import scala.collection.mutable
 
-object FunctionGenerator {
+class FunctionGenerator private(config: TableConfig) {
 
   val INTEGRAL_TYPES = Array(
-    INTEGER,
+    TINYINT,
     SMALLINT,
     INTEGER,
     BIGINT)
@@ -42,6 +45,9 @@ object FunctionGenerator {
 
   private val sqlFunctions: mutable.Map[(SqlOperator, Seq[LogicalTypeRoot]), CallGenerator] =
     mutable.Map()
+
+  val isStreamingMode = RuntimeExecutionMode.STREAMING.equals(
+    config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE))
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -483,27 +489,38 @@ object FunctionGenerator {
   addSqlFunction(
     CURRENT_DATE,
     Seq(),
-    new CurrentTimePointCallGen(false))
+    new CurrentTimePointCallGen(false, isStreamingMode))
 
   addSqlFunction(
     CURRENT_TIME,
     Seq(),
-    new CurrentTimePointCallGen(false))
+    new CurrentTimePointCallGen(false, isStreamingMode))
+
+  addSqlFunction(
+    NOW,
+    Seq(),
+    new CurrentTimePointCallGen(false, isStreamingMode))
 
   addSqlFunction(
     CURRENT_TIMESTAMP,
     Seq(),
-    new CurrentTimePointCallGen(false))
+    new CurrentTimePointCallGen(false, isStreamingMode))
+
+  // CURRENT_ROW_TIMESTAMP evaluates in row-level
+  addSqlFunction(
+    CURRENT_ROW_TIMESTAMP,
+    Seq(),
+    new CurrentTimePointCallGen(false, true))
 
   addSqlFunction(
     LOCALTIME,
     Seq(),
-    new CurrentTimePointCallGen(true))
+    new CurrentTimePointCallGen(true, isStreamingMode))
 
   addSqlFunction(
     LOCALTIMESTAMP,
     Seq(),
-    new CurrentTimePointCallGen(true))
+    new CurrentTimePointCallGen(true, isStreamingMode))
 
   addSqlFunctionMethod(
     LOG2,
@@ -544,11 +561,6 @@ object FunctionGenerator {
     TANH,
     Seq(DECIMAL),
     BuiltInMethods.TANH_DEC)
-
-  addSqlFunctionMethod(
-    NOW,
-    Seq(),
-    BuiltInMethods.NOW)
 
   addSqlFunctionMethod(
     UNIX_TIMESTAMP,
@@ -693,6 +705,25 @@ object FunctionGenerator {
   addSqlFunctionMethod(TO_TIMESTAMP,
     Seq(DECIMAL),
     BuiltInMethods.DECIMAL_TO_TIMESTAMP)
+
+  INTEGRAL_TYPES foreach (
+    dt => {
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt, INTEGER),
+        BuiltInMethods.LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
+
+  FRACTIONAL_TYPES foreach (
+    dt => {
+      addSqlFunctionMethod(
+        TO_TIMESTAMP_LTZ,
+        Seq(dt, INTEGER),
+        BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION)})
+
+  addSqlFunctionMethod(
+    TO_TIMESTAMP_LTZ,
+    Seq(DECIMAL, INTEGER),
+    BuiltInMethods.DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION)
 
   INTEGRAL_TYPES foreach (
     dt => addSqlFunctionMethod(
@@ -868,4 +899,8 @@ object FunctionGenerator {
     callGenerator: CallGenerator): Unit = {
     sqlFunctions((sqlOperator, operandTypes)) = callGenerator
   }
+}
+
+object FunctionGenerator {
+    def getInstance(config: TableConfig): FunctionGenerator = new FunctionGenerator(config)
 }

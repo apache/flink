@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -48,7 +48,7 @@ class UnionTest extends TableTestBase {
         | SELECT a, c FROM MyTable3
         |) WHERE a > 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -60,7 +60,7 @@ class UnionTest extends TableTestBase {
         | UNION ALL
         | SELECT a, CAST(0 aS DECIMAL(2, 1)) FROM MyTable2)
       """.stripMargin
-    util.verifyPlanWithType(sqlQuery)
+    util.verifyRelPlanWithType(sqlQuery)
   }
 
 }

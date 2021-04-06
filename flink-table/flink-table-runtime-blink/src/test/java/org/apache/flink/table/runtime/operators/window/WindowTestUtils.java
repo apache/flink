@@ -21,13 +21,10 @@ package org.apache.flink.table.runtime.operators.window;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 
-/**
- * Utilities that are useful for working with Window tests.
- */
+/** Utilities that are useful for working with Window tests. */
 public interface WindowTestUtils {
 
-	static Matcher<TimeWindow> timeWindow(long start, long end) {
-		return Matchers.equalTo(new TimeWindow(start, end));
-	}
-
+    static Matcher<TimeWindow> timeWindow(long start, long end) {
+        return Matchers.equalTo(new TimeWindow(start, end));
+    }
 }

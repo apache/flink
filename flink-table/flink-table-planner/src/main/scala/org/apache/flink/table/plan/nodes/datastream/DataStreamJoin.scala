@@ -24,7 +24,7 @@ import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
@@ -96,16 +96,14 @@ class DataStreamJoin(
       getExpressionString)
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     validateKeyTypes()
 
     val leftDataStream =
-      left.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+      left.asInstanceOf[DataStreamRel].translateToPlan(planner)
     val rightDataStream =
-      right.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
+      right.asInstanceOf[DataStreamRel].translateToPlan(planner)
 
     val connectOperator = leftDataStream.connect(rightDataStream)
 
@@ -115,8 +113,7 @@ class DataStreamJoin(
     val joinOperator = joinTranslator.getJoinOperator(
       joinType,
       schema.fieldNames,
-      ruleDescription,
-      queryConfig)
+      ruleDescription)
     connectOperator
       .keyBy(
         joinTranslator.getLeftKeySelector(),

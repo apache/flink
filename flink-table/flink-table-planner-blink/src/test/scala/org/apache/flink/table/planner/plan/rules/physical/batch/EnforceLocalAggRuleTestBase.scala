@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -35,32 +35,32 @@ abstract class EnforceLocalAggRuleTestBase extends TableTestBase {
 
   @Test
   def testRollupWithCount(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) FROM t GROUP BY ROLLUP (b, c)")
+    util.verifyRelPlan("SELECT COUNT(*) FROM t GROUP BY ROLLUP (b, c)")
   }
 
   @Test
   def testRollupWithAvg(): Unit = {
-    util.verifyPlan("SELECT AVG(a) FROM t GROUP BY ROLLUP (b, c)")
+    util.verifyRelPlan("SELECT AVG(a) FROM t GROUP BY ROLLUP (b, c)")
   }
 
   @Test
   def testCubeWithCount(): Unit = {
-    util.verifyPlan("SELECT COUNT(a) FROM t GROUP BY CUBE (b, c)")
+    util.verifyRelPlan("SELECT COUNT(a) FROM t GROUP BY CUBE (b, c)")
   }
 
   @Test
   def testCubeWithAvg(): Unit = {
-    util.verifyPlan("SELECT AVG(d) FROM t GROUP BY CUBE (a, c)")
+    util.verifyRelPlan("SELECT AVG(d) FROM t GROUP BY CUBE (a, c)")
   }
 
   @Test
   def testGroupSetsWithCount(): Unit = {
-    util.verifyPlan("SELECT COUNT(*) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
+    util.verifyRelPlan("SELECT COUNT(*) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
   }
 
   @Test
   def testGroupSetsWithAvg(): Unit = {
-    util.verifyPlan("SELECT AVG(a) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
+    util.verifyRelPlan("SELECT AVG(a) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
   }
 
 }

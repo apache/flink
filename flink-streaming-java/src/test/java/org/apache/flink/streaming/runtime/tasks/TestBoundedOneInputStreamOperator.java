@@ -23,40 +23,51 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A bounded one-input stream operator for test.
- */
+/** A bounded one-input stream operator for test. */
 public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<String>
-	implements OneInputStreamOperator<String, String>, BoundedOneInput {
+        implements OneInputStreamOperator<String, String>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String name;
+    private final String name;
+    private static volatile boolean inputEnded = false;
 
-	public TestBoundedOneInputStreamOperator(String name) {
-		this.name = name;
-	}
+    public TestBoundedOneInputStreamOperator() {
+        this("test");
+    }
 
-	@Override
-	public void processElement(StreamRecord<String> element) {
-		output.collect(element);
-	}
+    public TestBoundedOneInputStreamOperator(String name) {
+        this.name = name;
+        inputEnded = false;
+    }
 
-	@Override
-	public void endInput() {
-		output("[" + name + "]: End of input");
-	}
+    @Override
+    public void processElement(StreamRecord<String> element) {
+        output.collect(element);
+    }
 
-	@Override
-	public void close() throws Exception {
-		ProcessingTimeService timeService = getProcessingTimeService();
-		timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
+    @Override
+    public void endInput() {
+        inputEnded = true;
+        output("[" + name + "]: End of input");
+    }
 
-		output("[" + name + "]: Bye");
-		super.close();
-	}
+    @Override
+    public void close() throws Exception {
+        ProcessingTimeService timeService = getProcessingTimeService();
+        timeService.registerTimer(
+                timeService.getCurrentProcessingTime(),
+                t -> output("[" + name + "]: Timer registered in close"));
 
-	private void output(String record) {
-		output.collect(new StreamRecord<>(record));
-	}
+        output("[" + name + "]: Bye");
+        super.close();
+    }
+
+    private void output(String record) {
+        output.collect(new StreamRecord<>(record));
+    }
+
+    public static boolean isInputEnded() {
+        return inputEnded;
+    }
 }

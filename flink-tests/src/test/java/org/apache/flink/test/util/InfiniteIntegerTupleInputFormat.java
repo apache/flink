@@ -23,32 +23,30 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.IOException;
 
-/**
- * Generates an infinite series of integer 2-tuples elements with optional read delay.
- */
+/** Generates an infinite series of integer 2-tuples elements with optional read delay. */
 public class InfiniteIntegerTupleInputFormat extends GenericInputFormat<Tuple2<Integer, Integer>> {
-	private static final long serialVersionUID = 1L;
-	private static final int DELAY = 20;
-	private final boolean delay;
+    private static final long serialVersionUID = 1L;
+    private static final int DELAY = 20;
+    private final boolean delay;
 
-	public InfiniteIntegerTupleInputFormat(boolean delay) {
-		this.delay = delay;
-	}
+    public InfiniteIntegerTupleInputFormat(boolean delay) {
+        this.delay = delay;
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return false;
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return false;
+    }
 
-	@Override
-	public Tuple2<Integer, Integer> nextRecord(Tuple2<Integer, Integer> reuse) throws IOException {
-		if (delay) {
-			try {
-				Thread.sleep(DELAY);
-			} catch (InterruptedException iex) {
-				// do nothing
-			}
-		}
-		return new Tuple2<>(1, 1);
-	}
+    @Override
+    public Tuple2<Integer, Integer> nextRecord(Tuple2<Integer, Integer> reuse) throws IOException {
+        if (delay) {
+            try {
+                Thread.sleep(DELAY);
+            } catch (InterruptedException iex) {
+                // do nothing
+            }
+        }
+        return new Tuple2<>(1, 1);
+    }
 }

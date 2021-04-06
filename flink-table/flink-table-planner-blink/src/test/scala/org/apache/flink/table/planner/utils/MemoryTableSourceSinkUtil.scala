@@ -23,17 +23,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, TableSink, TableSinkBase}
-import org.apache.flink.table.sources._
+import org.apache.flink.table.api.{TableEnvironment, TableSchema}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.Schema.SCHEMA
+import org.apache.flink.table.factories.StreamTableSinkFactory
+import org.apache.flink.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink, TableSink, TableSinkBase}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
-
 import java.util
 
 import scala.collection.mutable
@@ -51,47 +50,31 @@ object MemoryTableSourceSinkUtil {
     MemoryTableSourceSinkUtil.tableData.clear()
   }
 
-  class UnsafeMemoryTableSource(
-      tableSchema: TableSchema,
-      returnType: TypeInformation[Row],
-      rowtimeAttributeDescriptor: util.List[RowtimeAttributeDescriptor],
-      proctime: String,
-      val terminationCount: Int)
-    extends StreamTableSource[Row]
-    with DefinedProctimeAttribute
-    with DefinedRowtimeAttributes {
+  def createDataTypeOutputFormatTable(
+      tEnv: TableEnvironment,
+      schema: TableSchema,
+      tableName: String): Unit = {
+    tEnv.connect(new CustomConnectorDescriptor("DataTypeOutputFormatTable", 1, false))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
+  }
 
-    override def getReturnType: TypeInformation[Row] = returnType
+  def createLegacyUnsafeMemoryAppendTable(
+      tEnv: TableEnvironment,
+      schema: TableSchema,
+      tableName: String): Unit = {
+    tEnv.connect(new CustomConnectorDescriptor("LegacyUnsafeMemoryAppendTable", 1, false))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
+  }
 
-    override def getTableSchema: TableSchema = tableSchema
-
-    final class InMemorySourceFunction(var count: Int = terminationCount)
-      extends SourceFunction[Row] {
-
-      override def cancel(): Unit = throw new UnsupportedOperationException()
-
-      override def run(ctx: SourceContext[Row]): Unit = {
-        while (count > 0) {
-          tableData.synchronized {
-            if (tableData.nonEmpty) {
-              val r = tableData.remove(0)
-              ctx.collect(r)
-              count -= 1
-            }
-          }
-        }
-      }
-    }
-
-    override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-      execEnv.addSource(new InMemorySourceFunction, returnType)
-    }
-
-    override def getProctimeAttribute: String = proctime
-
-    override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
-      rowtimeAttributeDescriptor
-    }
+  def createDataTypeAppendStreamTable(
+      tEnv: TableEnvironment,
+      schema: TableSchema,
+      tableName: String): Unit = {
+    tEnv.connect(new CustomConnectorDescriptor("DataTypeAppendStreamTable", 1, false))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
   }
 
   final class UnsafeMemoryAppendTableSink
@@ -112,29 +95,28 @@ object MemoryTableSourceSinkUtil {
     }
   }
 
-  final class UnsafeMemoryOutputFormatTableSink extends OutputFormatTableSink[Row] {
-
-    var fieldNames: Array[String] = _
-    var fieldTypes: Array[TypeInformation[_]] = _
-
-    override def getOutputType: TypeInformation[Row] = {
-      new RowTypeInfo(getTableSchema.getFieldTypes, getTableSchema.getFieldNames)
+  final class LegacyUnsafeMemoryAppendTableFactory extends StreamTableSinkFactory[Row] {
+    override def createStreamTableSink(
+        properties: util.Map[String, String]): StreamTableSink[Row] = {
+      val dp = new DescriptorProperties
+      dp.putProperties(properties)
+      val tableSchema = dp.getTableSchema(SCHEMA)
+      val sink = new UnsafeMemoryAppendTableSink
+      sink.configure(tableSchema.getFieldNames, tableSchema.getFieldTypes)
+        .asInstanceOf[StreamTableSink[Row]]
     }
 
-    override def getOutputFormat: OutputFormat[Row] = new MemoryCollectionOutputFormat
-
-    override def configure(
-        fieldNames: Array[String],
-        fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = {
-      val newSink = new UnsafeMemoryOutputFormatTableSink
-      newSink.fieldNames = fieldNames
-      newSink.fieldTypes = fieldTypes
-      newSink
+    override def requiredContext(): util.Map[String, String] = {
+      val context = new util.HashMap[String, String]()
+      context.put(CONNECTOR_TYPE, "LegacyUnsafeMemoryAppendTable")
+      context
     }
 
-    override def getFieldNames: Array[String] = fieldNames
-
-    override def getFieldTypes: Array[TypeInformation[_]] = fieldTypes
+    override def supportedProperties(): util.List[String] = {
+      val properties = new util.ArrayList[String]()
+      properties.add("*")
+      properties
+    }
   }
 
   private class MemoryAppendSink extends RichSinkFunction[Row]() {
@@ -174,6 +156,28 @@ object MemoryTableSourceSinkUtil {
         fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
   }
 
+  final class DataTypeOutputFormatTableFactory extends StreamTableSinkFactory[Row] {
+    override def createStreamTableSink(
+        properties: util.Map[String, String]): StreamTableSink[Row] = {
+      val dp = new DescriptorProperties
+      dp.putProperties(properties)
+      val tableSchema = dp.getTableSchema(SCHEMA)
+      return new DataTypeOutputFormatTableSink(tableSchema)
+    }
+
+    override def requiredContext(): util.Map[String, String] = {
+      val context = new util.HashMap[String, String]()
+      context.put(CONNECTOR_TYPE, "DataTypeOutputFormatTable")
+      context
+    }
+
+    override def supportedProperties(): util.List[String] = {
+      val properties = new util.ArrayList[String]()
+      properties.add("*")
+      properties
+    }
+  }
+
   final class DataTypeAppendStreamTableSink(
       schema: TableSchema) extends AppendStreamTableSink[Row] {
 
@@ -188,5 +192,27 @@ object MemoryTableSourceSinkUtil {
       dataStream.writeUsingOutputFormat(new MemoryCollectionOutputFormat)
     }
 
+  }
+
+  final class DataTypeAppendStreamTableFactory extends StreamTableSinkFactory[Row] {
+    override def createStreamTableSink(
+        properties: util.Map[String, String]): StreamTableSink[Row] = {
+      val dp = new DescriptorProperties
+      dp.putProperties(properties)
+      val tableSchema = dp.getTableSchema(SCHEMA)
+      return new DataTypeAppendStreamTableSink(tableSchema)
+    }
+
+    override def requiredContext(): util.Map[String, String] = {
+      val context = new util.HashMap[String, String]()
+      context.put(CONNECTOR_TYPE, "DataTypeAppendStreamTable")
+      context
+    }
+
+    override def supportedProperties(): util.List[String] = {
+      val properties = new util.ArrayList[String]()
+      properties.add("*")
+      properties
+    }
   }
 }

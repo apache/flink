@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -37,82 +38,74 @@ import java.io.Serializable;
  */
 public class ZooKeeperUtilityFactory {
 
-	private final CuratorFramework root;
+    private final CuratorFramework root;
 
-	// Facade bound to the provided path
-	private final CuratorFramework facade;
+    // Facade bound to the provided path
+    private final CuratorFramework facade;
 
-	public ZooKeeperUtilityFactory(Configuration configuration, String path) throws Exception {
-		Preconditions.checkNotNull(path, "path");
+    public ZooKeeperUtilityFactory(Configuration configuration, String path) throws Exception {
+        Preconditions.checkNotNull(path, "path");
 
-		root = ZooKeeperUtils.startCuratorFramework(configuration);
+        root = ZooKeeperUtils.startCuratorFramework(configuration);
 
-		root.newNamespaceAwareEnsurePath(path).ensure(root.getZookeeperClient());
-		facade = root.usingNamespace(ZooKeeperUtils.generateZookeeperPath(root.getNamespace(), path));
-	}
+        root.newNamespaceAwareEnsurePath(path).ensure(root.getZookeeperClient());
+        facade =
+                root.usingNamespace(
+                        ZooKeeperUtils.generateZookeeperPath(root.getNamespace(), path));
+    }
 
-	/**
-	 * Closes the ZooKeeperUtilityFactory. This entails closing the cached {@link CuratorFramework}
-	 * instance. If cleanup is true, then the initial path and all its children are deleted.
-	 *
-	 * @param cleanup deletes the initial path and all of its children to clean up
-	 * @throws Exception when deleting the znodes
-	 */
-	public void close(boolean cleanup) throws Exception {
-		if (cleanup) {
-			facade.delete().deletingChildrenIfNeeded().forPath("/");
-		}
+    /**
+     * Closes the ZooKeeperUtilityFactory. This entails closing the cached {@link CuratorFramework}
+     * instance. If cleanup is true, then the initial path and all its children are deleted.
+     *
+     * @param cleanup deletes the initial path and all of its children to clean up
+     * @throws Exception when deleting the znodes
+     */
+    public void close(boolean cleanup) throws Exception {
+        if (cleanup) {
+            facade.delete().deletingChildrenIfNeeded().forPath("/");
+        }
 
-		root.close();
-	}
+        root.close();
+    }
 
-	/**
-	 * Creates a {@link ZooKeeperStateHandleStore} instance with the provided arguments.
-	 *
-	 * @param zkStateHandleStorePath specifying the path in ZooKeeper to store the state handles to
-	 * @param stateStorageHelper storing the actual state data
-	 * @param <T> Type of the state to be stored
-	 * @return a ZooKeeperStateHandleStore instance
-	 * @throws Exception if ZooKeeper could not create the provided state handle store path in
-	 *     ZooKeeper
-	 */
-	public <T extends Serializable> ZooKeeperStateHandleStore<T> createZooKeeperStateHandleStore(
-			String zkStateHandleStorePath,
-			RetrievableStateStorageHelper<T> stateStorageHelper) throws Exception {
+    /**
+     * Creates a {@link ZooKeeperStateHandleStore} instance with the provided arguments.
+     *
+     * @param zkStateHandleStorePath specifying the path in ZooKeeper to store the state handles to
+     * @param stateStorageHelper storing the actual state data
+     * @param <T> Type of the state to be stored
+     * @return a ZooKeeperStateHandleStore instance
+     * @throws Exception if ZooKeeper could not create the provided state handle store path in
+     *     ZooKeeper
+     */
+    public <T extends Serializable> ZooKeeperStateHandleStore<T> createZooKeeperStateHandleStore(
+            String zkStateHandleStorePath, RetrievableStateStorageHelper<T> stateStorageHelper)
+            throws Exception {
 
-		return ZooKeeperUtils.createZooKeeperStateHandleStore(
-			facade,
-			zkStateHandleStorePath,
-			stateStorageHelper);
-	}
+        return ZooKeeperUtils.createZooKeeperStateHandleStore(
+                facade, zkStateHandleStorePath, stateStorageHelper);
+    }
 
-	/**
-	 * Creates a {@link ZooKeeperSharedValue} to store a shared value between multiple instances.
-	 *
-	 * @param path to the shared value in ZooKeeper
-	 * @param seedValue for the shared value
-	 * @return a shared value
-	 */
-	public ZooKeeperSharedValue createSharedValue(String path, byte[] seedValue) {
-		return new ZooKeeperSharedValue(
-			new SharedValue(
-				facade,
-				path,
-				seedValue));
-	}
+    /**
+     * Creates a {@link ZooKeeperSharedValue} to store a shared value between multiple instances.
+     *
+     * @param path to the shared value in ZooKeeper
+     * @param seedValue for the shared value
+     * @return a shared value
+     */
+    public ZooKeeperSharedValue createSharedValue(String path, byte[] seedValue) {
+        return new ZooKeeperSharedValue(new SharedValue(facade, path, seedValue));
+    }
 
-	/**
-	 * Creates a {@link ZooKeeperSharedCount} to store a shared count between multiple instances.
-	 *
-	 * @param path to the shared count in ZooKeeper
-	 * @param seedCount for the shared count
-	 * @return a shared count
-	 */
-	public ZooKeeperSharedCount createSharedCount(String path, int seedCount) {
-		return new ZooKeeperSharedCount(
-			new SharedCount(
-				facade,
-				path,
-				seedCount));
-	}
+    /**
+     * Creates a {@link ZooKeeperSharedCount} to store a shared count between multiple instances.
+     *
+     * @param path to the shared count in ZooKeeper
+     * @param seedCount for the shared count
+     * @return a shared count
+     */
+    public ZooKeeperSharedCount createSharedCount(String path, int seedCount) {
+        return new ZooKeeperSharedCount(new SharedCount(facade, path, seedCount));
+    }
 }

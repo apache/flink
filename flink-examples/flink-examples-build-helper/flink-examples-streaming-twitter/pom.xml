@@ -24,12 +24,12 @@ under the License.
 	<parent>
 		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-examples-streaming-twitter_${scala.binary.version}</artifactId>
-	<name>flink-examples-streaming-twitter</name>
+	<name>Flink : Examples : Build Helper : Streaming Twitter</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

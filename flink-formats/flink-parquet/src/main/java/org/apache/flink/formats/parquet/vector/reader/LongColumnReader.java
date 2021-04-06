@@ -17,8 +17,8 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableLongVector;
+import org.apache.flink.table.data.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.vector.writable.WritableLongVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
@@ -27,75 +27,72 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Long {@link ColumnReader}.
- */
+/** Long {@link ColumnReader}. */
 public class LongColumnReader extends AbstractColumnReader<WritableLongVector> {
 
-	public LongColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.INT64);
-	}
+    public LongColumnReader(ColumnDescriptor descriptor, PageReader pageReader) throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.INT64);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableLongVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						readLongs(n, column, rowId);
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setLong(rowId + i, readLong());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableLongVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        readLongs(n, column, rowId);
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setLong(rowId + i, readLong());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableLongVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setLong(i, dictionary.decodeToLong(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableLongVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setLong(i, dictionary.decodeToLong(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	private long readLong() {
-		return readDataBuffer(8).getLong();
-	}
+    private long readLong() {
+        return readDataBuffer(8).getLong();
+    }
 
-	private void readLongs(int total, WritableLongVector c, int rowId) {
-		int requiredBytes = total * 8;
-		ByteBuffer buffer = readDataBuffer(requiredBytes);
+    private void readLongs(int total, WritableLongVector c, int rowId) {
+        int requiredBytes = total * 8;
+        ByteBuffer buffer = readDataBuffer(requiredBytes);
 
-		if (buffer.hasArray()) {
-			int offset = buffer.arrayOffset() + buffer.position();
-			c.setLongsFromBinary(rowId, total, buffer.array(), offset);
-		} else {
-			for (int i = 0; i < total; i += 1) {
-				c.setLong(rowId + i, buffer.getLong());
-			}
-		}
-	}
+        if (buffer.hasArray()) {
+            int offset = buffer.arrayOffset() + buffer.position();
+            c.setLongsFromBinary(rowId, total, buffer.array(), offset);
+        } else {
+            for (int i = 0; i < total; i += 1) {
+                c.setLong(rowId + i, buffer.getLong());
+            }
+        }
+    }
 }

@@ -31,55 +31,56 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link TestProcessingTimeService}.
- */
+/** Tests for {@link TestProcessingTimeService}. */
 public class TestProcessingTimeServiceTest {
 
-	@Test
-	public void testCustomTimeServiceProvider() throws Throwable {
-		final TestProcessingTimeService tp = new TestProcessingTimeService();
+    @Test
+    public void testCustomTimeServiceProvider() throws Throwable {
+        final TestProcessingTimeService tp = new TestProcessingTimeService();
 
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				(env) -> new OneInputStreamTask<>(env, tp),
-				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO);
+        final OneInputStreamTaskTestHarness<String, String> testHarness =
+                new OneInputStreamTaskTestHarness<>(
+                        (env) -> new OneInputStreamTask<>(env, tp),
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
 
-		testHarness.setupOutputForSingletonOperatorChain();
+        testHarness.setupOutputForSingletonOperatorChain();
 
-		StreamConfig streamConfig = testHarness.getStreamConfig();
+        StreamConfig streamConfig = testHarness.getStreamConfig();
 
-		StreamMap<String, String> mapOperator = new StreamMap<>(new StreamTaskTimerTest.DummyMapFunction<>());
-		streamConfig.setStreamOperator(mapOperator);
-		streamConfig.setOperatorID(new OperatorID());
+        StreamMap<String, String> mapOperator =
+                new StreamMap<>(new StreamTaskTimerTest.DummyMapFunction<>());
+        streamConfig.setStreamOperator(mapOperator);
+        streamConfig.setOperatorID(new OperatorID());
 
-		testHarness.invoke();
-		testHarness.waitForTaskRunning();
+        testHarness.invoke();
+        testHarness.waitForTaskRunning();
 
-		ProcessingTimeService processingTimeService = ((StreamMap<?, ?>) testHarness.getHeadOperator()).getProcessingTimeService();
+        ProcessingTimeService processingTimeService =
+                ((StreamMap<?, ?>) testHarness.getHeadOperator()).getProcessingTimeService();
 
-		assertEquals(Long.MIN_VALUE, processingTimeService.getCurrentProcessingTime());
+        assertEquals(Long.MIN_VALUE, processingTimeService.getCurrentProcessingTime());
 
-		tp.setCurrentTime(11);
-		assertEquals(processingTimeService.getCurrentProcessingTime(), 11);
+        tp.setCurrentTime(11);
+        assertEquals(processingTimeService.getCurrentProcessingTime(), 11);
 
-		tp.setCurrentTime(15);
-		tp.setCurrentTime(16);
-		assertEquals(processingTimeService.getCurrentProcessingTime(), 16);
+        tp.setCurrentTime(15);
+        tp.setCurrentTime(16);
+        assertEquals(processingTimeService.getCurrentProcessingTime(), 16);
 
-		// register 2 tasks
-		processingTimeService.registerTimer(30, timestamp -> {});
+        // register 2 tasks
+        processingTimeService.registerTimer(30, timestamp -> {});
 
-		processingTimeService.registerTimer(40, timestamp -> {});
+        processingTimeService.registerTimer(40, timestamp -> {});
 
-		assertEquals(2, tp.getNumActiveTimers());
+        assertEquals(2, tp.getNumActiveTimers());
 
-		tp.setCurrentTime(35);
-		assertEquals(1, tp.getNumActiveTimers());
+        tp.setCurrentTime(35);
+        assertEquals(1, tp.getNumActiveTimers());
 
-		tp.setCurrentTime(40);
-		assertEquals(0, tp.getNumActiveTimers());
+        tp.setCurrentTime(40);
+        assertEquals(0, tp.getNumActiveTimers());
 
-		tp.shutdownService();
-	}
+        tp.shutdownService();
+    }
 }

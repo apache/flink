@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalDataStreamTableScan, FlinkLogicalExpand, FlinkLogicalOverAggregate}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalRank, BatchPhysicalCalc}
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, Lists}
@@ -39,6 +39,7 @@ import org.junit.Assert._
 import org.junit.Test
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -134,7 +135,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       outputRowType,
       rexBuilder)
 
-    val calc = new BatchExecCalc(cluster, batchPhysicalTraits, ts, program, outputRowType)
+    val calc = new BatchPhysicalCalc(cluster, batchPhysicalTraits, ts, program, outputRowType)
     // pop scan
     relBuilder.build()
     // push calc
@@ -150,16 +151,13 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetSelectivityOnExpand(): Unit = {
     val ts = relBuilder.scan("MyTable3").build()
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1),
       ImmutableList.of(ImmutableBitSet.of(0), ImmutableBitSet.of(1)), Array.empty[Integer])
     val expand = new FlinkLogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects, 2)
+      ts.getCluster, ts.getTraitSet, ts, expandProjects, 2)
 
     relBuilder.push(expand)
     val predicate1 = relBuilder
@@ -195,7 +193,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
         assertEquals(1.0 / 7.0, mq.getSelectivity(rank, condition1))
 
         rank match {
-          case r: BatchExecRank if !r.isGlobal => // batch local rank does not output rank fun
+          case r: BatchPhysicalRank if !r.isGlobal => // batch local rank does not output rank fun
           case _ =>
             // rk > 2
             val condition2 =
@@ -288,16 +286,13 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
     relBuilder.clear()
     val ts = relBuilder.scan("MyTable4").build()
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2),
       ImmutableList.of(ImmutableBitSet.of(0, 1), ImmutableBitSet.of(0, 2)), Array.empty[Integer])
     val expand = new LogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects, 4)
+      ts.getCluster, ts.getTraitSet, ts, expandProjects, 4)
 
     // agg output type: a, $e, b, c, count(d)
     val aggWithAuxGroupAndExpand = relBuilder.push(expand).aggregate(
@@ -482,7 +477,8 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       relBuilder.call(GREATER_THAN, relBuilder.field(2, 1, 1), relBuilder.literal(0.1D))
     ), true)
     val join = LogicalJoin.create(
-      ts, right, joinCondition, Set.empty[CorrelationId], JoinRelType.INNER)
+      ts, right, Collections.emptyList(),
+      joinCondition, Set.empty[CorrelationId], JoinRelType.INNER)
 
     relBuilder.push(join)
     val pred1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(0))

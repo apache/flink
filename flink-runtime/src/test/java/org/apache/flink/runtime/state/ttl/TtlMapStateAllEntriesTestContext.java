@@ -20,50 +20,67 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /** Test suite for collection methods of {@link TtlMapState}. */
-class TtlMapStateAllEntriesTestContext extends
-	TtlMapStateTestContext<Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
+class TtlMapStateAllEntriesTestContext
+        extends TtlMapStateTestContext<Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
 
-	@Override
-	void initTestValues() {
-		emptyValue = Collections.emptySet();
+    @Override
+    void initTestValues() {
+        emptyValue = Collections.emptySet();
 
-		updateEmpty = mapOf(Tuple2.of(3, "3"), Tuple2.of(5, "5"), Tuple2.of(23, null), Tuple2.of(10, "10"));
-		updateUnexpired = mapOf(Tuple2.of(12, "12"), Tuple2.of(24, null), Tuple2.of(7, "7"));
-		updateExpired = mapOf(Tuple2.of(15, "15"), Tuple2.of(25, null), Tuple2.of(4, "4"));
+        updateEmpty =
+                mapOf(
+                        Tuple2.of(3, "3"),
+                        Tuple2.of(5, "5"),
+                        Tuple2.of(23, null),
+                        Tuple2.of(10, "10"));
+        updateUnexpired = mapOf(Tuple2.of(12, "12"), Tuple2.of(24, null), Tuple2.of(7, "7"));
+        updateExpired = mapOf(Tuple2.of(15, "15"), Tuple2.of(25, null), Tuple2.of(4, "4"));
 
-		getUpdateEmpty = updateEmpty.entrySet();
-		getUnexpired = updateUnexpired.entrySet();
-		getUpdateExpired = updateExpired.entrySet();
-	}
+        getUpdateEmpty = updateEmpty.entrySet();
+        getUnexpired = updateUnexpired.entrySet();
+        getUpdateExpired = updateExpired.entrySet();
+    }
 
-	@SafeVarargs
-	private static <UK, UV> Map<UK, UV> mapOf(Tuple2<UK, UV> ... entries) {
-		Map<UK, UV> map = new HashMap<>();
-		Arrays.stream(entries).forEach(t -> map.put(t.f0, t.f1));
-		return map;
-	}
+    @SafeVarargs
+    private static <UK, UV> Map<UK, UV> mapOf(Tuple2<UK, UV>... entries) {
+        Map<UK, UV> map = new HashMap<>();
+        Arrays.stream(entries).forEach(t -> map.put(t.f0, t.f1));
+        return map;
+    }
 
-	@Override
-	public void update(Map<Integer, String> map) throws Exception {
-		ttlState.putAll(map);
-	}
+    @Override
+    public void update(Map<Integer, String> map) throws Exception {
+        ttlState.putAll(map);
+    }
 
-	@Override
-	public Set<Map.Entry<Integer, String>> get() throws Exception {
-		return StreamSupport.stream(ttlState.entries().spliterator(), false).collect(Collectors.toSet());
-	}
+    @Override
+    public Set<Map.Entry<Integer, String>> get() throws Exception {
+        return StreamSupport.stream(ttlState.entries().spliterator(), false)
+                .collect(Collectors.toSet());
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.entries() == null ? Collections.emptySet() : ttlState.original.entries();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.entries() == null
+                ? Collections.emptySet()
+                : ttlState.original.entries();
+    }
+
+    @Override
+    public boolean isOriginalEmptyValue() throws Exception {
+        return Objects.equals(
+                emptyValue, Sets.newHashSet(((Iterable<?>) getOriginal()).iterator()));
+    }
 }

@@ -20,22 +20,20 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
-/**
- * Exceptions thrown by operations on the {@link ExecutionGraph} by the {@link JobMaster}.
- */
+/** Exceptions thrown by operations on the {@link ExecutionGraph} by the {@link JobMaster}. */
 public class ExecutionGraphException extends JobManagerException {
 
-	private static final long serialVersionUID = -5439002256464886357L;
+    private static final long serialVersionUID = -5439002256464886357L;
 
-	public ExecutionGraphException(String message) {
-		super(message);
-	}
+    public ExecutionGraphException(String message) {
+        super(message);
+    }
 
-	public ExecutionGraphException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ExecutionGraphException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public ExecutionGraphException(Throwable cause) {
-		super(cause);
-	}
+    public ExecutionGraphException(Throwable cause) {
+        super(cause);
+    }
 }

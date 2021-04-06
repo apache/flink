@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -36,74 +33,65 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
+/** CREATE CATALOG DDL sql call. */
+public class SqlCreateCatalog extends SqlCreate {
 
-/**
- * CREATE CATALOG DDL sql call.
- */
-public class SqlCreateCatalog extends SqlCreate implements ExtendedSqlNode {
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL);
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL);
+    private final SqlIdentifier catalogName;
 
-	private final SqlIdentifier catalogName;
+    private final SqlNodeList propertyList;
 
-	private final SqlNodeList propertyList;
+    public SqlCreateCatalog(
+            SqlParserPos position, SqlIdentifier catalogName, SqlNodeList propertyList) {
+        super(OPERATOR, position, false, false);
+        this.catalogName = requireNonNull(catalogName, "catalogName cannot be null");
+        this.propertyList = requireNonNull(propertyList, "propertyList cannot be null");
+    }
 
-	public SqlCreateCatalog(
-			SqlParserPos position,
-			SqlIdentifier catalogName,
-			SqlNodeList propertyList) {
-		super(OPERATOR, position, false, false);
-		this.catalogName = requireNonNull(catalogName, "catalogName cannot be null");
-		this.propertyList = requireNonNull(propertyList, "propertyList cannot be null");
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(catalogName, propertyList);
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(catalogName, propertyList);
-	}
+    public SqlIdentifier getCatalogName() {
+        return catalogName;
+    }
 
-	public SqlIdentifier getCatalogName() {
-		return catalogName;
-	}
+    public SqlNodeList getPropertyList() {
+        return propertyList;
+    }
 
-	public SqlNodeList getPropertyList() {
-		return propertyList;
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("CREATE CATALOG");
+        catalogName.unparse(writer, leftPrec, rightPrec);
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("CREATE CATALOG");
-		catalogName.unparse(writer, leftPrec, rightPrec);
+        if (this.propertyList.size() > 0) {
+            writer.keyword("WITH");
+            SqlWriter.Frame withFrame = writer.startList("(", ")");
+            for (SqlNode property : propertyList) {
+                printIndent(writer);
+                property.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.newlineAndIndent();
+            writer.endList(withFrame);
+        }
+    }
 
-		if (this.propertyList.size() > 0) {
-			writer.keyword("WITH");
-			SqlWriter.Frame withFrame = writer.startList("(", ")");
-			for (SqlNode property : propertyList) {
-				printIndent(writer);
-				property.unparse(writer, leftPrec, rightPrec);
-			}
-			writer.newlineAndIndent();
-			writer.endList(withFrame);
-		}
-	}
+    private void printIndent(SqlWriter writer) {
+        writer.sep(",", false);
+        writer.newlineAndIndent();
+        writer.print("  ");
+    }
 
-	private void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
-	}
-
-	public String catalogName() {
-		return catalogName.names.get(0);
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-
-	}
+    public String catalogName() {
+        return catalogName.getSimple();
+    }
 }

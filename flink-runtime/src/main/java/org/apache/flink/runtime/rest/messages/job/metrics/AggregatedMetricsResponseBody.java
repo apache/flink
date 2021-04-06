@@ -38,14 +38,13 @@ import java.util.List;
 /**
  * Response type for a collection of aggregated metrics.
  *
- * <p>As JSON this type will be represented as an array of
- * metrics, i.e., the field <code>metrics</code> will not show up. For example, a collection with a
- * single metric will be represented as follows:
- * <pre>
- * {@code
+ * <p>As JSON this type will be represented as an array of metrics, i.e., the field <code>metrics
+ * </code> will not show up. For example, a collection with a single metric will be represented as
+ * follows:
+ *
+ * <pre>{@code
  * [{"id": "metricName", "min": "1"}]
- * }
- * </pre>
+ * }</pre>
  *
  * @see AggregatedMetricsResponseBody.Serializer
  * @see AggregatedMetricsResponseBody.Deserializer
@@ -55,58 +54,54 @@ import java.util.List;
 @JsonDeserialize(using = AggregatedMetricsResponseBody.Deserializer.class)
 public class AggregatedMetricsResponseBody implements ResponseBody {
 
-	private final Collection<AggregatedMetric> metrics;
+    private final Collection<AggregatedMetric> metrics;
 
-	public AggregatedMetricsResponseBody(Collection<AggregatedMetric> metrics) {
+    public AggregatedMetricsResponseBody(Collection<AggregatedMetric> metrics) {
 
-		this.metrics = metrics;
-	}
+        this.metrics = metrics;
+    }
 
-	@JsonIgnore
-	public Collection<AggregatedMetric> getMetrics() {
-		return metrics;
-	}
+    @JsonIgnore
+    public Collection<AggregatedMetric> getMetrics() {
+        return metrics;
+    }
 
-	/**
-	 * JSON serializer for {@link AggregatedMetricsResponseBody}.
-	 */
-	public static class Serializer extends StdSerializer<AggregatedMetricsResponseBody> {
+    /** JSON serializer for {@link AggregatedMetricsResponseBody}. */
+    public static class Serializer extends StdSerializer<AggregatedMetricsResponseBody> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		protected Serializer() {
-			super(AggregatedMetricsResponseBody.class);
-		}
+        protected Serializer() {
+            super(AggregatedMetricsResponseBody.class);
+        }
 
-		@Override
-		public void serialize(
-			AggregatedMetricsResponseBody metricCollectionResponseBody,
-			JsonGenerator jsonGenerator,
-			SerializerProvider serializerProvider) throws IOException {
+        @Override
+        public void serialize(
+                AggregatedMetricsResponseBody metricCollectionResponseBody,
+                JsonGenerator jsonGenerator,
+                SerializerProvider serializerProvider)
+                throws IOException {
 
-			jsonGenerator.writeObject(metricCollectionResponseBody.getMetrics());
-		}
-	}
+            jsonGenerator.writeObject(metricCollectionResponseBody.getMetrics());
+        }
+    }
 
-	/**
-	 * JSON deserializer for {@link AggregatedMetricsResponseBody}.
-	 */
-	public static class Deserializer extends StdDeserializer<AggregatedMetricsResponseBody> {
+    /** JSON deserializer for {@link AggregatedMetricsResponseBody}. */
+    public static class Deserializer extends StdDeserializer<AggregatedMetricsResponseBody> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		protected Deserializer() {
-			super(AggregatedMetricsResponseBody.class);
-		}
+        protected Deserializer() {
+            super(AggregatedMetricsResponseBody.class);
+        }
 
-		@Override
-		public AggregatedMetricsResponseBody deserialize(
-			JsonParser jsonParser,
-			DeserializationContext deserializationContext) throws IOException {
+        @Override
+        public AggregatedMetricsResponseBody deserialize(
+                JsonParser jsonParser, DeserializationContext deserializationContext)
+                throws IOException {
 
-			return new AggregatedMetricsResponseBody(jsonParser.readValueAs(
-				new TypeReference<List<AggregatedMetric>>() {
-				}));
-		}
-	}
+            return new AggregatedMetricsResponseBody(
+                    jsonParser.readValueAs(new TypeReference<List<AggregatedMetric>>() {}));
+        }
+    }
 }

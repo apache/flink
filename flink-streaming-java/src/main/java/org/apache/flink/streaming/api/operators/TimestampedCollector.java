@@ -25,67 +25,64 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
 /**
- * Wrapper around an {@link Output} for user functions that expect a {@link Output}.
- * Before giving the {@link TimestampedCollector} to a user function you must set
- * the timestamp that should be attached to emitted elements. Most operators
- * would set the timestamp of the incoming
- * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord} here.
+ * Wrapper around an {@link Output} for user functions that expect a {@link Output}. Before giving
+ * the {@link TimestampedCollector} to a user function you must set the timestamp that should be
+ * attached to emitted elements. Most operators would set the timestamp of the incoming {@link
+ * org.apache.flink.streaming.runtime.streamrecord.StreamRecord} here.
  *
  * @param <T> The type of the elements that can be emitted.
  */
 @Internal
 public final class TimestampedCollector<T> implements Output<T> {
 
-	private final Output<StreamRecord<T>> output;
+    private final Output<StreamRecord<T>> output;
 
-	private final StreamRecord<T> reuse;
+    private final StreamRecord<T> reuse;
 
-	/**
-	 * Creates a new {@link TimestampedCollector} that wraps the given {@link Output}.
-	 */
-	public TimestampedCollector(Output<StreamRecord<T>> output) {
-		this.output = output;
-		this.reuse = new StreamRecord<T>(null);
-	}
+    /** Creates a new {@link TimestampedCollector} that wraps the given {@link Output}. */
+    public TimestampedCollector(Output<StreamRecord<T>> output) {
+        this.output = output;
+        this.reuse = new StreamRecord<T>(null);
+    }
 
-	@Override
-	public void collect(T record) {
-		output.collect(reuse.replace(record));
-	}
+    @Override
+    public void collect(T record) {
+        output.collect(reuse.replace(record));
+    }
 
-	public void setTimestamp(StreamRecord<?> timestampBase) {
-		if (timestampBase.hasTimestamp()) {
-			reuse.setTimestamp(timestampBase.getTimestamp());
-		} else {
-			reuse.eraseTimestamp();
-		}
-	}
+    public void setTimestamp(StreamRecord<?> timestampBase) {
+        if (timestampBase.hasTimestamp()) {
+            reuse.setTimestamp(timestampBase.getTimestamp());
+        } else {
+            reuse.eraseTimestamp();
+        }
+    }
 
-	public void setAbsoluteTimestamp(long timestamp) {
-		reuse.setTimestamp(timestamp);
-	}
+    public void setAbsoluteTimestamp(long timestamp) {
+        reuse.setTimestamp(timestamp);
+    }
 
-	public void eraseTimestamp() {
-		reuse.eraseTimestamp();
-	}
+    public void eraseTimestamp() {
+        reuse.eraseTimestamp();
+    }
 
-	@Override
-	public void close() {
-		output.close();
-	}
+    @Override
+    public void close() {
+        output.close();
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		output.emitWatermark(mark);
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        output.emitWatermark(mark);
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		output.collect(outputTag, record);
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        output.collect(outputTag, record);
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		output.emitLatencyMarker(latencyMarker);
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        output.emitLatencyMarker(latencyMarker);
+    }
 }

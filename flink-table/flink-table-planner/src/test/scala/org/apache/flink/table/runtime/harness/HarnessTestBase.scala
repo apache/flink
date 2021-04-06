@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.transformations._
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness, TestHarnessUtil}
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview.DataView
 import org.apache.flink.table.codegen.GeneratedAggregationsFunction
 import org.apache.flink.table.functions.aggfunctions.{CountAggFunction, IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
@@ -362,11 +362,11 @@ class HarnessTestBase extends StreamingWithStateTestBase {
         if (one.getName.startsWith(prefixOperatorName)) {
           one
         } else {
-          extractExpectedTransformation(one.getInput, prefixOperatorName)
+          extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
       case union: UnionTransformation[_] => extractFromInputs(union.getInputs.toSeq: _*)
-      case p: PartitionTransformation[_] => extractFromInputs(p.getInput)
-      case _: SourceTransformation[_] => null
+      case p: PartitionTransformation[_] => extractFromInputs(p.getInputs.get(0))
+      case _: LegacySourceTransformation[_] => null
       case _ => throw new UnsupportedOperationException("This should not happen.")
     }
   }
@@ -488,11 +488,19 @@ object HarnessTestBase {
     }
   }
 
-  /**
-    * Test class used to test min and max retention time.
-    */
-  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
-    override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
-    override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
+  class TestTableConfig extends TableConfig {
+
+    private var minIdleStateRetentionTime = 0L
+
+    private var maxIdleStateRetentionTime = 0L
+
+    override def getMinIdleStateRetentionTime: Long = minIdleStateRetentionTime
+
+    override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
+
+    override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+      minIdleStateRetentionTime = minTime.toMilliseconds
+      maxIdleStateRetentionTime = maxTime.toMilliseconds
+    }
   }
 }

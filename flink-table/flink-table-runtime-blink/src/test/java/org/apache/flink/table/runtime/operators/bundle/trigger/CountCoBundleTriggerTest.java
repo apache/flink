@@ -22,33 +22,31 @@ import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;
 
-/**
- * Tests for {@link CountCoBundleTrigger}.
- */
+/** Tests for {@link CountCoBundleTrigger}. */
 public class CountCoBundleTriggerTest {
 
-	@Test
-	public void testTrigger() throws Exception {
-		CountCoBundleTrigger<Object, Object> trigger = new CountCoBundleTrigger<>(2);
-		TestTriggerCallback callback = new TestTriggerCallback();
-		trigger.registerCallback(callback);
+    @Test
+    public void testTrigger() throws Exception {
+        CountCoBundleTrigger<Object, Object> trigger = new CountCoBundleTrigger<>(2);
+        TestTriggerCallback callback = new TestTriggerCallback();
+        trigger.registerCallback(callback);
 
-		trigger.onElement1(null);
-		assertEquals(0, callback.getTriggerCount());
+        trigger.onElement1(null);
+        assertEquals(0, callback.getTriggerCount());
 
-		trigger.onElement2(null);
-		assertEquals(1, callback.getTriggerCount());
+        trigger.onElement2(null);
+        assertEquals(1, callback.getTriggerCount());
 
-		trigger.onElement1(null);
-		assertEquals(1, callback.getTriggerCount());
+        trigger.onElement1(null);
+        assertEquals(1, callback.getTriggerCount());
 
-		trigger.onElement1(null);
-		assertEquals(2, callback.getTriggerCount());
+        trigger.onElement1(null);
+        assertEquals(2, callback.getTriggerCount());
 
-		trigger.onElement2(null);
-		assertEquals(2, callback.getTriggerCount());
+        trigger.onElement2(null);
+        assertEquals(2, callback.getTriggerCount());
 
-		trigger.onElement2(null);
-		assertEquals(3, callback.getTriggerCount());
-	}
+        trigger.onElement2(null);
+        assertEquals(3, callback.getTriggerCount());
+    }
 }

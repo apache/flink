@@ -26,50 +26,46 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- *  Operation to describe a DROP FUNCTION statement for catalog functions.
- */
+/** Operation to describe a DROP FUNCTION statement for catalog functions. */
 public class DropCatalogFunctionOperation implements DropOperation {
-	private final ObjectIdentifier functionIdentifier;
-	private final boolean ifExists;
-	private final boolean isTemporary;
+    private final ObjectIdentifier functionIdentifier;
+    private final boolean ifExists;
+    private final boolean isTemporary;
 
-	public DropCatalogFunctionOperation(
-			ObjectIdentifier functionIdentifier,
-			boolean ifExists,
-			boolean isTemporary) {
-		this.functionIdentifier = functionIdentifier;
-		this.ifExists = ifExists;
-		this.isTemporary = isTemporary;
-	}
+    public DropCatalogFunctionOperation(
+            ObjectIdentifier functionIdentifier, boolean ifExists, boolean isTemporary) {
+        this.functionIdentifier = functionIdentifier;
+        this.ifExists = ifExists;
+        this.isTemporary = isTemporary;
+    }
 
-	public ObjectIdentifier getFunctionIdentifier() {
-		return this.functionIdentifier;
-	}
+    public ObjectIdentifier getFunctionIdentifier() {
+        return this.functionIdentifier;
+    }
 
-	public boolean isIfExists() {
-		return this.ifExists;
-	}
+    public boolean isIfExists() {
+        return this.ifExists;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("identifier", functionIdentifier);
-		params.put("ifExists", ifExists);
-		params.put("isTemporary", isTemporary);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("identifier", functionIdentifier);
+        params.put("ifExists", ifExists);
+        params.put("isTemporary", isTemporary);
 
-		return OperationUtils.formatWithChildren(
-			"DROP CATALOG FUNCTION",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "DROP CATALOG FUNCTION",
+                params,
+                Collections.emptyList(),
+                Operation::asSummaryString);
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	public String getFunctionName() {
-		return this.functionIdentifier.getObjectName();
-	}
+    public String getFunctionName() {
+        return this.functionIdentifier.getObjectName();
+    }
 }

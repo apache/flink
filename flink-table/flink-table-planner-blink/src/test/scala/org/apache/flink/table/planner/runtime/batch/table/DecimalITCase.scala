@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Table}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -204,7 +203,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('a === 'f0).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('a === 'f0).select(1.count),
       Seq(LONG),
       s1r(1L))
   }
@@ -217,7 +216,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('a === 'f1).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('a === 'f1).select(1.count),
       Seq(LONG),
       s1r(1L))
   }
@@ -230,7 +229,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('b === 'f0).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('b === 'f0).select(1.count),
       Seq(LONG),
       s1r(1L))
 
@@ -244,7 +243,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('a === 'f2).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('a === 'f2).select(1.count),
       Seq(LONG),
       s1r(1L))
   }
@@ -257,7 +256,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('c === 'f0).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('c === 'f0).select(1.count),
       Seq(LONG),
       s1r(1L))
   }
@@ -270,7 +269,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('a === 'f3).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('a === 'f3).select(1.count),
       Seq(LONG),
       s1r(1L))
   }
@@ -282,7 +281,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
-      table => table.as('a, 'b, 'c, 'd).join(table).where('a === 'f3).select(1.count),
+      table => table.as("a", "b", "c", "d").join(table).where('a === 'f3).select(1.count),
       Seq(LONG),
       s1r(1L))
   }

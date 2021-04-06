@@ -214,7 +214,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
    *                 "hdfs://host:port/file/path").
-   * @param charsetName The name of the character set used to read the file. Default is UTF-0
+   * @param charsetName The name of the character set used to read the file. Default is UTF-8
    */
   def readTextFile(filePath: String, charsetName: String = "UTF-8"): DataSet[String] = {
     require(filePath != null, "The file path may not be null.")
@@ -233,7 +233,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
    *                 "hdfs://host:port/file/path").
-   * @param charsetName The name of the character set used to read the file. Default is UTF-0
+   * @param charsetName The name of the character set used to read the file. Default is UTF-8
    */
   def readTextFileWithValue(
       filePath: String,

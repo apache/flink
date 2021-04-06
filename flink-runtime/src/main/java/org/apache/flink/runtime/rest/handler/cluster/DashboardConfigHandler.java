@@ -34,27 +34,31 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler which returns the dashboard configuration.
- */
-public class DashboardConfigHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
+/** Handler which returns the dashboard configuration. */
+public class DashboardConfigHandler
+        extends AbstractRestHandler<
+                RestfulGateway, EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
-	private final DashboardConfiguration dashboardConfiguration;
+    private final DashboardConfiguration dashboardConfiguration;
 
-	public DashboardConfigHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> messageHeaders,
-			long refreshInterval,
-			boolean webSubmitEnabled) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    public DashboardConfigHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters>
+                    messageHeaders,
+            long refreshInterval,
+            boolean webSubmitEnabled) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		dashboardConfiguration = DashboardConfiguration.from(refreshInterval, ZonedDateTime.now(), webSubmitEnabled);
-	}
+        dashboardConfiguration =
+                DashboardConfiguration.from(refreshInterval, ZonedDateTime.now(), webSubmitEnabled);
+    }
 
-	@Override
-	public CompletableFuture<DashboardConfiguration> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) {
-		return CompletableFuture.completedFuture(dashboardConfiguration);
-	}
+    @Override
+    public CompletableFuture<DashboardConfiguration> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull RestfulGateway gateway) {
+        return CompletableFuture.completedFuture(dashboardConfiguration);
+    }
 }

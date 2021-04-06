@@ -33,25 +33,23 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
-/**
- * Tests for the {@link CoreModuleDescriptor}.
- */
+/** Tests for the {@link CoreModuleDescriptor}. */
 public class CoreModuleDescriptorTest extends DescriptorTestBase {
 
-	@Override
-	protected List<Descriptor> descriptors() {
-		return Arrays.asList(new CoreModuleDescriptor());
-	}
+    @Override
+    protected List<Descriptor> descriptors() {
+        return Arrays.asList(new CoreModuleDescriptor());
+    }
 
-	@Override
-	protected List<Map<String, String>> properties() {
-		final Map<String, String> minimumProps = new HashMap<>();
-		minimumProps.put(MODULE_TYPE, MODULE_TYPE_CORE);
-		return Collections.singletonList(minimumProps);
-	}
+    @Override
+    protected List<Map<String, String>> properties() {
+        final Map<String, String> minimumProps = new HashMap<>();
+        minimumProps.put(MODULE_TYPE, MODULE_TYPE_CORE);
+        return Collections.singletonList(minimumProps);
+    }
 
-	@Override
-	protected DescriptorValidator validator() {
-		return new CoreModuleDescriptorValidator();
-	}
+    @Override
+    protected DescriptorValidator validator() {
+        return new CoreModuleDescriptorValidator();
+    }
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.LongAvgAggFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
@@ -111,7 +111,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
   }
 
   private def getOperatorWithKey(isMerge: Boolean, isFinal: Boolean)
-    : (CodeGenOperatorFactory[BaseRow], RowType, RowType) = {
+    : (CodeGenOperatorFactory[RowData], RowType, RowType) = {
     val (iType, oType) = if (isMerge && isFinal) {
       (localOutputType, globalOutputType)
     } else if (!isMerge && isFinal) {
@@ -123,7 +123,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     val generator = new HashAggCodeGenerator(
       ctx, relBuilder, aggInfoList, iType, oType, Array(0), auxGrouping, isMerge, isFinal)
     val genOp = generator.genWithKeys()
-    (new CodeGenOperatorFactory[BaseRow](genOp), iType, oType)
+    (new CodeGenOperatorFactory[RowData](genOp), iType, oType)
   }
 
 

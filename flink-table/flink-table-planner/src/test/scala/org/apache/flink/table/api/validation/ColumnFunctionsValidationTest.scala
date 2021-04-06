@@ -18,10 +18,10 @@
 package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Slide, ValidationException}
+import org.apache.flink.table.api.{Slide, ValidationException, _}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.junit.Test
 
 /**

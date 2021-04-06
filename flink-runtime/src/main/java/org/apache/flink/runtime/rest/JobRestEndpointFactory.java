@@ -31,36 +31,37 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * {@link RestEndpointFactory} which creates a {@link MiniDispatcherRestEndpoint}.
- */
+/** {@link RestEndpointFactory} which creates a {@link MiniDispatcherRestEndpoint}. */
 public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway> {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public WebMonitorEndpoint<RestfulGateway> createRestEndpoint(
-			Configuration configuration,
-			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
-			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			TransientBlobService transientBlobService,
-			ExecutorService executor,
-			MetricFetcher metricFetcher,
-			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
-		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
+    @Override
+    public WebMonitorEndpoint<RestfulGateway> createRestEndpoint(
+            Configuration configuration,
+            LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+            LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            TransientBlobService transientBlobService,
+            ScheduledExecutorService executor,
+            MetricFetcher metricFetcher,
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
+        final RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(configuration);
 
-		return new MiniDispatcherRestEndpoint(
-			RestServerEndpointConfiguration.fromConfiguration(configuration),
-			dispatcherGatewayRetriever,
-			configuration,
-			restHandlerConfiguration,
-			resourceManagerGatewayRetriever,
-			transientBlobService,
-			executor,
-			metricFetcher,
-			leaderElectionService,
-			fatalErrorHandler);
-	}
+        return new MiniDispatcherRestEndpoint(
+                RestServerEndpointConfiguration.fromConfiguration(configuration),
+                dispatcherGatewayRetriever,
+                configuration,
+                restHandlerConfiguration,
+                resourceManagerGatewayRetriever,
+                transientBlobService,
+                executor,
+                metricFetcher,
+                leaderElectionService,
+                RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
+                fatalErrorHandler);
+    }
 }

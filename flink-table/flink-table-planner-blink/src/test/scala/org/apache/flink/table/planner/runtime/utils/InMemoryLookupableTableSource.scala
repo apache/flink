@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableSchema}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.Schema.SCHEMA
+import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
-import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction}
+import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction, RESOURCE_COUNTER}
 import org.apache.flink.table.sources._
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
@@ -42,24 +47,23 @@ import scala.collection.mutable
   * A [[LookupableTableSource]] which stores table in memory, this is mainly used for testing.
   */
 class InMemoryLookupableTableSource(
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
+    schema: TableSchema,
     data: List[Row],
-    asyncEnabled: Boolean)
-  extends LookupableTableSource[Row] {
-
-  val resourceCounter = new AtomicInteger(0)
+    asyncEnabled: Boolean,
+    bounded: Boolean = false)
+  extends LookupableTableSource[Row]
+  with StreamTableSource[Row] {
 
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[Row] = {
-    new InMemoryLookupFunction(convertDataToMap(lookupKeys), resourceCounter)
+    new InMemoryLookupFunction(convertDataToMap(lookupKeys), RESOURCE_COUNTER)
   }
 
   override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[Row] = {
-    new InMemoryAsyncLookupFunction(convertDataToMap(lookupKeys), resourceCounter)
+    new InMemoryAsyncLookupFunction(convertDataToMap(lookupKeys), RESOURCE_COUNTER)
   }
 
   private def convertDataToMap(lookupKeys: Array[String]): Map[Row, List[Row]] = {
-    val lookupFieldIndexes = lookupKeys.map(fieldNames.indexOf(_))
+    val lookupFieldIndexes = lookupKeys.map(schema.getFieldNames.indexOf(_))
     val map = mutable.HashMap[Row, List[Row]]()
     data.foreach { row =>
       val key = Row.of(lookupFieldIndexes.map(row.getField): _*)
@@ -73,121 +77,69 @@ class InMemoryLookupableTableSource(
     map.toMap
   }
 
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    null
+  }
+
   override def isAsyncEnabled: Boolean = asyncEnabled
 
-  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
+  override def getProducedDataType: DataType = schema.toRowDataType
 
-  override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+  override def getTableSchema: TableSchema = schema
 
-  @VisibleForTesting
-  def getResourceCounter: Int = resourceCounter.get()
 
+  override def isBounded: Boolean = bounded
+
+}
+
+class InMemoryLookupableTableFactory extends TableSourceFactory[Row] {
+
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+    val dp = new DescriptorProperties
+    dp.putProperties(properties)
+    val tableSchema = dp.getTableSchema(SCHEMA)
+
+    val serializedData = dp.getString("data")
+    val data = EncodingUtils.decodeStringToObject(serializedData, classOf[List[Row]])
+
+    val asyncEnabled = dp.getOptionalBoolean("is-async").orElse(false)
+
+    val bounded = dp.getOptionalBoolean("is-bounded").orElse(false)
+
+    new InMemoryLookupableTableSource(tableSchema, data, asyncEnabled, bounded)
+  }
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "InMemoryLookupableTable")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new util.ArrayList[String]()
+    supported.add("*")
+    supported
+  }
 }
 
 object InMemoryLookupableTableSource {
 
-  /**
-    * Return a new builder that builds a [[InMemoryLookupableTableSource]].
-    *
-    * For example:
-    *
-    * {{{
-    *     val data = (
-    *       (11, 1L, "Julian"),
-    *       (22, 2L, "Jark"),
-    *       (33, 3L, "Fabian"))
-    *
-    *     val source = InMemoryLookupableTableSource.builder()
-    *       .data(data)
-    *       .field("age", Types.INT)
-    *       .field("id", Types.LONG)
-    *       .field("name", Types.STRING)
-    *       .enableAsync()
-    *       .build()
-    * }}}
-    *
-    * @return a new builder to build a [[InMemoryLookupableTableSource]]
-    */
-  def builder(): Builder = new Builder
+  val RESOURCE_COUNTER = new AtomicInteger()
 
-
-  /**
-    * A builder for creating [[InMemoryLookupableTableSource]] instances.
-    *
-    * For example:
-    *
-    * {{{
-    *     val data = (
-    *       (11, 1L, "Julian"),
-    *       (22, 2L, "Jark"),
-    *       (33, 3L, "Fabian"))
-    *
-    *     val source = InMemoryLookupableTableSource.builder()
-    *       .data(data)
-    *       .field("age", Types.INT)
-    *       .field("id", Types.LONG)
-    *       .field("name", Types.STRING)
-    *       .enableAsync()
-    *       .build()
-    * }}}
-    */
-  class Builder {
-    private val schema = new mutable.LinkedHashMap[String, TypeInformation[_]]()
-    private var data: List[Product] = _
-    private var asyncEnabled: Boolean = false
-
-    /**
-      * Sets table data for the table source.
-      */
-    def data(data: List[Product]): Builder = {
-      this.data = data
-      this
-    }
-
-    /**
-      * Adds a field with the field name and the type information. Required.
-      * This method can be called multiple times. The call order of this method defines
-      * also the order of the fields in a row.
-      *
-      * @param fieldName the field name
-      * @param fieldType the type information of the field
-      */
-    def field(fieldName: String, fieldType: TypeInformation[_]): Builder = {
-      if (schema.contains(fieldName)) {
-        throw new IllegalArgumentException(s"Duplicate field name $fieldName.")
-      }
-      schema += (fieldName -> fieldType)
-      this
-    }
-
-    /**
-      * Enables async lookup for the table source
-      */
-    def enableAsync(): Builder = {
-      asyncEnabled = true
-      this
-    }
-
-    /**
-      * Apply the current values and constructs a newly-created [[InMemoryLookupableTableSource]].
-      *
-      * @return a newly-created [[InMemoryLookupableTableSource]].
-      */
-    def build(): InMemoryLookupableTableSource = {
-      val fieldNames = schema.keys.toArray
-      val fieldTypes = schema.values.toArray
-      Preconditions.checkNotNull(data)
-      // convert
-      val rowData = data.map { entry =>
-        Row.of((0 until entry.productArity).map(entry.productElement(_).asInstanceOf[Object]): _*)
-      }
-      new InMemoryLookupableTableSource(
-        fieldNames,
-        fieldTypes,
-        rowData,
-        asyncEnabled
-      )
-    }
+  def createTemporaryTable(
+      tEnv: TableEnvironment,
+      isAsync: Boolean,
+      data: List[Row],
+      schema: TableSchema,
+      tableName: String,
+      isBounded: Boolean = false): Unit = {
+    tEnv.connect(
+      new CustomConnectorDescriptor("InMemoryLookupableTable", 1, false)
+        .property("is-async", if (isAsync) "true" else "false")
+        .property("is-bounded", if (isBounded) "true" else "false")
+        .property("data", EncodingUtils.encodeObjectToString(data)))
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
   }
 
   /**

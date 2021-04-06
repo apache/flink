@@ -18,17 +18,19 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamTableEnvUtil, StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -41,6 +43,9 @@ class AggregateRemoveITCase(
     minibatch: MiniBatchMode,
     backend: StateBackendMode)
   extends StreamingWithAggTestBase(aggMode, minibatch, backend) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testSimple(): Unit = {
@@ -214,7 +219,7 @@ class AggregateRemoveITCase(
       (3, 2, "A", "Hi"),
       (5, 2, "B", "Hello"),
       (6, 3, "C", "Hello world")))
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Int, String, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Int, String, String)](
       tEnv,
       "T",
       ds1.javaStream,
@@ -223,7 +228,7 @@ class AggregateRemoveITCase(
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, String)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, String)](
       tEnv,
       "MyTable",
       env.fromCollection(TestData.smallTupleData3).javaStream,
@@ -232,7 +237,7 @@ class AggregateRemoveITCase(
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("a").asJava).asJava).build())
     )
 
-    StreamTableEnvUtil.registerDataStreamInternal[(Int, Long, Int, String, Long)](
+    StreamTableEnvUtil.createTemporaryViewInternal[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
       env.fromCollection(TestData.smallTupleData5).javaStream,

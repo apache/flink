@@ -18,121 +18,164 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.BinaryStringUtil;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * built-in listagg with retraction aggregate function.
- */
+/** Built-in LISTAGG with retraction aggregate function. */
+@Internal
 public final class ListAggWithRetractAggFunction
-	extends AggregateFunction<BinaryString, ListAggWithRetractAggFunction.ListAggWithRetractAccumulator> {
+        extends BuiltInAggregateFunction<
+                StringData, ListAggWithRetractAggFunction.ListAggWithRetractAccumulator> {
 
-	private static final long serialVersionUID = -2836795091288790955L;
-	private static final BinaryString lineDelimiter = BinaryString.fromString(",");
+    private static final long serialVersionUID = -2836795091288790955L;
 
-	/**
-	 * The initial accumulator for listagg with retraction aggregate function.
-	 */
-	public static class ListAggWithRetractAccumulator {
-		public ListView<BinaryString> list = new ListView<>(BinaryStringTypeInfo.INSTANCE);
-		public ListView<BinaryString> retractList = new ListView<>(BinaryStringTypeInfo.INSTANCE);
+    private static final BinaryStringData lineDelimiter = BinaryStringData.fromString(",");
 
-		@VisibleForTesting
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ListAggWithRetractAccumulator that = (ListAggWithRetractAccumulator) o;
-			return Objects.equals(list, that.list) &&
-				Objects.equals(retractList, that.retractList);
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Planning
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public ListAggWithRetractAccumulator createAccumulator() {
-		return new ListAggWithRetractAccumulator();
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(DataTypes.STRING().bridgedTo(StringData.class));
+    }
 
-	public void accumulate(ListAggWithRetractAccumulator acc, BinaryString value) throws Exception {
-		// ignore null value
-		if (value != null) {
-			acc.list.add(value);
-		}
-	}
+    @Override
+    public DataType getAccumulatorDataType() {
+        return DataTypes.STRUCTURED(
+                ListAggWithRetractAccumulator.class,
+                DataTypes.FIELD(
+                        "list",
+                        ListView.newListViewDataType(
+                                DataTypes.STRING().notNull().bridgedTo(StringData.class))),
+                DataTypes.FIELD(
+                        "retractList",
+                        ListView.newListViewDataType(
+                                DataTypes.STRING().notNull().bridgedTo(StringData.class))));
+    }
 
-	public void retract(ListAggWithRetractAccumulator acc, BinaryString value) throws Exception {
-		if (value != null) {
-			if (!acc.list.remove(value)) {
-				acc.retractList.add(value);
-			}
-		}
-	}
+    @Override
+    public DataType getOutputDataType() {
+        return DataTypes.STRING().bridgedTo(StringData.class);
+    }
 
-	public void merge(ListAggWithRetractAccumulator acc, Iterable<ListAggWithRetractAccumulator> its) throws Exception {
-		for (ListAggWithRetractAccumulator otherAcc : its) {
-			// merge list of acc and other
-			List<BinaryString> buffer = new ArrayList<>();
-			for (BinaryString binaryString : acc.list.get()) {
-				buffer.add(binaryString);
-			}
-			for (BinaryString binaryString : otherAcc.list.get()) {
-				buffer.add(binaryString);
-			}
-			// merge retract list of acc and other
-			List<BinaryString> retractBuffer = new ArrayList<>();
-			for (BinaryString binaryString : acc.retractList.get()) {
-				retractBuffer.add(binaryString);
-			}
-			for (BinaryString binaryString : otherAcc.retractList.get()) {
-				retractBuffer.add(binaryString);
-			}
+    // --------------------------------------------------------------------------------------------
+    // Runtime
+    // --------------------------------------------------------------------------------------------
 
-			// merge list & retract list
-			List<BinaryString> newRetractBuffer = new ArrayList<>();
-			for (BinaryString binaryString : retractBuffer) {
-				if (!buffer.remove(binaryString)) {
-					newRetractBuffer.add(binaryString);
-				}
-			}
+    /** Accumulator for LISTAGG with retraction. */
+    public static class ListAggWithRetractAccumulator {
+        public ListView<StringData> list;
+        public ListView<StringData> retractList;
 
-			// update to acc
-			acc.list.clear();
-			acc.list.addAll(buffer);
-			acc.retractList.clear();
-			acc.retractList.addAll(newRetractBuffer);
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ListAggWithRetractAccumulator that = (ListAggWithRetractAccumulator) o;
+            return Objects.equals(list, that.list) && Objects.equals(retractList, that.retractList);
+        }
 
-	@Override
-	public BinaryString getValue(ListAggWithRetractAccumulator acc) {
-		try {
-			Iterable<BinaryString> accList = acc.list.get();
-			if (accList == null || !accList.iterator().hasNext()) {
-				// return null when the list is empty
-				return null;
-			} else {
-				return BinaryStringUtil.concatWs(lineDelimiter, accList);
-			}
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(e);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(list, retractList);
+        }
+    }
 
-	public void resetAccumulator(ListAggWithRetractAccumulator acc) {
-		acc.list.clear();
-		acc.retractList.clear();
-	}
+    @Override
+    public ListAggWithRetractAccumulator createAccumulator() {
+        final ListAggWithRetractAccumulator acc = new ListAggWithRetractAccumulator();
+        acc.list = new ListView<>();
+        acc.retractList = new ListView<>();
+        return acc;
+    }
+
+    public void accumulate(ListAggWithRetractAccumulator acc, StringData value) throws Exception {
+        if (value != null) {
+            acc.list.add(value);
+        }
+    }
+
+    public void retract(ListAggWithRetractAccumulator acc, StringData value) throws Exception {
+        if (value != null) {
+            if (!acc.list.remove(value)) {
+                acc.retractList.add(value);
+            }
+        }
+    }
+
+    public void merge(
+            ListAggWithRetractAccumulator acc, Iterable<ListAggWithRetractAccumulator> its)
+            throws Exception {
+        for (ListAggWithRetractAccumulator otherAcc : its) {
+            // merge list of acc and other
+            List<StringData> buffer = new ArrayList<>();
+            for (StringData binaryString : acc.list.get()) {
+                buffer.add(binaryString);
+            }
+            for (StringData binaryString : otherAcc.list.get()) {
+                buffer.add(binaryString);
+            }
+            // merge retract list of acc and other
+            List<StringData> retractBuffer = new ArrayList<>();
+            for (StringData binaryString : acc.retractList.get()) {
+                retractBuffer.add(binaryString);
+            }
+            for (StringData binaryString : otherAcc.retractList.get()) {
+                retractBuffer.add(binaryString);
+            }
+
+            // merge list & retract list
+            List<StringData> newRetractBuffer = new ArrayList<>();
+            for (StringData binaryString : retractBuffer) {
+                if (!buffer.remove(binaryString)) {
+                    newRetractBuffer.add(binaryString);
+                }
+            }
+
+            // update to acc
+            acc.list.clear();
+            acc.list.addAll(buffer);
+            acc.retractList.clear();
+            acc.retractList.addAll(newRetractBuffer);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public StringData getValue(ListAggWithRetractAccumulator acc) {
+        try {
+            // the element must be BinaryStringData because it's the only implementation.
+            Iterable<BinaryStringData> accList = (Iterable) acc.list.get();
+            if (accList == null || !accList.iterator().hasNext()) {
+                // return null when the list is empty
+                return null;
+            } else {
+                return BinaryStringDataUtil.concatWs(lineDelimiter, accList);
+            }
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(e);
+        }
+    }
+
+    public void resetAccumulator(ListAggWithRetractAccumulator acc) {
+        acc.list.clear();
+        acc.retractList.clear();
+    }
 }

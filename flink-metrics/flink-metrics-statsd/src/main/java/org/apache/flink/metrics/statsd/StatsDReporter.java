@@ -26,6 +26,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.Scheduled;
 
 import org.slf4j.Logger;
@@ -49,198 +50,201 @@ import java.util.NoSuchElementException;
  * <p>Ported since it was not present in maven central.
  */
 @PublicEvolving
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.statsd.StatsDReporterFactory")
 public class StatsDReporter extends AbstractReporter implements Scheduled {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StatsDReporter.class);
 
-	public static final String ARG_HOST = "host";
-	public static final String ARG_PORT = "port";
+    public static final String ARG_HOST = "host";
+    public static final String ARG_PORT = "port";
 
-	private boolean closed = false;
+    private boolean closed = false;
 
-	private DatagramSocket socket;
-	private InetSocketAddress address;
+    private DatagramSocket socket;
+    private InetSocketAddress address;
 
-	@Override
-	public void open(MetricConfig config) {
-		String host = config.getString(ARG_HOST, null);
-		int port = config.getInteger(ARG_PORT, -1);
+    @Override
+    public void open(MetricConfig config) {
+        String host = config.getString(ARG_HOST, null);
+        int port = config.getInteger(ARG_PORT, -1);
 
-		if (host == null || host.length() == 0 || port < 1) {
-			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
-		}
+        if (host == null || host.length() == 0 || port < 1) {
+            throw new IllegalArgumentException(
+                    "Invalid host/port configuration. Host: " + host + " Port: " + port);
+        }
 
-		this.address = new InetSocketAddress(host, port);
+        this.address = new InetSocketAddress(host, port);
 
-		try {
-			this.socket = new DatagramSocket(0);
-		} catch (SocketException e) {
-			throw new RuntimeException("Could not create datagram socket. ", e);
-		}
-		log.info("Configured StatsDReporter with {host:{}, port:{}}", host, port);
-	}
+        try {
+            this.socket = new DatagramSocket(0);
+        } catch (SocketException e) {
+            throw new RuntimeException("Could not create datagram socket. ", e);
+        }
+        log.info("Configured StatsDReporter with {host:{}, port:{}}", host, port);
+    }
 
-	@Override
-	public void close() {
-		closed = true;
-		if (socket != null && !socket.isClosed()) {
-			socket.close();
-		}
-	}
+    @Override
+    public void close() {
+        closed = true;
+        if (socket != null && !socket.isClosed()) {
+            socket.close();
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void report() {
-		// instead of locking here, we tolerate exceptions
-		// we do this to prevent holding the lock for very long and blocking
-		// operator creation and shutdown
-		try {
-			for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
-				if (closed) {
-					return;
-				}
-				reportGauge(entry.getValue(), entry.getKey());
-			}
+    @Override
+    public void report() {
+        // instead of locking here, we tolerate exceptions
+        // we do this to prevent holding the lock for very long and blocking
+        // operator creation and shutdown
+        try {
+            for (Map.Entry<Gauge<?>, String> entry : gauges.entrySet()) {
+                if (closed) {
+                    return;
+                }
+                reportGauge(entry.getValue(), entry.getKey());
+            }
 
-			for (Map.Entry<Counter, String> entry : counters.entrySet()) {
-				if (closed) {
-					return;
-				}
-				reportCounter(entry.getValue(), entry.getKey());
-			}
+            for (Map.Entry<Counter, String> entry : counters.entrySet()) {
+                if (closed) {
+                    return;
+                }
+                reportCounter(entry.getValue(), entry.getKey());
+            }
 
-			for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
-				reportHistogram(entry.getValue(), entry.getKey());
-			}
+            for (Map.Entry<Histogram, String> entry : histograms.entrySet()) {
+                reportHistogram(entry.getValue(), entry.getKey());
+            }
 
-			for (Map.Entry<Meter, String> entry : meters.entrySet()) {
-				reportMeter(entry.getValue(), entry.getKey());
-			}
-		}
-		catch (ConcurrentModificationException | NoSuchElementException e) {
-			// ignore - may happen when metrics are concurrently added or removed
-			// report next time
-		}
-	}
+            for (Map.Entry<Meter, String> entry : meters.entrySet()) {
+                reportMeter(entry.getValue(), entry.getKey());
+            }
+        } catch (ConcurrentModificationException | NoSuchElementException e) {
+            // ignore - may happen when metrics are concurrently added or removed
+            // report next time
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private void reportCounter(final String name, final Counter counter) {
-		send(name, counter.getCount());
-	}
+    private void reportCounter(final String name, final Counter counter) {
+        send(name, counter.getCount());
+    }
 
-	private void reportGauge(final String name, final Gauge<?> gauge) {
-		Object value = gauge.getValue();
-		if (value == null) {
-			return;
-		}
+    private void reportGauge(final String name, final Gauge<?> gauge) {
+        Object value = gauge.getValue();
+        if (value == null) {
+            return;
+        }
 
-		if (value instanceof Number) {
-			send(numberIsNegative((Number) value), name, value.toString());
-		}
+        if (value instanceof Number) {
+            send(numberIsNegative((Number) value), name, value.toString());
+        }
 
-		send(name, value.toString());
-	}
+        send(name, value.toString());
+    }
 
-	private void reportHistogram(final String name, final Histogram histogram) {
-		if (histogram != null) {
+    private void reportHistogram(final String name, final Histogram histogram) {
+        if (histogram != null) {
 
-			HistogramStatistics statistics = histogram.getStatistics();
+            HistogramStatistics statistics = histogram.getStatistics();
 
-			if (statistics != null) {
-				send(prefix(name, "count"), histogram.getCount());
-				send(prefix(name, "max"), statistics.getMax());
-				send(prefix(name, "min"), statistics.getMin());
-				send(prefix(name, "mean"), statistics.getMean());
-				send(prefix(name, "stddev"), statistics.getStdDev());
-				send(prefix(name, "p50"), statistics.getQuantile(0.5));
-				send(prefix(name, "p75"), statistics.getQuantile(0.75));
-				send(prefix(name, "p95"), statistics.getQuantile(0.95));
-				send(prefix(name, "p98"), statistics.getQuantile(0.98));
-				send(prefix(name, "p99"), statistics.getQuantile(0.99));
-				send(prefix(name, "p999"), statistics.getQuantile(0.999));
-			}
-		}
-	}
+            if (statistics != null) {
+                send(prefix(name, "count"), histogram.getCount());
+                send(prefix(name, "max"), statistics.getMax());
+                send(prefix(name, "min"), statistics.getMin());
+                send(prefix(name, "mean"), statistics.getMean());
+                send(prefix(name, "stddev"), statistics.getStdDev());
+                send(prefix(name, "p50"), statistics.getQuantile(0.5));
+                send(prefix(name, "p75"), statistics.getQuantile(0.75));
+                send(prefix(name, "p95"), statistics.getQuantile(0.95));
+                send(prefix(name, "p98"), statistics.getQuantile(0.98));
+                send(prefix(name, "p99"), statistics.getQuantile(0.99));
+                send(prefix(name, "p999"), statistics.getQuantile(0.999));
+            }
+        }
+    }
 
-	private void reportMeter(final String name, final Meter meter) {
-		if (meter != null) {
-			send(prefix(name, "rate"), meter.getRate());
-			send(prefix(name, "count"), meter.getCount());
-		}
-	}
+    private void reportMeter(final String name, final Meter meter) {
+        if (meter != null) {
+            send(prefix(name, "rate"), meter.getRate());
+            send(prefix(name, "count"), meter.getCount());
+        }
+    }
 
-	private String prefix(String ... names) {
-		if (names.length > 0) {
-			StringBuilder stringBuilder = new StringBuilder(names[0]);
+    private String prefix(String... names) {
+        if (names.length > 0) {
+            StringBuilder stringBuilder = new StringBuilder(names[0]);
 
-			for (int i = 1; i < names.length; i++) {
-				stringBuilder.append('.').append(names[i]);
-			}
+            for (int i = 1; i < names.length; i++) {
+                stringBuilder.append('.').append(names[i]);
+            }
 
-			return stringBuilder.toString();
-		} else {
-			return "";
-		}
-	}
+            return stringBuilder.toString();
+        } else {
+            return "";
+        }
+    }
 
-	private void send(String name, double value) {
-		send(numberIsNegative(value), name, String.valueOf(value));
-	}
+    private void send(String name, double value) {
+        send(numberIsNegative(value), name, String.valueOf(value));
+    }
 
-	private void send(String name, long value) {
-		send(value < 0, name, String.valueOf(value));
-	}
+    private void send(String name, long value) {
+        send(value < 0, name, String.valueOf(value));
+    }
 
-	private void send(boolean resetToZero, String name, String value) {
-		if (resetToZero) {
-			// negative values are interpreted as reductions instead of absolute values
-			// reset value to 0 before applying reduction as a workaround
-			send(name, "0");
-		}
-		send(name, value);
-	}
+    private void send(boolean resetToZero, String name, String value) {
+        if (resetToZero) {
+            // negative values are interpreted as reductions instead of absolute values
+            // reset value to 0 before applying reduction as a workaround
+            send(name, "0");
+        }
+        send(name, value);
+    }
 
-	private void send(final String name, final String value) {
-		try {
-			String formatted = String.format("%s:%s|g", name, value);
-			byte[] data = formatted.getBytes(StandardCharsets.UTF_8);
-			socket.send(new DatagramPacket(data, data.length, this.address));
-		}
-		catch (IOException e) {
-			LOG.error("unable to send packet to statsd at '{}:{}'", address.getHostName(), address.getPort());
-		}
-	}
+    private void send(final String name, final String value) {
+        try {
+            String formatted = String.format("%s:%s|g", name, value);
+            byte[] data = formatted.getBytes(StandardCharsets.UTF_8);
+            socket.send(new DatagramPacket(data, data.length, this.address));
+        } catch (IOException e) {
+            LOG.error(
+                    "unable to send packet to statsd at '{}:{}'",
+                    address.getHostName(),
+                    address.getPort());
+        }
+    }
 
-	@Override
-	public String filterCharacters(String input) {
-		char[] chars = null;
-		final int strLen = input.length();
-		int pos = 0;
+    @Override
+    public String filterCharacters(String input) {
+        char[] chars = null;
+        final int strLen = input.length();
+        int pos = 0;
 
-		for (int i = 0; i < strLen; i++) {
-			final char c = input.charAt(i);
-			switch (c) {
-				case ':':
-					if (chars == null) {
-						chars = input.toCharArray();
-					}
-					chars[pos++] = '-';
-					break;
+        for (int i = 0; i < strLen; i++) {
+            final char c = input.charAt(i);
+            switch (c) {
+                case ':':
+                    if (chars == null) {
+                        chars = input.toCharArray();
+                    }
+                    chars[pos++] = '-';
+                    break;
 
-				default:
-					if (chars != null) {
-						chars[pos] = c;
-					}
-					pos++;
-			}
-		}
+                default:
+                    if (chars != null) {
+                        chars[pos] = c;
+                    }
+                    pos++;
+            }
+        }
 
-		return chars == null ? input : new String(chars, 0, pos);
-	}
+        return chars == null ? input : new String(chars, 0, pos);
+    }
 
-	private boolean numberIsNegative(Number input) {
-		return Double.compare(input.doubleValue(), 0) < 0;
-	}
+    private boolean numberIsNegative(Number input) {
+        return Double.compare(input.doubleValue(), 0) < 0;
+    }
 }

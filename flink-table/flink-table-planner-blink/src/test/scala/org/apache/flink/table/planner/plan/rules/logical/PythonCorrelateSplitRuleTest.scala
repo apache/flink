@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
-import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableTestBase}
+import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
@@ -51,16 +52,40 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
         .build())
     util.replaceStreamProgram(programs)
 
-    util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("func", new MockPythonTableFunction)
+    util.addFunction("javaFunc", new TableFunc1)
     util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test
   def testPythonTableFunctionWithJavaFunc(): Unit = {
+    util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, " +
       "LATERAL TABLE(func(a * a, pyFunc(b, c))) AS T(x, y)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
+  @Test
+  def testJavaTableFunctionWithPythonCalc(): Unit = {
+    util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
+    val sqlQuery = "SELECT a, b, c, x FROM MyTable, " +
+      "LATERAL TABLE(javaFunc(pyFunc(c))) AS T(x)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonTableFunctionWithCompositeInputs(): Unit = {
+    util.addTableSource[(Int, Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c, 'd)
+    val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, " +
+      "LATERAL TABLE(func(d._1 * a, pyFunc(d._2, c))) AS T(x, y)"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testJavaTableFunctionWithPythonCalcCompositeInputs(): Unit = {
+    util.addTableSource[(Int, Int, String, (String, String))]("MyTable", 'a, 'b, 'c, 'd)
+    val sqlQuery = "SELECT a, b, c, x FROM MyTable, " +
+      "LATERAL TABLE(javaFunc(pyFunc(d._1))) AS T(x)"
+    util.verifyRelPlan(sqlQuery)
+  }
 }

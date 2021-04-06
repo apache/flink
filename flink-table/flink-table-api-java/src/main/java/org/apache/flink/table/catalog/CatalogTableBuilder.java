@@ -20,29 +20,28 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
  * A builder for creating a {@link CatalogTable}.
  *
- * <p>It takes {@link Descriptor}s which allow for declaring the communication to external
- * systems in an implementation-agnostic way. The classpath is scanned for suitable table
- * factories that match the desired configuration.
+ * <p>It takes {@link Descriptor}s which allow for declaring the communication to external systems
+ * in an implementation-agnostic way. The classpath is scanned for suitable table factories that
+ * match the desired configuration.
  *
  * <p>Use the provided builder methods to configure the catalog table accordingly.
  *
- * <p>The following example shows how to read from a connector using a JSON format and
- * declaring it as a table source:
- *
- * <code>
+ * <p>The following example shows how to read from a connector using a JSON format and declaring it
+ * as a table source: <code>
  * CatalogTable table = new CatalogTableBuilder(
  *       new ExternalSystemXYZ()
  *         .version("0.11"),
@@ -60,50 +59,53 @@ import java.util.Map;
 @PublicEvolving
 public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuilder> {
 
-	private final TableSchema tableSchema;
+    private final TableSchema tableSchema;
 
-	private String comment;
+    private String comment;
 
-	private final boolean isGeneric;
+    private final boolean isGeneric;
 
-	private Map<String, String> properties = Collections.emptyMap();
+    private List<String> partitionKeys = new ArrayList<>();
 
-	public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
-		super(connectorDescriptor);
-		this.tableSchema = Preconditions.checkNotNull(tableSchema);
+    private Map<String, String> properties = Collections.emptyMap();
 
-		// We don't support non-generic table currently
-		this.isGeneric = true;
-	}
+    public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
+        super(connectorDescriptor);
+        this.tableSchema = Preconditions.checkNotNull(tableSchema);
 
-	public CatalogTableBuilder withComment(String comment) {
-		this.comment = Preconditions.checkNotNull(comment, "Comment must not be null.");
-		return this;
-	}
+        // We don't support non-generic table currently
+        this.isGeneric = true;
+    }
 
-	public CatalogTableBuilder withProperties(Map<String, String> properties) {
-		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
-		return this;
-	}
+    public CatalogTableBuilder withComment(String comment) {
+        this.comment = Preconditions.checkNotNull(comment, "Comment must not be null.");
+        return this;
+    }
 
-	/**
-	 * Builds a {@link CatalogTable}.
-	 */
-	public CatalogTable build() {
-		return new CatalogTableImpl(
-			tableSchema,
-			toProperties(),
-			comment);
-	}
+    public CatalogTableBuilder withProperties(Map<String, String> properties) {
+        this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
+        return this;
+    }
 
-	@Override
-	protected Map<String, String> additionalProperties() {
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
+    public CatalogTableBuilder withPartitionKeys(List<String> partitionKeys) {
+        this.partitionKeys =
+                Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
+        return this;
+    }
 
-		descriptorProperties.putBoolean(CatalogConfig.IS_GENERIC, isGeneric);
+    /** Builds a {@link CatalogTable}. */
+    public CatalogTable build() {
+        return new CatalogTableImpl(tableSchema, partitionKeys, toProperties(), comment);
+    }
 
-		descriptorProperties.putProperties(this.properties);
+    @Override
+    protected Map<String, String> additionalProperties() {
+        DescriptorProperties descriptorProperties = new DescriptorProperties();
 
-		return descriptorProperties.asMap();
-	}
+        descriptorProperties.putBoolean(CatalogPropertiesUtil.IS_GENERIC, isGeneric);
+
+        descriptorProperties.putProperties(this.properties);
+
+        return descriptorProperties.asMap();
+    }
 }

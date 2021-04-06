@@ -35,113 +35,152 @@ import java.util.Map;
 import java.util.StringJoiner;
 
 /**
- * Simple container for the request to a handler, that contains the {@link RequestBody} and path/query parameters.
+ * Simple container for the request to a handler, that contains the {@link RequestBody} and
+ * path/query parameters.
  *
  * @param <R> type of the contained request body
  * @param <M> type of the contained message parameters
  */
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
-	private final R requestBody;
-	private final Collection<File> uploadedFiles;
-	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
-	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
+    private final R requestBody;
+    private final Collection<File> uploadedFiles;
+    private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>>
+            pathParameters = new HashMap<>(2);
+    private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>>
+            queryParameters = new HashMap<>(2);
 
-	public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
-		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList());
-	}
+    public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
+        this(
+                requestBody,
+                messageParameters,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.emptyList());
+    }
 
-	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters) throws HandlerRequestException {
-		this(requestBody, messageParameters, receivedPathParameters, receivedQueryParameters, Collections.emptyList());
-	}
+    public HandlerRequest(
+            R requestBody,
+            M messageParameters,
+            Map<String, String> receivedPathParameters,
+            Map<String, List<String>> receivedQueryParameters)
+            throws HandlerRequestException {
+        this(
+                requestBody,
+                messageParameters,
+                receivedPathParameters,
+                receivedQueryParameters,
+                Collections.emptyList());
+    }
 
-	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<File> uploadedFiles) throws HandlerRequestException {
-		this.requestBody = Preconditions.checkNotNull(requestBody);
-		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
-		Preconditions.checkNotNull(messageParameters);
-		Preconditions.checkNotNull(receivedQueryParameters);
-		Preconditions.checkNotNull(receivedPathParameters);
+    public HandlerRequest(
+            R requestBody,
+            M messageParameters,
+            Map<String, String> receivedPathParameters,
+            Map<String, List<String>> receivedQueryParameters,
+            Collection<File> uploadedFiles)
+            throws HandlerRequestException {
+        this.requestBody = Preconditions.checkNotNull(requestBody);
+        this.uploadedFiles =
+                Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
+        Preconditions.checkNotNull(messageParameters);
+        Preconditions.checkNotNull(receivedQueryParameters);
+        Preconditions.checkNotNull(receivedPathParameters);
 
-		for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
-			String value = receivedPathParameters.get(pathParameter.getKey());
-			if (value != null) {
-				try {
-					pathParameter.resolveFromString(value);
-				} catch (Exception e) {
-					throw new HandlerRequestException("Cannot resolve path parameter (" + pathParameter.getKey() + ") from value \"" + value + "\".");
-				}
+        for (MessagePathParameter<?> pathParameter : messageParameters.getPathParameters()) {
+            String value = receivedPathParameters.get(pathParameter.getKey());
+            if (value != null) {
+                try {
+                    pathParameter.resolveFromString(value);
+                } catch (Exception e) {
+                    throw new HandlerRequestException(
+                            "Cannot resolve path parameter ("
+                                    + pathParameter.getKey()
+                                    + ") from value \""
+                                    + value
+                                    + "\".");
+                }
 
-				@SuppressWarnings("unchecked")
-				Class<? extends MessagePathParameter<?>> clazz = (Class<? extends MessagePathParameter<?>>) pathParameter.getClass();
-				pathParameters.put(clazz, pathParameter);
-			}
-		}
+                @SuppressWarnings("unchecked")
+                Class<? extends MessagePathParameter<?>> clazz =
+                        (Class<? extends MessagePathParameter<?>>) pathParameter.getClass();
+                pathParameters.put(clazz, pathParameter);
+            }
+        }
 
-		for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
-			List<String> values = receivedQueryParameters.get(queryParameter.getKey());
-			if (values != null && !values.isEmpty()) {
-				StringJoiner joiner = new StringJoiner(",");
-				values.forEach(joiner::add);
+        for (MessageQueryParameter<?> queryParameter : messageParameters.getQueryParameters()) {
+            List<String> values = receivedQueryParameters.get(queryParameter.getKey());
+            if (values != null && !values.isEmpty()) {
+                StringJoiner joiner = new StringJoiner(",");
+                values.forEach(joiner::add);
 
-				try {
-					queryParameter.resolveFromString(joiner.toString());
-				} catch (Exception e) {
-					throw new HandlerRequestException("Cannot resolve query parameter (" + queryParameter.getKey() + ") from value \"" + joiner + "\".");
-				}
+                try {
+                    queryParameter.resolveFromString(joiner.toString());
+                } catch (Exception e) {
+                    throw new HandlerRequestException(
+                            "Cannot resolve query parameter ("
+                                    + queryParameter.getKey()
+                                    + ") from value \""
+                                    + joiner
+                                    + "\".");
+                }
 
-				@SuppressWarnings("unchecked")
-				Class<? extends MessageQueryParameter<?>> clazz = (Class<? extends MessageQueryParameter<?>>) queryParameter.getClass();
-				queryParameters.put(clazz, queryParameter);
-			}
+                @SuppressWarnings("unchecked")
+                Class<? extends MessageQueryParameter<?>> clazz =
+                        (Class<? extends MessageQueryParameter<?>>) queryParameter.getClass();
+                queryParameters.put(clazz, queryParameter);
+            }
+        }
+    }
 
-		}
-	}
+    /**
+     * Returns the request body.
+     *
+     * @return request body
+     */
+    public R getRequestBody() {
+        return requestBody;
+    }
 
-	/**
-	 * Returns the request body.
-	 *
-	 * @return request body
-	 */
-	public R getRequestBody() {
-		return requestBody;
-	}
+    /**
+     * Returns the value of the {@link MessagePathParameter} for the given class.
+     *
+     * @param parameterClass class of the parameter
+     * @param <X> the value type that the parameter contains
+     * @param <PP> type of the path parameter
+     * @return path parameter value for the given class
+     * @throws IllegalStateException if no value is defined for the given parameter class
+     */
+    public <X, PP extends MessagePathParameter<X>> X getPathParameter(Class<PP> parameterClass) {
+        @SuppressWarnings("unchecked")
+        PP pathParameter = (PP) pathParameters.get(parameterClass);
+        Preconditions.checkState(
+                pathParameter != null, "No parameter could be found for the given class.");
+        return pathParameter.getValue();
+    }
 
-	/**
-	 * Returns the value of the {@link MessagePathParameter} for the given class.
-	 *
-	 * @param parameterClass class of the parameter
-	 * @param <X>            the value type that the parameter contains
-	 * @param <PP>           type of the path parameter
-	 * @return path parameter value for the given class
-	 * @throws IllegalStateException if no value is defined for the given parameter class
-	 */
-	public <X, PP extends MessagePathParameter<X>> X getPathParameter(Class<PP> parameterClass) {
-		@SuppressWarnings("unchecked")
-		PP pathParameter = (PP) pathParameters.get(parameterClass);
-		Preconditions.checkState(pathParameter != null, "No parameter could be found for the given class.");
-		return pathParameter.getValue();
-	}
+    /**
+     * Returns the value of the {@link MessageQueryParameter} for the given class.
+     *
+     * @param parameterClass class of the parameter
+     * @param <X> the value type that the parameter contains
+     * @param <QP> type of the query parameter
+     * @return query parameter value for the given class, or an empty list if no parameter value
+     *     exists for the given class
+     */
+    public <X, QP extends MessageQueryParameter<X>> List<X> getQueryParameter(
+            Class<QP> parameterClass) {
+        @SuppressWarnings("unchecked")
+        QP queryParameter = (QP) queryParameters.get(parameterClass);
+        if (queryParameter == null) {
+            return Collections.emptyList();
+        } else {
+            return queryParameter.getValue();
+        }
+    }
 
-	/**
-	 * Returns the value of the {@link MessageQueryParameter} for the given class.
-	 *
-	 * @param parameterClass class of the parameter
-	 * @param <X>            the value type that the parameter contains
-	 * @param <QP>           type of the query parameter
-	 * @return query parameter value for the given class, or an empty list if no parameter value exists for the given class
-	 */
-	public <X, QP extends MessageQueryParameter<X>> List<X> getQueryParameter(Class<QP> parameterClass) {
-		@SuppressWarnings("unchecked")
-		QP queryParameter = (QP) queryParameters.get(parameterClass);
-		if (queryParameter == null) {
-			return Collections.emptyList();
-		} else {
-			return queryParameter.getValue();
-		}
-	}
-
-	@Nonnull
-	public Collection<File> getUploadedFiles() {
-		return uploadedFiles;
-	}
+    @Nonnull
+    public Collection<File> getUploadedFiles() {
+        return uploadedFiles;
+    }
 }

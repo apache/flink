@@ -32,24 +32,26 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public class ListStateInputFormat<OT> extends OperatorStateInputFormat<OT> {
 
-	private static final long serialVersionUID = -902006596591901608L;
+    private static final long serialVersionUID = -902006596591901608L;
 
-	private final ListStateDescriptor<OT> descriptor;
+    private final ListStateDescriptor<OT> descriptor;
 
-	/**
-	 * Creates an input format for reading list state from an operator in a savepoint.
-	 *
-	 * @param operatorState The state to be queried.
-	 * @param descriptor The descriptor for this state, providing a name and serializer.
-	 */
-	public ListStateInputFormat(OperatorState operatorState, ListStateDescriptor<OT> descriptor) {
-		super(operatorState, false);
+    /**
+     * Creates an input format for reading list state from an operator in a savepoint.
+     *
+     * @param operatorState The state to be queried.
+     * @param descriptor The descriptor for this state, providing a name and serializer.
+     */
+    public ListStateInputFormat(OperatorState operatorState, ListStateDescriptor<OT> descriptor) {
+        super(operatorState, false);
 
-		this.descriptor = Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
-	}
+        this.descriptor =
+                Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
+    }
 
-	@Override
-	protected final Iterable<OT> getElements(OperatorStateBackend restoredBackend) throws Exception {
-		return restoredBackend.getListState(descriptor).get();
-	}
+    @Override
+    protected final Iterable<OT> getElements(OperatorStateBackend restoredBackend)
+            throws Exception {
+        return restoredBackend.getListState(descriptor).get();
+    }
 }

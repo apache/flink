@@ -26,42 +26,33 @@ import java.io.IOException;
 /**
  * A default implementation of the {@link RecoverableFsDataOutputStream} that does nothing.
  *
- * <p>This is to avoid to have to implement all methods for every implementation
- * used in tests.
+ * <p>This is to avoid to have to implement all methods for every implementation used in tests.
  */
 public class NoOpRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
-	@Override
-	public RecoverableWriter.ResumeRecoverable persist() throws IOException {
-		return null;
-	}
+    @Override
+    public RecoverableWriter.ResumeRecoverable persist() throws IOException {
+        return null;
+    }
 
-	@Override
-	public Committer closeForCommit() throws IOException {
-		return null;
-	}
+    @Override
+    public Committer closeForCommit() throws IOException {
+        return null;
+    }
 
-	@Override
-	public void close() throws IOException {
+    @Override
+    public void close() throws IOException {}
 
-	}
+    @Override
+    public long getPos() throws IOException {
+        return 0;
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		return 0;
-	}
+    @Override
+    public void flush() throws IOException {}
 
-	@Override
-	public void flush() throws IOException {
+    @Override
+    public void sync() throws IOException {}
 
-	}
-
-	@Override
-	public void sync() throws IOException {
-
-	}
-
-	@Override
-	public void write(int b) throws IOException {
-
-	}
+    @Override
+    public void write(int b) throws IOException {}
 }

@@ -33,12 +33,12 @@ import java.io.IOException;
 @PublicEvolving
 public class JsonNodeDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
 
-	private static final long serialVersionUID = -1699854177598621044L;
+    private static final long serialVersionUID = -1699854177598621044L;
 
-	private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper();
 
-	@Override
-	public ObjectNode deserialize(byte[] message) throws IOException {
-		return mapper.readValue(message, ObjectNode.class);
-	}
+    @Override
+    public ObjectNode deserialize(byte[] message) throws IOException {
+        return mapper.readValue(message, ObjectNode.class);
+    }
 }

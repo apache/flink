@@ -40,143 +40,138 @@ import static org.junit.Assert.fail;
  * This tests that the {@link KryoSerializer} properly fails when accessed by two threads
  * concurrently and that Kryo serializers are properly duplicated to use them in different threads.
  *
- * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM
- * when running tests.
+ * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM when
+ * running tests.
  */
 public class KryoSerializerConcurrencyTest {
 
-	@Test
-	public void testDuplicateSerializerWithDefaultSerializerClass() {
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.addDefaultKryoSerializer(WrappedString.class, TestSerializer.class);
-		runDuplicateSerializerTest(executionConfig);
-	}
+    @Test
+    public void testDuplicateSerializerWithDefaultSerializerClass() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.addDefaultKryoSerializer(WrappedString.class, TestSerializer.class);
+        runDuplicateSerializerTest(executionConfig);
+    }
 
-	@Test
-	public void testDuplicateSerializerWithDefaultSerializerInstance() {
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.addDefaultKryoSerializer(WrappedString.class, new TestSerializer());
-		runDuplicateSerializerTest(executionConfig);
-	}
+    @Test
+    public void testDuplicateSerializerWithDefaultSerializerInstance() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.addDefaultKryoSerializer(WrappedString.class, new TestSerializer());
+        runDuplicateSerializerTest(executionConfig);
+    }
 
-	@Test
-	public void testDuplicateSerializerWithRegisteredSerializerClass() {
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.registerTypeWithKryoSerializer(WrappedString.class, TestSerializer.class);
-		runDuplicateSerializerTest(executionConfig);
-	}
+    @Test
+    public void testDuplicateSerializerWithRegisteredSerializerClass() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.registerTypeWithKryoSerializer(WrappedString.class, TestSerializer.class);
+        runDuplicateSerializerTest(executionConfig);
+    }
 
-	@Test
-	public void testDuplicateSerializerWithRegisteredSerializerInstance() {
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.registerTypeWithKryoSerializer(WrappedString.class, new TestSerializer());
-		runDuplicateSerializerTest(executionConfig);
-	}
+    @Test
+    public void testDuplicateSerializerWithRegisteredSerializerInstance() {
+        ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.registerTypeWithKryoSerializer(WrappedString.class, new TestSerializer());
+        runDuplicateSerializerTest(executionConfig);
+    }
 
-	private void runDuplicateSerializerTest(ExecutionConfig executionConfig) {
-		final KryoSerializer<WrappedString> original = new KryoSerializer<>(WrappedString.class, executionConfig);
-		final KryoSerializer<WrappedString> duplicate = original.duplicate();
+    private void runDuplicateSerializerTest(ExecutionConfig executionConfig) {
+        final KryoSerializer<WrappedString> original =
+                new KryoSerializer<>(WrappedString.class, executionConfig);
+        final KryoSerializer<WrappedString> duplicate = original.duplicate();
 
-		WrappedString testString = new WrappedString("test");
+        WrappedString testString = new WrappedString("test");
 
-		String copyWithOriginal = original.copy(testString).content;
-		String copyWithDuplicate = duplicate.copy(testString).content;
+        String copyWithOriginal = original.copy(testString).content;
+        String copyWithDuplicate = duplicate.copy(testString).content;
 
-		Assert.assertTrue(copyWithOriginal.startsWith(testString.content));
-		Assert.assertTrue(copyWithDuplicate.startsWith(testString.content));
+        Assert.assertTrue(copyWithOriginal.startsWith(testString.content));
+        Assert.assertTrue(copyWithDuplicate.startsWith(testString.content));
 
-		// check that both serializer instances have appended a different identity hash
-		Assert.assertNotEquals(copyWithOriginal, copyWithDuplicate);
-	}
+        // check that both serializer instances have appended a different identity hash
+        Assert.assertNotEquals(copyWithOriginal, copyWithDuplicate);
+    }
 
-	@Test
-	public void testConcurrentUseOfSerializer() throws Exception {
-		final KryoSerializer<String> serializer = new KryoSerializer<>(String.class, new ExecutionConfig());
+    @Test
+    public void testConcurrentUseOfSerializer() throws Exception {
+        final KryoSerializer<String> serializer =
+                new KryoSerializer<>(String.class, new ExecutionConfig());
 
-		final BlockerSync sync = new BlockerSync();
+        final BlockerSync sync = new BlockerSync();
 
-		final DataOutputView regularOut = new DataOutputSerializer(32);
-		final DataOutputView lockingOut = new LockingView(sync);
+        final DataOutputView regularOut = new DataOutputSerializer(32);
+        final DataOutputView lockingOut = new LockingView(sync);
 
-		// this thread serializes and gets stuck there
-		final CheckedThread thread = new CheckedThread("serializer") {
-			@Override
-			public void go() throws Exception {
-				serializer.serialize("a value", lockingOut);
-			}
-		};
+        // this thread serializes and gets stuck there
+        final CheckedThread thread =
+                new CheckedThread("serializer") {
+                    @Override
+                    public void go() throws Exception {
+                        serializer.serialize("a value", lockingOut);
+                    }
+                };
 
-		thread.start();
-		sync.awaitBlocker();
+        thread.start();
+        sync.awaitBlocker();
 
-		// this should fail with an exception
-		try {
-			serializer.serialize("value", regularOut);
-			fail("should have failed with an exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
-		finally {
-			// release the thread that serializes
-			sync.releaseBlocker();
-		}
+        // this should fail with an exception
+        try {
+            serializer.serialize("value", regularOut);
+            fail("should have failed with an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        } finally {
+            // release the thread that serializes
+            sync.releaseBlocker();
+        }
 
-		// this propagates exceptions from the spawned thread
-		thread.sync();
-	}
+        // this propagates exceptions from the spawned thread
+        thread.sync();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class LockingView extends DataOutputSerializer {
+    private static class LockingView extends DataOutputSerializer {
 
-		private final BlockerSync blocker;
+        private final BlockerSync blocker;
 
-		LockingView(BlockerSync blocker) {
-			super(32);
-			this.blocker = blocker;
-		}
+        LockingView(BlockerSync blocker) {
+            super(32);
+            this.blocker = blocker;
+        }
 
-		@Override
-		public void write(byte[] b, int off, int len) throws IOException {
-			blocker.blockNonInterruptible();
-		}
-	}
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            blocker.blockNonInterruptible();
+        }
+    }
 
-	/**
-	 * A test class that wraps a string.
-	 */
-	public static class WrappedString {
+    /** A test class that wraps a string. */
+    public static class WrappedString {
 
-		private final String content;
+        private final String content;
 
-		WrappedString(String content) {
-			this.content = content;
-		}
+        WrappedString(String content) {
+            this.content = content;
+        }
 
-		@Override
-		public String toString() {
-			return "WrappedString{" +
-				"content='" + content + '\'' +
-				'}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "WrappedString{" + "content='" + content + '\'' + '}';
+        }
+    }
 
-	/**
-	 * A test serializer for {@link WrappedString} that appends its identity hash.
-	 */
-	public static class TestSerializer extends Serializer<WrappedString> implements Serializable {
+    /** A test serializer for {@link WrappedString} that appends its identity hash. */
+    public static class TestSerializer extends Serializer<WrappedString> implements Serializable {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void write(Kryo kryo, Output output, WrappedString object) {
-			output.writeString(object.content);
-		}
+        @Override
+        public void write(Kryo kryo, Output output, WrappedString object) {
+            output.writeString(object.content);
+        }
 
-		@Override
-		public WrappedString read(Kryo kryo, Input input, Class<WrappedString> type) {
-			return new WrappedString(input.readString() + " " + System.identityHashCode(this));
-		}
-	}
+        @Override
+        public WrappedString read(Kryo kryo, Input input, Class<WrappedString> type) {
+            return new WrappedString(input.readString() + " " + System.identityHashCode(this));
+        }
+    }
 }

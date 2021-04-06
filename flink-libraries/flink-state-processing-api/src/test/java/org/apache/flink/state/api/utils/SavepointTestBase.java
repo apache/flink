@@ -20,10 +20,8 @@ package org.apache.flink.state.api.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,59 +31,68 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-/**
- * A test base that includes utilities for taking a savepoint.
- */
+/** A test base that includes utilities for taking a savepoint. */
 public abstract class SavepointTestBase extends AbstractTestBase {
 
-	public <T> String takeSavepoint(Collection<T> data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
+    public <T> String takeSavepoint(
+            T[] data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory)
+            throws Exception {
+        return takeSavepoint(Arrays.asList(data), jobGraphFactory);
+    }
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableClosureCleaner();
+    public <T> String takeSavepoint(
+            Collection<T> data,
+            Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory)
+            throws Exception {
 
-		WaitingSource<T> waitingSource = createSource(data);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().disableClosureCleaner();
 
-		JobGraph jobGraph = jobGraphFactory.apply(waitingSource).getStreamGraph().getJobGraph();
-		JobID jobId = jobGraph.getJobID();
+        WaitingSource<T> waitingSource = createSource(data);
 
-		ClusterClient<?> client = miniClusterResource.getClusterClient();
+        JobGraph jobGraph = jobGraphFactory.apply(waitingSource).getStreamGraph().getJobGraph();
+        JobID jobId = jobGraph.getJobID();
 
-		try {
-			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
+        ClusterClient<?> client = miniClusterResource.getClusterClient();
 
-			return CompletableFuture
-				.runAsync(waitingSource::awaitSource)
-				.thenCompose(ignore -> triggerSavepoint(client, result.getJobID()))
-				.get(5, TimeUnit.MINUTES);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to take savepoint", e);
-		} finally {
-			client.cancel(jobId);
-		}
-	}
+        try {
+            JobID jobID = client.submitJob(jobGraph).get();
 
-	private <T> WaitingSource<T> createSource(Collection<T> data) throws Exception {
-		T first = data.iterator().next();
-		if (first == null) {
-			throw new IllegalArgumentException("Collection must not contain null elements");
-		}
+            return CompletableFuture.runAsync(waitingSource::awaitSource)
+                    .thenCompose(ignore -> triggerSavepoint(client, jobID))
+                    .get(5, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to take savepoint", e);
+        } finally {
+            client.cancel(jobId);
+        }
+    }
 
-		TypeInformation<T> typeInfo = TypeExtractor.getForObject(first);
-		SourceFunction<T> inner = new FromElementsFunction<>(typeInfo.createSerializer(new ExecutionConfig()), data);
-		return new WaitingSource<>(inner, typeInfo);
-	}
+    private <T> WaitingSource<T> createSource(Collection<T> data) throws Exception {
+        T first = data.iterator().next();
+        if (first == null) {
+            throw new IllegalArgumentException("Collection must not contain null elements");
+        }
 
-	private CompletableFuture<String> triggerSavepoint(ClusterClient<?> client, JobID jobID) throws RuntimeException {
-		try {
-			String dirPath = getTempDirPath(new AbstractID().toHexString());
-			return client.triggerSavepoint(jobID, dirPath);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        TypeInformation<T> typeInfo = TypeExtractor.getForObject(first);
+        SourceFunction<T> inner =
+                new FromElementsFunction<>(typeInfo.createSerializer(new ExecutionConfig()), data);
+        return new WaitingSource<>(inner, typeInfo);
+    }
+
+    private CompletableFuture<String> triggerSavepoint(ClusterClient<?> client, JobID jobID)
+            throws RuntimeException {
+        try {
+            String dirPath = getTempDirPath(new AbstractID().toHexString());
+            return client.triggerSavepoint(jobID, dirPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
