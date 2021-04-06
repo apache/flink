@@ -186,4 +186,23 @@ class SplitAggregateRuleTest extends TableTestBase {
          |""".stripMargin
     util.verifyRelPlan(sqlQuery)
   }
+
+  @Test
+  def testAggFilterClauseBothWithAvgAndCount(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  a,
+         |  COUNT(DISTINCT b) FILTER (WHERE NOT b = 2),
+         |  SUM(b) FILTER (WHERE NOT b = 5),
+         |  COUNT(b),
+         |  AVG(b),
+         |  SUM(b)
+         |FROM MyTable
+         |GROUP BY a
+         |""".stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
 }
