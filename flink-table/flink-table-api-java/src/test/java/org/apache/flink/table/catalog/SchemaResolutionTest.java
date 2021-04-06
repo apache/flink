@@ -60,6 +60,11 @@ public class SchemaResolutionTest {
     private static final ResolvedExpression WATERMARK_RESOLVED =
             new ResolvedExpressionMock(DataTypes.TIMESTAMP(3), () -> WATERMARK_SQL);
 
+    private static final String INVALID_WATERMARK_SQL =
+            "CAST(ts AS TIMESTAMP_LTZ(3)) - INTERVAL '5' SECOND";
+    private static final ResolvedExpression INVALID_WATERMARK_RESOLVED =
+            new ResolvedExpressionMock(DataTypes.TIMESTAMP_LTZ(3), () -> INVALID_WATERMARK_SQL);
+
     private static final String PROCTIME_SQL = "PROCTIME()";
 
     private static final ResolvedExpression PROCTIME_RESOLVED =
@@ -205,6 +210,13 @@ public class SchemaResolutionTest {
                         .watermark("ts", callSql("INVALID"))
                         .build(),
                 "Invalid expression for watermark 'WATERMARK FOR `ts` AS [INVALID]'.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .watermark("ts", callSql(INVALID_WATERMARK_SQL))
+                        .build(),
+                "The watermark output type TIMESTAMP_LTZ(3) is different with input time filed type TIMESTAMP(3).");
 
         testError(
                 Schema.newBuilder()
@@ -451,6 +463,8 @@ public class SchemaResolutionTest {
                 return WATERMARK_RESOLVED_WITH_TS_LTZ;
             case PROCTIME_SQL:
                 return PROCTIME_RESOLVED;
+            case INVALID_WATERMARK_SQL:
+                return INVALID_WATERMARK_RESOLVED;
             default:
                 throw new UnsupportedOperationException("Unknown SQL expression.");
         }

@@ -92,7 +92,8 @@ class IntervalJoinTest extends TableTestBase {
   @Test
   def testIntervalJoinOnDiffRowTimeType(): Unit = {
     expectedException.expectMessage(
-      "Interval join with rowtime attribute has different rowtime types")
+      "Interval join with rowtime attribute requires same rowtime types," +
+        " but the types are TIMESTAMP(3) *ROWTIME* and TIMESTAMP_LTZ(3) *ROWTIME*")
     val sql =
       """
         |SELECT t2.a FROM MyTable2 t1 JOIN MyTable3 t2 ON

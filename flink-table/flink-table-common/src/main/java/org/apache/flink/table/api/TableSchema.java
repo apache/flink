@@ -55,8 +55,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.supportedWatermarkType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -529,7 +529,7 @@ public class TableSchema {
             }
             LogicalType watermarkOutputType =
                     watermark.getWatermarkExprOutputType().getLogicalType();
-            if (!supportedWatermarkType(watermarkOutputType)) {
+            if (!canBeTimeAttributeType(watermarkOutputType)) {
                 throw new ValidationException(
                         String.format(
                                 "Watermark strategy %s must be of type TIMESTAMP or TIMESTAMP_LTZ but is of type '%s'.",

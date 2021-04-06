@@ -514,8 +514,8 @@ class TemporalJoinTest extends TableTestBase {
           """.stripMargin
     expectExceptionThrown(
       sqlQuery8,
-      "Event-Time Temporal Table Join requires same rowtime" +
-        " type in left table and versioned table.",
+      "Event-Time Temporal Table Join requires same rowtime type in left table and versioned" +
+        " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
       classOf[ValidationException])
   }
 

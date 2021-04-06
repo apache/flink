@@ -130,79 +130,79 @@ class TimeAttributeITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-//  @Test
-//  def testWindowAggregateOnCustomizedWatermark(): Unit = {
-//    JavaFunc5.openCalled = false
-//    JavaFunc5.closeCalled = false
-//    tEnv.createTemporaryFunction("myFunc", new JavaFunc5)
-//    val ddl =
-//      s"""
-//        |CREATE TABLE src (
-//        |  log_ts STRING,
-//        |  ts TIMESTAMP(3),
-//        |  a INT,
-//        |  b DOUBLE,
-//        |  WATERMARK FOR ts AS myFunc(ts, a)
-//        |) WITH (
-//        |  'connector' = 'values',
-//        |  'data-id' = '$dataId'
-//        |)
-//      """.stripMargin
-//    val query =
-//      """
-//        |SELECT TUMBLE_END(ts, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
-//        |FROM src
-//        |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
-//      """.stripMargin
-//    tEnv.executeSql(ddl)
-//    val sink = new TestingAppendSink()
-//    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
-//    env.execute("SQL JOB")
-//
-//    val expected = Seq(
-//      "1970-01-01T00:00:00.003,2,3.0",
-//      "1970-01-01T00:00:00.006,2,7.0",
-//      "1970-01-01T00:00:00.009,2,6.0",
-//      "1970-01-01T00:00:00.018,1,4.0")
-//    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-//    assertTrue(JavaFunc5.openCalled)
-//    assertTrue(JavaFunc5.closeCalled)
-//  }
-//
-//  @Test
-//  def testWindowAggregateOnComputedRowtime(): Unit = {
-//    val ddl =
-//      s"""
-//        |CREATE TABLE src (
-//        |  log_ts STRING,
-//        |  ts TIMESTAMP(3),
-//        |  a INT,
-//        |  b DOUBLE,
-//        |  rowtime AS CAST(log_ts AS TIMESTAMP(3)),
-//        |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0.001' SECOND
-//        |) WITH (
-//        |  'connector' = 'values',
-//        |  'data-id' = '$dataId'
-//        |)
-//      """.stripMargin
-//    val query =
-//      """
-//        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
-//        |FROM src
-//        |GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)
-//      """.stripMargin
-//    tEnv.executeSql(ddl)
-//    val sink = new TestingAppendSink()
-//    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
-//    env.execute("SQL JOB")
-//
-//    val expected = Seq(
-//      "1970-01-01T00:00:00.003,2,3.0",
-//      "1970-01-01T00:00:00.006,2,7.0",
-//      "1970-01-01T00:00:00.009,2,6.0",
-//      "1970-01-01T00:00:00.018,1,4.0")
-//    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-//  }
+  @Test
+  def testWindowAggregateOnCustomizedWatermark(): Unit = {
+    JavaFunc5.openCalled = false
+    JavaFunc5.closeCalled = false
+    tEnv.createTemporaryFunction("myFunc", new JavaFunc5)
+    val ddl =
+      s"""
+        |CREATE TABLE src (
+        |  log_ts STRING,
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR ts AS myFunc(ts, a)
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |SELECT TUMBLE_END(ts, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    tEnv.executeSql(ddl)
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2,3.0",
+      "1970-01-01T00:00:00.006,2,7.0",
+      "1970-01-01T00:00:00.009,2,6.0",
+      "1970-01-01T00:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertTrue(JavaFunc5.openCalled)
+    assertTrue(JavaFunc5.closeCalled)
+  }
+
+  @Test
+  def testWindowAggregateOnComputedRowtime(): Unit = {
+    val ddl =
+      s"""
+        |CREATE TABLE src (
+        |  log_ts STRING,
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  rowtime AS CAST(log_ts AS TIMESTAMP(3)),
+        |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0.001' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
+        |)
+      """.stripMargin
+    val query =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    tEnv.executeSql(ddl)
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2,3.0",
+      "1970-01-01T00:00:00.006,2,7.0",
+      "1970-01-01T00:00:00.009,2,6.0",
+      "1970-01-01T00:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 
   // ------------------------------------------------------------------------------------------
 

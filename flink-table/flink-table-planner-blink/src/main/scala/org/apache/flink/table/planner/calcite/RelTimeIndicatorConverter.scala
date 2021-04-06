@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd
-import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampType}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampKind, TimestampType}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.hint.RelHint
@@ -89,9 +89,17 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val isNoLongerTimeIndicator : String => Boolean = fieldName =>
       measures.get(fieldName).exists(r => !FlinkTypeFactory.isTimeIndicatorType(r.getType))
 
+    // decide the MATCH_ROWTIME() return type is TIMESTAMP or TIMESTAMP_LTZ, if it is TIMESTAMP_LTZ,
+    // we need to materialize the output type of LogicalMatch node to TIMESTAMP_LTZ too.
+    val isLtzRowtimeIndicator = measures.exists {
+      case (name, node) => FlinkTypeFactory.isTimestampLtzIndicatorType(node.getType) &&
+        FlinkTypeFactory.isRowtimeIndicatorType(node.getType)
+    }
+
     // materialize all output types
     val outputType = materializerUtils.getRowTypeWithoutIndicators(
       matchRel.getRowType,
+      isLtzRowtimeIndicator,
       isNoLongerTimeIndicator)
 
     LogicalMatch.create(
@@ -330,33 +338,45 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     val head = inputTypes.head.getFieldList.map(_.getType)
 
-    val isValid = inputTypes.forall { t =>
+    inputTypes.forall { t =>
       val fieldTypes = t.getFieldList.map(_.getType)
 
       fieldTypes.zip(head).forall { case (l, r) =>
-        // check if time indicators match
-        if (isTimeIndicatorType(l) && isTimeIndicatorType(r)) {
-          val leftTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-          val rightTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-          leftTime == rightTime
-        }
-        // one side is not an indicator
-        else if (isTimeIndicatorType(l) || isTimeIndicatorType(r)) {
-          false
-        }
-        // uninteresting types
-        else {
-          true
-        }
+        validateUnionPair(l, r)
       }
+    }
+
+    setOp.copy(setOp.getTraitSet, inputs, setOp.all)
+  }
+
+  private def validateUnionPair(l: RelDataType, r: RelDataType): Boolean = {
+    val exceptionMsg =
+      s"Union fields with time attributes requires same types, but the types are %s and %s."
+    // check if time indicators match
+    val isValid = if (isTimeIndicatorType(l) && isTimeIndicatorType(r)) {
+      val leftTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+      val rightTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+      if (leftTime && leftTime) {
+        //rowtime must have same type
+        isTimestampLtzIndicatorType(l) == isTimestampLtzIndicatorType(r)
+      } else {
+        leftTime == rightTime
+      }
+    }
+    // one side is not an indicator
+    else if (isTimeIndicatorType(l) || isTimeIndicatorType(r)) {
+      false
+    }
+    // uninteresting types
+    else {
+      true
     }
 
     if (!isValid) {
       throw new ValidationException(
-        "Union fields with time attributes have different types.")
+        String.format(exceptionMsg, l.toString, r.toString))
     }
-
-    setOp.copy(setOp.getTraitSet, inputs, setOp.all)
+    isValid
   }
 
   private def gatherIndicesToMaterialize(aggregate: Aggregate, input: RelNode): Set[Int] = {
@@ -636,7 +656,7 @@ class RexTimeIndicatorMaterializer(
       val resolvedRefType = input(inputRef.getIndex)
       // input is a valid time indicator
       if (isTimeIndicatorType(resolvedRefType)) {
-        inputRef
+        rexBuilder.makeInputRef(resolvedRefType, inputRef.getIndex)
       }
       // input has been materialized
       else {
@@ -669,17 +689,7 @@ class RexTimeIndicatorMaterializer(
       case FlinkSqlOperatorTable.SESSION_OLD |
            FlinkSqlOperatorTable.HOP_OLD |
            FlinkSqlOperatorTable.TUMBLE_OLD =>
-        updatedCall.getOperands.toList
-
-      // The type of FINAL(MATCH_ROWTIME) is inferred by first operand's type,
-      // but the initial type of MATCH_ROWTIME is TIMESTAMP(3) *ROWTIME*
-      // rewrite the return type of according to the final type of MATCH_ROWTIME
-      case FINAL if updatedCall.getOperands.size() == 1
-        && isMatchTimeIndicator(updatedCall.getOperands.get(0)) =>
-        val rowtimeType = updatedCall.getOperands.get(0).getType
-        updatedCall.clone(
-          rowtimeType.asInstanceOf[TimeIndicatorRelDataType].originalType,
-          updatedCall.getOperands).getOperands.toList
+          updatedCall.getOperands.toList
 
       case _ =>
         updatedCall.getOperands.map { o =>
@@ -711,21 +721,23 @@ class RexTimeIndicatorMaterializer(
 
       // All calls in MEASURES and DEFINE are wrapped with FINAL/RUNNING, therefore
       // we should treat FINAL(MATCH_ROWTIME) and FINAL(MATCH_PROCTIME) as a time attribute
-      // extraction
+      // extraction. The type of FINAL(MATCH_ROWTIME) is inferred by first operand's type,
+      // the initial type of MATCH_ROWTIME is TIMESTAMP(3) *ROWTIME*, it may be rewrote,
+      // so we re
       case FINAL if updatedCall.getOperands.size() == 1
         && isMatchTimeIndicator(updatedCall.getOperands.get(0)) =>
         val rowtimeType = updatedCall.getOperands.get(0).getType
-        updatedCall.clone(
-          rowtimeType,
-          materializedOperands)
+        rexBuilder.makeCall(rowtimeType, updatedCall.getOperator, updatedCall.getOperands)
 
+      // MATCH_ROWTIME() is a no-args function, it can own two kind of return types based
+      // on the rowtime attribute type of its input, we rewrite the return type here
       case FlinkSqlOperatorTable.MATCH_ROWTIME if isTimeIndicatorType(updatedCall.getType) =>
         val rowtimeType = input.filter(isTimeIndicatorType).head
-
-        updatedCall.clone(
+        rexBuilder.makeCall(
           rowtime(
             updatedCall.getType.isNullable,
             isTimestampLtzIndicatorType(rowtimeType)),
+          updatedCall.getOperator,
           materializedOperands)
 
       // do not modify window time attributes
@@ -796,6 +808,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
 
   def getRowTypeWithoutIndicators(
       relType: RelDataType,
+      isLtzRowtimeIndicator: Boolean,
       shouldMaterialize: String => Boolean): RelDataType = {
     val outputTypeBuilder = rexBuilder
       .getTypeFactory
@@ -803,10 +816,28 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
       .builder()
 
     relType.getFieldList.asScala.zipWithIndex.foreach { case (field, idx) =>
-      if (isTimeIndicatorType(field.getType) && shouldMaterialize(field.getName)) {
-        outputTypeBuilder.add(
-          field.getName,
-          timestamp(field.getType.isNullable, isTimestampLtzIndicatorType(field.getType)))
+      if (isTimeIndicatorType(field.getType)) {
+        val convertedTimeIndicatorFieldType = if (isLtzRowtimeIndicator) {
+          rexBuilder
+            .getTypeFactory
+            .asInstanceOf[FlinkTypeFactory]
+            .createFieldTypeFromLogicalType(
+              new LocalZonedTimestampType(field.getType.isNullable, TimestampKind.ROWTIME, 3))
+        } else {
+          field.getType
+        }
+
+        if (shouldMaterialize(field.getName)) {
+          outputTypeBuilder.add(
+            field.getName,
+            timestamp(
+              convertedTimeIndicatorFieldType.isNullable,
+              isTimestampLtzIndicatorType(convertedTimeIndicatorFieldType)))
+        } else {
+           outputTypeBuilder.add(
+             field.getName,
+             convertedTimeIndicatorFieldType)
+        }
       } else {
         outputTypeBuilder.add(field.getName, field.getType)
       }

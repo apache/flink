@@ -105,7 +105,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     val ddl =
       s"""
-         | CREATE Table VirtualTable (
+         | CREATE Table VirtualTable1 (
          |   a INT,
          |   b BIGINT,
          |   c TIMESTAMP_LTZ(3),
@@ -130,13 +130,13 @@ class SourceWatermarkITCase extends StreamingTestBase {
       "2,3,2020-11-21T13:00:05.230Z"  //the utc timestamp of local ts 2020-11-21T21:00:05.230
     )
 
-    val query = "SELECT a, b, c FROM VirtualTable"
+    val query = "SELECT a, b, c FROM VirtualTable1"
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("VirtualTable")
+    val actualWatermark = TestValuesTableFactory.getWatermarkOutput("VirtualTable1")
       .asScala
       .map(x =>
         LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTimestamp), zoneId).toString)

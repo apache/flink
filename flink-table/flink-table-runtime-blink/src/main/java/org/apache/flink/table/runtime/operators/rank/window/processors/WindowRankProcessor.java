@@ -35,6 +35,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProc
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -60,6 +61,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private final long rankEnd;
     private final boolean outputRankNumber;
     private final int windowEndIndex;
+    /** The shifted timezone of the window. */
+    private final ZoneId shiftTimeZone;
 
     // ----------------------------------------------------------------------------------------
 
@@ -84,7 +87,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
             long rankStart,
             long rankEnd,
             boolean outputRankNumber,
-            int windowEndIndex) {
+            int windowEndIndex,
+            ZoneId shiftTimeZone) {
         this.inputSerializer = inputSerializer;
         this.generatedSortKeyComparator = genSortKeyComparator;
         this.sortKeySerializer = sortKeySerializer;
@@ -94,6 +98,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
         this.windowEndIndex = windowEndIndex;
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -122,7 +127,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                         ctx.getKeyedStateBackend(),
                         windowState,
                         true,
-                        null);
+                        shiftTimeZone);
         this.windowBuffer =
                 bufferFactory.create(
                         ctx.getOperatorOwner(),

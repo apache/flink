@@ -53,9 +53,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.supportedWatermarkType;
 import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalType;
 
 /** Default implementation of {@link SchemaResolver}. */
@@ -183,7 +183,7 @@ class DefaultSchemaResolver implements SchemaResolver {
 
         // validate time attribute
         final String timeColumn = watermarkSpec.getColumnName();
-        validateTimeColumn(timeColumn, inputColumns);
+        final Column validatedTimeColumn = validateTimeColumn(timeColumn, inputColumns);
 
         // resolve watermark expression
         final ResolvedExpression watermarkExpression;
@@ -198,11 +198,23 @@ class DefaultSchemaResolver implements SchemaResolver {
         }
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
+        if (!watermarkExpression
+                .getOutputDataType()
+                .getLogicalType()
+                .getTypeRoot()
+                .equals(validatedTimeColumn.getDataType().getLogicalType().getTypeRoot())) {
+            throw new ValidationException(
+                    String.format(
+                            "The watermark output type %s is different with input time filed type %s.",
+                            watermarkExpression.getOutputDataType(),
+                            validatedTimeColumn.getDataType()));
+        }
+
         return Collections.singletonList(
                 WatermarkSpec.of(watermarkSpec.getColumnName(), watermarkExpression));
     }
 
-    private void validateTimeColumn(String columnName, List<Column> columns) {
+    private Column validateTimeColumn(String columnName, List<Column> columns) {
         final Optional<Column> timeColumn =
                 columns.stream().filter(c -> c.getName().equals(columnName)).findFirst();
         if (!timeColumn.isPresent()) {
@@ -213,7 +225,7 @@ class DefaultSchemaResolver implements SchemaResolver {
                             columns.stream().map(Column::getName).collect(Collectors.toList())));
         }
         final LogicalType timeFieldType = timeColumn.get().getDataType().getLogicalType();
-        if (!supportedWatermarkType(timeFieldType) || getPrecision(timeFieldType) != 3) {
+        if (!canBeTimeAttributeType(timeFieldType) || getPrecision(timeFieldType) != 3) {
             throw new ValidationException(
                     "Invalid data type of time field for watermark definition. "
                             + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
@@ -222,10 +234,11 @@ class DefaultSchemaResolver implements SchemaResolver {
             throw new ValidationException(
                     "A watermark can not be defined for a processing-time attribute.");
         }
+        return timeColumn.get();
     }
 
     private void validateWatermarkExpression(LogicalType watermarkType) {
-        if (!supportedWatermarkType(watermarkType) || getPrecision(watermarkType) != 3) {
+        if (!canBeTimeAttributeType(watermarkType) || getPrecision(watermarkType) != 3) {
             throw new ValidationException(
                     "Invalid data type of expression for watermark definition. "
                             + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");

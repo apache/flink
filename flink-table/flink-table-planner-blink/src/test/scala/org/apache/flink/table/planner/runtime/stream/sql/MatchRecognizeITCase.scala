@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -371,12 +371,14 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
 
     val data: Seq[Row] = Seq(
       //first window
-      rowOf("ACME", Instant.ofEpochMilli(1), 1, 1),
-      rowOf("ACME", Instant.ofEpochMilli(2), 2, 2),
+      rowOf("ACME", Instant.ofEpochSecond(1), 1, 1),
+      rowOf("ACME", Instant.ofEpochSecond(2), 2, 2),
       //second window
-      rowOf("ACME", Instant.ofEpochMilli(3), 1, 4),
-      rowOf("ACME", Instant.ofEpochMilli(4), 1, 3)
+      rowOf("ACME", Instant.ofEpochSecond(3), 1, 4),
+      rowOf("ACME", Instant.ofEpochSecond(4), 1, 3)
     )
+
+    tEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     val dataId = TestValuesTableFactory.registerData(data)
     tEnv.executeSql(
@@ -422,8 +424,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List(
-      "ACME,3,1970-01-01T00:00:02.999,1970-01-01T00:00",
-      "ACME,2,1970-01-01T00:00:05.999,1970-01-01T00:00:03")
+      "ACME,3,1970-01-01T08:00:02.999,1970-01-01T08:00",
+      "ACME,2,1970-01-01T08:00:05.999,1970-01-01T08:00:03")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

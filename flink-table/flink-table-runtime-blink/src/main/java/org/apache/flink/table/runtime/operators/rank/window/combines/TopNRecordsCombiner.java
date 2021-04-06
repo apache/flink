@@ -43,6 +43,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /**
  * An implementation of {@link WindowCombineFunction} that save topN records of incremental input
@@ -80,6 +81,9 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
+    /** The shifted timezone of the window. */
+    private final ZoneId shiftTimeZone;
+
     public TopNRecordsCombiner(
             InternalTimerService<Long> timerService,
             StateKeyContext keyContext,
@@ -90,7 +94,8 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
             boolean requiresCopyKey,
             TypeSerializer<RowData> keySerializer,
             TypeSerializer<RowData> recordSerializer,
-            boolean isEventTime) {
+            boolean isEventTime,
+            ZoneId shiftTimeZone) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.dataState = dataState;
@@ -101,6 +106,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         this.keySerializer = keySerializer;
         this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -145,7 +151,8 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         }
         // step 3: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeTimer(window, window - 1);
+            timerService.registerEventTimeTimer(
+                    window, toEpochMillsForTimer(window - 1, shiftTimeZone));
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()
@@ -207,7 +214,8 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
                     requiresCopyKey,
                     keySerializer,
                     recordSerializer,
-                    isEventTime);
+                    isEventTime,
+                    shiftTimeZone);
         }
     }
 }

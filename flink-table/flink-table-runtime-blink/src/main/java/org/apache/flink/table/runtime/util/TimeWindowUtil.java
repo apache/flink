@@ -49,6 +49,7 @@ public class TimeWindowUtil {
      * @return the mills which can describe the local timestamp string in given timezone.
      */
     public static long toUtcTimestampMills(long epochMills, ZoneId shiftTimeZone) {
+        // Long.MAX_VALUE is a flag of max watermark, directly return it
         if (UTC_ZONE_ID.equals(shiftTimeZone) || Long.MAX_VALUE == epochMills) {
             return epochMills;
         }
@@ -65,6 +66,7 @@ public class TimeWindowUtil {
      * @return the epoch mills.
      */
     public static long toEpochMillsForTimer(long utcTimestampMills, ZoneId shiftTimeZone) {
+        // Long.MAX_VALUE is a flag of max watermark, directly return it
         if (UTC_ZONE_ID.equals(shiftTimeZone.equals(shiftTimeZone))
                 || Long.MAX_VALUE == utcTimestampMills) {
             return utcTimestampMills;

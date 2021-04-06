@@ -27,8 +27,6 @@ import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.util.Collector;
 
-import javax.annotation.Nullable;
-
 import java.io.Serializable;
 import java.time.ZoneId;
 import java.util.Iterator;
@@ -75,7 +73,7 @@ public interface WindowCombineFunction {
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
                 boolean isEventTime,
-                @Nullable ZoneId shiftTimeZone)
+                ZoneId shiftTimeZone)
                 throws Exception;
     }
 

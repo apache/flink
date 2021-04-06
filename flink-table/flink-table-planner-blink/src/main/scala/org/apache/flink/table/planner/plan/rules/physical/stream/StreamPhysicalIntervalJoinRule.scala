@@ -57,7 +57,9 @@ class StreamPhysicalIntervalJoinRule
           .get(windowBounds.get.getRightTimeIdx).getType
         if (leftTimeAttributeType.getSqlTypeName != rightTimeAttributeType.getSqlTypeName) {
           throw new ValidationException(
-            "Interval join with rowtime attribute has different rowtime types")
+            String.format("Interval join with rowtime attribute requires same rowtime types," +
+              " but the types are %s and %s.",
+            leftTimeAttributeType.toString, rightTimeAttributeType.toString))
         }
         true
       } else {

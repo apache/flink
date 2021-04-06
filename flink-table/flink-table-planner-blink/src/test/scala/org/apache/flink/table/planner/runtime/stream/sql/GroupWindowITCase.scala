@@ -56,6 +56,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     val timestampDataId = TestValuesTableFactory.registerData(TestData.timestampData)
     val timestampLtzDataId = TestValuesTableFactory.registerData(TestData.timestampLtzData)
 
+    tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
     tEnv.executeSql(
       s"""
          |CREATE TABLE testTable (
@@ -76,8 +77,6 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          | 'failing-source' = 'true'
          |)
          |""".stripMargin)
-
-    //tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
   }
 
   @Test

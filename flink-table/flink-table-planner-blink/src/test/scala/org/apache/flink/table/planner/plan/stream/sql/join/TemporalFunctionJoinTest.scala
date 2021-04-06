@@ -50,8 +50,6 @@ class TemporalFunctionJoinTest extends TableTestBase {
     "ProctimeRates",
     proctimeRatesHistory.createTemporalTableFunction($"proctime", $"currency"))
 
-
-
   @Test
   def testSimpleJoin(): Unit = {
     val sqlQuery = "SELECT " +
