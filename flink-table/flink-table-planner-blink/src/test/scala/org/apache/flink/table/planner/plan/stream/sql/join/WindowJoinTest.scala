@@ -306,7 +306,7 @@ class WindowJoinTest extends TableTestBase {
     thrown.expectMessage(
       "Currently, window join doesn't support different time attribute type of left and " +
         "right inputs.\n" +
-        "The left time attribute type is TIMESTAMP(3) NOT NULL *PROCTIME*.\n" +
+        "The left time attribute type is TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*.\n" +
         "The right time attribute type is TIMESTAMP(3) *ROWTIME*.")
     util.verifyRelPlan(sql)
   }

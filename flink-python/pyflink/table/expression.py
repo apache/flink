@@ -1228,7 +1228,7 @@ class Expression(Generic[T]):
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
 
-        .. seealso:: :py:attr:`~Expression.proctime`
+        .. seealso:: :py:attr:`~Expression.rowtime`
         """
         return _unary_op("rowtime")(self)
 
@@ -1238,7 +1238,7 @@ class Expression(Generic[T]):
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
 
-        .. seealso:: :py:attr:`~Expression.rowtime`
+        .. seealso:: :py:attr:`~Expression.proctime`
         """
         return _unary_op("proctime")(self)
 

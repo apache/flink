@@ -23,7 +23,7 @@
         "schema.watermark.0.rowtime" : "rowtime",
         "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
         "schema.3.expr" : "TO_TIMESTAMP(`c`)",
-        "schema.4.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "schema.0.name" : "a"
       },
       "sourceAbilitySpecs" : [ {
@@ -40,7 +40,7 @@
         }
       } ]
     },
-    "id" : 166,
+    "id" : 8,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -96,7 +96,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 167,
+    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -111,7 +111,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -160,7 +160,7 @@
       }
     },
     "rowtimeFieldIndex" : 2,
-    "id" : 168,
+    "id" : 10,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -175,7 +175,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -208,7 +208,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 169,
+    "id" : 11,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -223,7 +223,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -233,7 +233,7 @@
     "description" : "Calc(select=[b, proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 170,
+    "id" : 12,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -249,7 +249,7 @@
         "b" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -282,7 +282,7 @@
       "alias" : {
         "name" : "w$",
         "type" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -293,7 +293,7 @@
         "fieldIndex" : 1,
         "inputIndex" : 0,
         "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -309,7 +309,7 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
             "kind" : "PROCTIME"
@@ -323,7 +323,7 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
             "kind" : "PROCTIME"
@@ -337,7 +337,7 @@
         "reference" : {
           "name" : "w$",
           "type" : {
-            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
             "nullable" : false,
             "precision" : 3,
             "kind" : "PROCTIME"
@@ -346,7 +346,7 @@
       }
     } ],
     "needRetraction" : false,
-    "id" : 171,
+    "id" : 13,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -377,7 +377,7 @@
         }
       }, {
         "w$proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -424,7 +424,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 172,
+    "id" : 14,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -468,7 +468,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 173,
+    "id" : 15,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -495,50 +495,50 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_end, EXPR$2])"
   } ],
   "edges" : [ {
-    "source" : 166,
-    "target" : 167,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 167,
-    "target" : 168,
+    "source" : 9,
+    "target" : 10,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 168,
-    "target" : 169,
+    "source" : 10,
+    "target" : 11,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 169,
-    "target" : 170,
+    "source" : 11,
+    "target" : 12,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 170,
-    "target" : 171,
+    "source" : 12,
+    "target" : 13,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 171,
-    "target" : 172,
+    "source" : 13,
+    "target" : 14,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 172,
-    "target" : 173,
+    "source" : 14,
+    "target" : 15,
     "shuffle" : {
       "type" : "FORWARD"
     },

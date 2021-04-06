@@ -27,6 +27,8 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+
 /**
  * A {@link WindowAssigner} that windows elements into fixed-size windows based on the timestamp of
  * the elements. Windows cannot overlap.
@@ -55,7 +57,7 @@ public class TumblingWindowAssigner extends WindowAssigner<TimeWindow>
 
     @Override
     public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
-        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
+        long start = getWindowStartWithOffset(timestamp, offset, size);
         return Collections.singletonList(new TimeWindow(start, start + size));
     }
 

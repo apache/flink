@@ -318,9 +318,9 @@ public class LogicalTypesTest {
     @Test
     public void testZonedTimestampTypeWithTimeAttribute() {
         testAll(
-                new ZonedTimestampType(true, TimestampKind.PROCTIME, 9),
+                new ZonedTimestampType(true, TimestampKind.ROWTIME, 9),
                 "TIMESTAMP(9) WITH TIME ZONE",
-                "TIMESTAMP(9) WITH TIME ZONE *PROCTIME*",
+                "TIMESTAMP(9) WITH TIME ZONE *ROWTIME*",
                 new Class[] {java.time.ZonedDateTime.class, java.time.OffsetDateTime.class},
                 new Class[] {java.time.OffsetDateTime.class},
                 new LogicalType[] {},

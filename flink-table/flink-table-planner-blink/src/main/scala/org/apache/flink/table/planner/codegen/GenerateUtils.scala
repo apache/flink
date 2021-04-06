@@ -490,7 +490,7 @@ object GenerateUtils {
   def generateProctimeTimestamp(
       ctx: CodeGeneratorContext,
       contextTerm: String): GeneratedExpression = {
-    val resultType = new TimestampType(3)
+    val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
@@ -504,8 +504,7 @@ object GenerateUtils {
 
   def generateCurrentTimestamp(
       ctx: CodeGeneratorContext): GeneratedExpression = {
-    //TODO return TIMESTAMP for PROCTIME(), will return TIMESTAMP_LTZ once FLINK-21617 finished
-    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new TimestampType(3))
+    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new LocalZonedTimestampType(3))
   }
 
   def generateRowtimeAccess(

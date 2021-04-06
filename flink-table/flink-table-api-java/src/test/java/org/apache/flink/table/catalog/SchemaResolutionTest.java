@@ -25,9 +25,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
@@ -64,7 +64,8 @@ public class SchemaResolutionTest {
 
     private static final ResolvedExpression PROCTIME_RESOLVED =
             new ResolvedExpressionMock(
-                    fromLogicalToDataType(new TimestampType(false, TimestampKind.PROCTIME, 3)),
+                    fromLogicalToDataType(
+                            new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3)),
                     () -> PROCTIME_SQL);
 
     private static final Schema SCHEMA =
@@ -137,7 +138,7 @@ public class SchemaResolutionTest {
                         .column("ts", DataTypes.BOOLEAN())
                         .watermark("ts", callSql(WATERMARK_SQL))
                         .build(),
-                "Invalid data type of time field for watermark definition. The field must be of type TIMESTAMP(3) WITHOUT TIME ZONE.");
+                "Invalid data type of time field for watermark definition. The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
 
         testError(
                 Schema.newBuilder()
@@ -221,7 +222,7 @@ public class SchemaResolutionTest {
                                 + "  `topic` STRING METADATA VIRTUAL,\n"
                                 + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE,\n"
                                 + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',\n"
-                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
+                                + "  `proctime` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
                                 + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
@@ -298,7 +299,7 @@ public class SchemaResolutionTest {
                                 DataTypes.FIELD("topic", DataTypes.STRING()),
                                 DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
-                                DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
+                                DataTypes.FIELD("proctime", DataTypes.TIMESTAMP_LTZ(3).notNull()))
                         .notNull();
         final DataType sourceRowDataType = resolvedSchema.toSourceRowDataType();
         assertThat(sourceRowDataType, equalTo(expectedDataType));

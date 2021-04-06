@@ -99,7 +99,7 @@ public class LogicalTypeCastAvoidanceTest {
                     {new TimestampType(9), new TimestampType(3), false},
                     {new ZonedTimestampType(9), new ZonedTimestampType(3), false},
                     {
-                        new ZonedTimestampType(false, TimestampKind.PROCTIME, 9),
+                        new ZonedTimestampType(false, TimestampKind.ROWTIME, 9),
                         new ZonedTimestampType(3),
                         false
                     },

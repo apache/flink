@@ -189,7 +189,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
           ctx.nullCheck)
       case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
         // attribute is proctime field in a batch query.
@@ -797,7 +797,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
           ctx.nullCheck)
 
       case PROCTIME_MATERIALIZE =>

@@ -35,6 +35,7 @@ import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -44,6 +45,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
+import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -347,6 +349,11 @@ public final class DataTypeUtils {
      */
     public static void validateOutputDataType(DataType dataType) {
         dataType.accept(DataTypeOutputClassValidator.INSTANCE);
+    }
+
+    /** Returns a PROCTIME data type. */
+    public static DataType createProctimeDataType() {
+        return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
     }
 
     private DataTypeUtils() {

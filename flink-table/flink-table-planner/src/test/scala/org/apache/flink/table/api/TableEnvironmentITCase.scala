@@ -517,7 +517,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertEquals(
       s"""(
          |  `name` STRING,
-         |  `pt` TIMESTAMP(3) *PROCTIME*
+         |  `pt` TIMESTAMP_LTZ(3) *PROCTIME*
          |)""".stripMargin,
       tableResult.getResolvedSchema.toString)
     val it = tableResult.collect()

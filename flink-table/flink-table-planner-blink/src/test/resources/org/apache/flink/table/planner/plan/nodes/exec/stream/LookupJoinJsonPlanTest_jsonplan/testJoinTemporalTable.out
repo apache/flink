@@ -17,7 +17,7 @@
         "bounded" : "false",
         "schema.4.name" : "rowtime",
         "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.3.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "schema.2.data-type" : "BIGINT",
         "schema.3.name" : "proctime",
         "connector" : "values",
@@ -132,7 +132,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -200,7 +200,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -283,7 +283,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -331,29 +331,55 @@
     }, {
       "kind" : "REX_CALL",
       "operator" : {
-        "name" : "PROCTIME_MATERIALIZE",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
       },
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "kind" : "REX_CALL",
+        "operator" : {
+          "name" : "PROCTIME_MATERIALIZE",
+          "kind" : "OTHER_FUNCTION",
+          "syntax" : "FUNCTION"
+        },
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 3,
+          "type" : {
+            "timestampKind" : "PROCTIME",
+            "nullable" : false
+          }
+        } ],
         "type" : {
-          "timestampKind" : "PROCTIME",
-          "nullable" : false
+          "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3
         }
       } ],
       "type" : {
         "typeName" : "TIMESTAMP",
-        "nullable" : false,
+        "nullable" : true,
         "precision" : 3
       }
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 4,
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : {
+          "timestampKind" : "ROWTIME",
+          "nullable" : true
+        }
+      } ],
       "type" : {
-        "timestampKind" : "ROWTIME",
-        "nullable" : true
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
       }
     }, {
       "kind" : "INPUT_REF",
@@ -399,7 +425,7 @@
       }, {
         "proctime" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
+          "nullable" : true,
           "precision" : 3,
           "kind" : "REGULAR"
         }
@@ -408,7 +434,7 @@
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME"
+          "kind" : "REGULAR"
         }
       }, {
         "id" : "INT"
@@ -418,7 +444,7 @@
         "age" : "INT"
       } ]
     },
-    "description" : "Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])"
+    "description" : "Calc(select=[a, b, c, CAST(PROCTIME_MATERIALIZE(proctime)) AS proctime, CAST(rowtime) AS rowtime, id, name, age])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
@@ -469,7 +495,7 @@
       }, {
         "proctime" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : false,
+          "nullable" : true,
           "precision" : 3,
           "kind" : "REGULAR"
         }
@@ -478,7 +504,7 @@
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
-          "kind" : "ROWTIME"
+          "kind" : "REGULAR"
         }
       }, {
         "id" : "INT"

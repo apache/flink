@@ -347,6 +347,49 @@ class GroupWindowITCase(mode: StateBackendMode)
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testProctimeCascadeWindowAgg: Unit = {
+    val stream = env.fromCollection(data)
+    val table =
+      stream.toTable(
+        tEnv, 'rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name, 'proctime.proctime)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        | SELECT
+        |  cnt AS key,
+        |  TUMBLE_START(pt1, INTERVAL '0.01' SECOND) AS window_start,
+        |  TUMBLE_END(pt1, INTERVAL '0.01' SECOND) AS window_start,
+        |  TUMBLE_PROCTIME(pt1, INTERVAL '0.01' SECOND) as window_proctime,
+        |  MAX(s1) AS v1,
+        |  MAX(e1) AS v2
+        | FROM
+        | (SELECT
+        |   TUMBLE_START(proctime, INTERVAL '0.005' SECOND) as s1,
+        |   TUMBLE_END(proctime, INTERVAL '0.005' SECOND) e1,
+        |   TUMBLE_PROCTIME(proctime, INTERVAL '0.005' SECOND) as pt1,
+        |   COUNT(name) as cnt
+        |  FROM T1
+        |  GROUP BY 'a', TUMBLE(proctime, INTERVAL '0.005' SECOND)
+        |  ) as T
+        | GROUP BY cnt, TUMBLE(pt1, INTERVAL '0.01' SECOND)
+      """.stripMargin
+    val resolvedSchema = tEnv.sqlQuery(sql).getResolvedSchema
+    // due to the non-deterministic of proctime() function, the result isn't checked here
+    assertEquals(
+      s"""
+         |(
+         |  `key` BIGINT NOT NULL,
+         |  `window_start` TIMESTAMP(3) NOT NULL,
+         |  `window_start0` TIMESTAMP(3) NOT NULL,
+         |  `window_proctime` TIMESTAMP_LTZ(3) *PROCTIME*,
+         |  `v1` TIMESTAMP(3) NOT NULL,
+         |  `v2` TIMESTAMP(3) NOT NULL
+         |)
+         """.stripMargin.trim,
+      resolvedSchema.toString)
+  }
+
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val lateFireDelay: Duration = tableConfig.getConfiguration

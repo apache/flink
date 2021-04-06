@@ -38,7 +38,7 @@ import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunctio
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.runtime.util.MurmurHashUtil
+import org.apache.flink.table.runtime.util.{MurmurHashUtil, TimeWindowUtil}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
@@ -109,6 +109,8 @@ object CodeGenUtils {
   val STATE_DATA_VIEW_STORE: String = className[StateDataViewStore]
 
   val BINARY_STRING_UTIL: String = className[BinaryStringDataUtil]
+
+  val TIME_WINDOW_UTIL: String = className[TimeWindowUtil]
 
   val TIMESTAMP_DATA: String = className[TimestampData]
 

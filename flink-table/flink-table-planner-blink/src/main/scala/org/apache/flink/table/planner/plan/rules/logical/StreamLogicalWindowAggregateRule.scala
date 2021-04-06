@@ -59,11 +59,7 @@ class StreamLogicalWindowAggregateRule
       windowExpression: RexCall): RexNode = {
     // Create a literal with normal SqlTypeName.TIMESTAMP
     // in case we reference a rowtime field.
-    rexBuilder.makeLiteral(
-      0L,
-      rexBuilder.getTypeFactory.createSqlType(
-        SqlTypeName.TIMESTAMP, windowExpression.getType.getPrecision),
-      true)
+    rexBuilder.makeZeroLiteral(windowExpression.getType)
   }
 
   private[table] override def getTimeFieldReference(

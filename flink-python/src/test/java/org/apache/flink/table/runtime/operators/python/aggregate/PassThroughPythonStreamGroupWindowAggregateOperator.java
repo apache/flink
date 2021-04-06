@@ -51,12 +51,14 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.runtime.utils.PassThroughStreamGroupWindowAggregatePythonFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -105,7 +107,8 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
             WindowAssigner<TimeWindow> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties) {
+            PlannerNamedWindowProperty[] namedProperties,
+            ZoneId shiftTimeZone) {
         super(
                 config,
                 inputType,
@@ -120,7 +123,8 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                 windowAssigner,
                 window,
                 allowedLateness,
-                namedProperties);
+                namedProperties,
+                shiftTimeZone);
         this.mockPythonWindowOperator = new MockPythonWindowOperator<>();
         this.aggregateFunction = aggregateFunctions[0];
         this.grouping = grouping;
@@ -161,13 +165,13 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                     for (int i = 0; i < namedProperties.length; i++) {
                         switch (namedProperties[i]) {
                             case WINDOW_START:
-                                windowProperty.setField(i, window.getStart());
+                                windowProperty.setField(i, getShiftEpochMills(window.getStart()));
                                 break;
                             case WINDOW_END:
-                                windowProperty.setField(i, window.getEnd());
+                                windowProperty.setField(i, getShiftEpochMills(window.getEnd()));
                                 break;
                             case ROW_TIME_ATTRIBUTE:
-                                windowProperty.setField(i, window.getEnd() - 1);
+                                windowProperty.setField(i, getShiftEpochMills(window.getEnd() - 1));
                                 break;
                             case PROC_TIME_ATTRIBUTE:
                                 windowProperty.setField(i, -1L);
@@ -234,6 +238,8 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
                 // get timestamp
                 long timestamp = inputRow.getLong(inputTimeFieldIndex);
+                timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
+
                 Collection<TimeWindow> elementWindows =
                         windowAssigner.assignWindows(inputRow, timestamp);
                 for (TimeWindow window : elementWindows) {
@@ -401,6 +407,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
 
     private void emitTimerData(RowData key, TimeWindow window, byte timerOperand)
             throws IOException {
+
         reusePythonTimerData.setByte(0, timerOperand);
         reusePythonTimerData.setField(1, key);
         reusePythonTimerData.setLong(2, window.maxTimestamp());

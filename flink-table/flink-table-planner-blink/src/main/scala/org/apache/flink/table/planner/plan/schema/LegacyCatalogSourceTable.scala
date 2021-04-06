@@ -29,12 +29,12 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, Fl
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampKind, TimestampType}
 
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 
 import java.util.{List => JList}
 
@@ -234,11 +234,20 @@ class LegacyCatalogSourceTable[T](
       val fieldNames = logicalRowType.getFieldNames
       val fieldTypes = logicalRowType.getFields.map { f =>
         if (FlinkTypeFactory.isTimeIndicatorType(f.getType)) {
-          val timeIndicatorType = f.getType.asInstanceOf[TimestampType]
-          new TimestampType(
-            timeIndicatorType.isNullable,
-            TimestampKind.REGULAR,
-            timeIndicatorType.getPrecision)
+          f.getType match {
+            case ts: TimestampType =>
+              new TimestampType(
+                ts.isNullable,
+                TimestampKind.REGULAR,
+                ts.getPrecision)
+            case ltz: LocalZonedTimestampType =>
+              new LocalZonedTimestampType(
+                ltz.isNullable,
+                TimestampKind.REGULAR,
+                ltz.getPrecision)
+            case _ => throw new ValidationException("The supported time indicator type" +
+              " are timestamp and timestampLtz, but is " + f.getType + ".")
+           }
         } else {
           f.getType
         }
