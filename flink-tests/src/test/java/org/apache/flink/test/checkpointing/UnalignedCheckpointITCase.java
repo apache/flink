@@ -264,7 +264,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         // prevent test from timing out in case when a failover happens concurrently
                         // with triggering a checkpoint (some execution status can change right
                         // after triggering)
-                        .setCheckpointTimeout(Duration.ofMinutes(1))
+                        .setCheckpointTimeout(Duration.ofSeconds(30))
+                        .setTolerableCheckpointFailures(3)
                         .setAlignmentTimeout(timeout);
     }
 

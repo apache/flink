@@ -669,6 +669,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         @Nullable private File restoreCheckpoint;
         private boolean generateCheckpoint = false;
         int expectedFailures = 0;
+        int tolerableCheckpointFailures = 0;
         private final DagCreator dagCreator;
         private int alignmentTimeout = 0;
         private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
@@ -719,10 +720,17 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setTolerableCheckpointFailures(int tolerableCheckpointFailures) {
+            this.tolerableCheckpointFailures = tolerableCheckpointFailures;
+            return this;
+        }
+
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
             env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout.toMillis());
+            env.getCheckpointConfig()
+                    .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);
             env.setParallelism(parallelism);
             env.setRestartStrategy(
                     RestartStrategies.fixedDelayRestart(
