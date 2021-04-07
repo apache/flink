@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.internal;
+package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.connector.jdbc.internal.converter.AbstractJdbcRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -37,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 public class AbstractJdbcRowConverterTest {
 
     @Test
-    public void testTimestampType() throws Exception {
+    public void testExternalLocalDateTimeToTimestamp() throws Exception {
         RowType rowType = RowType.of(new IntType(), new TimestampType(3));
         JdbcRowConverter rowConverter =
                 new AbstractJdbcRowConverter(rowType) {
