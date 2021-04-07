@@ -49,7 +49,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utility functions for Flink client. */
 public enum ClientUtils {
-    ;
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientUtils.class);
 
