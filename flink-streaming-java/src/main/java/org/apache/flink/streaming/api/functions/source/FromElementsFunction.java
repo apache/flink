@@ -143,7 +143,9 @@ public class FromElementsFunction<T>
      */
     @Override
     public void setOutputType(TypeInformation<T> outTypeInfo, ExecutionConfig executionConfig) {
-        Preconditions.checkState(elements != null, "elements lost during serialization");
+        Preconditions.checkState(
+                elements != null,
+                "The output type should've been specified before shipping the graph to the cluster");
         checkIterable(elements, outTypeInfo.getTypeClass());
         TypeSerializer<T> newSerializer = outTypeInfo.createSerializer(executionConfig);
         if (Objects.equals(serializer, newSerializer)) {

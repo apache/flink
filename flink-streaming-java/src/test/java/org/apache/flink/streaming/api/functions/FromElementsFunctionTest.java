@@ -37,14 +37,15 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -60,6 +61,8 @@ public class FromElementsFunctionTest {
 
     private static final String[] STRING_ARRAY_DATA = {"Oh", "boy", "what", "a", "show", "!"};
     private static final List<String> STRING_LIST_DATA = Arrays.asList(STRING_ARRAY_DATA);
+
+    @Rule public final ExpectedException thrown = ExpectedException.none();
 
     private static <T> List<T> runSource(FromElementsFunction<T> source) throws Exception {
         List<T> result = new ArrayList<>();
@@ -90,13 +93,10 @@ public class FromElementsFunctionTest {
 
     @Test
     public void testNullElement() throws Exception {
-        try {
-            new FromElementsFunction<>("a", null, "b");
-            fail("expect exception");
-        } catch (Exception ex) {
-            assertThat(ex, instanceOf(IllegalArgumentException.class));
-            assertThat(ex.getMessage(), containsString("contains a null element"));
-        }
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("contains a null element");
+
+        new FromElementsFunction<>("a", null, "b");
     }
 
     @Test
@@ -140,36 +140,11 @@ public class FromElementsFunctionTest {
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testSetOutputTypeWithIncompatibleType() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("not all subclasses of java.lang.Integer");
+
         FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
-
-        try {
-            source.setOutputType(
-                    (TypeInformation) BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
-            fail("expect exception");
-        } catch (Exception ex) {
-            assertThat(ex, instanceOf(IllegalArgumentException.class));
-            assertThat(ex.getMessage(), containsString("not all subclasses of java.lang.Integer"));
-        }
-    }
-
-    @Test
-    public void testSetOutputTypeWithDifferentSerializer() throws Exception {
-        FromElementsFunction<String> source =
-                new FromElementsFunction<>(
-                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
-                        STRING_LIST_DATA);
-
-        TypeSerializer<String> existingSerializer = source.getSerializer();
-
-        source.setOutputType(new GenericTypeInfo<>(String.class), new ExecutionConfig());
-
-        TypeSerializer<String> newSerializer = source.getSerializer();
-
-        assertNotEquals(existingSerializer, newSerializer);
-
-        List<String> result = runSource(source);
-
-        assertEquals(STRING_LIST_DATA, result);
+        source.setOutputType((TypeInformation) BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
     }
 
     @Test
@@ -181,8 +156,14 @@ public class FromElementsFunctionTest {
                 new FromElementsFunction<>(
                         info.createSerializer(new ExecutionConfig()), new DeserializeTooMuchType());
 
+        TypeSerializer<DeserializeTooMuchType> existingSerializer = source.getSerializer();
+
         source.setOutputType(
                 new GenericTypeInfo<>(DeserializeTooMuchType.class), new ExecutionConfig());
+
+        TypeSerializer<DeserializeTooMuchType> newSerializer = source.getSerializer();
+
+        assertNotEquals(existingSerializer, newSerializer);
 
         List<DeserializeTooMuchType> result = runSource(source);
 
@@ -192,29 +173,22 @@ public class FromElementsFunctionTest {
 
     @Test
     public void testSetOutputTypeAfterTransferred() throws Exception {
-        try {
-            FromElementsFunction<String> source =
-                    InstantiationUtil.clone(new FromElementsFunction<>(STRING_LIST_DATA));
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(
+                "The output type should've been specified before shipping the graph to the cluster");
 
-            source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
-            fail("expect exception");
-        } catch (Exception ex) {
-            assertThat(ex, instanceOf(IllegalStateException.class));
-            assertThat(ex.getMessage(), containsString("elements lost during serialization"));
-        }
+        FromElementsFunction<String> source =
+                InstantiationUtil.clone(new FromElementsFunction<>(STRING_LIST_DATA));
+        source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
     }
 
     @Test
     public void testNoSerializer() throws Exception {
-        try {
-            FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage("serializer not configured");
 
-            runSource(source);
-            fail("expect exception");
-        } catch (Exception ex) {
-            assertThat(ex, instanceOf(IllegalStateException.class));
-            assertThat(ex.getMessage(), containsString("serializer not configured"));
-        }
+        FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
+        runSource(source);
     }
 
     @Test
