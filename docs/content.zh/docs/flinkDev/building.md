@@ -95,13 +95,19 @@ mvn clean install -DskipTests -Dfast
 
 #### 安装
 
-进入 Flink 源码根目录，并执行以下命令，构建 PyFlink 的源码发布包和 wheel 包：
+进入 Flink 源码根目录，并执行以下命令，构建 apache-flink 和 apache-flink-libraries 的源码发布包和 wheel 包：
 
 ```bash
-cd flink-python; python setup.py sdist bdist_wheel
+cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist bdist_wheel; cd ..;
 ```
 
-构建好的源码发布包和 wheel 包位于`./flink-python/dist/`目录下。它们均可使用 pip 安装，比如:
+构建好的 apache-flink-libraries 的源码发布包和 wheel 包位于`./flink-python/apache-flink-libraries/dist/`目录下。它们均可使用 pip 安装，比如:
+
+```bash
+python -m pip install apache-flink-libraries/dist/*.tar.gz
+```
+
+构建好的 apache-flink 的源码发布包和 wheel 包位于`./flink-python/dist/`目录下。它们均可使用 pip 安装，比如:
 
 ```bash
 python -m pip install dist/*.tar.gz

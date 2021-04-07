@@ -435,7 +435,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
             final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
             FutureTask<V> ft = new FutureTask<>(callable);
             scheduleRunAsync(ft, delayMillis);
-            return new ScheduledFutureAdapter<>(ft, delay, TimeUnit.MILLISECONDS);
+            return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
         }
 
         @Override

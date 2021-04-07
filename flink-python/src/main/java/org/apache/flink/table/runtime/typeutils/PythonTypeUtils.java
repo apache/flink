@@ -91,7 +91,12 @@ public final class PythonTypeUtils {
     /** The number of milliseconds in a day. */
     private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
 
-    public static RunnerApi.Coder getRowCoderProto(RowType rowType, String coderUrn) {
+    public static RunnerApi.Coder getRowCoderProto(
+            RowType rowType, String coderUrn, FlinkFnApi.CoderParam.OutputMode outputMode) {
+        FlinkFnApi.Schema rowSchema = toProtoType(rowType).getRowSchema();
+        FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
+        coderParamBuilder.setSchema(rowSchema);
+        coderParamBuilder.setOutputMode(outputMode);
         return RunnerApi.Coder.newBuilder()
                 .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
@@ -99,7 +104,7 @@ public final class PythonTypeUtils {
                                 .setPayload(
                                         org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
                                                 .ByteString.copyFrom(
-                                                toProtoType(rowType).getRowSchema().toByteArray()))
+                                                coderParamBuilder.build().toByteArray()))
                                 .build())
                 .build();
     }

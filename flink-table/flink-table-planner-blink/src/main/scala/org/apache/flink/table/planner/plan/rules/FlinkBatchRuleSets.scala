@@ -341,7 +341,8 @@ object FlinkBatchRuleSets {
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalSink.CONVERTER,
-    FlinkLogicalLegacySink.CONVERTER
+    FlinkLogicalLegacySink.CONVERTER,
+    FlinkLogicalDistribution.BATCH_CONVERTER
   )
 
   /**
@@ -435,7 +436,9 @@ object FlinkBatchRuleSets {
     BatchPhysicalPythonCorrelateRule.INSTANCE,
     // sink
     BatchPhysicalSinkRule.INSTANCE,
-    BatchPhysicalLegacySinkRule.INSTANCE
+    BatchPhysicalLegacySinkRule.INSTANCE,
+    // hive distribution
+    BatchPhysicalDistributionRule.INSTANCE
   )
 
   /**

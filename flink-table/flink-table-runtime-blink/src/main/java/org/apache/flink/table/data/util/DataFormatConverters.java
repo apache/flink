@@ -215,6 +215,8 @@ public class DataFormatConverters {
                     return new LongTimestampDataConverter(precisionOfLZTS);
                 } else if (clazz == TimestampData.class) {
                     return new TimestampDataConverter(precisionOfLZTS);
+                } else if (clazz == Timestamp.class) {
+                    return new TimestampLtzConverter(precisionOfLZTS);
                 } else {
                     throw new RuntimeException(
                             "Not support conversion class for TIMESTAMP WITH LOCAL TIME ZONE: "
@@ -892,6 +894,38 @@ public class DataFormatConverters {
         @Override
         Timestamp toExternalImpl(TimestampData value) {
             return value.toTimestamp();
+        }
+
+        @Override
+        Timestamp toExternalImpl(RowData row, int column) {
+            return toExternalImpl(row.getTimestamp(column, precision));
+        }
+    }
+
+    /** Converter for timestamp which doesn't consider the time zone. */
+    public static final class TimestampLtzConverter
+            extends DataFormatConverter<TimestampData, Timestamp> {
+
+        private static final long serialVersionUID = 1L;
+        private static final int NANOS_PER_MILL = 1000_000;
+
+        private final int precision;
+
+        public TimestampLtzConverter(int precision) {
+            this.precision = precision;
+        }
+
+        @Override
+        TimestampData toInternalImpl(Timestamp value) {
+            return TimestampData.fromEpochMillis(
+                    value.getTime(), value.getNanos() % NANOS_PER_MILL);
+        }
+
+        @Override
+        Timestamp toExternalImpl(TimestampData value) {
+            Timestamp ts = new Timestamp(value.getMillisecond());
+            ts.setNanos(ts.getNanos() + value.getNanoOfMillisecond());
+            return ts;
         }
 
         @Override

@@ -23,11 +23,11 @@
         "schema.watermark.0.rowtime" : "rowtime",
         "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
         "schema.3.expr" : "TO_TIMESTAMP(`c`)",
-        "schema.4.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "schema.0.name" : "a"
       }
     },
-    "id" : 159,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -88,7 +88,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 160,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -149,7 +149,7 @@
       }
     },
     "rowtimeFieldIndex" : 1,
-    "id" : 161,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -178,7 +178,7 @@
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 162,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -361,7 +361,7 @@
       }
     } ],
     "needRetraction" : false,
-    "id" : 163,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -405,7 +405,7 @@
         }
       }, {
         "w$proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : true,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -469,7 +469,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 164,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -534,7 +534,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 165,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -574,43 +574,43 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {
-    "source" : 159,
-    "target" : 160,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 160,
-    "target" : 161,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 161,
-    "target" : 162,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 162,
-    "target" : 163,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 163,
-    "target" : 164,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 164,
-    "target" : 165,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },

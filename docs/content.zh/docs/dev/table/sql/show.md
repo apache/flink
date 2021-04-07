@@ -28,7 +28,7 @@ under the License.
 
 
 
-SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function，或者仅仅列出当前 catalog 和当前 database 中用户定义的 function。
+SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function，或者仅仅列出当前 catalog 和当前 database 中用户定义的 function，或者列出当前环境所有激活的 module，或者列出当前环境所有加载的 module 及激活状态。
 
 目前 Flink SQL 支持下列 SHOW 语句：
 - SHOW CATALOGS
@@ -38,6 +38,8 @@ SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有�
 - SHOW TABLES
 - SHOW VIEWS
 - SHOW FUNCTIONS
+- SHOW MODULES
+- SHOW FULL MODULES
 
 
 ## 执行 SHOW 语句
@@ -149,6 +151,23 @@ tEnv.executeSql("SHOW USER FUNCTIONS").print();
 // |           ... |
 // +---------------+
 
+// show modules
+tEnv.executeSql("SHOW MODULES").print();
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+
+// show full modules
+tEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        core |  true |
+// |        hive | false |
+// +-------------+-------+
+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -212,6 +231,23 @@ tEnv.executeSql("SHOW USER FUNCTIONS").print()
 // |            f1 |
 // |           ... |
 // +---------------+
+
+// show modules
+tEnv.executeSql("SHOW MODULES").print()
+// +-------------+
+// | module name |
+// +-------------+
+// |        core |
+// +-------------+
+
+// show full modules
+tEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        core |  true |
+// |        hive | false |
+// +-------------+-------+
 
 ```
 {{< /tab >}}
@@ -277,6 +313,22 @@ table_env.execute_sql("SHOW USER FUNCTIONS").print()
 # |           ... |
 # +---------------+
 
+# show modules
+table_env.execute_sql("SHOW MODULES").print()
+# +-------------+
+# | module name |
+# +-------------+
+# |        core |
+# +-------------+
+
+# show full modules
+table_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        core |  true |
+# |        hive | false |
+# +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -311,6 +363,24 @@ Flink SQL> CREATE FUNCTION f1 AS ...;
 Flink SQL> SHOW USER FUNCTIONS;
 f1
 ...
+
+Flink SQL> SHOW MODULES;
++-------------+
+| module name |
++-------------+
+|        core |
++-------------+
+1 row in set
+
+
+Flink SQL> SHOW FULL MODULES;
++-------------+------+
+| module name | used |
++-------------+------+
+|        core | true |
++-------------+------+
+1 row in set
+
 
 ```
 {{< /tab >}}
@@ -376,3 +446,16 @@ SHOW [USER] FUNCTIONS
 
 **USER**
 仅仅展示当前 catalog 和当前 database 中用户定义的 function。
+
+## SHOW MODULES
+
+```sql
+SHOW [FULL] MODULES
+```
+
+展示当前环境激活的所有 module。
+
+**FULL**
+展示当前环境加载的所有 module 及激活状态。
+
+{{< top >}}

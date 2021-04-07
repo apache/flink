@@ -55,6 +55,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class LocalZonedTimestampType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int MIN_PRECISION = TimestampType.MIN_PRECISION;
 
@@ -71,7 +72,8 @@ public final class LocalZonedTimestampType extends LogicalType {
                     java.time.Instant.class.getName(),
                     Integer.class.getName(),
                     Long.class.getName(),
-                    TimestampData.class.getName());
+                    TimestampData.class.getName(),
+                    java.sql.Timestamp.class.getName());
 
     private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION =
             conversionSet(
@@ -79,7 +81,9 @@ public final class LocalZonedTimestampType extends LogicalType {
                     Integer.class.getName(),
                     int.class.getName(),
                     Long.class.getName(),
-                    long.class.getName());
+                    long.class.getName(),
+                    TimestampData.class.getName(),
+                    java.sql.Timestamp.class.getName());
 
     private static final Class<?> DEFAULT_CONVERSION = java.time.Instant.class;
 

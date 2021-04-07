@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -127,15 +128,29 @@ class ChannelStateCheckpointWriter {
     }
 
     void writeInput(InputChannelInfo info, Buffer buffer) throws Exception {
-        write(inputChannelOffsets, info, buffer, !allInputsReceived);
+        write(
+                inputChannelOffsets,
+                info,
+                buffer,
+                !allInputsReceived,
+                "ChannelStateCheckpointWriter#writeInput");
     }
 
     void writeOutput(ResultSubpartitionInfo info, Buffer buffer) throws Exception {
-        write(resultSubpartitionOffsets, info, buffer, !allOutputsReceived);
+        write(
+                resultSubpartitionOffsets,
+                info,
+                buffer,
+                !allOutputsReceived,
+                "ChannelStateCheckpointWriter#writeOutput");
     }
 
     private <K> void write(
-            Map<K, StateContentMetaInfo> offsets, K key, Buffer buffer, boolean precondition)
+            Map<K, StateContentMetaInfo> offsets,
+            K key,
+            Buffer buffer,
+            boolean precondition,
+            String action)
             throws Exception {
         try {
             if (result.isDone()) {
@@ -145,10 +160,14 @@ class ChannelStateCheckpointWriter {
                     () -> {
                         checkState(precondition);
                         long offset = checkpointStream.getPos();
-                        serializer.writeData(dataStream, buffer);
+                        try (AutoCloseable ignored =
+                                NetworkActionsLogger.measureIO(action, buffer)) {
+                            serializer.writeData(dataStream, buffer);
+                        }
                         long size = checkpointStream.getPos() - offset;
                         offsets.computeIfAbsent(key, unused -> new StateContentMetaInfo())
                                 .withDataAdded(offset, size);
+                        NetworkActionsLogger.tracePersist(action, buffer, key, checkpointId);
                     });
         } finally {
             buffer.recycleBuffer();

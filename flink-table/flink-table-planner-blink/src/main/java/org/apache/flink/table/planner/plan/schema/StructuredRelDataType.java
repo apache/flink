@@ -28,6 +28,7 @@ import org.apache.calcite.rel.type.RelDataTypeComparability;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ObjectSqlType;
@@ -84,6 +85,11 @@ public final class StructuredRelDataType extends ObjectSqlType {
             return this;
         }
         return new StructuredRelDataType((StructuredType) structuredType.copy(nullable), fieldList);
+    }
+
+    @Override
+    public StructKind getStructKind() {
+        return StructKind.PEEK_FIELDS_NO_EXPAND;
     }
 
     @Override

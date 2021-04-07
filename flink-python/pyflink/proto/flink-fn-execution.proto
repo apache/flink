@@ -85,7 +85,9 @@ message UserDefinedDataStreamFunction {
     CO_FLAT_MAP = 3;
     PROCESS = 4;
     KEYED_PROCESS = 5;
-    TIMESTAMP_ASSIGNER = 6;
+    KEYED_CO_PROCESS = 6;
+    TIMESTAMP_ASSIGNER = 7;
+    WINDOW = 8;
   }
 
   message JobParameter {
@@ -101,6 +103,7 @@ message UserDefinedDataStreamFunction {
     int32 index_of_this_subtask = 5;
     int32 attempt_number = 6;
     repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
   }
 
   FunctionType function_type = 1;
@@ -177,6 +180,8 @@ message GroupWindow {
   int64 allowedLateness = 8;
 
   repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
@@ -300,6 +305,31 @@ message Schema {
   }
 
   repeated Field fields = 1;
+}
+
+// A representation of the coder
+message CoderParam {
+  enum DataType {
+    FLATTEN_ROW = 0;
+    ROW = 1;
+    RAW = 2;
+    ARROW = 3;
+  }
+
+  enum OutputMode {
+    SINGLE = 0;
+    MULTIPLE = 1;
+    MULTIPLE_WITH_END = 2;
+  }
+
+  oneof data_info {
+    Schema schema = 1;
+    TypeInfo type_info = 2;
+  }
+
+  DataType data_type = 3;
+
+  OutputMode output_mode = 4;
 }
 
 // A representation of the data type information in DataStream.

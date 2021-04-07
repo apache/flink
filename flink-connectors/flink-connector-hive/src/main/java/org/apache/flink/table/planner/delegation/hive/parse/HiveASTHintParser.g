@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ /** Counterpart of hive's HintParser.g. */
 parser grammar HiveASTHintParser;
 
 options
 {
   tokenVocab=HiveASTLexer;
   output=AST;
-  ASTLabelType=ASTNode;
+  ASTLabelType=HiveParserASTNode;
   backtrack=false;
   k=3;
 }
@@ -39,12 +40,13 @@ package org.apache.flink.table.planner.delegation.hive.parse;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseError;
 }
 
 
 @members {
-  ArrayList<HiveASTParseError> errors = new ArrayList<>();
+  public ArrayList<HiveASTParseError> errors = new ArrayList<>();
 
   @Override
   public void displayRecognitionError(String[] tokenNames,

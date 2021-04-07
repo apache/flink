@@ -26,6 +26,7 @@ import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException, T
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
+import org.apache.flink.table.planner.connectors.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
@@ -34,7 +35,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakup
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
@@ -117,6 +117,7 @@ class BatchPlanner(
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
     val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
 
     val execEnv = getExecEnv
     ExecutorUtils.setBatchProperties(execEnv)

@@ -35,7 +35,6 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
@@ -54,8 +53,8 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.localRef;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.supportedWatermarkType;
 import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalType;
 
 /** Default implementation of {@link SchemaResolver}. */
@@ -63,24 +62,16 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.replaceLogicalTyp
 class DefaultSchemaResolver implements SchemaResolver {
 
     private final boolean isStreamingMode;
-    private final boolean supportsMetadata;
     private final DataTypeFactory dataTypeFactory;
     private final ExpressionResolverBuilder resolverBuilder;
 
     DefaultSchemaResolver(
             boolean isStreamingMode,
-            boolean supportsMetadata,
             DataTypeFactory dataTypeFactory,
             ExpressionResolverBuilder resolverBuilder) {
         this.isStreamingMode = isStreamingMode;
-        this.supportsMetadata = supportsMetadata;
         this.dataTypeFactory = dataTypeFactory;
         this.resolverBuilder = resolverBuilder;
-    }
-
-    public SchemaResolver withMetadata(boolean supportsMetadata) {
-        return new DefaultSchemaResolver(
-                isStreamingMode, supportsMetadata, dataTypeFactory, resolverBuilder);
     }
 
     @Override
@@ -96,16 +87,6 @@ class DefaultSchemaResolver implements SchemaResolver {
                 resolvePrimaryKey(schema.getPrimaryKey().orElse(null), columnsWithRowtime);
 
         return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey);
-    }
-
-    @Override
-    public boolean isStreamingMode() {
-        return isStreamingMode;
-    }
-
-    @Override
-    public boolean supportsMetadata() {
-        return supportsMetadata;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -151,10 +132,6 @@ class DefaultSchemaResolver implements SchemaResolver {
     }
 
     private MetadataColumn resolveMetadataColumn(UnresolvedMetadataColumn unresolvedColumn) {
-        if (!supportsMetadata) {
-            throw new ValidationException(
-                    "Metadata columns are not supported in a schema at the current location.");
-        }
         return Column.metadata(
                 unresolvedColumn.getName(),
                 dataTypeFactory.createDataType(unresolvedColumn.getDataType()),
@@ -221,7 +198,7 @@ class DefaultSchemaResolver implements SchemaResolver {
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
         return Collections.singletonList(
-                new WatermarkSpec(watermarkSpec.getColumnName(), watermarkExpression));
+                WatermarkSpec.of(watermarkSpec.getColumnName(), watermarkExpression));
     }
 
     private void validateTimeColumn(String columnName, List<Column> columns) {
@@ -235,11 +212,10 @@ class DefaultSchemaResolver implements SchemaResolver {
                             columns.stream().map(Column::getName).collect(Collectors.toList())));
         }
         final LogicalType timeFieldType = timeColumn.get().getDataType().getLogicalType();
-        if (!hasRoot(timeFieldType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                || getPrecision(timeFieldType) != 3) {
+        if (!supportedWatermarkType(timeFieldType) || getPrecision(timeFieldType) != 3) {
             throw new ValidationException(
                     "Invalid data type of time field for watermark definition. "
-                            + "The field must be of type TIMESTAMP(3) WITHOUT TIME ZONE.");
+                            + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
         }
         if (isProctimeAttribute(timeFieldType)) {
             throw new ValidationException(
@@ -248,11 +224,10 @@ class DefaultSchemaResolver implements SchemaResolver {
     }
 
     private void validateWatermarkExpression(LogicalType watermarkType) {
-        if (!hasRoot(watermarkType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                || getPrecision(watermarkType) != 3) {
+        if (!supportedWatermarkType(watermarkType) || getPrecision(watermarkType) != 3) {
             throw new ValidationException(
                     "Invalid data type of expression for watermark definition. "
-                            + "The field must be of type TIMESTAMP(3) WITHOUT TIME ZONE.");
+                            + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
         }
     }
 

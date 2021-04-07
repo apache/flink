@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
@@ -47,11 +48,11 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
 
 /** Tool class used to convert from {@link RowData} to {@link JsonNode}. * */
 @Internal

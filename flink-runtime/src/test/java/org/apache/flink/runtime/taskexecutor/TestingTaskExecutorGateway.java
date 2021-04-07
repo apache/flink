@@ -37,10 +37,12 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -78,6 +80,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     private final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             freeSlotFunction;
 
+    private final Consumer<JobID> freeInactiveSlotsConsumer;
+
     private final Consumer<ResourceID> heartbeatResourceManagerConsumer;
 
     private final Consumer<Exception> disconnectResourceManagerConsumer;
@@ -100,6 +104,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier;
 
+    private final Supplier<CompletableFuture<TaskThreadInfoResponse>>
+            requestThreadInfoSamplesSupplier;
+
     TestingTaskExecutorGateway(
             String address,
             String hostname,
@@ -118,6 +125,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             CompletableFuture<Acknowledge>>
                     requestSlotFunction,
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
+            Consumer<JobID> freeInactiveSlotsConsumer,
             Consumer<ResourceID> heartbeatResourceManagerConsumer,
             Consumer<Exception> disconnectResourceManagerConsumer,
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
@@ -131,7 +139,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                             SerializedValue<OperatorEvent>,
                             CompletableFuture<Acknowledge>>
                     operatorEventHandler,
-            Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier) {
+            Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier,
+            Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier) {
 
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
@@ -141,6 +150,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
+        this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
         this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
         this.cancelTaskFunction = cancelTaskFunction;
@@ -149,6 +159,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.releaseClusterPartitionsConsumer = releaseClusterPartitionsConsumer;
         this.operatorEventHandler = operatorEventHandler;
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
+        this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
     }
 
     @Override
@@ -254,6 +265,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
+    public void freeInactiveSlots(JobID jobId, Time timeout) {
+        freeInactiveSlotsConsumer.accept(jobId);
+    }
+
+    @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByType(
             FileType fileType, Time timeout) {
         return FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -290,6 +306,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     @Override
     public String getAddress() {
         return address;
+    }
+
+    @Override
+    public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
+            ExecutionAttemptID taskExecutionAttemptId,
+            ThreadInfoSamplesRequest threadInfoSamplesRequest,
+            Time timeout) {
+        return requestThreadInfoSamplesSupplier.get();
     }
 
     @Override

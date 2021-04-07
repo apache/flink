@@ -71,19 +71,25 @@ public class KafkaSourceEnumerator
      * worker thread.
      */
     private final Set<TopicPartition> discoveredPartitions;
-    /** The current assignment by reader id. Only accessed by the coordinator thread. */
-    private final Map<Integer, Set<KafkaPartitionSplit>> readerIdToSplitAssignments;
+
+    /** Partitions that have been assigned to readers. */
+    private final Set<TopicPartition> assignedPartitions;
+
     /**
      * The discovered and initialized partition splits that are waiting for owner reader to be
      * ready.
      */
     private final Map<Integer, Set<KafkaPartitionSplit>> pendingPartitionSplitAssignment;
+
     /** The consumer group id used for this KafkaSource. */
     private final String consumerGroupId;
 
     // Lazily instantiated or mutable fields.
     private KafkaConsumer<byte[], byte[]> consumer;
     private AdminClient adminClient;
+
+    // This flag will be marked as true if periodically partition discovery is disabled AND the
+    // initializing partition discovery has finished.
     private boolean noMoreNewPartitionSplits = false;
 
     public KafkaSourceEnumerator(
@@ -98,7 +104,7 @@ public class KafkaSourceEnumerator
                 stoppingOffsetInitializer,
                 properties,
                 context,
-                new HashMap<>());
+                Collections.emptySet());
     }
 
     public KafkaSourceEnumerator(
@@ -107,7 +113,7 @@ public class KafkaSourceEnumerator
             OffsetsInitializer stoppingOffsetInitializer,
             Properties properties,
             SplitEnumeratorContext<KafkaPartitionSplit> context,
-            Map<Integer, Set<KafkaPartitionSplit>> currentSplitsAssignments) {
+            Set<TopicPartition> assignedPartitions) {
         this.subscriber = subscriber;
         this.startingOffsetInitializer = startingOffsetInitializer;
         this.stoppingOffsetInitializer = stoppingOffsetInitializer;
@@ -115,10 +121,8 @@ public class KafkaSourceEnumerator
         this.context = context;
 
         this.discoveredPartitions = new HashSet<>();
-        this.readerIdToSplitAssignments = new HashMap<>(currentSplitsAssignments);
-        this.readerIdToSplitAssignments.forEach(
-                (reader, splits) ->
-                        splits.forEach(s -> discoveredPartitions.add(s.getTopicPartition())));
+        this.assignedPartitions = new HashSet<>(assignedPartitions);
+        discoveredPartitions.addAll(this.assignedPartitions);
         this.pendingPartitionSplitAssignment = new HashMap<>();
         this.partitionDiscoveryIntervalMs =
                 KafkaSourceOptions.getOption(
@@ -149,7 +153,15 @@ public class KafkaSourceEnumerator
                             + "without periodic partition discovery.",
                     consumerGroupId);
             context.callAsync(
-                    this::discoverAndInitializePartitionSplit, this::handlePartitionSplitChanges);
+                    () -> {
+                        try {
+                            return discoverAndInitializePartitionSplit();
+                        } finally {
+                            // Close the admin client early because we won't use it anymore.
+                            adminClient.close();
+                        }
+                    },
+                    this::handlePartitionSplitChanges);
         }
     }
 
@@ -161,7 +173,11 @@ public class KafkaSourceEnumerator
     @Override
     public void addSplitsBack(List<KafkaPartitionSplit> splits, int subtaskId) {
         addPartitionSplitChangeToPendingAssignments(splits);
-        assignPendingPartitionSplits();
+
+        // If the failed subtask has already restarted, we need to assign pending splits to it
+        if (context.registeredReaders().containsKey(subtaskId)) {
+            assignPendingPartitionSplits(Collections.singleton(subtaskId));
+        }
     }
 
     @Override
@@ -170,12 +186,12 @@ public class KafkaSourceEnumerator
                 "Adding reader {} to KafkaSourceEnumerator for consumer group {}.",
                 subtaskId,
                 consumerGroupId);
-        assignPendingPartitionSplits();
+        assignPendingPartitionSplits(Collections.singleton(subtaskId));
     }
 
     @Override
     public KafkaSourceEnumState snapshotState() throws Exception {
-        return new KafkaSourceEnumState(readerIdToSplitAssignments);
+        return new KafkaSourceEnumState(assignedPartitions);
     }
 
     @Override
@@ -223,12 +239,12 @@ public class KafkaSourceEnumerator
             throw new FlinkRuntimeException("Failed to handle partition splits change due to ", t);
         }
         if (partitionDiscoveryIntervalMs < 0) {
-            LOG.debug("");
+            LOG.debug("Partition discovery is disabled.");
             noMoreNewPartitionSplits = true;
         }
         // TODO: Handle removed partitions.
         addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
-        assignPendingPartitionSplits();
+        assignPendingPartitionSplits(context.registeredReaders().keySet());
     }
 
     // This method should only be invoked in the coordinator executor thread.
@@ -249,43 +265,52 @@ public class KafkaSourceEnumerator
     }
 
     // This method should only be invoked in the coordinator executor thread.
-    private void assignPendingPartitionSplits() {
+    private void assignPendingPartitionSplits(Set<Integer> pendingReaders) {
         Map<Integer, List<KafkaPartitionSplit>> incrementalAssignment = new HashMap<>();
-        pendingPartitionSplitAssignment.forEach(
-                (ownerReader, pendingSplits) -> {
-                    if (!pendingSplits.isEmpty()
-                            && context.registeredReaders().containsKey(ownerReader)) {
-                        // The owner reader is ready, assign the split to the owner reader.
-                        incrementalAssignment
-                                .computeIfAbsent(ownerReader, r -> new ArrayList<>())
-                                .addAll(pendingSplits);
-                    }
-                });
-        if (incrementalAssignment.isEmpty()) {
-            // No assignment is made.
-            return;
+
+        // Check if there's any pending splits for given readers
+        for (int pendingReader : pendingReaders) {
+            checkReaderRegistered(pendingReader);
+
+            // Remove pending assignment for the reader
+            final Set<KafkaPartitionSplit> pendingAssignmentForReader =
+                    pendingPartitionSplitAssignment.remove(pendingReader);
+
+            if (pendingAssignmentForReader != null && !pendingAssignmentForReader.isEmpty()) {
+                // Put pending assignment into incremental assignment
+                incrementalAssignment
+                        .computeIfAbsent(pendingReader, (ignored) -> new ArrayList<>())
+                        .addAll(pendingAssignmentForReader);
+
+                // Make pending partitions as already assigned
+                pendingAssignmentForReader.forEach(
+                        split -> assignedPartitions.add(split.getTopicPartition()));
+            }
         }
 
-        LOG.info("Assigning splits to readers {}", incrementalAssignment);
-        context.assignSplits(new SplitsAssignment<>(incrementalAssignment));
-        incrementalAssignment.forEach(
-                (readerOwner, newPartitionSplits) -> {
-                    // Update the split assignment.
-                    readerIdToSplitAssignments
-                            .computeIfAbsent(readerOwner, r -> new HashSet<>())
-                            .addAll(newPartitionSplits);
-                    // Clear the pending splits for the reader owner.
-                    pendingPartitionSplitAssignment.remove(readerOwner);
-                    // Sends NoMoreSplitsEvent to the readers if there is no more partition splits
-                    // to be assigned.
-                    if (noMoreNewPartitionSplits) {
-                        LOG.debug(
-                                "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to the readers "
-                                        + "in consumer group {}.",
-                                consumerGroupId);
-                        context.signalNoMoreSplits(readerOwner);
-                    }
-                });
+        // Assign pending splits to readers
+        if (!incrementalAssignment.isEmpty()) {
+            LOG.info("Assigning splits to readers {}", incrementalAssignment);
+            context.assignSplits(new SplitsAssignment<>(incrementalAssignment));
+        }
+
+        // If periodically partition discovery is disabled and the initializing discovery has done,
+        // signal NoMoreSplitsEvent to pending readers
+        if (noMoreNewPartitionSplits) {
+            LOG.debug(
+                    "No more KafkaPartitionSplits to assign. Sending NoMoreSplitsEvent to reader {}"
+                            + " in consumer group {}.",
+                    pendingReaders,
+                    consumerGroupId);
+            pendingReaders.forEach(context::signalNoMoreSplits);
+        }
+    }
+
+    private void checkReaderRegistered(int readerId) {
+        if (!context.registeredReaders().containsKey(readerId)) {
+            throw new IllegalStateException(
+                    String.format("Reader %d is not registered to source coordinator", readerId));
+        }
     }
 
     private KafkaConsumer<byte[], byte[]> getKafkaConsumer() {
@@ -399,7 +424,12 @@ public class KafkaSourceEnumerator
                         .thenApply(
                                 result -> {
                                     Map<TopicPartition, Long> offsets = new HashMap<>();
-                                    result.forEach((tp, oam) -> offsets.put(tp, oam.offset()));
+                                    result.forEach(
+                                            (tp, oam) -> {
+                                                if (oam != null) {
+                                                    offsets.put(tp, oam.offset());
+                                                }
+                                            });
                                     return offsets;
                                 })
                         .get();

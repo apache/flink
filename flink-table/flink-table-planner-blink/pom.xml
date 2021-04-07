@@ -381,6 +381,8 @@ under the License.
 
 									<!-- Tools to unify display format for different languages -->
 									<include>com.ibm.icu:icu4j</include>
+
+									<include>org.reflections:reflections</include>
 								</includes>
 							</artifactSet>
 							<relocations>

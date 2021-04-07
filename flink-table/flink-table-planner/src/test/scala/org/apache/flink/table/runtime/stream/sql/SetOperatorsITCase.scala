@@ -151,10 +151,10 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as("a", "b", "c"))
+      env.fromCollection(dataA).toTable(tEnv, $("a"), $("b"), $("c")))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as("x", "y"))
+      env.fromCollection(dataB).toTable(tEnv, $("x"), $("y")))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)

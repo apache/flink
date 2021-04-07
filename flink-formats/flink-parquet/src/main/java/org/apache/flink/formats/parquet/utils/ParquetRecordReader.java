@@ -82,9 +82,9 @@ public class ParquetRecordReader<T> {
     private long numRecordsUpToCurrentBlock = 0;
 
     public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema, Filter filter) {
-        this.filter = checkNotNull(filter, "readSupport");
-        this.readSupport = checkNotNull(readSupport, "readSchema");
-        this.readSchema = checkNotNull(readSchema, "filter");
+        this.filter = checkNotNull(filter, "filter");
+        this.readSupport = checkNotNull(readSupport, "readSupport");
+        this.readSchema = checkNotNull(readSchema, "readSchema");
     }
 
     public ParquetRecordReader(ReadSupport<T> readSupport, MessageType readSchema) {

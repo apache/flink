@@ -703,6 +703,17 @@ These APIs are used to access catalogs and modules. You can find more detailed i
     </tr>
     <tr>
       <td>
+        <strong>use_modules(*module_names)</strong>
+      </td>
+      <td>
+        Enables and changes the resolution order of loaded modules.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.use_modules" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>list_catalogs()</strong>
       </td>
       <td>
@@ -721,6 +732,17 @@ These APIs are used to access catalogs and modules. You can find more detailed i
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_modules" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_full_modules()</strong>
+      </td>
+      <td>
+        Gets the names of all loaded modules (including disabled modules) registered in this environment.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_full_modules" name="link">}}
       </td>
     </tr>
     <tr>

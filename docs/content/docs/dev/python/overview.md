@@ -45,7 +45,7 @@ need, there are two different APIs that can be used in PyFlink:
 
 If you’re interested in playing around with Flink, try one of our tutorials:
 
-* [Intro to PyFlink DataStream API]({{ ref "docs/dev/python/datastream_tutorial" >}})
+* [Intro to PyFlink DataStream API]({{< ref "docs/dev/python/datastream_tutorial" >}})
 * [Intro to PyFlink Table API]({{< ref "docs/dev/python/table_api_tutorial" >}})
 
 <--->

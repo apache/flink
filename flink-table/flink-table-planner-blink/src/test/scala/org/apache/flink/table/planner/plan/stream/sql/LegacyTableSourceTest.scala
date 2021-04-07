@@ -153,7 +153,7 @@ class LegacyTableSourceTest extends TableTestBase {
         .field("id", DataTypes.INT())
         .field("val", DataTypes.BIGINT())
         .field("name", DataTypes.STRING())
-        .field("proctime", DataTypes.TIMESTAMP(3)).proctime()
+        .field("proctime", DataTypes.TIMESTAMP_LTZ(3)).proctime()
     ).createTemporaryTable("procTimeT")
 
     val sql =

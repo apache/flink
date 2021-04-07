@@ -19,6 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -32,6 +33,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ReadOnlyBufferException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -72,7 +74,7 @@ public final class MemorySegment {
             "flink.tests.check-segment-multiple-free";
 
     private static final boolean checkMultipleFree =
-            System.getenv().containsKey(CHECK_MULTIPLE_FREE_PROPERTY);
+            System.getProperties().containsKey(CHECK_MULTIPLE_FREE_PROPERTY);
 
     /** The unsafe handle for transparent memory copied (heap / off-heap). */
     @SuppressWarnings("restriction")
@@ -134,6 +136,8 @@ public final class MemorySegment {
      */
     private final boolean allowWrap;
 
+    private final AtomicBoolean isFreedAtomic;
+
     /**
      * Creates a new memory segment that represents the memory of the byte array.
      *
@@ -154,6 +158,7 @@ public final class MemorySegment {
         this.owner = owner;
         this.allowWrap = true;
         this.cleaner = null;
+        this.isFreedAtomic = new AtomicBoolean(false);
     }
 
     /**
@@ -199,6 +204,7 @@ public final class MemorySegment {
         this.owner = owner;
         this.allowWrap = allowWrap;
         this.cleaner = cleaner;
+        this.isFreedAtomic = new AtomicBoolean(false);
     }
 
     // ------------------------------------------------------------------------
@@ -219,6 +225,7 @@ public final class MemorySegment {
      *
      * @return <tt>true</tt>, if the memory segment has been freed, <tt>false</tt> otherwise.
      */
+    @VisibleForTesting
     public boolean isFreed() {
         return address > addressLimit;
     }
@@ -231,17 +238,21 @@ public final class MemorySegment {
      * memory segment object has become garbage collected.
      */
     public void free() {
-        if (checkMultipleFree && isFreed()) {
-            throw new IllegalStateException("MemorySegment can be freed only once!");
+        if (isFreedAtomic.getAndSet(true)) {
+            // the segment has already been freed
+            if (checkMultipleFree) {
+                throw new IllegalStateException("MemorySegment can be freed only once!");
+            }
+        } else {
+            // this ensures we can place no more data and trigger
+            // the checks for the freed segment
+            address = addressLimit + 1;
+            offHeapBuffer = null; // to enable GC of unsafe memory
+            if (cleaner != null) {
+                cleaner.run();
+                cleaner = null;
+            }
         }
-        // this ensures we can place no more data and trigger
-        // the checks for the freed segment
-        address = addressLimit + 1;
-        if (cleaner != null) {
-            cleaner.run();
-        }
-        offHeapBuffer = null; // to enable GC of unsafe memory
-        cleaner = null;
     }
 
     /**

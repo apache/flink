@@ -715,7 +715,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
-        return new RecordWriterOutput<>(recordWriter, outSerializer, sideOutputTag, this);
+        return new RecordWriterOutput<>(
+                recordWriter,
+                outSerializer,
+                sideOutputTag,
+                this,
+                edge.supportsUnalignedCheckpoints());
     }
 
     /**

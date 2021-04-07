@@ -21,8 +21,19 @@ from enum import Enum
 from typing import Any, Tuple, Dict, List
 
 from pyflink.common import Row
+from pyflink.common.serializer import VoidNamespaceSerializer
+from pyflink.datastream import RuntimeContext
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.fn_execution import flink_fn_execution_pb2, pickle
+from pyflink.fn_execution.datastream.keyed_process_function import \
+    InternalKeyedProcessFunctionOnTimerContext, InternalKeyedProcessFunctionContext
+from pyflink.fn_execution.datastream.window_operator import WindowOperator
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
+from pyflink.fn_execution.timerservice_impl import TimerServiceImpl, InternalTimerImpl, \
+    InternalTimerServiceImpl
+from pyflink.fn_execution.utils.input_handler import TwoInputRowWithTimerHandler, \
+    OneInputRowWithTimerHandler
+from pyflink.fn_execution.utils.output_factory import RowWithTimerOutputFactory
 from pyflink.serializers import PickleSerializer
 from pyflink.table import functions
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
@@ -221,12 +232,13 @@ def load_aggregate_function(payload):
         return pickle.loads(payload)
 
 
-def extract_data_stream_stateless_function(udf_proto):
+def extract_data_stream_stateless_function(udf_proto, runtime_context):
     """
     Extracts user-defined-function from the proto representation of a
     :class:`Function`.
 
     :param udf_proto: the proto representation of the Python :class:`Function`
+    :param runtime_context: the streaming runtime context
     """
     func_type = udf_proto.function_type
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
@@ -243,26 +255,16 @@ def extract_data_stream_stateless_function(udf_proto):
         def wrapped_func(value):
             # value in format of: [INPUT_FLAG, REAL_VALUE]
             # INPUT_FLAG value of True for the left stream, while False for the right stream
-            return Row(CoMapFunctionOutputFlag.LEFT.value, co_map_func.map1(value[1])) \
-                if value[0] else Row(CoMapFunctionOutputFlag.RIGHT.value,
-                                     co_map_func.map2(value[2]))
+            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
         func = wrapped_func
     elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
         co_flat_map_func = user_defined_func
 
         def wrapped_func(value):
             if value[0]:
-                result = co_flat_map_func.flat_map1(value[1])
-                if result:
-                    for result_val in result:
-                        yield Row(CoFlatMapFunctionOutputFlag.LEFT.value, result_val)
-                yield Row(CoFlatMapFunctionOutputFlag.LEFT_END.value, None)
+                yield from co_flat_map_func.flat_map1(value[1])
             else:
-                result = co_flat_map_func.flat_map2(value[2])
-                if result:
-                    for result_val in result:
-                        yield Row(CoFlatMapFunctionOutputFlag.RIGHT.value, result_val)
-                yield Row(CoFlatMapFunctionOutputFlag.RIGHT_END.value, None)
+                yield from co_flat_map_func.flat_map2(value[2])
         func = wrapped_func
 
     elif func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
@@ -274,71 +276,161 @@ def extract_data_stream_stateless_function(udf_proto):
             return extract_timestamp(real_data, pre_timestamp)
         func = wrapped_func
 
-    return func, user_defined_func
+    def open_func():
+        if hasattr(user_defined_func, "open"):
+            user_defined_func.open(runtime_context)
+
+    def close_func():
+        if hasattr(user_defined_func, "close"):
+            user_defined_func.close()
+
+    return func, open_func, close_func
 
 
-def extract_process_function(user_defined_function_proto, ctx):
+def extract_process_function(user_defined_function_proto, ctx, runtime_context):
     process_function = pickle.loads(user_defined_function_proto.payload)
     process_element = process_function.process_element
 
     def wrapped_process_function(value):
         # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
         ctx.set_timestamp(value[0])
-        ctx.timer_service().set_current_watermark(value[1])
+        ctx.timer_service().advance_watermark(value[1])
         output_result = process_element(value[2], ctx)
         return output_result
 
-    return wrapped_process_function, process_function
+    def open_func():
+        if hasattr(process_function, "open"):
+            process_function.open(runtime_context)
+
+    def close_func():
+        if hasattr(process_function, "close"):
+            process_function.close()
+
+    return wrapped_process_function, open_func, close_func
 
 
-def extract_keyed_process_function(user_defined_function_proto, ctx, on_timer_ctx,
-                                   collector, keyed_state_backend):
-    process_function = pickle.loads(user_defined_function_proto.payload)
-    process_element = process_function.process_element
-    on_timer = process_function.on_timer
+def extract_keyed_stateful_function(user_defined_function_proto,
+                                    keyed_state_backend: RemoteKeyedStateBackend,
+                                    runtime_context: RuntimeContext):
+    func_type = user_defined_function_proto.function_type
+    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+    payload = pickle.loads(user_defined_function_proto.payload)
+    internal_timer_service = InternalTimerServiceImpl(keyed_state_backend)
 
-    def wrapped_keyed_process_function(value):
-        if value[0] is not None:
-            # it is timer data
-            # VALUE: TIMER_FLAG, TIMESTAMP_OF_TIMER, CURRENT_WATERMARK, CURRENT_KEY_OF_TIMER, None
-            on_timer_ctx.set_timestamp(value[1])
-            on_timer_ctx.timer_service().set_current_watermark(value[2])
-            current_key = value[3]
-            on_timer_ctx.set_current_key(current_key)
-            keyed_state_backend.set_current_key(current_key)
-            if value[0] == KeyedProcessFunctionInputFlag.EVENT_TIME_TIMER.value:
+    def state_key_selector(normal_data):
+        return Row(normal_data[0])
+
+    def user_key_selector(normal_data):
+        return normal_data[0]
+
+    def input_selector(normal_data):
+        return normal_data[1]
+
+    if func_type == UserDefinedDataStreamFunction.KEYED_PROCESS or \
+            func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
+        timer_service = TimerServiceImpl(internal_timer_service)
+        on_timer_ctx = InternalKeyedProcessFunctionOnTimerContext(timer_service)
+        ctx = InternalKeyedProcessFunctionContext(timer_service)
+        process_function = payload
+        output_factory = RowWithTimerOutputFactory(VoidNamespaceSerializer())
+
+        def open_func():
+            if hasattr(process_function, "open"):
+                process_function.open(runtime_context)
+
+        def close_func():
+            if hasattr(process_function, "close"):
+                process_function.close()
+
+        if func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:
+
+            def process_element(normal_data, timestamp: int):
+                ctx.set_timestamp(timestamp)
+                user_current_key = user_key_selector(normal_data)
+                ctx.set_current_key(user_current_key)
+                return process_function.process_element(input_selector(normal_data), ctx)
+
+            def on_event_time(internal_timer: InternalTimerImpl):
+                timestamp = internal_timer.get_timestamp()
+                state_current_key = internal_timer.get_key()
+                user_current_key = user_key_selector(state_current_key)
+
+                on_timer_ctx.set_current_key(user_current_key)
                 on_timer_ctx.set_time_domain(TimeDomain.EVENT_TIME)
-            elif value[0] == KeyedProcessFunctionInputFlag.PROC_TIME_TIMER.value:
+
+                return process_function.on_timer(timestamp, on_timer_ctx)
+
+            def on_processing_time(internal_timer: InternalTimerImpl):
+                timestamp = internal_timer.get_timestamp()
+                state_current_key = internal_timer.get_key()
+                user_current_key = user_key_selector(state_current_key)
+
+                on_timer_ctx.set_current_key(user_current_key)
                 on_timer_ctx.set_time_domain(TimeDomain.PROCESSING_TIME)
-            else:
-                raise TypeError("TimeCharacteristic[%s] is not supported." % str(value[0]))
-            output_result = on_timer(value[1], on_timer_ctx)
+
+                return process_function.on_timer(timestamp, on_timer_ctx)
+
+            input_handler = OneInputRowWithTimerHandler(
+                internal_timer_service,
+                keyed_state_backend,
+                state_key_selector,
+                process_element,
+                on_event_time,
+                on_processing_time,
+                output_factory)
+
+            process_element_func = input_handler.accept
+        elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:
+            input_handler = TwoInputRowWithTimerHandler(
+                ctx,
+                on_timer_ctx,
+                timer_service,
+                keyed_state_backend,
+                process_function,
+                output_factory)
+
+            process_element_func = input_handler.accept
         else:
-            # it is normal data
-            # VALUE: TIMER_FLAG, CURRENT_TIMESTAMP, CURRENT_WATERMARK, None, NORMAL_DATA
-            # NORMAL_DATA: CURRENT_KEY, DATA
-            ctx.set_timestamp(value[1])
-            ctx.timer_service().set_current_watermark(value[2])
-            current_key = value[4][0]
-            ctx.set_current_key(current_key)
-            keyed_state_backend.set_current_key(Row(current_key))
+            raise Exception("Unsupported func_type: " + str(func_type))
+    elif func_type == UserDefinedDataStreamFunction.WINDOW:
+        window_operation_descriptor = payload
+        window_assigner = window_operation_descriptor.assigner
+        window_trigger = window_operation_descriptor.trigger
+        allowed_lateness = window_operation_descriptor.allowed_lateness
+        window_state_descriptor = window_operation_descriptor.window_state_descriptor
+        internal_window_function = window_operation_descriptor.internal_window_function
+        window_serializer = window_operation_descriptor.window_serializer
+        keyed_state_backend._namespace_coder_impl = window_serializer._get_coder()
+        window_operator = WindowOperator(
+            window_assigner,
+            keyed_state_backend,
+            user_key_selector,
+            window_state_descriptor,
+            internal_window_function,
+            window_trigger,
+            allowed_lateness)
+        output_factory = RowWithTimerOutputFactory(window_serializer)
 
-            output_result = process_element(value[4][1], ctx)
+        def open_func():
+            window_operator.open(runtime_context, internal_timer_service)
 
-        if output_result:
-            for result in output_result:
-                yield Row(None, None, None, result)
+        def close_func():
+            window_operator.close()
 
-        for result in collector.buf:
-            # 0: proc time timer data
-            # 1: event time timer data
-            # 2: normal data
-            # result_row: [TIMER_FLAG, TIMER TYPE, TIMER_KEY, RESULT_DATA]
-            yield Row(result[0], result[1], result[2], None)
+        input_handler = OneInputRowWithTimerHandler(
+            internal_timer_service,
+            keyed_state_backend,
+            state_key_selector,
+            lambda n, t: window_operator.process_element(input_selector(n), t),
+            window_operator.on_event_time,
+            window_operator.on_processing_time,
+            output_factory)
 
-        collector.clear()
+        process_element_func = input_handler.accept
+    else:
+        raise Exception("Unsupported func_type: " + str(func_type))
 
-    return wrapped_keyed_process_function, process_function
+    return process_element_func, open_func, close_func
 
 
 """
@@ -351,23 +443,3 @@ class KeyedProcessFunctionInputFlag(Enum):
     EVENT_TIME_TIMER = 0
     PROC_TIME_TIMER = 1
     NORMAL_DATA = 2
-
-
-class KeyedProcessFunctionOutputFlag(Enum):
-    REGISTER_EVENT_TIMER = 0
-    REGISTER_PROC_TIMER = 1
-    NORMAL_DATA = 2
-    DEL_EVENT_TIMER = 3
-    DEL_PROC_TIMER = 4
-
-
-class CoFlatMapFunctionOutputFlag(Enum):
-    LEFT = 0
-    RIGHT = 1
-    LEFT_END = 2
-    RIGHT_END = 3
-
-
-class CoMapFunctionOutputFlag(Enum):
-    LEFT = 0
-    RIGHT = 1

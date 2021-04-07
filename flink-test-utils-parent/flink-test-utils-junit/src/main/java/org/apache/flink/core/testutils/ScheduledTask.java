@@ -55,7 +55,7 @@ public final class ScheduledTask<T> implements ScheduledFuture<T> {
         this.period = period;
     }
 
-    private boolean isPeriodic() {
+    public boolean isPeriodic() {
         return period > 0;
     }
 

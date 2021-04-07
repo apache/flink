@@ -37,12 +37,19 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_CONF_DIR;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -73,7 +80,7 @@ public class SqlClientTest {
         testOutputStream = new ByteArrayOutputStream();
         System.setOut(new PrintStream(testOutputStream, true));
         // send "QUIT;" command to gracefully shutdown the terminal
-        System.setIn(new ByteArrayInputStream("QUIT;".getBytes(StandardCharsets.UTF_8)));
+        System.setIn(new ByteArrayInputStream("QUIT;\n".getBytes(StandardCharsets.UTF_8)));
 
         // prepare conf dir
         File confFolder = tempFolder.newFolder("conf");
@@ -91,7 +98,7 @@ public class SqlClientTest {
     }
 
     @After
-    public void after() throws InterruptedException {
+    public void after() {
         System.setOut(originalPrintStream);
         System.setIn(originalInputStream);
         CommonTestUtils.setEnv(originalEnv);
@@ -101,43 +108,43 @@ public class SqlClientTest {
         return testOutputStream.toString();
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithOptions() {
         String[] args = new String[] {"embedded", "-hist", historyPath};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithLongOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithLongOptions() {
         String[] args = new String[] {"embedded", "--history", historyPath};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path: " + historyPath));
     }
 
-    @Test(timeout = 20000)
-    public void testEmbeddedWithoutOptions() throws InterruptedException {
+    @Test
+    public void testEmbeddedWithoutOptions() {
         String[] args = new String[] {"embedded"};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
-    @Test(timeout = 20000)
-    public void testEmptyOptions() throws InterruptedException {
+    @Test
+    public void testEmptyOptions() {
         String[] args = new String[] {};
         SqlClient.main(args);
         assertThat(getStdoutString(), containsString("Command history file path"));
     }
 
-    @Test(timeout = 20000)
-    public void testUnsupportedGatewayMode() throws Exception {
+    @Test
+    public void testUnsupportedGatewayMode() {
         String[] args = new String[] {"gateway"};
         thrown.expect(SqlClientException.class);
         thrown.expectMessage("Gateway mode is not supported yet.");
         SqlClient.main(args);
     }
 
-    @Test(timeout = 20000)
+    @Test
     public void testPrintHelpForUnknownMode() throws IOException {
         String[] args = new String[] {"unknown"};
         SqlClient.main(args);
@@ -145,5 +152,105 @@ public class SqlClientTest {
         Objects.requireNonNull(url);
         final String help = FileUtils.readFileUtf8(new File(url.getFile()));
         assertEquals(help, getStdoutString());
+    }
+
+    @Test
+    public void testErrorMessage() {
+        // prepare statements which will throw exception
+        String stmts =
+                "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
+                        + "SELECT * FROM T;\n"
+                        + "QUIT;\n";
+        System.setIn(new ByteArrayInputStream(stmts.getBytes(StandardCharsets.UTF_8)));
+        String[] args = new String[] {};
+        SqlClient.main(args);
+        String output = getStdoutString();
+        assertThat(
+                output,
+                containsString(
+                        "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'"));
+
+        // shouldn't contain error stack
+        String[] errorStack =
+                new String[] {
+                    "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
+                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                };
+        for (String stack : errorStack) {
+            assertThat(output, not(containsString(stack)));
+        }
+    }
+
+    @Test
+    public void testVerboseErrorMessage() {
+        // prepare statements which will throw exception
+        String stmts =
+                "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
+                        + "SET sql-client.verbose=true;\n"
+                        + "SELECT * FROM T;\n"
+                        + "QUIT;\n";
+        System.setIn(new ByteArrayInputStream(stmts.getBytes(StandardCharsets.UTF_8)));
+        String[] args = new String[] {};
+        SqlClient.main(args);
+        String output = getStdoutString();
+        String[] errors =
+                new String[] {
+                    "org.apache.flink.table.api.ValidationException: Could not find any factory for identifier 'invalid'",
+                    "at org.apache.flink.table.factories.FactoryUtil.discoverFactory",
+                    "at org.apache.flink.table.factories.FactoryUtil.createTableSource"
+                };
+        for (String error : errors) {
+            assertThat(output, containsString(error));
+        }
+    }
+
+    @Test
+    public void testInitFile() throws IOException {
+        List<String> statements =
+                Arrays.asList(
+                        "CREATE TABLE source ("
+                                + "id INT,"
+                                + "val STRING"
+                                + ") WITH ("
+                                + "  'connector' = 'values'"
+                                + ");\n",
+                        "SET key=value;\n");
+        String initFile = createSqlFile(statements, "init-sql.sql");
+
+        String[] args = new String[] {"-i", initFile};
+        SqlClient.main(args);
+
+        assertThat(getStdoutString(), containsString("Successfully initialized from sql script: "));
+    }
+
+    @Test
+    public void testExecuteSqlFile() throws IOException {
+        List<String> statements = Collections.singletonList("HELP;");
+        String sqlFilePath = createSqlFile(statements, "test-sql.sql");
+        String[] args = new String[] {"-f", sqlFilePath};
+        SqlClient.main(args);
+        final URL url = getClass().getClassLoader().getResource("sql-client-help-command.out");
+        final String help = FileUtils.readFileUtf8(new File(url.getFile()));
+        final String output = getStdoutString();
+
+        for (String command : help.split("\n")) {
+            assertThat(output, containsString(command));
+        }
+    }
+
+    private String createSqlFile(List<String> statements, String name) throws IOException {
+        // create sql file
+        File sqlFileFolder = tempFolder.newFolder("sql-file");
+        File sqlFile = new File(sqlFileFolder, name);
+        if (!sqlFile.createNewFile()) {
+            throw new IOException(String.format("Can't create testing %s.", name));
+        }
+        String sqlFilePath = sqlFile.getPath();
+        Files.write(
+                Paths.get(sqlFilePath),
+                statements,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.APPEND);
+        return sqlFilePath;
     }
 }

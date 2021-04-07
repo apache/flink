@@ -233,7 +233,8 @@ public class DefaultExecutionTopologyTest extends TestLogger {
             assertPartitionEquals(originalPartition, adaptedPartition);
 
             List<ExecutionVertexID> originalConsumerIds = new ArrayList<>();
-            for (ConsumerVertexGroup consumerVertexGroup : originalPartition.getConsumers()) {
+            for (ConsumerVertexGroup consumerVertexGroup :
+                    originalPartition.getConsumerVertexGroups()) {
                 for (ExecutionVertexID executionVertexId : consumerVertexGroup) {
                     originalConsumerIds.add(executionVertexId);
                 }

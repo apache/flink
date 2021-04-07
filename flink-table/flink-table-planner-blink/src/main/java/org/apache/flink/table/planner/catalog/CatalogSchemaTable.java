@@ -41,8 +41,8 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -52,6 +52,9 @@ import org.apache.calcite.schema.impl.AbstractTable;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
 /**
  * Represents a wrapper for {@link CatalogBaseTable} in {@link org.apache.calcite.schema.Schema}.
@@ -140,11 +143,12 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
             // TODO: Fix FLINK-14844.
             for (int i = 0; i < fieldDataTypes.length; i++) {
                 LogicalType lt = fieldDataTypes[i].getLogicalType();
-                if (lt instanceof TimestampType
-                        && (((TimestampType) lt).getKind() == TimestampKind.PROCTIME
-                                || ((TimestampType) lt).getKind() == TimestampKind.ROWTIME)) {
+                if (lt instanceof TimestampType && isRowtimeAttribute(lt)) {
                     int precision = ((TimestampType) lt).getPrecision();
                     fieldDataTypes[i] = DataTypes.TIMESTAMP(precision);
+                } else if (lt instanceof LocalZonedTimestampType && isProctimeAttribute(lt)) {
+                    int precision = ((LocalZonedTimestampType) lt).getPrecision();
+                    fieldDataTypes[i] = DataTypes.TIMESTAMP_LTZ(precision);
                 }
             }
         }

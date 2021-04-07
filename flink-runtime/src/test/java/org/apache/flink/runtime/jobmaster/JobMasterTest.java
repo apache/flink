@@ -1714,6 +1714,10 @@ public class JobMasterTest extends TestLogger {
 
             jobMasterGateway
                     .updateTaskExecutionState(
+                            new TaskExecutionState(executionAttemptId, ExecutionState.RECOVERING))
+                    .get();
+            jobMasterGateway
+                    .updateTaskExecutionState(
                             new TaskExecutionState(executionAttemptId, ExecutionState.RUNNING))
                     .get();
 
@@ -1783,6 +1787,7 @@ public class JobMasterTest extends TestLogger {
             SavepointRestoreSettings savepointRestoreSettings) {
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
+        source.setParallelism(1);
 
         return TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                 savepointRestoreSettings, source);

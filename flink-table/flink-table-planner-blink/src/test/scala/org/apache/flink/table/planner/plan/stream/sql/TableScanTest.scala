@@ -704,7 +704,8 @@ class TableScanTest extends TableTestBase {
   def testInvalidWatermarkOutputType(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Watermark strategy '' must be of type TIMESTAMP but is of type 'CHAR(0) NOT NULL'.")
+      "Watermark strategy '' must be of type TIMESTAMP or TIMESTAMP_LTZ" +
+        " but is of type 'CHAR(0) NOT NULL'.")
     util.addTable(
       """
         |CREATE TABLE src (

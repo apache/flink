@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
@@ -68,6 +69,7 @@ public class TestingTaskExecutorGatewayBuilder {
     private static final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>>
             NOOP_FREE_SLOT_FUNCTION =
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
+    private static final Consumer<JobID> NOOP_FREE_INACTIVE_SLOTS_CONSUMER = ignored -> {};
     private static final Consumer<ResourceID> NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER =
             ignored -> {};
     private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER =
@@ -87,6 +89,10 @@ public class TestingTaskExecutorGatewayBuilder {
     private static final Supplier<CompletableFuture<ThreadDumpInfo>> DEFAULT_THREAD_DUMP_SUPPLIER =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 
+    private static final Supplier<CompletableFuture<TaskThreadInfoResponse>>
+            DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER =
+                    () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+
     private String address = "foobar:1234";
     private String hostname = "foobar";
     private BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer =
@@ -101,6 +107,7 @@ public class TestingTaskExecutorGatewayBuilder {
             requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
     private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction =
             NOOP_FREE_SLOT_FUNCTION;
+    private Consumer<JobID> freeInactiveSlotsConsumer = NOOP_FREE_INACTIVE_SLOTS_CONSUMER;
     private Consumer<ResourceID> heartbeatResourceManagerConsumer =
             NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER;
     private Consumer<Exception> disconnectResourceManagerConsumer =
@@ -121,6 +128,9 @@ public class TestingTaskExecutorGatewayBuilder {
             operatorEventHandler = DEFAULT_OPERATOR_EVENT_HANDLER;
     private Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier =
             DEFAULT_THREAD_DUMP_SUPPLIER;
+
+    private Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier =
+            DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER;
 
     public TestingTaskExecutorGatewayBuilder setAddress(String address) {
         this.address = address;
@@ -169,6 +179,12 @@ public class TestingTaskExecutorGatewayBuilder {
     public TestingTaskExecutorGatewayBuilder setFreeSlotFunction(
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
         this.freeSlotFunction = freeSlotFunction;
+        return this;
+    }
+
+    public TestingTaskExecutorGatewayBuilder setFreeInactiveSlotsConsumer(
+            Consumer<JobID> freeInactiveSlotsConsumer) {
+        this.freeInactiveSlotsConsumer = freeInactiveSlotsConsumer;
         return this;
     }
 
@@ -225,6 +241,12 @@ public class TestingTaskExecutorGatewayBuilder {
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
     }
 
+    public TestingTaskExecutorGatewayBuilder setRequestThreadInfoSamplesSupplier(
+            Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier) {
+        this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
+        return this;
+    }
+
     public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
         return new TestingTaskExecutorGateway(
                 address,
@@ -234,6 +256,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 submitTaskConsumer,
                 requestSlotFunction,
                 freeSlotFunction,
+                freeInactiveSlotsConsumer,
                 heartbeatResourceManagerConsumer,
                 disconnectResourceManagerConsumer,
                 cancelTaskFunction,
@@ -241,6 +264,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 releaseOrPromotePartitionsConsumer,
                 releaseClusterPartitionsConsumer,
                 operatorEventHandler,
-                requestThreadDumpSupplier);
+                requestThreadDumpSupplier,
+                requestThreadInfoSamplesSupplier);
     }
 }

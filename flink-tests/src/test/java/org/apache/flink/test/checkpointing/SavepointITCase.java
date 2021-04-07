@@ -35,6 +35,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -150,6 +151,60 @@ public class SavepointITCase extends TestLogger {
 
         if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
             fail("Test setup failed: failed to create temporary directories.");
+        }
+    }
+
+    @Test
+    public void testStopWithSavepointForFlip27SourceWithDrain() throws Exception {
+        testStopWithSavepointForFlip27Source(true);
+    }
+
+    @Test
+    public void testStopWithSavepointForFlip27SourceWithoutDrain() throws Exception {
+        testStopWithSavepointForFlip27Source(false);
+    }
+
+    private void testStopWithSavepointForFlip27Source(boolean drain) throws Exception {
+        final int numTaskManagers = 2;
+        final int numSlotsPerTaskManager = 2;
+
+        final MiniClusterResourceFactory clusterFactory =
+                new MiniClusterResourceFactory(
+                        numTaskManagers, numSlotsPerTaskManager, getFileBasedCheckpointsConfig());
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+
+        BoundedPassThroughOperator<Long> operator =
+                new BoundedPassThroughOperator<>(ChainingStrategy.ALWAYS);
+        DataStream<Long> stream =
+                env.fromSequence(0, Long.MAX_VALUE)
+                        .transform("pass-through", BasicTypeInfo.LONG_TYPE_INFO, operator);
+        stream.addSink(new DiscardingSink<>());
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        final JobID jobId = jobGraph.getJobID();
+
+        MiniClusterWithClientResource cluster = clusterFactory.get();
+        cluster.before();
+        ClusterClient<?> client = cluster.getClusterClient();
+
+        try {
+            BoundedPassThroughOperator.resetForTest(1, true);
+
+            client.submitJob(jobGraph).get();
+
+            BoundedPassThroughOperator.getProgressLatch().await();
+
+            client.stopWithSavepoint(jobId, drain, null).get();
+
+            if (drain) {
+                Assert.assertTrue(BoundedPassThroughOperator.inputEnded);
+            } else {
+                Assert.assertFalse(BoundedPassThroughOperator.inputEnded);
+            }
+        } finally {
+            cluster.after();
         }
     }
 
@@ -1275,7 +1330,7 @@ public class SavepointITCase extends TestLogger {
 
     private Configuration getFileBasedCheckpointsConfig(final String savepointDir) {
         final Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
         config.setString(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);

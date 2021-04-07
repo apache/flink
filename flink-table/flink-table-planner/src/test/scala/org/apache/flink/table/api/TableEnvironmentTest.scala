@@ -233,10 +233,6 @@ class TableEnvironmentTest extends TableTestBase {
 
       // pojo
       util.verifySchema(
-        util.addTable[PojoClass](),
-        Seq("pf1" -> INT, "pf2" -> STRING, "pf3" -> DOUBLE))
-
-      util.verifySchema(
         util.addTable[PojoClass]('pf1, 'pf2),
         Seq("pf1" -> INT, "pf2" -> STRING))
 
@@ -256,15 +252,6 @@ class TableEnvironmentTest extends TableTestBase {
       util.verifySchema(
         util.addTable[Class[_]](),
         Seq("f0" -> new GenericTypeInfo[Class[_]](classOf[Class[_]])))
-
-      // any type info
-      util.verifySchema(
-        util.addTable[Unit](),
-        Seq("f0" -> new UnitTypeInfo()))
-
-      util.verifySchema(
-        util.addTable[Unit]('unit),
-        Seq("unit" -> new UnitTypeInfo()))
     }
   }
 

@@ -23,7 +23,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Optional
 
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 __all__ = [
     'StateBackend',
@@ -194,9 +194,8 @@ class MemoryStateBackend(StateBackend):
                                the runtime configuration will be used.
         :param max_state_size: The maximal size of the serialized state. If none, the
                                :data:`DEFAULT_MAX_STATE_SIZE` will be used.
-        :param using_asynchronous_snapshots: Flag to switch between synchronous and asynchronous
-                                             snapshot mode. If null, the value configured in the
-                                             runtime configuration will be used.
+        :param using_asynchronous_snapshots: Snapshots are now always asynchronous. This flag
+                                             has no effect anymore in this version.
         :param j_memory_state_backend: For internal use, please keep none.
         """
         if j_memory_state_backend is None:
@@ -325,9 +324,8 @@ class FsStateBackend(StateBackend):
         :param write_buffer_size: Write buffer size used to serialize state. If -1, the value
                                   configured in the runtime configuration will be used, or the
                                   default value (4KB) if nothing is configured.
-        :param using_asynchronous_snapshots: Flag to switch between synchronous and asynchronous
-                                             snapshot mode. If none, the value configured in
-                                             the runtime configuration will be used.
+        :param using_asynchronous_snapshots: Snapshots are now always asynchronous. This flag
+                                             has no effect anymore in this version.
         :param j_fs_state_backend: For internal use, please keep none.
         """
         if j_fs_state_backend is None:

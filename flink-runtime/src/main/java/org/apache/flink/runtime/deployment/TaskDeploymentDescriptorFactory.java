@@ -111,7 +111,7 @@ public class TaskDeploymentDescriptorFactory {
             // TODO Refactor after removing the consumers from the intermediate result partitions
             IntermediateResultPartition resultPartition = partitions.get(0);
 
-            int numConsumers = resultPartition.getConsumers().get(0).size();
+            int numConsumers = resultPartition.getConsumerVertexGroups().get(0).size();
 
             int queueToRequest = subtaskIndex % numConsumers;
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
@@ -258,6 +258,7 @@ public class TaskDeploymentDescriptorFactory {
 
     private static boolean isProducerAvailable(ExecutionState producerState) {
         return producerState == ExecutionState.RUNNING
+                || producerState == ExecutionState.RECOVERING
                 || producerState == ExecutionState.FINISHED
                 || producerState == ExecutionState.SCHEDULED
                 || producerState == ExecutionState.DEPLOYING;

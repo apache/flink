@@ -47,13 +47,16 @@ public class FailureHandlingResultTest extends TestLogger {
         tasks.add(executionVertexID);
         long delay = 1234;
         Throwable error = new RuntimeException();
+        long timestamp = System.currentTimeMillis();
         FailureHandlingResult result =
-                FailureHandlingResult.restartable(executionVertexID, error, tasks, delay, false);
+                FailureHandlingResult.restartable(
+                        executionVertexID, error, timestamp, tasks, delay, false);
 
         assertTrue(result.canRestart());
         assertEquals(delay, result.getRestartDelayMS());
         assertEquals(tasks, result.getVerticesToRestart());
         assertThat(result.getError(), sameInstance(error));
+        assertThat(result.getTimestamp(), is(timestamp));
         assertTrue(result.getExecutionVertexIdOfFailedTask().isPresent());
         assertThat(result.getExecutionVertexIdOfFailedTask().get(), is(executionVertexID));
     }
@@ -63,10 +66,13 @@ public class FailureHandlingResultTest extends TestLogger {
     public void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
         // create a FailureHandlingResult with error
         Throwable error = new Exception("test error");
-        FailureHandlingResult result = FailureHandlingResult.unrecoverable(null, error, false);
+        long timestamp = System.currentTimeMillis();
+        FailureHandlingResult result =
+                FailureHandlingResult.unrecoverable(null, error, timestamp, false);
 
         assertFalse(result.canRestart());
-        assertEquals(error, result.getError());
+        assertThat(result.getError(), sameInstance(error));
+        assertThat(result.getTimestamp(), is(timestamp));
         assertFalse(result.getExecutionVertexIdOfFailedTask().isPresent());
         try {
             result.getVerticesToRestart();

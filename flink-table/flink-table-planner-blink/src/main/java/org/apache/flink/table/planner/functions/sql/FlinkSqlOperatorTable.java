@@ -556,22 +556,22 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     SqlFunctionCategory.STRING);
 
     public static final SqlFunction NOW =
-            new SqlFunction(
-                    "NOW",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 0),
-                    null,
-                    OperandTypes.NILADIC,
-                    SqlFunctionCategory.TIMEDATE) {
-
+            new SqlCurrentTimestampFunction("NOW") {
                 @Override
-                public boolean isDeterministic() {
-                    return false;
+                public SqlSyntax getSyntax() {
+                    return SqlSyntax.FUNCTION;
                 }
+            };
+
+    public static final SqlFunction CURRENT_TIMESTAMP =
+            new SqlCurrentTimestampFunction("CURRENT_TIMESTAMP");
+
+    public static final SqlFunction CURRENT_ROW_TIMESTAMP =
+            new SqlCurrentTimestampFunction("CURRENT_ROW_TIMESTAMP") {
 
                 @Override
-                public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-                    return SqlMonotonicity.INCREASING;
+                public SqlSyntax getSyntax() {
+                    return SqlSyntax.FUNCTION;
                 }
             };
 
@@ -763,9 +763,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                             ReturnTypes.explicit(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3),
                             SqlTypeTransforms.FORCE_NULLABLE),
                     null,
-                    OperandTypes.or(
-                            OperandTypes.family(SqlTypeFamily.NUMERIC),
-                            OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER)),
+                    OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER),
                     SqlFunctionCategory.TIMEDATE);
 
     public static final SqlFunction TO_DATE =
@@ -1101,7 +1099,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction LOCALTIME = SqlStdOperatorTable.LOCALTIME;
     public static final SqlFunction LOCALTIMESTAMP = SqlStdOperatorTable.LOCALTIMESTAMP;
     public static final SqlFunction CURRENT_TIME = SqlStdOperatorTable.CURRENT_TIME;
-    public static final SqlFunction CURRENT_TIMESTAMP = SqlStdOperatorTable.CURRENT_TIMESTAMP;
     public static final SqlFunction CURRENT_DATE = SqlStdOperatorTable.CURRENT_DATE;
     public static final SqlFunction CAST = SqlStdOperatorTable.CAST;
     public static final SqlOperator SCALAR_QUERY = SqlStdOperatorTable.SCALAR_QUERY;

@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -226,21 +227,36 @@ public class BufferManager implements BufferListener, BufferRecycler {
         // we do not want to trigger redistribution of buffers after each recycle.
         final List<MemorySegment> exclusiveRecyclingSegments = new ArrayList<>();
 
+        Exception err = null;
         Buffer buffer;
         while ((buffer = buffers.poll()) != null) {
-            if (buffer.getRecycler() == this) {
-                exclusiveRecyclingSegments.add(buffer.getMemorySegment());
-            } else {
-                buffer.recycleBuffer();
+            try {
+                if (buffer.getRecycler() == BufferManager.this) {
+                    exclusiveRecyclingSegments.add(buffer.getMemorySegment());
+                } else {
+                    buffer.recycleBuffer();
+                }
+            } catch (Exception e) {
+                err = firstOrSuppressed(e, err);
             }
         }
-        synchronized (bufferQueue) {
-            bufferQueue.releaseAll(exclusiveRecyclingSegments);
-            bufferQueue.notifyAll();
+        try {
+            synchronized (bufferQueue) {
+                bufferQueue.releaseAll(exclusiveRecyclingSegments);
+                bufferQueue.notifyAll();
+            }
+        } catch (Exception e) {
+            err = firstOrSuppressed(e, err);
         }
-
-        if (exclusiveRecyclingSegments.size() > 0) {
-            globalPool.recycleMemorySegments(exclusiveRecyclingSegments);
+        try {
+            if (exclusiveRecyclingSegments.size() > 0) {
+                globalPool.recycleMemorySegments(exclusiveRecyclingSegments);
+            }
+        } catch (Exception e) {
+            err = firstOrSuppressed(e, err);
+        }
+        if (err != null) {
+            throw err instanceof IOException ? (IOException) err : new IOException(err);
         }
     }
 

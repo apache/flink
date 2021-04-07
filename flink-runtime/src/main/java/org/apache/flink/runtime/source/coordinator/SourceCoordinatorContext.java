@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -41,8 +42,6 @@ import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -54,10 +53,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-
-import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readRegisteredReaders;
 
 /**
  * A context class for the {@link OperatorCoordinator}. Compared with {@link SplitEnumeratorContext}
@@ -94,6 +92,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
             coordinatorThreadFactory;
     private final String coordinatorThreadName;
+    private volatile boolean closed;
 
     public SourceCoordinatorContext(
             ExecutorService coordinatorExecutor,
@@ -103,18 +102,22 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SimpleVersionedSerializer<SplitT> splitSerializer) {
         this(
                 coordinatorExecutor,
+                Executors.newScheduledThreadPool(
+                        numWorkerThreads,
+                        new ExecutorThreadFactory(
+                                coordinatorThreadFactory.getCoordinatorThreadName() + "-worker")),
                 coordinatorThreadFactory,
-                numWorkerThreads,
                 operatorCoordinatorContext,
                 splitSerializer,
                 new SplitAssignmentTracker<>());
     }
 
     // Package private method for unit test.
+    @VisibleForTesting
     SourceCoordinatorContext(
             ExecutorService coordinatorExecutor,
+            ScheduledExecutorService workerExecutor,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
-            int numWorkerThreads,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer,
             SplitAssignmentTracker<SplitT> splitAssignmentTracker) {
@@ -132,12 +135,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                                 new ThrowableCatchingRunnable(
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 
-        this.notifier =
-                new ExecutorNotifier(
-                        Executors.newScheduledThreadPool(
-                                numWorkerThreads,
-                                new ExecutorThreadFactory(coordinatorThreadName + "-worker")),
-                        errorHandlingCoordinatorExecutor);
+        this.notifier = new ExecutorNotifier(workerExecutor, errorHandlingCoordinatorExecutor);
     }
 
     @Override
@@ -250,6 +248,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void close() throws InterruptedException {
+        closed = true;
         notifier.close();
         coordinatorExecutor.shutdown();
         coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
@@ -267,6 +266,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     void handleUncaughtExceptionFromAsyncCall(Throwable t) {
+        if (closed) {
+            return;
+        }
+
         ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
         LOG.error(
                 "Exception while handling result from async call in {}. Triggering job failover.",
@@ -276,34 +279,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     /**
-     * Take a snapshot of this SourceCoordinatorContext.
+     * Behavior of SourceCoordinatorContext on checkpoint.
      *
      * @param checkpointId The id of the ongoing checkpoint.
-     * @param splitSerializer The serializer of the splits.
-     * @param out An ObjectOutput that can be used to
      */
-    void snapshotState(
-            long checkpointId,
-            SimpleVersionedSerializer<SplitT> splitSerializer,
-            DataOutputStream out)
-            throws Exception {
-        // FLINK-21452: backwards compatible change to drop writing registered readers (empty list)
-        out.writeInt(0);
-        assignmentTracker.snapshotState(checkpointId, splitSerializer, out);
-    }
-
-    /**
-     * Restore the state of the context.
-     *
-     * @param splitSerializer the serializer for the SourceSplits.
-     * @param in the input from which the states are read.
-     * @throws Exception when the restoration failed.
-     */
-    void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, DataInputStream in)
-            throws Exception {
-        // FLINK-21452: discard readers as they will be re-registering themselves
-        readRegisteredReaders(in);
-        assignmentTracker.restoreState(splitSerializer, in);
+    void onCheckpoint(long checkpointId) throws Exception {
+        assignmentTracker.onCheckpoint(checkpointId);
     }
 
     /**

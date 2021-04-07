@@ -62,6 +62,11 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
     }
 
     @Override
+    public boolean isPointwise() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "BROADCAST";
     }

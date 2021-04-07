@@ -58,6 +58,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             @Nullable FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend stateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction) {
         super(
@@ -68,8 +69,10 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
-                managedMemoryFraction);
+                managedMemoryFraction,
+                null);
         this.inputType = inputType;
         this.outputTupe = outputType;
         this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;

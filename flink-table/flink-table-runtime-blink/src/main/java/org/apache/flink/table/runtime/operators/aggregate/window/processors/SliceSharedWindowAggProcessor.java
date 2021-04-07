@@ -22,14 +22,16 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -52,8 +54,15 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             WindowCombineFunction.Factory combinerFactory,
             SliceSharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
-            int indexOfCountStar) {
-        super(genAggsHandler, bufferFactory, combinerFactory, sliceAssigner, accSerializer);
+            int indexOfCountStar,
+            ZoneId shiftTimeZone) {
+        super(
+                genAggsHandler,
+                bufferFactory,
+                combinerFactory,
+                sliceAssigner,
+                accSerializer,
+                shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
@@ -78,7 +87,9 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             if (sliceSharedAssigner.isEventTime()) {
                 timerService.registerEventTimeTimer(nextWindowEnd, nextWindowEnd - 1);
             } else {
-                timerService.registerProcessingTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+                timerService.registerProcessingTimeTimer(
+                        nextWindowEnd,
+                        TimeWindowUtil.toEpochMillsForTimer(nextWindowEnd - 1, shiftTimeZone));
             }
         }
     }

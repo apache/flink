@@ -18,23 +18,29 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
-import org.apache.flink.table.planner.plan.logical.{CumulativeWindowSpec, HoppingWindowSpec, TimeAttributeWindowingStrategy, TumblingWindowSpec}
+import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeFamily
+import org.apache.calcite.util.ImmutableBitSet
 
 import java.time.Duration
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -176,7 +182,11 @@ object WindowUtil {
       throw new ValidationException("Window can only be defined on a time attribute column, " +
         "but is type of " + fieldType)
     }
-    val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType).asInstanceOf[TimestampType]
+    val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
+    if (!canBeTimeAttributeType(timeAttributeType)) {
+      throw new ValidationException("The supported time indicator type are" +
+        " timestamp and timestampLtz, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
+    }
 
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
     val windowSpec = windowFunction match {
@@ -196,6 +206,80 @@ object WindowUtil {
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)
+  }
+
+  /**
+   * Window TVF based aggregations don't support early-fire and late-fire,
+   * throws exception when the configurations are set.
+   */
+  def checkEmitConfiguration(tableConfig: TableConfig): Unit = {
+    val conf = tableConfig.getConfiguration
+    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
+      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
+      throw new TableException("Currently, window table function based aggregate doesn't " +
+        s"support early-fire and late-fire configuration " +
+        s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +
+        s"'${TABLE_EXEC_EMIT_LATE_FIRE_ENABLED.key()}'.")
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // RelNode RowType
+  // ------------------------------------------------------------------------------------------
+
+  def deriveWindowAggregateRowType(
+      grouping: Array[Int],
+      aggCalls: Seq[AggregateCall],
+      windowing: WindowingStrategy,
+      namedWindowProperties: Seq[PlannerNamedWindowProperty],
+      inputRowType: RelDataType,
+      typeFactory: FlinkTypeFactory): RelDataType = {
+    val groupSet = ImmutableBitSet.of(grouping: _*)
+    val baseType = Aggregate.deriveRowType(
+      typeFactory,
+      inputRowType,
+      false,
+      groupSet,
+      Collections.singletonList(groupSet),
+      aggCalls)
+    val builder = typeFactory.builder
+    builder.addAll(baseType.getFieldList)
+    namedWindowProperties.foreach { namedProp =>
+      // use types from windowing strategy which keeps the precision and timestamp type
+      // cast the type to not null type, because window properties should never be null
+      val timeType = namedProp.getProperty match {
+        case _: PlannerWindowStart | _: PlannerWindowEnd =>
+          new TimestampType(false, 3)
+        case _: PlannerRowtimeAttribute | _: PlannerProctimeAttribute =>
+          windowing.getTimeAttributeType.copy(false)
+      }
+      builder.add(namedProp.getName, typeFactory.createFieldTypeFromLogicalType(timeType))
+    }
+    builder.build()
+  }
+
+  /**
+   * Derives output row type from local window aggregate
+   */
+  def deriveLocalWindowAggregateRowType(
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      endPropertyName: String,
+      inputRowType: RelDataType,
+      typeFactory: FlinkTypeFactory): RelDataType = {
+    val accTypes = aggInfoList.getAccTypes
+    val groupingTypes = grouping
+      .map(inputRowType.getFieldList.get(_).getType)
+      .map(FlinkTypeFactory.toLogicalType)
+    val sliceEndType = Array(DataTypes.BIGINT().getLogicalType)
+
+    val groupingNames = grouping.map(inputRowType.getFieldNames.get(_))
+    val accFieldNames = inferAggAccumulatorNames(aggInfoList)
+    val sliceEndName = Array(s"$$$endPropertyName")
+
+    typeFactory.buildRelNodeRowType(
+      groupingNames ++ accFieldNames ++ sliceEndName,
+      groupingTypes ++ accTypes.map(fromDataTypeToLogicalType) ++ sliceEndType)
   }
 
   // ------------------------------------------------------------------------------------------

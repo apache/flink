@@ -533,7 +533,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                                           type_info=Types.ROW([Types.STRING(),
                                                                                Types.INT()]))
         from_collection_source.name("From Collection")
-        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type_info=Types.INT())
+        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
         plus_two_map_stream = keyed_stream.map(plus_two_map).name("Plus Two Map").set_parallelism(3)
 
@@ -580,18 +580,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
-
-    def test_batch_execution_mode(self):
-        # set the runtime execution mode to BATCH
-        JRuntimeExecutionMode = get_gateway().jvm \
-            .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
-        self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
-        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x) \
-            .add_sink(self.test_sink)
-
-        # Running jobs in Batch mode is not supported yet, it should throw an exception.
-        with self.assertRaises(Exception):
-            self.env.get_execution_plan()
 
     def tearDown(self) -> None:
         self.test_sink.clear()

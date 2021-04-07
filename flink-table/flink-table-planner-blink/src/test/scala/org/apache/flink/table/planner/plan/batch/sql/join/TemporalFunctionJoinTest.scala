@@ -36,7 +36,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
   val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime)
 
-  val rates = util.addFunction(
+  val rates = util.addTemporarySystemFunction(
     "Rates",
     ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
 
@@ -69,7 +69,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
     val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
       "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
     val rates = ratesHistory.createTemporalTableFunction($"rowtime", $"currency")
-    util.addFunction("Rates", rates)
+    util.addTemporarySystemFunction("Rates", rates)
 
     val sqlQuery =
       "SELECT * FROM " +

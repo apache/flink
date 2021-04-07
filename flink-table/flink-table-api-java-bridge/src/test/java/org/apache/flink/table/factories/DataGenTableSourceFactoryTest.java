@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
@@ -26,10 +25,9 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -44,7 +42,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
@@ -58,43 +55,43 @@ import static org.apache.flink.table.factories.DataGenTableSourceFactory.RANDOM;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.ROWS_PER_SECOND;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.SEQUENCE;
 import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
 public class DataGenTableSourceFactoryTest {
 
-    private static final TableSchema TEST_SCHEMA =
-            TableSchema.builder()
-                    .field("f0", DataTypes.STRING())
-                    .field("f1", DataTypes.BIGINT())
-                    .field("f2", DataTypes.BIGINT())
-                    .build();
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("f0", DataTypes.STRING()),
+                    Column.physical("f1", DataTypes.BIGINT()),
+                    Column.physical("f2", DataTypes.BIGINT()));
 
     @Test
     public void testDataTypeCoverage() throws Exception {
-        TableSchema schema =
-                TableSchema.builder()
-                        .field("f0", DataTypes.CHAR(1))
-                        .field("f1", DataTypes.VARCHAR(10))
-                        .field("f2", DataTypes.STRING())
-                        .field("f3", DataTypes.BOOLEAN())
-                        .field("f4", DataTypes.DECIMAL(32, 2))
-                        .field("f5", DataTypes.TINYINT())
-                        .field("f6", DataTypes.SMALLINT())
-                        .field("f7", DataTypes.INT())
-                        .field("f8", DataTypes.BIGINT())
-                        .field("f9", DataTypes.FLOAT())
-                        .field("f10", DataTypes.DOUBLE())
-                        .field("f11", DataTypes.DATE())
-                        .field("f12", DataTypes.TIME())
-                        .field("f13", DataTypes.TIMESTAMP())
-                        .field("f14", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
-                        .field("f15", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE())
-                        .field("f16", DataTypes.INTERVAL(DataTypes.DAY()))
-                        .field("f17", DataTypes.ARRAY(DataTypes.INT()))
-                        .field("f18", DataTypes.MAP(DataTypes.STRING(), DataTypes.DATE()))
-                        .field("f19", DataTypes.MULTISET(DataTypes.DECIMAL(32, 2)))
-                        .field(
+        ResolvedSchema schema =
+                ResolvedSchema.of(
+                        Column.physical("f0", DataTypes.CHAR(1)),
+                        Column.physical("f1", DataTypes.VARCHAR(10)),
+                        Column.physical("f2", DataTypes.STRING()),
+                        Column.physical("f3", DataTypes.BOOLEAN()),
+                        Column.physical("f4", DataTypes.DECIMAL(32, 2)),
+                        Column.physical("f5", DataTypes.TINYINT()),
+                        Column.physical("f6", DataTypes.SMALLINT()),
+                        Column.physical("f7", DataTypes.INT()),
+                        Column.physical("f8", DataTypes.BIGINT()),
+                        Column.physical("f9", DataTypes.FLOAT()),
+                        Column.physical("f10", DataTypes.DOUBLE()),
+                        Column.physical("f11", DataTypes.DATE()),
+                        Column.physical("f12", DataTypes.TIME()),
+                        Column.physical("f13", DataTypes.TIMESTAMP()),
+                        Column.physical("f14", DataTypes.TIMESTAMP_WITH_TIME_ZONE()),
+                        Column.physical("f15", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()),
+                        Column.physical("f16", DataTypes.INTERVAL(DataTypes.DAY())),
+                        Column.physical("f17", DataTypes.ARRAY(DataTypes.INT())),
+                        Column.physical("f18", DataTypes.MAP(DataTypes.STRING(), DataTypes.DATE())),
+                        Column.physical("f19", DataTypes.MULTISET(DataTypes.DECIMAL(32, 2))),
+                        Column.physical(
                                 "f20",
                                 DataTypes.ROW(
                                         DataTypes.FIELD("a", DataTypes.BIGINT()),
@@ -103,8 +100,7 @@ public class DataGenTableSourceFactoryTest {
                                                 "c",
                                                 DataTypes.ROW(
                                                         DataTypes.FIELD(
-                                                                "d", DataTypes.TIMESTAMP())))))
-                        .build();
+                                                                "d", DataTypes.TIMESTAMP()))))));
 
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
@@ -116,7 +112,7 @@ public class DataGenTableSourceFactoryTest {
         for (RowData row : results) {
             for (int i = 0; i < row.getArity(); i++) {
                 Assert.assertFalse(
-                        "Column " + schema.getFieldNames()[i] + " should not be null",
+                        "Column " + schema.getColumnNames().get(i) + " should not be null",
                         row.isNullAt(i));
             }
         }
@@ -139,7 +135,7 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putLong(FIELDS + ".f2." + START, 50);
         descriptor.putLong(FIELDS + ".f2." + END, 60);
 
-        List<RowData> results = runGenerator(TEST_SCHEMA, descriptor);
+        List<RowData> results = runGenerator(SCHEMA, descriptor);
 
         Assert.assertEquals(11, results.size());
         for (int i = 0; i < results.size(); i++) {
@@ -151,9 +147,9 @@ public class DataGenTableSourceFactoryTest {
         }
     }
 
-    private List<RowData> runGenerator(TableSchema schema, DescriptorProperties descriptor)
+    private List<RowData> runGenerator(ResolvedSchema schema, DescriptorProperties descriptor)
             throws Exception {
-        DynamicTableSource source = createSource(schema, descriptor.asMap());
+        DynamicTableSource source = createTableSource(schema, descriptor.asMap());
 
         assertTrue(source instanceof DataGenTableSource);
 
@@ -184,8 +180,8 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putLong(FIELDS + ".f0." + END, 100);
 
         DynamicTableSource dynamicTableSource =
-                createSource(
-                        TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+                createTableSource(
+                        ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                         descriptor.asMap());
 
         DataGenTableSource dataGenTableSource = (DataGenTableSource) dynamicTableSource;
@@ -216,8 +212,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
             descriptor.putLong(FIELDS + ".f0." + END, 100);
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -240,8 +236,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
             descriptor.putLong(FIELDS + ".f0." + START, 0);
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -263,8 +259,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
             descriptor.putLong("wrong-rows-per-second", 1);
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -285,8 +281,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
             descriptor.putLong(FIELDS + ".f0." + START, 0);
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -307,8 +303,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
             descriptor.putInt(FIELDS + ".f0." + LENGTH, 100);
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -330,8 +326,8 @@ public class DataGenTableSourceFactoryTest {
             descriptor.putString(FIELDS + ".f0." + START, "Wrong");
             descriptor.putString(FIELDS + ".f0." + END, "Wrong");
 
-            createSource(
-                    TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+            createTableSource(
+                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
@@ -343,17 +339,6 @@ public class DataGenTableSourceFactoryTest {
             return;
         }
         Assert.fail("Should fail by ValidationException.");
-    }
-
-    private static DynamicTableSource createSource(
-            TableSchema schema, Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("", "", ""),
-                new CatalogTableImpl(schema, options, ""),
-                new Configuration(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
     }
 
     private static class TestContext implements SourceFunction.SourceContext<RowData> {

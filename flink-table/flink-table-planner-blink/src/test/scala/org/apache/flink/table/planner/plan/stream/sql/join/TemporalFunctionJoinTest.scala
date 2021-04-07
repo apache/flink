@@ -36,7 +36,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
   private val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  util.addFunction(
+  util.addTemporarySystemFunction(
     "Rates",
     ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
 
@@ -46,7 +46,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
   private val proctimeRatesHistory = util.addDataStream[(String, Int)](
     "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
 
-  util.addFunction(
+  util.addTemporarySystemFunction(
     "ProctimeRates",
     proctimeRatesHistory.createTemporalTableFunction($"proctime", $"currency"))
 

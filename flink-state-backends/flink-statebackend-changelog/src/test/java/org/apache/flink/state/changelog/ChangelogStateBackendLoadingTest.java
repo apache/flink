@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
@@ -65,7 +66,7 @@ public class ChangelogStateBackendLoadingTest {
 
     private final ClassLoader cl = getClass().getClassLoader();
 
-    private final String backendKey = CheckpointingOptions.STATE_BACKEND.key();
+    private final String backendKey = StateBackendOptions.STATE_BACKEND.key();
 
     @Test
     public void testLoadingDefault() throws Exception {

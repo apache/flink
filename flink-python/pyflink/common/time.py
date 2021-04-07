@@ -48,3 +48,6 @@ class Duration(object):
     @staticmethod
     def of_seconds(seconds: int):
         return Duration(get_gateway().jvm.java.time.Duration.ofSeconds(seconds))
+
+    def __eq__(self, other):
+        return isinstance(other, Duration) and self._j_duration.equals(other._j_duration)

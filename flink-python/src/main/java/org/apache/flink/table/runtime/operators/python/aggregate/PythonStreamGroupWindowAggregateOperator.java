@@ -46,16 +46,21 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
-import org.apache.flink.table.runtime.operators.window.CountWindow;
-import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TinyIntType;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
+import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
 
 /** The Python Group Window AggregateFunction operator for the blink planner. */
 @Internal
@@ -117,6 +122,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     /** Session Window gap. */
     private long gap;
 
+    /** The shift timeZone of the window. */
+    protected final ZoneId shiftTimeZone;
+
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
 
@@ -128,6 +136,10 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     private transient int timerDataLength;
 
     private transient int keyLength;
+
+    private transient UpdatableRowData reuseRowData;
+
+    private transient UpdatableRowData reuseTimerRowData;
 
     public PythonStreamGroupWindowAggregateOperator(
             Configuration config,
@@ -143,7 +155,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             WindowAssigner<W> windowAssigner,
             LogicalWindow window,
             long allowedLateness,
-            PlannerNamedWindowProperty[] namedProperties) {
+            PlannerNamedWindowProperty[] namedProperties,
+            ZoneId shiftTimeZone) {
         super(
                 config,
                 inputType,
@@ -152,11 +165,14 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore);
+                generateUpdateBefore,
+                "flink:coder:schema:scalar_function:v1",
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.allowedLateness = allowedLateness;
+        this.shiftTimeZone = shiftTimeZone;
         buildWindow(window, namedProperties);
     }
 
@@ -164,26 +180,25 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     public void open() throws Exception {
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
-        // The structure is:  [timer_type]|[row key]|[optional field]...
-        // If the window is 'TimeWindow', store the TimeWindow start in the 2nd column and
-        // TimeWindow end in the 3rd Column. e.g. the [optional field]s are
-        // [Time Window start][Time Window end].
-        // If the window is 'CountWindow', store the CountWindow id in the 2rd column. e.g.
-        // the [optional field]s are [Count Window id].
-        if (isTimeWindow) {
-            reuseTimerData = new UpdatableRowData(GenericRowData.of(0, null, 0, 0), 4);
-        } else {
-            reuseTimerData = new UpdatableRowData(GenericRowData.of(0, null, 0), 3);
-        }
+        // The structure is:  [type]|[normal record]|[timestamp]|[current watermark]|[timer data]
+        // If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
+        // If the type is 'TRIGGER_TIMER', store the timestamp in 3rd column and the timer
+        // data in 5th column.
+        reuseRowData =
+                new UpdatableRowData(GenericRowData.of(NORMAL_RECORD, null, null, null, null), 5);
+        reuseTimerRowData =
+                new UpdatableRowData(GenericRowData.of(TRIGGER_TIMER, null, null, null, null), 5);
+        // The structure is:  [timer_type]|[row key]|[encoded namespace]
+        reuseTimerData = new UpdatableRowData(GenericRowData.of(0, null, 0), 3);
+        reuseTimerRowData.setField(4, reuseTimerData);
         keyLength = getKeyType().getFieldCount();
         super.open();
-        reuseTimerRowData.setField(3, reuseTimerData);
     }
 
     @Override
     public void processElementInternal(RowData value) throws Exception {
         reuseRowData.setField(1, value);
-        reuseRowData.setLong(2, internalTimerService.currentWatermark());
+        reuseRowData.setLong(3, internalTimerService.currentWatermark());
         udfInputTypeSerializer.serialize(reuseRowData, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
@@ -202,8 +217,18 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                     (GenericRowData) udfResult.getRow(1, outputType.getFieldCount());
             int fieldCount = outputType.getFieldCount();
             for (int i = fieldCount - namedProperties.length; i < fieldCount; i++) {
-                aggResult.setField(i, TimestampData.fromEpochMillis(aggResult.getLong(i)));
+                FlinkFnApi.GroupWindow.WindowProperty namedProperty =
+                        namedProperties[i - (fieldCount - namedProperties.length)];
+                if (namedProperty == WINDOW_START || namedProperty == WINDOW_END) {
+                    aggResult.setField(i, TimestampData.fromEpochMillis(aggResult.getLong(i)));
+                } else {
+                    aggResult.setField(
+                            i,
+                            TimestampData.fromEpochMillis(
+                                    getShiftEpochMills(aggResult.getLong(i))));
+                }
             }
+
             rowDataWrapper.collect(aggResult);
         } else {
             RowData timerData = udfResult.getRow(2, timerDataLength);
@@ -211,31 +236,32 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             RowData key = timerData.getRow(1, keyLength);
             long timestamp = timerData.getLong(2);
             W window;
-            if (isTimeWindow) {
-                long start = timerData.getLong(3);
-                long end = timerData.getLong(4);
-                window = (W) TimeWindow.of(start, end);
-            } else {
-                long id = timerData.getLong(3);
-                window = (W) new CountWindow(id);
-            }
+            byte[] encodedNamespace = timerData.getBinary(3);
+            bais.setBuffer(encodedNamespace, 0, encodedNamespace.length);
+            window = windowSerializer.deserialize(baisWrapper);
             synchronized (getKeyedStateBackend()) {
-                setCurrentKey(key);
+                setCurrentKey(((RowDataSerializer) getKeySerializer()).toBinaryRow(key));
 
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
                     internalTimerService.registerEventTimeTimer(window, timestamp);
                 } else if (timerOperandType == REGISTER_PROCESSING_TIMER) {
-                    internalTimerService.registerProcessingTimeTimer(window, timestamp);
+                    internalTimerService.registerProcessingTimeTimer(
+                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else if (timerOperandType == DELETE_EVENT_TIMER) {
                     internalTimerService.deleteEventTimeTimer(window, timestamp);
                 } else if (timerOperandType == DELETE_PROCESSING_TIMER) {
-                    internalTimerService.deleteProcessingTimeTimer(window, timestamp);
+                    internalTimerService.deleteProcessingTimeTimer(
+                            window, TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone));
                 } else {
                     throw new RuntimeException(
                             String.format("Unsupported timerOperandType %s.", timerOperandType));
                 }
             }
         }
+    }
+
+    protected long getShiftEpochMills(long utcTimestampMills) {
+        return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
     }
 
     @Override
@@ -249,15 +275,11 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         inputFields.add(new RowType.RowField("record_type", new TinyIntType()));
         inputFields.add(new RowType.RowField("row_data", inputType));
         inputFields.add(new RowType.RowField("timestamp", new BigIntType()));
+        inputFields.add(new RowType.RowField("watermark", new BigIntType()));
         List<RowType.RowField> timerDataFields = new ArrayList<>();
         timerDataFields.add(new RowType.RowField("timer_type", new TinyIntType()));
         timerDataFields.add(new RowType.RowField("key", getKeyType()));
-        if (isTimeWindow) {
-            timerDataFields.add(new RowType.RowField("start", new BigIntType()));
-            timerDataFields.add(new RowType.RowField("end", new BigIntType()));
-        } else {
-            timerDataFields.add(new RowType.RowField("id", new BigIntType()));
-        }
+        timerDataFields.add(new RowType.RowField("encoded_namespace", new BinaryType()));
         inputFields.add(new RowType.RowField("timer", new RowType(timerDataFields)));
         return new RowType(inputFields);
     }
@@ -279,12 +301,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         timerDataFields.add(new RowType.RowField("timer_operand_type", new TinyIntType()));
         timerDataFields.add(new RowType.RowField("key", getKeyType()));
         timerDataFields.add(new RowType.RowField("timestamp", new BigIntType()));
-        if (isTimeWindow) {
-            timerDataFields.add(new RowType.RowField("start", new BigIntType()));
-            timerDataFields.add(new RowType.RowField("end", new BigIntType()));
-        } else {
-            timerDataFields.add(new RowType.RowField("id", new BigIntType()));
-        }
+        timerDataFields.add(new RowType.RowField("encoded_namespace", new BinaryType()));
         timerDataLength = timerDataFields.size();
         outputFields.add(new RowType.RowField("timer", new RowType(timerDataFields)));
         return new RowType(outputFields);
@@ -307,8 +324,14 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         for (FlinkFnApi.GroupWindow.WindowProperty namedProperty : namedProperties) {
             windowBuilder.addNamedProperties(namedProperty);
         }
+        windowBuilder.setShiftTimezone(shiftTimeZone.getId());
         builder.setGroupWindow(windowBuilder);
         return builder.build();
+    }
+
+    @Override
+    public TypeSerializer<W> getWindowSerializer() {
+        return windowSerializer;
     }
 
     @Override
@@ -376,16 +399,17 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
 
     private void emitTriggerTimerData(InternalTimer<K, W> timer, byte processingTimer)
             throws Exception {
-        W window = timer.getNamespace();
         reuseTimerData.setByte(0, processingTimer);
         reuseTimerData.setField(1, timer.getKey());
-        if (isTimeWindow) {
-            reuseTimerData.setLong(2, ((TimeWindow) window).getStart());
-            reuseTimerData.setLong(3, ((TimeWindow) window).getEnd());
-        } else {
-            reuseTimerData.setLong(2, ((CountWindow) window).getId());
-        }
-        reuseTimerRowData.setLong(2, timer.getTimestamp());
+        // serialize namespace
+        W window = timer.getNamespace();
+        windowSerializer.serialize(window, baosWrapper);
+        reuseTimerData.setField(2, baos.toByteArray());
+        baos.reset();
+
+        reuseTimerRowData.setLong(
+                2, TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone));
+
         udfInputTypeSerializer.serialize(reuseTimerRowData, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();

@@ -49,6 +49,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class ZonedTimestampType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final int MIN_PRECISION = TimestampType.MIN_PRECISION;
 
@@ -86,6 +87,9 @@ public final class ZonedTimestampType extends LogicalType {
                     String.format(
                             "Timestamp with time zone precision must be between %d and %d (both inclusive).",
                             MIN_PRECISION, MAX_PRECISION));
+        }
+        if (kind == TimestampKind.PROCTIME) {
+            throw new ValidationException("ZonedTimestampType can not be used as PROCTIME type.");
         }
         this.kind = kind;
         this.precision = precision;

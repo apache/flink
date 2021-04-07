@@ -191,4 +191,22 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTableSourceWithSourceWatermarks">
+    <Resource name="sql">
+      <![CDATA[SELECT rowtime, id, name, val FROM rowTimeT]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[SOURCE_WATERMARK()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[rowtime, id, name, val])
++- TableSourceScan(table=[[default_catalog, default_database, rowTimeT, watermark=[SOURCE_WATERMARK()]]], fields=[id, rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

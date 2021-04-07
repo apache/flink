@@ -147,10 +147,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
      */
     private void checkTasksStarted(List<Execution> toTrigger) throws CheckpointException {
         for (Execution execution : toTrigger) {
-            if (execution.getState() == ExecutionState.CREATED
-                    || execution.getState() == ExecutionState.SCHEDULED
-                    || execution.getState() == ExecutionState.DEPLOYING) {
-
+            if (execution.getState() != ExecutionState.RUNNING) {
                 throw new CheckpointException(
                         String.format(
                                 "Checkpoint triggering task %s of job %s has not being executed at the moment. "
@@ -297,7 +294,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
         for (int i = 0; i < prevJobEdges.size(); ++i) {
             if (prevJobEdges.get(i).getDistributionPattern() == DistributionPattern.POINTWISE) {
                 for (IntermediateResultPartitionID consumedPartitionId :
-                        vertex.getConsumedPartitions(i)) {
+                        vertex.getConsumedPartitionGroup(i)) {
                     ExecutionVertex precedentTask =
                             executionGraphAccessor
                                     .getResultPartitionOrThrow(consumedPartitionId)

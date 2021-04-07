@@ -64,37 +64,6 @@ public class AkkaOptions {
                     .withDescription(
                             "Timeout after which the startup of a remote component is considered being failed.");
 
-    /** Heartbeat interval of the transport failure detector. */
-    public static final ConfigOption<String> TRANSPORT_HEARTBEAT_INTERVAL =
-            ConfigOptions.key("akka.transport.heartbeat.interval")
-                    .stringType()
-                    .defaultValue("1000 s")
-                    .withDescription(
-                            "Heartbeat interval for Akka’s transport failure detector. Since Flink uses TCP, the detector"
-                                    + " is not necessary. Therefore, the detector is disabled by setting the interval to a very high value. In"
-                                    + " case you should need the transport failure detector, set the interval to some reasonable value. The"
-                                    + " interval value requires a time-unit specifier (ms/s/min/h/d).");
-
-    /** Allowed heartbeat pause for the transport failure detector. */
-    public static final ConfigOption<String> TRANSPORT_HEARTBEAT_PAUSE =
-            ConfigOptions.key("akka.transport.heartbeat.pause")
-                    .stringType()
-                    .defaultValue("6000 s")
-                    .withDescription(
-                            "Acceptable heartbeat pause for Akka’s transport failure detector. Since Flink uses TCP, the"
-                                    + " detector is not necessary. Therefore, the detector is disabled by setting the pause to a very high value."
-                                    + " In case you should need the transport failure detector, set the pause to some reasonable value."
-                                    + " The pause value requires a time-unit specifier (ms/s/min/h/d).");
-
-    /** Detection threshold of transport failure detector. */
-    public static final ConfigOption<Double> TRANSPORT_THRESHOLD =
-            ConfigOptions.key("akka.transport.threshold")
-                    .doubleType()
-                    .defaultValue(300.0)
-                    .withDescription(
-                            "Threshold for the transport failure detector. Since Flink uses TCP, the detector is not"
-                                    + " necessary and, thus, the threshold is set to a high value.");
-
     /** Override SSL support for the Akka transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED =
             ConfigOptions.key("akka.ssl.enabled")

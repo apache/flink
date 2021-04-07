@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
-import org.apache.flink.types.Row;
 
 /**
  * The {@link PythonCoFlatMapOperator} is responsible for executing the Python CoMap Function.
@@ -34,59 +33,38 @@ import org.apache.flink.types.Row;
  */
 @Internal
 public class PythonCoFlatMapOperator<IN1, IN2, OUT>
-        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
+        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT, OUT> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String CO_FLAT_MAP_CODER_URN = "flink:coder:co_flat_map:v1";
+    private static final String CO_FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
     public PythonCoFlatMapOperator(
             Configuration config,
             TypeInformation<IN1> inputTypeInfo1,
             TypeInformation<IN2> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo,
-            boolean isKeyedStream) {
+            DataStreamPythonFunctionInfo pythonFunctionInfo) {
         super(
                 config,
                 inputTypeInfo1,
                 inputTypeInfo2,
                 outputTypeInfo,
                 pythonFunctionInfo,
-                isKeyedStream);
-    }
-
-    @Override
-    public String getFunctionUrn() {
-        return CO_FLAT_MAP_CODER_URN;
+                CO_FLAT_MAP_CODER_URN);
     }
 
     @Override
     public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        bais.setBuffer(rawResult, 0, length);
-        Row outputRow = runnerOutputTypeSerializer.deserialize(baisWrapper);
-
-        // The output row is in a form of [Flag, OutputValue]
-        // [1, value]: the output value of the flatMap1
-        // [2, value]: the output value of the flatMap2
-        // [3, null]: end of the flatMap1
-        // [4, null]: end of the flatMap2
-        if ((byte) outputRow.getField(0)
-                == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.LEFT.value) {
-            collector.setAbsoluteTimestamp(bufferedTimestamp1.peek());
-            collector.collect(outputRow.getField(1));
-        } else if ((byte) outputRow.getField(0)
-                == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.RIGHT.value) {
-            collector.setAbsoluteTimestamp(bufferedTimestamp2.peek());
-            collector.collect(outputRow.getField(1));
-        } else if ((byte) outputRow.getField(0)
-                == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.LEFT_END.value) {
-            bufferedTimestamp1.poll();
-        } else if ((byte) outputRow.getField(0)
-                == PythonOperatorUtils.CoFlatMapFunctionOutputFlag.RIGHT_END.value) {
-            bufferedTimestamp2.poll();
+        if (PythonOperatorUtils.endOfLastFlatMap(resultTuple.f1, resultTuple.f0)) {
+            bufferedTimestamp.poll();
+        } else {
+            byte[] rawResult = resultTuple.f0;
+            int length = resultTuple.f1;
+            bais.setBuffer(rawResult, 0, length);
+            collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
+            OUT outputRow = getRunnerOutputTypeSerializer().deserialize(baisWrapper);
+            collector.collect(outputRow);
         }
     }
 }

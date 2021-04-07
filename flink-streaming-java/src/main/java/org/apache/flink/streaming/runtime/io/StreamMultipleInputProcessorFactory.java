@@ -351,7 +351,11 @@ public class StreamMultipleInputProcessorFactory {
                 WatermarkGauge inputWatermarkGauge,
                 MultiStreamStreamStatusTracker streamStatusTracker,
                 int inputIndex) {
-            super(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauge);
+            super(
+                    chainedSourceOutput,
+                    streamStatusMaintainer,
+                    new SimpleCounter(),
+                    inputWatermarkGauge);
             this.streamStatusTracker = streamStatusTracker;
             this.inputIndex = inputIndex;
         }

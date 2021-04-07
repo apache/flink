@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.Preconditions;
@@ -185,7 +186,7 @@ public class DefaultSlotTracker implements SlotTracker {
         Preconditions.checkNotNull(slot);
         Preconditions.checkState(
                 jobId.equals(slot.getJobId()),
-                "Job ID from slot status updated (%s) does not match currently assigned job ID (%s) for slot %s.",
+                "Job ID from slot status update (%s) does not match currently assigned job ID (%s) for slot %s.",
                 jobId,
                 slot.getJobId(),
                 slot.getSlotId());
@@ -208,6 +209,19 @@ public class DefaultSlotTracker implements SlotTracker {
     @Override
     public Collection<TaskManagerSlotInformation> getFreeSlots() {
         return Collections.unmodifiableCollection(freeSlots.values());
+    }
+
+    @Override
+    public Collection<TaskExecutorConnection> getTaskExecutorsWithAllocatedSlotsForJob(
+            JobID jobId) {
+        final Map<InstanceID, TaskExecutorConnection> taskExecutorConnections = new HashMap<>();
+        for (DeclarativeTaskManagerSlot value : slots.values()) {
+            if (jobId.equals(value.getJobId())) {
+                taskExecutorConnections.put(
+                        value.getInstanceId(), value.getTaskManagerConnection());
+            }
+        }
+        return taskExecutorConnections.values();
     }
 
     @VisibleForTesting

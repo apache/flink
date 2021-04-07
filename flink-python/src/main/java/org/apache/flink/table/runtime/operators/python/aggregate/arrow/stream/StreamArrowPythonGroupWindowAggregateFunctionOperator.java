@@ -54,9 +54,11 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -94,6 +96,13 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
      * </ul>
      */
     private final long allowedLateness;
+
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    private final ZoneId shiftTimeZone;
 
     /** Interface for working with time and timers. */
     private transient InternalTimerService<W> internalTimerService;
@@ -139,12 +148,14 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             long allowedLateness,
             PlannerNamedWindowProperty[] namedProperties,
             int[] groupingSet,
-            int[] udafInputOffsets) {
+            int[] udafInputOffsets,
+            ZoneId shiftTimeZone) {
         super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.trigger = trigger;
         this.allowedLateness = allowedLateness;
+        this.shiftTimeZone = shiftTimeZone;
         buildWindow(namedProperties);
     }
 
@@ -190,6 +201,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         } else {
             timestamp = internalTimerService.currentProcessingTime();
         }
+        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
+
         // Given the timestamp and element, returns the set of windows into which it
         // should be placed.
         elementWindows = windowAssigner.assignWindows(input, timestamp);
@@ -399,12 +412,16 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                     windowProperty.setField(
                             i,
                             TimestampData.fromEpochMillis(
-                                    ((TimeWindow) currentWindow).getEnd() - 1));
+                                    getShiftEpochMills(((TimeWindow) currentWindow).getEnd() - 1)));
                     break;
                 case PROC_TIME_ATTRIBUTE:
                     windowProperty.setField(i, TimestampData.fromEpochMillis(-1));
             }
         }
+    }
+
+    private long getShiftEpochMills(long utcTimestampMills) {
+        return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
     }
 
     private void cleanWindowIfNeeded(W window, long currentTime) throws Exception {
@@ -436,7 +453,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
         }
 
         boolean onProcessingTime(long time) throws Exception {
-            return trigger.onProcessingTime(time, window);
+            return trigger.onProcessingTime(
+                    TimeWindowUtil.toUtcTimestampMills(time, shiftTimeZone), window);
         }
 
         boolean onEventTime(long time) throws Exception {
@@ -464,7 +482,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         @Override
         public void registerProcessingTimeTimer(long time) {
-            internalTimerService.registerProcessingTimeTimer(window, time);
+            internalTimerService.registerProcessingTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override
@@ -474,7 +493,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         @Override
         public void deleteProcessingTimeTimer(long time) {
-            internalTimerService.deleteProcessingTimeTimer(window, time);
+            internalTimerService.deleteProcessingTimeTimer(
+                    window, TimeWindowUtil.toEpochMillsForTimer(time, shiftTimeZone));
         }
 
         @Override

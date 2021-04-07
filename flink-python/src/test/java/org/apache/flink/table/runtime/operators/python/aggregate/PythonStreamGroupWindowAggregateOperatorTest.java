@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -66,6 +67,9 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMi
  */
 public class PythonStreamGroupWindowAggregateOperatorTest
         extends AbstractPythonStreamAggregateOperatorTest {
+
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
+
     @Test
     public void testGroupWindowAggregateFunction() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
@@ -328,6 +332,7 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 new PlannerNamedWindowProperty[] {
                     new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
                     new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
-                });
+                },
+                UTC_ZONE_ID);
     }
 }

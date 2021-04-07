@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -27,6 +29,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 /** Utility class to encapsulate the logic of building a {@link ResultPartition} instance. */
 public class ResultPartitionBuilder {
@@ -49,6 +52,11 @@ public class ResultPartitionBuilder {
     private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
     private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
+
+    private BatchShuffleReadBufferPool batchShuffleReadBufferPool =
+            new BatchShuffleReadBufferPool(64 * 32 * 1024, 32 * 1024);
+
+    private ExecutorService batchShuffleReadIOExecutor = Executors.newDirectExecutorService();
 
     private int networkBuffersPerChannel = 1;
 
@@ -116,6 +124,8 @@ public class ResultPartitionBuilder {
                         environment.getConfiguration().floatingNetworkBuffersPerGate())
                 .setNetworkBufferSize(environment.getConfiguration().networkBufferSize())
                 .setNetworkBufferPool(environment.getNetworkBufferPool())
+                .setBatchShuffleReadBufferPool(environment.getBatchShuffleReadBufferPool())
+                .setBatchShuffleReadIOExecutor(environment.getBatchShuffleReadIOExecutor())
                 .setSortShuffleMinBuffers(environment.getConfiguration().sortShuffleMinBuffers())
                 .setSortShuffleMinParallelism(
                         environment.getConfiguration().sortShuffleMinParallelism());
@@ -123,6 +133,18 @@ public class ResultPartitionBuilder {
 
     public ResultPartitionBuilder setNetworkBufferPool(NetworkBufferPool networkBufferPool) {
         this.networkBufferPool = networkBufferPool;
+        return this;
+    }
+
+    public ResultPartitionBuilder setBatchShuffleReadBufferPool(
+            BatchShuffleReadBufferPool batchShuffleReadBufferPool) {
+        this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
+        return this;
+    }
+
+    public ResultPartitionBuilder setBatchShuffleReadIOExecutor(
+            ExecutorService batchShuffleReadIOExecutor) {
+        this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         return this;
     }
 
@@ -187,6 +209,8 @@ public class ResultPartitionBuilder {
                         partitionManager,
                         channelManager,
                         networkBufferPool,
+                        batchShuffleReadBufferPool,
+                        batchShuffleReadIOExecutor,
                         blockingSubpartitionType,
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,

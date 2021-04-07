@@ -261,45 +261,23 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
-  def streamGroupAggregationToString(
+  def streamWindowAggregationToString(
       inputRowType: RelDataType,
       outputRowType: RelDataType,
-      aggCalls: Seq[AggregateCall],
-      grouping: Array[Int]): String = {
-    val inputFieldNames = inputRowType.getFieldNames
-    val outputFieldNames = outputRowType.getFieldNames
-    val aggStrings = aggCalls.map { call =>
-      val distinct = if (call.isDistinct) {
-        if (call.getArgList.size() == 0) {
-          "DISTINCT"
-        } else {
-          "DISTINCT "
-        }
-      } else {
-        ""
-      }
-      val newArgList = call.getArgList.map(_.toInt).toList
-      val argListNames = if (newArgList.nonEmpty) {
-        newArgList.map(inputFieldNames(_)).mkString(", ")
-      } else {
-        "*"
-      }
-
-      if (call.filterArg >= 0 && call.filterArg < inputFieldNames.size) {
-        s"${call.getAggregation}($distinct$argListNames) FILTER " +
-          s"${inputFieldNames(call.filterArg)}"
-      } else {
-        s"${call.getAggregation}($distinct$argListNames)"
-      }
-    }
-    (grouping.map(inputFieldNames(_)) ++ aggStrings).zip(
-      grouping.indices.map(outputFieldNames(_)) ++ outputFieldNames).map {
-      case (f, o) => if (f == o) {
-        f
-      } else {
-        s"$f AS $o"
-      }
-    }.mkString(", ")
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean = false,
+      isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey = None,
+      windowProperties,
+      isLocal,
+      isGlobal)
   }
 
   def streamGroupAggregationToString(
@@ -310,8 +288,29 @@ object RelExplainUtil {
       shuffleKey: Option[Array[Int]] = None,
       isLocal: Boolean = false,
       isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey,
+      windowProperties = Seq(),
+      isLocal,
+      isGlobal)
+  }
+
+  private def stringifyStreamAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      shuffleKey: Option[Array[Int]],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean,
+      isGlobal: Boolean): String = {
 
     val aggInfos = aggInfoList.aggInfos
+    val actualAggInfos = aggInfoList.getActualAggregateInfos
     val distinctInfos = aggInfoList.distinctInfos
     val distinctFieldNames = distinctInfos.indices.map(index => s"distinct$$$index")
     // aggIndex -> distinctFieldName
@@ -345,7 +344,7 @@ object RelExplainUtil {
       val aggOutputFieldNames = localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
       stringifyGlobalAggregates(aggInfos, distinctAggs, aggOutputFieldNames)
     } else {
-      stringifyAggregates(aggInfos, distinctAggs, aggFilters, inFieldNames)
+      stringifyAggregates(actualAggInfos, distinctAggs, aggFilters, inFieldNames)
     }
 
     val isTableAggregate =
@@ -356,13 +355,19 @@ object RelExplainUtil {
       val accFieldNames = inputRowType.getFieldNames.toList.toArray
       grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
     } else if (isTableAggregate) {
-      outFieldNames.slice(0, grouping.length) ++
-        Seq(s"(${outFieldNames.drop(grouping.length).mkString(", ")})")
+      val groupingOutNames = outFieldNames.slice(0, grouping.length)
+      val aggOutNames = List(s"(${outFieldNames.drop(grouping.length)
+        .dropRight(windowProperties.length).mkString(", ")})")
+      val propertyOutNames = outFieldNames.slice(
+        outFieldNames.length - windowProperties.length,
+        outFieldNames.length)
+      groupingOutNames ++ aggOutNames ++ propertyOutNames
     } else {
       outFieldNames
     }
 
-    (groupingNames ++ aggStrings).zip(outputFieldNames).map {
+    val propStrings = windowProperties.map(_.getProperty.toString)
+    (groupingNames ++ aggStrings ++ propStrings).zip(outputFieldNames).map {
       case (f, o) if f == o => f
       case (f, o) => s"$f AS $o"
     }.mkString(", ")
@@ -743,7 +748,11 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
-  def streamWindowAggregationToString(
+  /**
+   * @deprecated please use [[streamWindowAggregationToString()]] instead.
+   */
+  @Deprecated
+  def legacyStreamWindowAggregationToString(
       inputType: RelDataType,
       grouping: Array[Int],
       rowType: RelDataType,

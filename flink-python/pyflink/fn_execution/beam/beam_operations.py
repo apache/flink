@@ -19,7 +19,8 @@
 from apache_beam.runners.worker import bundle_processor, operation_specs
 
 from pyflink.fn_execution import flink_fn_execution_pb2
-from pyflink.fn_execution.coders import from_proto, from_type_info_proto
+from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
+    CountWindowCoder
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 import pyflink.fn_execution.operations as operations
@@ -107,7 +108,7 @@ def create_data_stream_keyed_process_function(factory, transform_id, transform_p
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
-        operations.KeyedProcessFunctionOperation)
+        operations.DataStreamKeyedStatefulOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
@@ -118,6 +119,17 @@ def create_table_aggregate_function(factory, transform_id, transform_proto, para
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
         operations.StreamGroupTableAggregateOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    operations.STREAM_GROUP_WINDOW_AGGREGATE_URN,
+    flink_fn_execution_pb2.UserDefinedAggregateFunctions)
+def create_group_window_aggregate_function(factory, transform_id, transform_proto, parameter,
+                                           consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatefulFunctionOperation,
+        operations.StreamGroupWindowAggregateOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
@@ -134,10 +146,17 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
     if hasattr(spec.serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.
         key_row_coder = from_proto(spec.serialized_fn.key_type)
+        if spec.serialized_fn.HasField('group_window'):
+            if spec.serialized_fn.group_window.is_time_window:
+                window_coder = TimeWindowCoder()
+            else:
+                window_coder = CountWindowCoder()
+        else:
+            window_coder = None
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,
-            None,
+            window_coder,
             spec.serialized_fn.state_cache_size,
             spec.serialized_fn.map_state_read_cache_size,
             spec.serialized_fn.map_state_write_cache_size)
@@ -150,7 +169,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             consumers,
             internal_operation_cls,
             keyed_state_backend)
-    elif internal_operation_cls == operations.KeyedProcessFunctionOperation:
+    elif internal_operation_cls == operations.DataStreamKeyedStatefulOperation:
         key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,

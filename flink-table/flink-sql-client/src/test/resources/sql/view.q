@@ -27,13 +27,13 @@ CREATE TABLE orders (
 ) with (
  'connector' = 'datagen'
 );
-[INFO] Table has been created.
+[INFO] Execute statement succeed.
 !info
 
 # ==== test temporary view =====
 
 create temporary view v1 as select * from orders;
-[INFO] View has been created.
+[INFO] Execute statement succeed.
 !info
 
 create temporary view v1 as select * from orders;
@@ -43,12 +43,12 @@ org.apache.flink.table.api.ValidationException: Temporary table '`default_catalo
 
 # TODO: warning users the view already exists
 create temporary view if not exists v1 as select * from orders;
-[INFO] View has been created.
+[INFO] Execute statement succeed.
 !info
 
 # test create a view reference another view
 create temporary view if not exists v2 as select * from v1;
-[INFO] View has been created.
+[INFO] Execute statement succeed.
 !info
 
 show tables;
@@ -76,7 +76,7 @@ show views;
 
 # register a permanent view with the duplicate name with temporary view
 create view v1 as select * from orders;
-[INFO] View has been created.
+[INFO] Execute statement succeed.
 !info
 
 # test create duplicate view
@@ -98,15 +98,15 @@ show views;
 
 # test describe view
 describe v1;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
@@ -118,12 +118,12 @@ org.apache.flink.table.api.ValidationException: Temporary view with identifier '
 
 # although temporary v2 needs temporary v1, dropping v1 first does not throw exception
 drop temporary view v1;
-[INFO] View has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # now we can drop permanent view v1
 drop view v1;
-[INFO] View has been removed.
+[INFO] Execute statement succeed.
 !info
 
 # test drop invalid table
@@ -135,37 +135,37 @@ org.apache.flink.table.api.ValidationException: View with identifier 'default_ca
 # ===== test playing with keyword identifiers =====
 
 create view `mod` as select * from orders;
-[INFO] View has been created.
+[INFO] Execute statement succeed.
 !info
 
 describe `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
 desc `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
 drop view `mod`;
-[INFO] View has been removed.
+[INFO] Execute statement succeed.
 !info
 
 show tables;

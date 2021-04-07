@@ -153,11 +153,13 @@ public class DataStructureConvertersTest {
                         .convertedTo(Instant.class, Instant.ofEpochSecond(12_345))
                         .convertedTo(Integer.class, 12_345)
                         .convertedTo(Long.class, 12_345_000L)
+                        .convertedTo(java.sql.Timestamp.class, new Timestamp(12_345_000L))
                         .convertedTo(
                                 TimestampData.class, TimestampData.fromEpochMillis(12_345_000)),
                 TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
                         .convertedTo(Instant.class, Instant.ofEpochSecond(12_345, 1_000_000))
                         .convertedTo(Long.class, 12_345_001L)
+                        .convertedTo(java.sql.Timestamp.class, new Timestamp(12_345_001L))
                         .convertedTo(
                                 TimestampData.class, TimestampData.fromEpochMillis(12_345_001)),
                 TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))

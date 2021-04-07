@@ -256,6 +256,53 @@ final class TableToDataStreamITCase extends StreamingTestBase {
     assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
   }
 
+  @Test
+  def testFromTableToAppendStreamWithProctime(): Unit = {
+    val data = List(rowOf(localDateTime(1L), "A"))
+
+    val dataId: String = TestValuesTableFactory.registerData(data)
+
+    val sourceDDL =
+      s"""
+         |CREATE TABLE src (
+         |  ts TIMESTAMP(3),
+         |  a STRING,
+         |  proctime as PROCTIME()
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+      """.stripMargin
+
+    tEnv.executeSql(sourceDDL)
+    val dataStream = tEnv.sqlQuery("SELECT a, ts, proctime FROM src").toAppendStream[Row]
+
+    val expected = "Row(a: String, ts: LocalDateTime, proctime: Instant)"
+    assertEquals(expected, dataStream.dataType.toString)
+  }
+
+  @Test
+  def testHasFromDataStreamToTableBackDataStreamWithProctime(): Unit = {
+    val data = Seq((1L, "A"))
+
+    val ds1 = env.fromCollection(data)
+      // second to millisecond
+      .assignAscendingTimestamps(_._1 * 1000L)
+    val table = ds1.toTable(tEnv, 'ts, 'a, 'proctime.proctime())
+    tEnv.registerTable("t1", table)
+
+    val ds2 = tEnv.sqlQuery(
+      """
+        | SELECT CONCAT(a, '_'), ts, proctime
+        | FROM t1
+      """.stripMargin
+    ).toAppendStream[Row]
+
+    val expected = "Row(EXPR$0: String, ts: Long, proctime: Instant)"
+    assertEquals(expected, ds2.dataType.toString)
+  }
+
+
   private def localDateTime(epochSecond: Long): LocalDateTime = {
     LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }

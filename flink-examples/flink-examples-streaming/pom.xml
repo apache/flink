@@ -212,30 +212,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- IncrementalLearning -->
-					<execution>
-						<id>IncrementalLearning</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>IncrementalLearning</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/ml/*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
 					<!-- WindowJoin -->
 					<execution>
 						<id>WindowJoin</id>
@@ -557,7 +533,6 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-IncrementalLearning.jar" tofile="${project.basedir}/target/IncrementalLearning.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />

@@ -170,6 +170,14 @@ public class YamlConfigUtils {
         return ENTRY_TO_OPTION.get(key);
     }
 
+    public static boolean isOptionHasDeprecatedKey(String key) {
+        return OPTION_TO_ENTRY.containsKey(key);
+    }
+
+    public static String getDeprecatedNameWithOptionKey(String key) {
+        return OPTION_TO_ENTRY.get(key);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     public static void setKeyToConfiguration(

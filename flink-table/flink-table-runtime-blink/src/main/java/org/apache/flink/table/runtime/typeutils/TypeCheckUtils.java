@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -57,8 +58,8 @@ public class TypeCheckUtils {
     }
 
     public static boolean isProcTime(LogicalType type) {
-        return type instanceof TimestampType
-                && ((TimestampType) type).getKind() == TimestampKind.PROCTIME;
+        return type instanceof LocalZonedTimestampType
+                && ((LocalZonedTimestampType) type).getKind() == TimestampKind.PROCTIME;
     }
 
     public static boolean isTimeInterval(LogicalType type) {

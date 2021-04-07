@@ -25,6 +25,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.types.RowKind;
 
@@ -49,6 +50,7 @@ import java.io.Serializable;
  *
  * <ul>
  *   <li>{@link SupportsWatermarkPushDown}
+ *   <li>{@link SupportsSourceWatermark}
  *   <li>{@link SupportsFilterPushDown}
  *   <li>{@link SupportsAggregatePushDown}
  *   <li>{@link SupportsProjectionPushDown}

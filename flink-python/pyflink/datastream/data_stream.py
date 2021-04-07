@@ -15,18 +15,25 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import typing
 import uuid
-from typing import Callable, Union, List
+import warnings
+from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
+from pyflink.datastream.window import TimeWindowSerializer, CountWindowSerializer, WindowAssigner, \
+    Trigger, WindowOperationDescriptor
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.datastream.connectors import Sink
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
     ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
-    PartitionerFunctionWrapper, RuntimeContext, ProcessFunction, KeyedProcessFunction
-from pyflink.datastream.state import ValueStateDescriptor, ValueState
+    PartitionerFunctionWrapper, RuntimeContext, ProcessFunction, KeyedProcessFunction, \
+    KeyedCoProcessFunction, WindowFunction, ProcessWindowFunction, InternalWindowFunction, \
+    InternalIterableWindowFunction, InternalIterableProcessWindowFunction
+from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
@@ -247,6 +254,7 @@ class DataStream(object):
         ))
 
     def flat_map(self, func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
                  result_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
@@ -255,9 +263,17 @@ class DataStream(object):
         other features provided by the RichFUnction.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
+        :param output_type: The type information of output data.
         :param result_type: The type information of output data.
+                            (Deprecated, use output_type instead)
         :return: The transformed DataStream.
         """
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -268,7 +284,7 @@ class DataStream(object):
             self,
             func,  # type: ignore
             flink_fn_execution_pb2.UserDefinedDataStreamFunction.FLAT_MAP,  # type: ignore
-            result_type)
+            output_type)
         return DataStream(self._j_data_stream.transform(
             "FLAT_MAP",
             j_output_type_info,
@@ -276,14 +292,23 @@ class DataStream(object):
         ))
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         """
         Creates a new KeyedStream that uses the provided key for partitioning its operator states.
 
         :param key_selector: The KeySelector to be used for extracting the key for partitioning.
+        :param key_type: The type information describing the key type.
         :param key_type_info: The type information describing the key type.
+                              (Deprecated, use key_type instead)
         :return: The DataStream with partitioned state(i.e. KeyedStream).
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
+
         if callable(key_selector):
             key_selector = KeySelectorFunctionWrapper(key_selector)  # type: ignore
         if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
@@ -291,12 +316,12 @@ class DataStream(object):
 
         output_type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        if key_type_info is None:
-            key_type_info = Types.PICKLED_BYTE_ARRAY()
+        if key_type is None:
+            key_type = Types.PICKLED_BYTE_ARRAY()
 
         intermediate_map_stream = self.map(
             lambda x: Row(key_selector.get_key(x), x),  # type: ignore
-            output_type=Types.ROW([key_type_info, output_type_info]))
+            output_type=Types.ROW([key_type, output_type_info]))
         gateway = get_gateway()
         JKeyByKeySelector = gateway.jvm.KeyByKeySelector
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -304,7 +329,7 @@ class DataStream(object):
         key_stream = KeyedStream(
             intermediate_map_stream._j_data_stream.keyBy(
                 JKeyByKeySelector(),
-                Types.ROW([key_type_info]).get_java_type_info()), output_type_info,
+                Types.ROW([key_type]).get_java_type_info()), output_type_info,
             self)
         return key_stream
 
@@ -334,7 +359,7 @@ class DataStream(object):
 
         type_info = typeinfo._from_java_type(
             self._j_data_stream.getTransformation().getOutputType())
-        data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)
+        data_stream = self.flat_map(FilterFlatMap(func), output_type=type_info)
         data_stream.name("Filter")
         return data_stream
 
@@ -594,6 +619,18 @@ class DataStream(object):
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
+    def sink_to(self, sink: Sink) -> 'DataStreamSink':
+        """
+        Adds the given sink to this DataStream. Only streams with sinks added will be
+        executed once the
+        :func:`~pyflink.datastream.stream_execution_environment.StreamExecutionEnvironment.execute`
+        method is called.
+
+        :param sink: The user defined sink.
+        :return: The closed DataStream.
+        """
+        return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
+
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
             -> Union['CloseableIterator', list]:
         """
@@ -806,8 +843,17 @@ class KeyedStream(DataStream):
                 return [self._underlying.map(value)]
         return self.process(KeyedMapFunctionWrapper(func), output_type)  # type: ignore
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], result_type: TypeInformation = None)\
+    def flat_map(self,
+                 func: Union[Callable, FlatMapFunction],
+                 output_type: TypeInformation = None,
+                 result_type: TypeInformation = None) \
             -> 'DataStream':
+        if result_type is not None:
+            warnings.warn("The parameter result_type is deprecated in 1.13. "
+                          "Use output_type instead.", DeprecationWarning)
+        if output_type is None:
+            output_type = result_type
+
         if not isinstance(func, FlatMapFunction):
             if callable(func):
                 func = FlatMapFunctionWrapper(func)  # type: ignore
@@ -827,7 +873,7 @@ class KeyedStream(DataStream):
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 yield from self._underlying.flat_map(value)
-        return self.process(KeyedFlatMapFunctionWrapper(func), result_type)  # type: ignore
+        return self.process(KeyedFlatMapFunctionWrapper(func), output_type)  # type: ignore
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
@@ -851,28 +897,45 @@ class KeyedStream(DataStream):
                 raise TypeError("The input func must be a ReduceFunction or a callable function.")
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
-        class KeyedReduceFunctionWrapper(KeyedProcessFunction):
+        class KeyedReduceProcessFunction(KeyedProcessFunction):
 
-            def __init__(self, underlying: ReduceFunction):
-                self._underlying = underlying
-                self._reduce_state_name = "_reduce_state" + str(uuid.uuid4())
+            def __init__(self, reduce_function: ReduceFunction):
+                self._reduce_function = reduce_function
                 self._reduce_value_state = None  # type: ValueState
 
             def open(self, runtime_context: RuntimeContext):
                 self._reduce_value_state = runtime_context.get_state(
-                    ValueStateDescriptor(self._reduce_state_name, output_type))
-                self._underlying.open(runtime_context)
+                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
+                self._reduce_function.open(runtime_context)
+                from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
+                self._in_batch_execution_mode = \
+                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 reduce_value = self._reduce_value_state.value()
                 if reduce_value is not None:
-                    reduce_value = self._underlying.reduce(reduce_value, value)
+                    reduce_value = self._reduce_function.reduce(reduce_value, value)
                 else:
+                    # register a timer for emitting the result at the end when this is the
+                    # first input for this key
+                    if self._in_batch_execution_mode:
+                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
                     reduce_value = value
                 self._reduce_value_state.update(reduce_value)
-                return [reduce_value]
+                if self._in_batch_execution_mode:
+                    # only emitting the result when all the data for a key is received
+                    return []
+                else:
+                    return [reduce_value]
 
-        return self.process(KeyedReduceFunctionWrapper(func), output_type)  # type: ignore
+            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                current_value = self._reduce_value_state.value()
+                if current_value is not None:
+                    return [current_value]
+                else:
+                    return []
+
+        return self.process(KeyedReduceProcessFunction(func), output_type)  # type: ignore
 
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         if callable(func):
@@ -880,7 +943,7 @@ class KeyedStream(DataStream):
         elif not isinstance(func, FilterFunction):
             raise TypeError("The input func must be a FilterFunction or a callable function.")
 
-        class KeyedFilterFunctionWrapper(KeyedProcessFunction):
+        class KeyedFilterProcessFunction(KeyedProcessFunction):
 
             def __init__(self, underlying: FilterFunction):
                 self._underlying = underlying
@@ -897,14 +960,15 @@ class KeyedStream(DataStream):
                 else:
                     return []
         return self.process(
-            KeyedFilterFunctionWrapper(func), self._original_data_type_info)  # type: ignore
+            KeyedFilterProcessFunction(func), self._original_data_type_info)  # type: ignore
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'KeyedStream':
-        return self._origin_stream.key_by(key_selector, key_type_info)
+        return self._origin_stream.key_by(key_selector, key_type, key_type_info)
 
     def process(self, func: KeyedProcessFunction,  # type: ignore
                 output_type: TypeInformation = None) -> 'DataStream':
@@ -933,6 +997,20 @@ class KeyedStream(DataStream):
             "KEYED PROCESS",
             j_output_type_info,
             j_python_data_stream_function_operator))
+
+    def window(self, window_assigner: WindowAssigner) -> 'WindowedStream':
+        """
+        Windows this data stream to a WindowedStream, which evaluates windows over a key
+        grouped stream. Elements are put into windows by a WindowAssigner. The grouping of
+        elements is done both by key and by window.
+
+        A Trigger can be defined to specify when windows are evaluated. However, WindowAssigners
+        have a default Trigger that is used if a Trigger is not specified.
+
+        :param window_assigner: The WindowAssigner that assigns elements to windows.
+        :return: The trigger windows data stream.
+        """
+        return WindowedStream(self, window_assigner)
 
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
@@ -1006,6 +1084,117 @@ class KeyedStream(DataStream):
         raise Exception("Setting slot sharing group for KeyedStream is not supported.")
 
 
+class WindowedStream(object):
+    """
+    A WindowedStream represents a data stream where elements are grouped by key, and for each
+    key, the stream of elements is split into windows based on a WindowAssigner. Window emission
+    is triggered based on a Trigger.
+
+    The windows are conceptually evaluated for each key individually, meaning windows can trigger
+    at different points for each key.
+
+    Note that the WindowedStream is purely an API construct, during runtime the WindowedStream will
+    be collapsed together with the KeyedStream and the operation over the window into one single
+    operation.
+    """
+
+    def __init__(self, keyed_stream: KeyedStream, window_assigner: WindowAssigner):
+        self._keyed_stream = keyed_stream
+        self._window_assigner = window_assigner
+        self._allowed_lateness = 0
+        self._window_trigger = None  # type: Trigger
+
+    def get_execution_environment(self):
+        return self._keyed_stream.get_execution_environment()
+
+    def get_input_type(self):
+        return self._keyed_stream.get_type()
+
+    def trigger(self, trigger: Trigger):
+        """
+        Sets the Trigger that should be used to trigger window emission.
+        """
+        self._window_trigger = trigger
+        return self
+
+    def allowed_lateness(self, time_ms: int):
+        """
+        Sets the time by which elements are allowed to be late. Elements that arrive behind the
+        watermark by more than the specified time will be dropped. By default, the allowed lateness
+        is 0.
+
+        Setting an allowed lateness is only valid for event-time windows.
+        """
+        self._allowed_lateness = time_ms
+        return self
+
+    def apply(self,
+              window_function: WindowFunction, result_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Note that this function requires that all data in the windows is buffered until the window
+        is evaluated, as the function provides no means of incremental aggregation.
+
+        :param window_function: The window function.
+        :param result_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+        """
+        internal_window_function = InternalIterableWindowFunction(
+            window_function)  # type: InternalWindowFunction
+        return self._get_result_data_stream(internal_window_function, result_type)
+
+    def process(self,
+                process_window_function: ProcessWindowFunction,
+                result_type: TypeInformation = None):
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Note that this function requires that all data in the windows is buffered until the window
+        is evaluated, as the function provides no means of incremental aggregation.
+
+        :param process_window_function: The window function.
+        :param result_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+        """
+        internal_window_function = InternalIterableProcessWindowFunction(
+            process_window_function)  # type: InternalWindowFunction
+        return self._get_result_data_stream(internal_window_function, result_type)
+
+    def _get_result_data_stream(
+            self, internal_window_function: InternalWindowFunction, result_type):
+        if self._window_trigger is None:
+            self._window_trigger = self._window_assigner.get_default_trigger(
+                self.get_execution_environment())
+        window_serializer = self._window_assigner.get_window_serializer()
+        window_state_descriptor = ListStateDescriptor(
+            "window-contents", self.get_input_type())
+        window_operation_descriptor = WindowOperationDescriptor(
+            self._window_assigner,
+            self._window_trigger,
+            self._allowed_lateness,
+            window_state_descriptor,
+            window_serializer,
+            internal_window_function)
+
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_function_operator, j_output_type_info = \
+            _get_one_input_stream_operator(
+                self._keyed_stream,
+                window_operation_descriptor,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
+                result_type)
+
+        return DataStream(self._keyed_stream._j_data_stream.transform(
+            "WINDOW",
+            j_output_type_info,
+            j_python_data_stream_function_operator))
+
+
 class ConnectedStreams(object):
     """
     ConnectedStreams represent two connected streams of (possibly) different data types.
@@ -1028,6 +1217,7 @@ class ConnectedStreams(object):
 
     def key_by(self, key_selector1: Union[Callable, KeySelector],
                key_selector2: Union[Callable, KeySelector],
+               key_type: TypeInformation = None,
                key_type_info: TypeInformation = None) -> 'ConnectedStreams':
         """
         KeyBy operation for connected data stream. Assigns keys to the elements of
@@ -1036,9 +1226,16 @@ class ConnectedStreams(object):
 
         :param key_selector1: The `KeySelector` used for grouping the first input.
         :param key_selector2: The `KeySelector` used for grouping the second input.
+        :param key_type: The type information of the common key type.
         :param key_type_info: The type information of the common key type.
+                              (Deprecated, use key_type instead)
         :return: The partitioned `ConnectedStreams`
         """
+        if key_type_info is not None:
+            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
+                          "Use key_type instead.", DeprecationWarning)
+        if key_type is None:
+            key_type = key_type_info
 
         ds1 = self.stream1
         ds2 = self.stream2
@@ -1047,8 +1244,8 @@ class ConnectedStreams(object):
         if isinstance(self.stream2, KeyedStream):
             ds2 = self.stream2._origin_stream
         return ConnectedStreams(
-            ds1.key_by(key_selector1, key_type_info),
-            ds2.key_by(key_selector2, key_type_info))
+            ds1.key_by(key_selector1, key_type),
+            ds2.key_by(key_selector2, key_type))
 
     def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
@@ -1065,15 +1262,35 @@ class ConnectedStreams(object):
         if not isinstance(func, CoMapFunction):
             raise TypeError("The input function must be a CoMapFunction!")
 
-        # get connected stream
-        j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
-        from pyflink.fn_execution import flink_fn_execution_pb2
-        j_operator, j_output_type = _get_two_input_stream_operator(
-            self,
-            func,
-            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP,  # type: ignore
-            output_type)
-        return DataStream(j_connected_stream.transform("Co-Map", j_output_type, j_operator))
+        if self._is_keyed_stream():
+
+            class KeyedCoMapCoProcessFunction(KeyedCoProcessFunction):
+                def __init__(self, underlying: CoMapFunction):
+                    self._underlying = underlying
+
+                def open(self, runtime_context: RuntimeContext):
+                    self._underlying.open(runtime_context)
+
+                def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                    return [self._underlying.map1(value)]
+
+                def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                    return [self._underlying.map2(value)]
+
+                def close(self):
+                    self._underlying.close()
+
+            return self.process(KeyedCoMapCoProcessFunction(func), output_type)
+        else:
+            # get connected stream
+            j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
+            from pyflink.fn_execution import flink_fn_execution_pb2
+            j_operator, j_output_type = _get_two_input_stream_operator(
+                self,
+                func,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP,  # type: ignore
+                output_type)
+            return DataStream(j_connected_stream.transform("Co-Map", j_output_type, j_operator))
 
     def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
@@ -1091,30 +1308,72 @@ class ConnectedStreams(object):
         if not isinstance(func, CoFlatMapFunction):
             raise TypeError("The input must be a CoFlatMapFunction!")
 
+        if self._is_keyed_stream():
+
+            class KeyedCoFlatMapProcessFunction(KeyedCoProcessFunction):
+
+                def __init__(self, underlying: CoFlatMapFunction):
+                    self._underlying = underlying
+
+                def open(self, runtime_context: RuntimeContext):
+                    self._underlying.open(runtime_context)
+
+                def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                    yield from self._underlying.flat_map1(value)
+
+                def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+                    yield from self._underlying.flat_map2(value)
+
+                def close(self):
+                    self._underlying.close()
+
+            return self.process(KeyedCoFlatMapProcessFunction(func), output_type)
+        else:
+            # get connected stream
+            j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
+            from pyflink.fn_execution import flink_fn_execution_pb2
+            j_operator, j_output_type = _get_two_input_stream_operator(
+                self,
+                func,
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP,  # type: ignore
+                output_type)
+            return DataStream(
+                j_connected_stream.transform("Co-Flat Map", j_output_type, j_operator))
+
+    def process(self, func: KeyedCoProcessFunction, output_type: TypeInformation = None) \
+            -> 'DataStream':
+        if not self._is_keyed_stream():
+            raise TypeError("Currently only keyed co process operation is supported.!")
+        if not isinstance(func, KeyedCoProcessFunction):
+            raise TypeError("The input must be a KeyedCoProcessFunction!")
+
         # get connected stream
         j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_operator, j_output_type = _get_two_input_stream_operator(
             self,
             func,
-            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP,  # type: ignore
+            flink_fn_execution_pb2.UserDefinedDataStreamFunction.KEYED_CO_PROCESS,  # type: ignore
             output_type)
-        return DataStream(j_connected_stream.transform("Co-Flat Map", j_output_type, j_operator))
+        return DataStream(
+            j_connected_stream.transform("Keyed Co-Process", j_output_type, j_operator))
 
     def _is_keyed_stream(self):
         return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)
 
 
 def _get_one_input_stream_operator(data_stream: DataStream,
-                                   func: Union[Function, FunctionWrapper],
+                                   func: Union[Function,
+                                               FunctionWrapper,
+                                               WindowOperationDescriptor],
                                    func_type: int,
-                                   type_info: Union[TypeInformation, List] = None):
+                                   output_type: Union[TypeInformation, List] = None):
     """
     Create a Java one input stream operator.
 
     :param func: a function object that implements the Function interface.
     :param func_type: function type, supports MAP, FLAT_MAP, etc.
-    :param type_info: the data type of the function output data.
+    :param output_type: the data type of the function output data.
     :return: A Java operator which is responsible for execution user defined python function.
     """
 
@@ -1122,12 +1381,12 @@ def _get_one_input_stream_operator(data_stream: DataStream,
     import cloudpickle
     serialized_func = cloudpickle.dumps(func)
     j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
-    if type_info is None:
+    if output_type is None:
         output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
-    elif isinstance(type_info, list):
-        output_type_info = RowTypeInfo(type_info)
+    elif isinstance(output_type, list):
+        output_type_info = RowTypeInfo(output_type)
     else:
-        output_type_info = type_info
+        output_type_info = output_type
 
     j_output_type_info = output_type_info.get_java_type_info()
 
@@ -1152,6 +1411,24 @@ def _get_one_input_stream_operator(data_stream: DataStream,
         JDataStreamPythonFunctionOperator = gateway.jvm.PythonProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_PROCESS:  # type: ignore
         JDataStreamPythonFunctionOperator = gateway.jvm.PythonKeyedProcessOperator
+    elif func_type == UserDefinedDataStreamFunction.WINDOW:  # type: ignore
+        window_serializer = typing.cast(WindowOperationDescriptor, func).window_serializer
+        if isinstance(window_serializer, TimeWindowSerializer):
+            j_namespace_serializer = \
+                gateway.jvm.org.apache.flink.table.runtime.operators.window.TimeWindow.Serializer()
+        elif isinstance(window_serializer, CountWindowSerializer):
+            j_namespace_serializer = \
+                gateway.jvm.org.apache.flink.table.runtime.operators.window.CountWindow.Serializer()
+        else:
+            j_namespace_serializer = \
+                gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()
+        j_python_function_operator = gateway.jvm.PythonKeyedProcessOperator(
+            j_conf,
+            j_input_types,
+            j_output_type_info,
+            j_data_stream_python_function_info,
+            j_namespace_serializer)
+        return j_python_function_operator, j_output_type_info
     else:
         raise TypeError("Unsupported function type: %s" % func_type)
 
@@ -1205,6 +1482,8 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoFlatMapOperator
     elif func_type == UserDefinedDataStreamFunction.CO_MAP:  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoMapOperator
+    elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
+        JTwoInputPythonFunctionOperator = gateway.jvm.PythonKeyedCoProcessOperator
     else:
         raise TypeError("Unsupported function type: %s" % func_type)
 
@@ -1215,8 +1494,7 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
         j_input_types1,
         j_input_types2,
         j_output_type_info,
-        j_data_stream_python_function_info,
-        connected_streams._is_keyed_stream())
+        j_data_stream_python_function_info)
 
     return j_python_data_stream_function_operator, j_output_type_info
 

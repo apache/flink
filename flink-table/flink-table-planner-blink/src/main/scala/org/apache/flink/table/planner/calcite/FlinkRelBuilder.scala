@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlKind
@@ -84,11 +84,10 @@ class FlinkRelBuilder(
   }
 
   def expand(
-      outputRowType: RelDataType,
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): RelBuilder = {
     val input = build()
-    val expand = expandFactory.createExpand(input, outputRowType, projects, expandIdIndex)
+    val expand = expandFactory.createExpand(input, projects, expandIdIndex)
     push(expand)
   }
 

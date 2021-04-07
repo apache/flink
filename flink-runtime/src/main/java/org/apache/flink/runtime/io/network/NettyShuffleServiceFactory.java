@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -37,8 +38,12 @@ import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.Hardware;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -119,6 +124,25 @@ public class NettyShuffleServiceFactory
                         config.networkBufferSize(),
                         config.getRequestSegmentsTimeout());
 
+        // we create a separated buffer pool here for batch shuffle instead of reusing the network
+        // buffer pool directly to avoid potential side effects of memory contention, for example,
+        // dead lock or "insufficient network buffer" error
+        BatchShuffleReadBufferPool batchShuffleReadBufferPool =
+                new BatchShuffleReadBufferPool(
+                        config.batchShuffleReadMemoryBytes(), config.networkBufferSize());
+
+        // we create a separated IO executor pool here for batch shuffle instead of reusing the
+        // TaskManager IO executor pool directly to avoid the potential side effects of execution
+        // contention, for example, too long IO or waiting time leading to starvation or timeout
+        ExecutorService batchShuffleReadIOExecutor =
+                Executors.newFixedThreadPool(
+                        Math.max(
+                                1,
+                                Math.min(
+                                        batchShuffleReadBufferPool.getMaxConcurrentRequests(),
+                                        4 * Hardware.getNumberCPUCores())),
+                        new ExecutorThreadFactory("blocking-shuffle-io"));
+
         registerShuffleMetrics(metricGroup, networkBufferPool);
 
         ResultPartitionFactory resultPartitionFactory =
@@ -126,6 +150,8 @@ public class NettyShuffleServiceFactory
                         resultPartitionManager,
                         fileChannelManager,
                         networkBufferPool,
+                        batchShuffleReadBufferPool,
+                        batchShuffleReadIOExecutor,
                         config.getBlockingSubpartitionType(),
                         config.networkBuffersPerChannel(),
                         config.floatingNetworkBuffersPerGate(),
@@ -155,6 +181,8 @@ public class NettyShuffleServiceFactory
                 fileChannelManager,
                 resultPartitionFactory,
                 singleInputGateFactory,
-                ioExecutor);
+                ioExecutor,
+                batchShuffleReadBufferPool,
+                batchShuffleReadIOExecutor);
     }
 }

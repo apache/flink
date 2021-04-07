@@ -169,6 +169,11 @@ barrier. This will make all registered event-time timers fire, thus flushing out
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
 shut down. This allows the job to finish processing all in-flight data.
 
+{{< hint danger >}}
+Use the `--drain` flag if you want to terminate the job permanently.
+If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
+{{< /hint >}}
+
 #### Cancelling a Job Ungracefully
 
 Cancelling a job can be achieved through the `cancel` action:
@@ -182,11 +187,11 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
 will be stopped.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
-    savepoint as part of the job cancellation. This feature is deprecated. Use the 
-    <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
-</p>
+{{< hint danger >}}
+The `--withSavepoint` flag allows creating a savepoint as part of the job cancellation.
+This feature is deprecated.
+Use the [stop](#stopping-a-job-gracefully-creating-a-final-savepoint) action instead.
+{{< /hint >}}
 
 ### Starting a Job from a Savepoint
 
@@ -346,7 +351,9 @@ pages of the documentation.
 Currently, users are able to submit a PyFlink job via the CLI. It does not require to specify the
 JAR file path or the entry main class, which is different from the Java job submission.
 
-<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
+{{< hint info >}}
+When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
+{{< /hint >}}
 ```bash
 $ python --version
 # the version printed here must be 3.6+

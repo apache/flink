@@ -27,8 +27,8 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -36,9 +36,10 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -52,8 +53,11 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
 
     @Test
     public void gettingUnknownVertexThrowsException() {
+        final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =
+                Collections.emptyMap();
         final DefaultSchedulingPipelinedRegion pipelinedRegion =
-                new DefaultSchedulingPipelinedRegion(Collections.emptySet());
+                new DefaultSchedulingPipelinedRegion(
+                        Collections.emptySet(), resultPartitionById::get);
         final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
         try {
             pipelinedRegion.getVertex(unknownVertexId);
@@ -72,8 +76,10 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
                         () -> ExecutionState.CREATED);
 
         final Set<DefaultExecutionVertex> vertices = Collections.singleton(vertex);
+        final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =
+                Collections.emptyMap();
         final DefaultSchedulingPipelinedRegion pipelinedRegion =
-                new DefaultSchedulingPipelinedRegion(vertices);
+                new DefaultSchedulingPipelinedRegion(vertices, resultPartitionById::get);
         final Iterator<DefaultExecutionVertex> vertexIterator =
                 pipelinedRegion.getVertices().iterator();
 
@@ -126,11 +132,20 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
                 Iterables.getOnlyElement(vertexB0.getConsumedResults()).getId();
 
         final Set<IntermediateResultPartitionID> secondPipelinedRegionConsumedResults =
-                IterableUtils.toStream(secondPipelinedRegion.getConsumedResults())
-                        .map(DefaultResultPartition::getId)
-                        .collect(Collectors.toSet());
+                new HashSet<>();
+        for (ConsumedPartitionGroup consumedPartitionGroup :
+                secondPipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+            for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+                if (!secondPipelinedRegion.contains(
+                        topology.getResultPartition(partitionId).getProducer().getId())) {
+                    secondPipelinedRegionConsumedResults.add(partitionId);
+                }
+            }
+        }
 
-        assertThat(firstPipelinedRegion.getConsumedResults().iterator().hasNext(), is(false));
+        assertThat(
+                firstPipelinedRegion.getAllBlockingConsumedPartitionGroups().iterator().hasNext(),
+                is(false));
         assertThat(secondPipelinedRegionConsumedResults, contains(b0ConsumedResultPartition));
     }
 }

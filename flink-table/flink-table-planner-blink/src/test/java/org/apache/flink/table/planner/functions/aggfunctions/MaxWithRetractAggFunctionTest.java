@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -371,6 +372,72 @@ public final class MaxWithRetractAggFunctionTest {
         protected AggregateFunction<TimestampData, MaxWithRetractAccumulator<TimestampData>>
                 getAggregator() {
             return new MaxWithRetractAggFunction<>(DataTypes.TIMESTAMP(9).getLogicalType());
+        }
+    }
+
+    /** Test for {@link LocalZonedTimestampType}. */
+    public static final class LocalTimestampMaxWithRetractAggFunctionTest
+            extends MaxWithRetractAggFunctionTestBase<TimestampData> {
+
+        @Override
+        protected List<List<TimestampData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            TimestampData.fromEpochMillis(0),
+                            TimestampData.fromEpochMillis(1000),
+                            TimestampData.fromEpochMillis(100),
+                            null,
+                            TimestampData.fromEpochMillis(10)),
+                    Arrays.asList(null, null, null, null, null),
+                    Arrays.asList(null, TimestampData.fromEpochMillis(1)));
+        }
+
+        @Override
+        protected List<TimestampData> getExpectedResults() {
+            return Arrays.asList(
+                    TimestampData.fromEpochMillis(1000), null, TimestampData.fromEpochMillis(1));
+        }
+
+        @Override
+        protected AggregateFunction<TimestampData, MaxWithRetractAccumulator<TimestampData>>
+                getAggregator() {
+            return new MaxWithRetractAggFunction<>(DataTypes.TIMESTAMP_LTZ(3).getLogicalType());
+        }
+    }
+
+    /** Test for {@link LocalZonedTimestampType} with precision 9. */
+    public static final class LocalTimestamp9MaxWithRetractAggFunctionTest
+            extends MaxWithRetractAggFunctionTestBase<TimestampData> {
+
+        @Override
+        protected List<List<TimestampData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            TimestampData.fromEpochMillis(0, 0),
+                            TimestampData.fromEpochMillis(1000, 0),
+                            TimestampData.fromEpochMillis(1000, 1),
+                            TimestampData.fromEpochMillis(100, 0),
+                            null,
+                            TimestampData.fromEpochMillis(10, 0)),
+                    Arrays.asList(null, null, null, null, null),
+                    Arrays.asList(
+                            null,
+                            TimestampData.fromEpochMillis(1, 0),
+                            TimestampData.fromEpochMillis(1, 1)));
+        }
+
+        @Override
+        protected List<TimestampData> getExpectedResults() {
+            return Arrays.asList(
+                    TimestampData.fromEpochMillis(1000, 1),
+                    null,
+                    TimestampData.fromEpochMillis(1, 1));
+        }
+
+        @Override
+        protected AggregateFunction<TimestampData, MaxWithRetractAccumulator<TimestampData>>
+                getAggregator() {
+            return new MaxWithRetractAggFunction<>(DataTypes.TIMESTAMP_LTZ(9).getLogicalType());
         }
     }
 

@@ -128,23 +128,5 @@
             <td>Integer</td>
             <td>Number of messages that are processed in a batch before returning the thread to the pool. Low values denote a fair scheduling whereas high values can increase the performance at the cost of unfairness.</td>
         </tr>
-        <tr>
-            <td><h5>akka.transport.heartbeat.interval</h5></td>
-            <td style="word-wrap: break-word;">"1000 s"</td>
-            <td>String</td>
-            <td>Heartbeat interval for Akka’s transport failure detector. Since Flink uses TCP, the detector is not necessary. Therefore, the detector is disabled by setting the interval to a very high value. In case you should need the transport failure detector, set the interval to some reasonable value. The interval value requires a time-unit specifier (ms/s/min/h/d).</td>
-        </tr>
-        <tr>
-            <td><h5>akka.transport.heartbeat.pause</h5></td>
-            <td style="word-wrap: break-word;">"6000 s"</td>
-            <td>String</td>
-            <td>Acceptable heartbeat pause for Akka’s transport failure detector. Since Flink uses TCP, the detector is not necessary. Therefore, the detector is disabled by setting the pause to a very high value. In case you should need the transport failure detector, set the pause to some reasonable value. The pause value requires a time-unit specifier (ms/s/min/h/d).</td>
-        </tr>
-        <tr>
-            <td><h5>akka.transport.threshold</h5></td>
-            <td style="word-wrap: break-word;">300.0</td>
-            <td>Double</td>
-            <td>Threshold for the transport failure detector. Since Flink uses TCP, the detector is not necessary and, thus, the threshold is set to a high value.</td>
-        </tr>
     </tbody>
 </table>

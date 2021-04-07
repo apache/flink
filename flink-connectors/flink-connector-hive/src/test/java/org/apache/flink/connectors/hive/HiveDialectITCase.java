@@ -32,6 +32,11 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -66,11 +71,13 @@ import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Test Hive syntax when Hive dialect is used. */
@@ -118,6 +125,20 @@ public class HiveDialectITCase {
         tableEnvInternal.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         assertNotEquals(
                 parser.getClass().getName(), tableEnvInternal.getParser().getClass().getName());
+    }
+
+    @Test
+    public void testParseCommand() {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+
+        // hive dialect should use HiveParser
+        assertTrue(parser instanceof HiveParser);
+        assertThat(parser.parse("HELP").get(0), instanceOf(HelpOperation.class));
+        assertThat(parser.parse("clear").get(0), instanceOf(ClearOperation.class));
+        assertThat(parser.parse("SET").get(0), instanceOf(SetOperation.class));
+        assertThat(parser.parse("ResET").get(0), instanceOf(ResetOperation.class));
+        assertThat(parser.parse("Exit").get(0), instanceOf(QuitOperation.class));
     }
 
     @Test
@@ -242,7 +263,7 @@ public class HiveDialectITCase {
         Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
         tableEnv.executeSql(
                 "create table tbl (x int,y int not null disable novalidate rely,z int not null disable novalidate norely,"
-                        + "constraint pk_name primary key (x) rely)");
+                        + "constraint pk_name primary key (x) disable rely)");
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
         TableSchema tableSchema = catalogTable.getSchema();
@@ -257,6 +278,27 @@ public class HiveDialectITCase {
         assertTrue(
                 "NORELY NOT NULL shouldn't be reflected in schema",
                 tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+    }
+
+    @Test
+    public void testCreateTableAs() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql("create table tbl1 as select x from src group by x").await();
+        Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
+        assertEquals(1, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("int", hiveTable.getSd().getCols().get(0).getType());
+        tableEnv.executeSql(
+                        "create table default.tbl2 stored as orc as select x,max(y) as m from src group by x order by x limit 1")
+                .await();
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
+        assertEquals(2, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("m", hiveTable.getSd().getCols().get(1).getName());
+        assertEquals(
+                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
     }
 
     @Test
@@ -524,7 +566,8 @@ public class HiveDialectITCase {
     public void testFunction() throws Exception {
         // create function
         tableEnv.executeSql(
-                String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
+                String.format(
+                        "create function default.my_abs as '%s'", GenericUDFAbs.class.getName()));
         List<Row> functions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
         assertTrue(functions.toString().contains("my_abs"));

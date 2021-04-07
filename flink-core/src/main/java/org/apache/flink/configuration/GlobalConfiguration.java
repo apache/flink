@@ -128,7 +128,7 @@ public final class GlobalConfiguration {
                     "The Flink config file '"
                             + yamlConfigFile
                             + "' ("
-                            + confDirFile.getAbsolutePath()
+                            + yamlConfigFile.getAbsolutePath()
                             + ") does not exist.");
         }
 

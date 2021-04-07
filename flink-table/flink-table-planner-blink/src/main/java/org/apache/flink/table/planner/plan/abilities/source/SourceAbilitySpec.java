@@ -39,7 +39,8 @@ import java.util.Optional;
     @JsonSubTypes.Type(value = PartitionPushDownSpec.class),
     @JsonSubTypes.Type(value = ProjectPushDownSpec.class),
     @JsonSubTypes.Type(value = ReadingMetadataSpec.class),
-    @JsonSubTypes.Type(value = WatermarkPushDownSpec.class)
+    @JsonSubTypes.Type(value = WatermarkPushDownSpec.class),
+    @JsonSubTypes.Type(value = SourceWatermarkSpec.class)
 })
 @Internal
 public interface SourceAbilitySpec {

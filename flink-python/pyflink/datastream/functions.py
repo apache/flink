@@ -16,9 +16,8 @@
 # limitations under the License.
 ################################################################################
 
-import abc
-from abc import ABC
-from typing import Union, Any, Dict
+from abc import ABC, abstractmethod
+from typing import Union, Any, Generic, TypeVar, Iterable
 
 from py4j.java_gateway import JavaObject
 
@@ -28,6 +27,7 @@ from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListState
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.timerservice import TimerService
 from pyflink.java_gateway import get_gateway
+from pyflink.metrics import MetricGroup
 
 __all__ = [
     'RuntimeContext',
@@ -44,78 +44,22 @@ __all__ = [
     'SinkFunction',
     'ProcessFunction',
     'KeyedProcessFunction',
-    'TimerService']
+    'KeyedCoProcessFunction',
+    'TimerService',
+    'WindowFunction',
+    'ProcessWindowFunction']
 
 
-class RuntimeContext(object):
-    """
-    A RuntimeContext contains information about the context in which functions are executed.
-    Each parallel instance of the function will have a context through which it can access
-    static contextual information (such as the current parallelism).
-    """
+W = TypeVar('W')
+W2 = TypeVar('W2')
+IN = TypeVar('IN')
+OUT = TypeVar('OUT')
+KEY = TypeVar('KEY')
 
-    def __init__(self,
-                 task_name: str,
-                 task_name_with_subtasks: str,
-                 number_of_parallel_subtasks: int,
-                 max_number_of_parallel_subtasks: int,
-                 index_of_this_subtask: int,
-                 attempt_number: int,
-                 job_parameters: Dict[str, str]):
-        self._task_name = task_name
-        self._task_name_with_subtasks = task_name_with_subtasks
-        self._number_of_parallel_subtasks = number_of_parallel_subtasks
-        self._max_number_of_parallel_subtasks = max_number_of_parallel_subtasks
-        self._index_of_this_subtask = index_of_this_subtask
-        self._attempt_number = attempt_number
-        self._job_parameters = job_parameters
 
-    def get_task_name(self) -> str:
-        """
-        Returns the name of the task in which the UDF runs, as assigned during plan construction.
-        """
-        return self._task_name
+class KeyedStateStore(ABC):
 
-    def get_number_of_parallel_subtasks(self) -> int:
-        """
-        Gets the parallelism with which the parallel task runs.
-        """
-        return self._number_of_parallel_subtasks
-
-    def get_max_number_of_parallel_subtasks(self) -> int:
-        """
-        Gets the number of max-parallelism with which the parallel task runs.
-        """
-        return self._max_number_of_parallel_subtasks
-
-    def get_index_of_this_subtask(self) -> int:
-        """
-        Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
-        parallelism-1 (parallelism as returned by
-        :func:`~RuntimeContext.get_number_of_parallel_subtasks`).
-        """
-        return self._index_of_this_subtask
-
-    def get_attempt_number(self) -> int:
-        """
-        Gets the attempt number of this parallel subtask. First attempt is numbered 0.
-        """
-        return self._attempt_number
-
-    def get_task_name_with_subtasks(self) -> str:
-        """
-        Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
-        where 3 would be (:func:`~RuntimeContext.get_index_of_this_subtask` + 1), and 6 would be
-        :func:`~RuntimeContext.get_number_of_parallel_subtasks`.
-        """
-        return self._task_name_with_subtasks
-
-    def get_job_parameter(self, key: str, default_value: str):
-        """
-        Gets the global job parameter value associated with the given key as a string.
-        """
-        return self._job_parameters[key] if key in self._job_parameters else default_value
-
+    @abstractmethod
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
         """
         Gets a handle to the system's key/value state. THe key/value state is only accessible if the
@@ -129,6 +73,7 @@ class RuntimeContext(object):
         """
         pass
 
+    @abstractmethod
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
         """
         Gets a handle to the system's key/value list state. This state is similar to the value state
@@ -139,6 +84,7 @@ class RuntimeContext(object):
         """
         pass
 
+    @abstractmethod
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
         """
         Gets a handle to the system's key/value map state. This state is similar to the value state
@@ -148,6 +94,7 @@ class RuntimeContext(object):
         """
         pass
 
+    @abstractmethod
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
         """
         Gets a handle to the system's key/value reducing state. This state is similar to the state
@@ -158,6 +105,7 @@ class RuntimeContext(object):
         """
         pass
 
+    @abstractmethod
     def get_aggregating_state(
             self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
         """
@@ -170,7 +118,75 @@ class RuntimeContext(object):
         pass
 
 
-class Function(abc.ABC):
+class RuntimeContext(KeyedStateStore):
+    """
+    A RuntimeContext contains information about the context in which functions are executed.
+    Each parallel instance of the function will have a context through which it can access
+    static contextual information (such as the current parallelism).
+    """
+
+    @abstractmethod
+    def get_task_name(self) -> str:
+        """
+        Returns the name of the task in which the UDF runs, as assigned during plan construction.
+        """
+        pass
+
+    @abstractmethod
+    def get_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the parallelism with which the parallel task runs.
+        """
+        pass
+
+    @abstractmethod
+    def get_max_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the number of max-parallelism with which the parallel task runs.
+        """
+        pass
+
+    @abstractmethod
+    def get_index_of_this_subtask(self) -> int:
+        """
+        Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+        parallelism-1 (parallelism as returned by
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`).
+        """
+        pass
+
+    @abstractmethod
+    def get_attempt_number(self) -> int:
+        """
+        Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+        """
+        pass
+
+    @abstractmethod
+    def get_task_name_with_subtasks(self) -> str:
+        """
+        Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+        where 3 would be (:func:`~RuntimeContext.get_index_of_this_subtask` + 1), and 6 would be
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`.
+        """
+        pass
+
+    @abstractmethod
+    def get_job_parameter(self, key: str, default_value: str):
+        """
+        Gets the global job parameter value associated with the given key as a string.
+        """
+        pass
+
+    @abstractmethod
+    def get_metrics_group(self) -> MetricGroup:
+        """
+        Gets the metric group.
+        """
+        pass
+
+
+class Function(ABC):
     """
     The base class for all user-defined functions.
     """
@@ -195,7 +211,7 @@ class MapFunction(Function):
         >>> new_ds = ds.map(MyMapFunction())
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def map(self, value):
         """
         The mapping method. Takes an element from the input data and transforms it into exactly one
@@ -222,7 +238,7 @@ class CoMapFunction(Function):
         >>> new_ds = ds1.connect(ds2).map(MyCoMapFunction())
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def map1(self, value):
         """
         This method is called for each element in the first of the connected streams.
@@ -232,7 +248,7 @@ class CoMapFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def map2(self, value):
         """
         This method is called for each element in the second of the connected streams.
@@ -256,7 +272,7 @@ class FlatMapFunction(Function):
         >>> new_ds = ds.flat_map(MyFlatMapFunction())
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def flat_map(self, value):
         """
         The core mthod of the FlatMapFunction. Takes an element from the input data and transforms
@@ -306,7 +322,7 @@ class CoFlatMapFunction(Function):
         >>> new_ds = ds1.connect(ds2).flat_map(MyCoFlatMapFunction())
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def flat_map1(self, value):
         """
         This method is called for each element in the first of the connected streams.
@@ -316,7 +332,7 @@ class CoFlatMapFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def flat_map2(self, value):
         """
         This method is called for each element in the second of the connected streams.
@@ -341,7 +357,7 @@ class ReduceFunction(Function):
         >>> new_ds = ds.key_by(lambda x: x[1]).reduce(MyReduceFunction())
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def reduce(self, value1, value2):
         """
         The core method of ReduceFunction, combining two values into one value of the same type.
@@ -377,7 +393,7 @@ class AggregateFunction(Function):
     new accumulator whenever a new aggregation is started.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def create_accumulator(self):
         """
         Creates a new accumulator, starting a new aggregate.
@@ -393,7 +409,7 @@ class AggregateFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def add(self, value, accumulator):
         """
         Adds the given input value to the given accumulator, returning the new accumulator value.
@@ -406,7 +422,7 @@ class AggregateFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_result(self, accumulator):
         """
         Gets the result of the aggregation from the accumulator.
@@ -416,7 +432,7 @@ class AggregateFunction(Function):
         """
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def merge(self, acc_a, acc_b):
         """
         Merges two accumulators, returning an accumulator with the merged state.
@@ -439,7 +455,7 @@ class KeySelector(Function):
     same. The extractor takes an object an returns the deterministic key for that object.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_key(self, value):
         """
         User-defined function that deterministically extracts the key from an object.
@@ -465,7 +481,7 @@ class FilterFunction(Function):
     predicate is applied. Violating this assumption can lead to incorrect results.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def filter(self, value):
         """
         The filter function that evaluates the predicate.
@@ -481,7 +497,7 @@ class Partitioner(Function):
     Function to implement a custom partition assignment for keys.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def partition(self, key: Any, num_partitions: int) -> int:
         """
         Computes the partition for the given key.
@@ -708,20 +724,20 @@ class ProcessFunction(Function):
     the ProcessFunction is applied on a KeyedStream.
     """
 
-    class Context(abc.ABC):
+    class Context(ABC):
         """
         Information available in an invocation of process_element(value, ctx, out) or
         on_timer(value, ctx, out).
         """
 
-        @abc.abstractmethod
+        @abstractmethod
         def timer_service(self) -> TimerService:
             """
             A Timer service for querying time and registering timers.
             """
             pass
 
-        @abc.abstractmethod
+        @abstractmethod
         def timestamp(self) -> int:
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
@@ -731,7 +747,7 @@ class ProcessFunction(Function):
             """
             pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def process_element(self, value, ctx: 'ProcessFunction.Context'):
         """
         Process one element from the input stream.
@@ -747,7 +763,7 @@ class ProcessFunction(Function):
         pass
 
 
-class KeyedProcessFunction(Function, ABC):
+class KeyedProcessFunction(Function):
     """
     A keyed function processes elements of a stream.
 
@@ -760,32 +776,20 @@ class KeyedProcessFunction(Function, ABC):
     the KeyedProcessFunction is applied on a KeyedStream.
     """
 
-    """
-    A function that process elements of a stream.
-
-    For every element in the input stream process_element(value, ctx, out) is invoked. This can
-    produce zero or more elements as output. Implementations can also query the time and set timers
-    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
-    can again produce zero or more elements as output and register further timers.
-
-    Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream.
-    """
-
     class Context(ABC):
 
-        @abc.abstractmethod
+        @abstractmethod
         def get_current_key(self):
             pass
 
-        @abc.abstractmethod
+        @abstractmethod
         def timer_service(self) -> TimerService:
             """
             A Timer service for querying time and registering timers.
             """
             pass
 
-        @abc.abstractmethod
+        @abstractmethod
         def timestamp(self) -> int:
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
@@ -797,7 +801,7 @@ class KeyedProcessFunction(Function, ABC):
 
     class OnTimerContext(Context):
 
-        @abc.abstractmethod
+        @abstractmethod
         def time_domain(self) -> TimeDomain:
             """
             The TimeDomain of the firing timer.
@@ -805,12 +809,12 @@ class KeyedProcessFunction(Function, ABC):
             """
             pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
         """
         Process one element from the input stream.
 
-        This function can output zero or more elements using the Collector parameter and also update
+        This function can output zero or more elements and also update
         internal state or set timers using the Context parameter.
 
         :param value: The input value.
@@ -831,3 +835,298 @@ class KeyedProcessFunction(Function, ABC):
                     invocation of this method, do not store it.
         """
         pass
+
+
+class KeyedCoProcessFunction(Function):
+    """
+A function that processes elements of two keyed streams and produces a single output one.
+
+The function will be called for every element in the input streams and can produce zero or
+more output elements. Contrary to the :class:`CoFlatMapFunction`, this function can also query the
+time (both event and processing) and set timers, through the provided {@link Context}. When
+reacting to the firing of set timers the function can emit yet more elements.
+
+An example use-case for connected streams would be the application of a set of rules that
+change over time ({@code stream A}) to the elements contained in another stream (stream {@code
+B}). The rules contained in {@code stream A} can be stored in the state and wait for new elements
+to arrive on {@code stream B}. Upon reception of a new element on {@code stream B}, the function
+can now apply the previously stored rules to the element and directly emit a result, and/or
+register a timer that will trigger an action in the future.
+    """
+
+    class Context(ABC):
+
+        @abstractmethod
+        def get_current_key(self):
+            pass
+
+        @abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    class OnTimerContext(Context):
+
+        @abstractmethod
+        def time_domain(self) -> TimeDomain:
+            """
+            The TimeDomain of the firing timer.
+            :return: The TimeDomain of current fired timer.
+            """
+            pass
+
+    @abstractmethod
+    def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+    @abstractmethod
+    def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
+        """
+        Process one element from the input stream.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+    def on_timer(self, timestamp: int, ctx: 'KeyedCoProcessFunction.OnTimerContext'):
+        """
+        Called when a timer set using TimerService fires.
+
+        :param timestamp: The timestamp of the firing timer.
+        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
+                    querying the TimeDomain of the firing timer and getting a TimerService for
+                    registering timers and querying the time. The context is only valid during the
+                    invocation of this method, do not store it.
+        """
+        pass
+
+
+class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
+    """
+    Base interface for functions that are evaluated over keyed (grouped) windows.
+    """
+
+    @abstractmethod
+    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param key: The key for which this window is evaluated.
+        :param window: The window that is being evaluated.
+        :param inputs: The elements in the window being evaluated.
+        """
+        pass
+
+
+class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
+    """
+    Base interface for functions that are evaluated over keyed (grouped) windows using a context
+    for retrieving extra information.
+    """
+
+    class Context(ABC, Generic[W2]):
+        """
+        The context holding window metadata.
+        """
+
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
+
+    @abstractmethod
+    def process(self,
+                key: KEY,
+                content: 'ProcessWindowFunction.Context',
+                elements: Iterable[IN]) -> Iterable[OUT]:
+        """
+        Evaluates the window and outputs none or several elements.
+
+        :param key: The key for which this window is evaluated.
+        :param content: The context in which the window is being evaluated.
+        :param elements: The elements in the window being evaluated.
+        :return: The iterable object which produces the elements to emit.
+        """
+        pass
+
+    @abstractmethod
+    def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+        """
+        Deletes any state in the :class:`Context` when the Window expires (the watermark passes its
+        max_timestamp + allowed_lateness).
+
+        :param context: The context to which the window is being evaluated.
+        """
+        pass
+
+
+class InternalWindowFunction(Function, Generic[IN, KEY, W]):
+
+    class InternalWindowContext(ABC):
+
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            pass
+
+        @abstractmethod
+        def current_watermark(self) -> int:
+            pass
+
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            pass
+
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            pass
+
+    @abstractmethod
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        pass
+
+    @abstractmethod
+    def clear(self, window: W, context: InternalWindowContext):
+        pass
+
+
+class InternalIterableWindowFunction(InternalWindowFunction[IN, KEY, W]):
+
+    def __init__(self, wrapped_function: WindowFunction):
+        self._wrapped_function = wrapped_function
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        return self._wrapped_function.apply(key, window, input_data)
+
+    def clear(self,
+              window: W,
+              context: InternalWindowFunction.InternalWindowContext):
+        pass
+
+
+class InternalProcessWindowContext(ProcessWindowFunction.Context[W]):
+
+    def __init__(self):
+        self._underlying = None
+        self._window = None
+
+    def window(self) -> W:
+        return self._window
+
+    def current_processing_time(self) -> int:
+        return self._underlying.current_processing_time()
+
+    def current_watermark(self) -> int:
+        return self._underlying.current_watermark()
+
+    def window_state(self) -> KeyedStateStore:
+        return self._underlying.window_state()
+
+    def global_state(self) -> KeyedStateStore:
+        return self._underlying.global_state()
+
+
+class InternalIterableProcessWindowFunction(InternalWindowFunction[IN, KEY, W]):
+
+    def __init__(self, wrapped_function: ProcessWindowFunction):
+        self._wrapped_function = wrapped_function
+        self._internal_context = \
+            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+
+    def open(self, runtime_context: RuntimeContext):
+        self._wrapped_function.open(runtime_context)
+
+    def close(self):
+        self._wrapped_function.close()
+
+    def process(self,
+                key: KEY,
+                window: W,
+                context: InternalWindowFunction.InternalWindowContext,
+                input_data: Iterable[IN]) -> Iterable[OUT]:
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        return self._wrapped_function.process(key, self._internal_context, input_data)
+
+    def clear(self, window: W, context: InternalWindowFunction.InternalWindowContext):
+        self._internal_context._window = window
+        self._internal_context._underlying = context
+        self._wrapped_function.clear(self._internal_context)

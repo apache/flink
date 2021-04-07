@@ -60,7 +60,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFactory;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
@@ -103,6 +103,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -203,7 +204,7 @@ public class HiveCatalog extends AbstractCatalog {
         hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         // add this to hiveConf to make sure table factory and source/sink see the same Hive version
         // as HiveCatalog
-        this.hiveConf.set(HiveCatalogValidator.CATALOG_HIVE_VERSION, hiveVersion);
+        this.hiveConf.set(HiveCatalogFactoryOptions.HIVE_VERSION.key(), hiveVersion);
 
         LOG.info("Created HiveCatalog '{}'", catalogName);
     }
@@ -223,6 +224,16 @@ public class HiveCatalog extends AbstractCatalog {
             }
         } else {
             hadoopConf = getHadoopConfiguration(hadoopConfDir);
+            if (hadoopConf == null) {
+                String possiableUsedConfFiles =
+                        "core-site.xml | hdfs-site.xml | yarn-site.xml | mapred-site.xml";
+                throw new CatalogException(
+                        "Failed to load the hadoop conf from specified path:" + hadoopConfDir,
+                        new FileNotFoundException(
+                                "Please check the path none of the conf files ("
+                                        + possiableUsedConfFiles
+                                        + ") exist in the folder."));
+            }
         }
         if (hadoopConf == null) {
             hadoopConf = new Configuration();

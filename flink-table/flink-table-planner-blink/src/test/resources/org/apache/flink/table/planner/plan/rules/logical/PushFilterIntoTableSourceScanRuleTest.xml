@@ -209,6 +209,31 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWithInterval">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MTable
+WHERE
+  TIMESTAMPADD(HOUR, 5, a) >= b
+  OR
+  TIMESTAMPADD(YEAR, 2, b) >= a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[OR(>=(+($0, *(3600000:INTERVAL HOUR, 5)), $1), >=(+($1, *(12:INTERVAL YEAR, 2)), $0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[OR(>=(+($0, *(3600000:INTERVAL HOUR, 5)), $1), >=(+($1, *(12:INTERVAL YEAR, 2)), $0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPartialPushDown2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE amount > 2 OR price > 10]]>

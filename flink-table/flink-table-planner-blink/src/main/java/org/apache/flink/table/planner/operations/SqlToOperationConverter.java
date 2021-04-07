@@ -49,8 +49,11 @@ import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
+import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
@@ -83,8 +86,10 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
@@ -136,9 +141,6 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlExplain;
-import org.apache.calcite.sql.SqlExplainFormat;
-import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -258,12 +260,17 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
         } else if (validated instanceof SqlShowPartitions) {
             return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
-        } else if (validated instanceof SqlExplain) {
-            return Optional.of(converter.convertExplain((SqlExplain) validated));
+        } else if (validated instanceof SqlRichExplain) {
+            return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
         } else if (validated instanceof SqlRichDescribeTable) {
             return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
         } else if (validated instanceof RichSqlInsert) {
             return Optional.of(converter.convertSqlInsert((RichSqlInsert) validated));
+        } else if (validated instanceof SqlBeginStatementSet) {
+            return Optional.of(
+                    converter.convertBeginStatementSet((SqlBeginStatementSet) validated));
+        } else if (validated instanceof SqlEndStatementSet) {
+            return Optional.of(converter.convertEndStatementSet((SqlEndStatementSet) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -595,6 +602,16 @@ public class SqlToOperationConverter {
                 dynamicOptions);
     }
 
+    /** Convert BEGIN STATEMENT SET statement. */
+    private Operation convertBeginStatementSet(SqlBeginStatementSet sqlBeginStatementSet) {
+        return new BeginStatementSetOperation();
+    }
+
+    /** Convert END statement. */
+    private Operation convertEndStatementSet(SqlEndStatementSet sqlEndStatementSet) {
+        return new EndStatementSetOperation();
+    }
+
     /** Convert use catalog statement. */
     private Operation convertUseCatalog(SqlUseCatalog useCatalog) {
         return new UseCatalogOperation(useCatalog.catalogName());
@@ -864,16 +881,9 @@ public class SqlToOperationConverter {
         return new ShowViewsOperation();
     }
 
-    /** Convert EXPLAIN statement. */
-    private Operation convertExplain(SqlExplain sqlExplain) {
-        Operation operation = convertSqlQuery(sqlExplain.getExplicandum());
-
-        if (sqlExplain.getDetailLevel() != SqlExplainLevel.EXPPLAN_ATTRIBUTES
-                || sqlExplain.getDepth() != SqlExplain.Depth.PHYSICAL
-                || sqlExplain.getFormat() != SqlExplainFormat.TEXT) {
-            throw new TableException("Only default behavior is supported now, EXPLAIN PLAN FOR xx");
-        }
-
+    /** Convert RICH EXPLAIN statement. */
+    private Operation convertRichExplain(SqlRichExplain sqlExplain) {
+        Operation operation = convertSqlQuery(sqlExplain.getStatement());
         return new ExplainOperation(operation);
     }
 

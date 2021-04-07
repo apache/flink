@@ -190,7 +190,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.set(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
 
-    util.addFunction(
+    util.addTemporarySystemFunction(
       "Rates",
       util.tableEnv.from("RatesHistory").createTemporalTableFunction($"rowtime", $"b"))
 

@@ -35,4 +35,12 @@ public interface ClockService {
     static ClockService of(InternalTimerService<?> timerService) {
         return timerService::currentProcessingTime;
     }
+
+    /**
+     * Creates a {@link ClockService} which assigns as current processing time the result of calling
+     * {@link System#currentTimeMillis()}.
+     */
+    static ClockService ofSystem() {
+        return System::currentTimeMillis;
+    }
 }

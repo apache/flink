@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ /** Counterpart of hive's FromClauseParser.g. */
 parser grammar FromClauseASTParser;
 
 options
 {
 output=AST;
-ASTLabelType=ASTNode;
+ASTLabelType=HiveParserASTNode;
 backtrack=false;
 k=3;
 }

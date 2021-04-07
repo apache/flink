@@ -45,7 +45,9 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -64,7 +66,6 @@ import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
-import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -72,6 +73,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
+import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -1381,6 +1383,28 @@ public class SqlToOperationConverterTest {
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assertThat(operation, instanceOf(CreateViewOperation.class));
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        final String sql = "BEGIN STATEMENT SET";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof BeginStatementSetOperation;
+        final BeginStatementSetOperation beginStatementSetOperation =
+                (BeginStatementSetOperation) operation;
+
+        assertEquals("BEGIN STATEMENT SET", beginStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testEnd() {
+        final String sql = "END";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof EndStatementSetOperation;
+        final EndStatementSetOperation endStatementSetOperation =
+                (EndStatementSetOperation) operation;
+
+        assertEquals("END", endStatementSetOperation.asSummaryString());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

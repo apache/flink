@@ -79,6 +79,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.hamcrest.Matchers;
@@ -391,7 +392,7 @@ public class DispatcherTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 5_000L)
+    @Test
     public void testNonBlockingJobSubmission() throws Exception {
         final OneShotLatch latch = new OneShotLatch();
         dispatcher =
@@ -423,11 +424,11 @@ public class DispatcherTest extends TestLogger {
         // ensure job is running
         CommonTestUtils.waitUntilCondition(
                 () -> dispatcherGateway.requestJobStatus(jobID, TIMEOUT).get() == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.of(10, ChronoUnit.SECONDS)),
+                Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)),
                 5L);
     }
 
-    @Test(timeout = 5_000L)
+    @Test
     public void testInvalidCallDuringInitialization() throws Exception {
         final OneShotLatch latch = new OneShotLatch();
         dispatcher =
@@ -465,7 +466,7 @@ public class DispatcherTest extends TestLogger {
                 () ->
                         dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT).get()
                                 == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.of(10, ChronoUnit.SECONDS)),
+                Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)),
                 5L);
     }
 
@@ -1026,6 +1027,9 @@ public class DispatcherTest extends TestLogger {
     private Tuple2<JobGraph, BlockingJobVertex> getBlockingJobGraphAndVertex() {
         final BlockingJobVertex blockingJobVertex = new BlockingJobVertex("testVertex");
         blockingJobVertex.setInvokableClass(NoOpInvokable.class);
+        // AdaptiveScheduler expects the parallelism to be set for each vertex
+        blockingJobVertex.setParallelism(1);
+
         return Tuple2.of(
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .setJobId(jobId)

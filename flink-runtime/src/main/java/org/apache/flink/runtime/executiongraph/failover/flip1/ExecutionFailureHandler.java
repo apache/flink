@@ -74,13 +74,15 @@ public class ExecutionFailureHandler {
      *
      * @param failedTask is the ID of the failed task vertex
      * @param cause of the task failure
+     * @param timestamp of the task failure
      * @return result of the failure handling
      */
     public FailureHandlingResult getFailureHandlingResult(
-            ExecutionVertexID failedTask, Throwable cause) {
+            ExecutionVertexID failedTask, Throwable cause, long timestamp) {
         return handleFailure(
                 failedTask,
                 cause,
+                timestamp,
                 failoverStrategy.getTasksNeedingRestart(failedTask, cause),
                 false);
     }
@@ -91,12 +93,15 @@ public class ExecutionFailureHandler {
      * for it.
      *
      * @param cause of the task failure
+     * @param timestamp of the task failure
      * @return result of the failure handling
      */
-    public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
+    public FailureHandlingResult getGlobalFailureHandlingResult(
+            final Throwable cause, long timestamp) {
         return handleFailure(
                 null,
                 cause,
+                timestamp,
                 IterableUtils.toStream(schedulingTopology.getVertices())
                         .map(SchedulingExecutionVertex::getId)
                         .collect(Collectors.toSet()),
@@ -106,6 +111,7 @@ public class ExecutionFailureHandler {
     private FailureHandlingResult handleFailure(
             @Nullable final ExecutionVertexID failingExecutionVertexId,
             final Throwable cause,
+            long timestamp,
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
@@ -113,6 +119,7 @@ public class ExecutionFailureHandler {
             return FailureHandlingResult.unrecoverable(
                     failingExecutionVertexId,
                     new JobException("The failure is not recoverable", cause),
+                    timestamp,
                     globalFailure);
         }
 
@@ -123,6 +130,7 @@ public class ExecutionFailureHandler {
             return FailureHandlingResult.restartable(
                     failingExecutionVertexId,
                     cause,
+                    timestamp,
                     verticesToRestart,
                     restartBackoffTimeStrategy.getBackoffTime(),
                     globalFailure);
@@ -131,6 +139,7 @@ public class ExecutionFailureHandler {
                     failingExecutionVertexId,
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
+                    timestamp,
                     globalFailure);
         }
     }

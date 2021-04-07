@@ -490,7 +490,7 @@ object GenerateUtils {
   def generateProctimeTimestamp(
       ctx: CodeGeneratorContext,
       contextTerm: String): GeneratedExpression = {
-    val resultType = new TimestampType(3)
+    val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
@@ -504,7 +504,7 @@ object GenerateUtils {
 
   def generateCurrentTimestamp(
       ctx: CodeGeneratorContext): GeneratedExpression = {
-    new CurrentTimePointCallGen(false).generate(ctx, Seq(), new TimestampType(3))
+    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new LocalZonedTimestampType(3))
   }
 
   def generateRowtimeAccess(

@@ -505,7 +505,8 @@ public class Task
     public boolean isBackPressured() {
         if (invokable == null
                 || consumableNotifyingPartitionWriters.length == 0
-                || executionState != ExecutionState.RUNNING) {
+                || (executionState != ExecutionState.RECOVERING
+                        && executionState != ExecutionState.RUNNING)) {
             return false;
         }
         for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
@@ -737,18 +738,33 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            // switch to the RUNNING state, if that fails, we have been canceled/failed in the
+            // switch to the RECOVERING state, if that fails, we have been canceled/failed in the
             // meantime
-            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
+            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RECOVERING)) {
+                throw new CancelTaskException();
+            }
+
+            taskManagerActions.updateTaskExecutionState(
+                    new TaskExecutionState(executionId, ExecutionState.RECOVERING));
+
+            // make sure the user code classloader is accessible thread-locally
+            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
+
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // Restore invokable data to the last valid state
+                invokable.restore();
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
+
+            if (!transitionState(ExecutionState.RECOVERING, ExecutionState.RUNNING)) {
                 throw new CancelTaskException();
             }
 
             // notify everyone that we switched to running
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.RUNNING));
-
-            // make sure the user code classloader is accessible thread-locally
-            executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
             // Monitor user codes from exiting JVM covering user function invocation. This can be
             // done in a finer-grained way like enclosing user callback functions individually,
@@ -817,15 +833,16 @@ public class Task
                     }
                 }
 
-                // transition into our final state. we should be either in DEPLOYING, RUNNING,
-                // CANCELING, or FAILED
+                // transition into our final state. we should be either in DEPLOYING, RECOVERING,
+                // RUNNING, CANCELING, or FAILED
                 // loop for multiple retries during concurrent state changes via calls to cancel()
-                // or
-                // to failExternally()
+                // or to failExternally()
                 while (true) {
                     ExecutionState current = this.executionState;
 
-                    if (current == ExecutionState.RUNNING || current == ExecutionState.DEPLOYING) {
+                    if (current == ExecutionState.RUNNING
+                            || current == ExecutionState.RECOVERING
+                            || current == ExecutionState.DEPLOYING) {
                         if (t instanceof CancelTaskException) {
                             if (transitionState(current, ExecutionState.CANCELED)) {
                                 cancelInvokable(invokable);
@@ -973,12 +990,20 @@ public class Task
             }
         }
 
-        for (InputGate inputGate : inputGates) {
-            try {
-                inputGate.close();
-            } catch (Throwable t) {
-                ExceptionUtils.rethrowIfFatalError(t);
-                LOG.error("Failed to release input gate for task {}.", taskNameWithSubtask, t);
+        AbstractInvokable invokable = this.invokable;
+        if (invokable == null || !invokable.isUsingNonBlockingInput()) {
+            // Cleanup resources instead of invokable if it is null,
+            // or prevent it from being blocked on input,
+            // or interrupt if it is already blocked.
+            // Not needed for StreamTask (which does NOT use blocking input); for which this could
+            // cause race conditions
+            for (InputGate inputGate : inputGates) {
+                try {
+                    inputGate.close();
+                } catch (Throwable t) {
+                    ExceptionUtils.rethrowIfFatalError(t);
+                    LOG.error("Failed to release input gate for task {}.", taskNameWithSubtask, t);
+                }
             }
         }
     }
@@ -1120,8 +1145,8 @@ public class Task
                     this.failureCause = cause;
                     return;
                 }
-            } else if (current == ExecutionState.RUNNING) {
-                if (transitionState(ExecutionState.RUNNING, targetState, cause)) {
+            } else if (current == ExecutionState.RECOVERING || current == ExecutionState.RUNNING) {
+                if (transitionState(current, targetState, cause)) {
                     // we are canceling / failing out of the running state
                     // we need to cancel the invokable
 
@@ -1378,7 +1403,9 @@ public class Task
             throws FlinkException {
         final AbstractInvokable invokable = this.invokable;
 
-        if (invokable == null || executionState != ExecutionState.RUNNING) {
+        if (invokable == null
+                || (executionState != ExecutionState.RUNNING
+                        && executionState != ExecutionState.RECOVERING)) {
             throw new TaskNotRunningException("Task is not yet running.");
         }
 
@@ -1387,7 +1414,8 @@ public class Task
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 
-            if (getExecutionState() == ExecutionState.RUNNING) {
+            if (getExecutionState() == ExecutionState.RUNNING
+                    || getExecutionState() == ExecutionState.RECOVERING) {
                 FlinkException e = new FlinkException("Error while handling operator event", t);
                 failExternally(e);
                 throw e;

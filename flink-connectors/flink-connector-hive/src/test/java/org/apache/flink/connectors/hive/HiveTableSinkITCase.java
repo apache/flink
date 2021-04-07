@@ -107,6 +107,7 @@ public class HiveTableSinkITCase {
                                 + ") TBLPROPERTIES ("
                                 + " 'sink.parallelism' = '8'" // set sink parallelism = 8
                                 + ")"));
+        tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
         final String actual =
                 tEnv.explainSql(
                         "insert into test_table select 1, 1", ExplainDetail.JSON_EXECUTION_PLAN);
@@ -299,6 +300,8 @@ public class HiveTableSinkITCase {
                             + "'='_MY_SUCCESS'"
                             + ")");
 
+            // hive dialect only works with hive tables at the moment, switch to default dialect
+            tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
             tEnv.sqlQuery("select * from my_table").executeInsert("sink_table").await();
 
             assertBatch(

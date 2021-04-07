@@ -1605,3 +1605,17 @@ SqlShowModules SqlShowModules() :
         return new SqlShowModules(startPos.plus(getPos()), requireFull);
     }
 }
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    stmt = SqlQueryOrDml() {
+        return new SqlRichExplain(getPos(),stmt);
+    }
+}

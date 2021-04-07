@@ -21,7 +21,7 @@ from pyflink.datastream.state_backend import (_from_j_state_backend, CustomState
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.testing.test_case_utils import PyFlinkTestCase
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 
 class MemoryStateBackendTests(PyFlinkTestCase):
@@ -49,20 +49,6 @@ class MemoryStateBackendTests(PyFlinkTestCase):
 
         self.assertIsNotNone(MemoryStateBackend(
             "file://var/checkpoints/", "file://var/savepoints/", 10000000, False))
-
-    def test_is_using_asynchronous_snapshots(self):
-
-        state_backend = MemoryStateBackend()
-
-        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
-
-        state_backend = MemoryStateBackend(using_asynchronous_snapshots=True)
-
-        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
-
-        state_backend = MemoryStateBackend(using_asynchronous_snapshots=False)
-
-        self.assertFalse(state_backend.is_using_asynchronous_snapshots())
 
     def test_get_max_state_size(self):
 

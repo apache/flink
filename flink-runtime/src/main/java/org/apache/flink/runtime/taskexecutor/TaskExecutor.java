@@ -75,6 +75,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
+import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -123,7 +125,9 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.JvmUtils;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -132,6 +136,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
@@ -159,6 +164,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -255,6 +262,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private Map<JobID, Collection<CompletableFuture<ExecutionState>>>
             taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
 
+    private final ThreadInfoSampleService threadInfoSampleService;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -311,6 +320,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 createJobManagerHeartbeatManager(heartbeatServices, resourceId);
         this.resourceManagerHeartbeatManager =
                 createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
+
+        ExecutorThreadFactory sampleThreadFactory =
+                new ExecutorThreadFactory.Builder()
+                        .setPoolName("flink-thread-info-sampler")
+                        .build();
+        ScheduledExecutorService sampleExecutor =
+                Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
+        this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -465,6 +482,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         Exception exception = null;
 
         try {
+            threadInfoSampleService.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        try {
             jobLeaderService.stop();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -497,6 +520,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ======================================================================
     //  RPC methods
     // ======================================================================
+
+    @Override
+    public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
+            final ExecutionAttemptID taskExecutionAttemptId,
+            final ThreadInfoSamplesRequest requestParams,
+            final Time timeout) {
+
+        final Task task = taskSlotTable.getTask(taskExecutionAttemptId);
+        if (task == null) {
+            return FutureUtils.completedExceptionally(
+                    new IllegalStateException(
+                            String.format(
+                                    "Cannot sample task %s. "
+                                            + "Task is not known to the task manager.",
+                                    taskExecutionAttemptId)));
+        }
+
+        final CompletableFuture<List<ThreadInfoSample>> stackTracesFuture =
+                threadInfoSampleService.requestThreadInfoSamples(
+                        SampleableTaskAdapter.fromTask(task), requestParams);
+
+        return stackTracesFuture.thenApply(TaskThreadInfoResponse::new);
+    }
 
     // ----------------------------------------------------------------------
     // Task lifecycle RPCs
@@ -1077,6 +1123,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         freeSlotInternal(allocationId, cause);
 
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public void freeInactiveSlots(JobID jobId, Time timeout) {
+        log.debug("Freeing inactive slots for job {}.", jobId);
+
+        // need a copy to prevent ConcurrentModificationExceptions
+        final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+        for (TaskSlot<Task> slot : inactiveSlots) {
+            freeSlotInternal(
+                    slot.getAllocationId(),
+                    new FlinkException("Slot was re-claimed by resource manager."));
+        }
     }
 
     @Override

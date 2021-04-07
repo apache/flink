@@ -40,14 +40,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Objects;
 
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /**
  * Serialization schema that serializes an object of Flink types into a CSV bytes.
@@ -209,14 +209,6 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
     // --------------------------------------------------------------------------------------------
 
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            new DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .append(ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
-                    .append(ISO_LOCAL_TIME)
-                    .toFormatter();
-
     private interface RuntimeConverter extends Serializable {
         JsonNode convert(CsvMapper csvMapper, ContainerNode<?> container, Object obj);
     }
@@ -319,7 +311,12 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
             return (csvMapper, container, obj) -> container.textNode(obj.toString());
         } else if (info.equals(Types.LOCAL_DATE_TIME)) {
             return (csvMapper, container, obj) ->
-                    container.textNode(DATE_TIME_FORMATTER.format((LocalDateTime) obj));
+                    container.textNode(SQL_TIMESTAMP_FORMAT.format((LocalDateTime) obj));
+        } else if (info.equals(Types.INSTANT)) {
+            return (csvMapper, container, obj) ->
+                    container.textNode(
+                            LocalDateTime.ofInstant((Instant) obj, ZoneId.of("UTC"))
+                                    .format(SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT));
         } else if (info instanceof RowTypeInfo) {
             return createRowRuntimeConverter((RowTypeInfo) info, false);
         } else if (info instanceof BasicArrayTypeInfo) {

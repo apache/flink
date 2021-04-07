@@ -22,6 +22,7 @@ from typing import List, Any
 
 from py4j.java_gateway import JavaObject
 
+from pyflink.common import WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
@@ -29,6 +30,7 @@ from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyCo
 from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
+from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
@@ -36,7 +38,7 @@ from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.utils import load_java_class, add_jars_to_context_class_loader
+from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, invoke_method
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -708,6 +710,37 @@ class StreamExecutionEnvironment(object):
                                                                        j_type_info)
         return DataStream(j_data_stream=j_data_stream)
 
+    def from_source(self,
+                    source: Source,
+                    watermark_strategy: WatermarkStrategy,
+                    source_name: str,
+                    type_info: TypeInformation = None) -> 'DataStream':
+        """
+        Adds a data :class:`~pyflink.datastream.connectors.Source` to the environment to get a
+        :class:`~pyflink.datastream.DataStream`.
+
+        The result will be either a bounded data stream (that can be processed in a batch way) or
+        an unbounded data stream (that must be processed in a streaming way), based on the
+        boundedness property of the source.
+
+        This method takes an explicit type information for the produced data stream, so that
+        callers can define directly what type/serializer will be used for the produced stream. For
+        sources that describe their produced type, the parameter type_info should not be specified
+        to avoid specifying the produced type redundantly.
+
+        .. versionadded:: 1.13.0
+        """
+        if type_info:
+            j_type_info = type_info.get_java_type_info()
+        else:
+            j_type_info = None
+        j_data_stream = self._j_stream_execution_environment.fromSource(
+            source.get_java_function(),
+            watermark_strategy._j_watermark_strategy,
+            source_name,
+            j_type_info)
+        return DataStream(j_data_stream=j_data_stream)
+
     def read_text_file(self, file_path: str, charset_name: str = "UTF-8") -> DataStream:
         """
         Reads the given file line-by-line and creates a DataStream that contains a string with the
@@ -747,7 +780,7 @@ class StreamExecutionEnvironment(object):
         try:
             with temp_file:
                 # dumps elements to a temporary file by pickle serializer.
-                serializer.dump_to_stream(elements, temp_file)
+                serializer.serialize(elements, temp_file)
             gateway = get_gateway()
             # if user does not defined the element data types, read the pickled data as a byte array
             # list.
@@ -768,10 +801,22 @@ class StreamExecutionEnvironment(object):
                 execution_config
             )
 
-            j_data_stream_source = self._j_stream_execution_environment.createInput(
-                j_input_format,
-                out_put_type_info.get_java_type_info()
-            )
+            JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.\
+                source.InputFormatSourceFunction
+            JBoundedness = gateway.jvm.org.apache.flink.api.connector.source.Boundedness
+
+            j_data_stream_source = invoke_method(
+                self._j_stream_execution_environment,
+                "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
+                "addSource",
+                [JInputFormatSourceFunction(j_input_format, out_put_type_info.get_java_type_info()),
+                 "Collection Source",
+                 out_put_type_info.get_java_type_info(),
+                 JBoundedness.BOUNDED],
+                ["org.apache.flink.streaming.api.functions.source.SourceFunction",
+                 "java.lang.String",
+                 "org.apache.flink.api.common.typeinfo.TypeInformation",
+                 "org.apache.flink.api.connector.source.Boundedness"])
             j_data_stream_source.forceNonParallel()
             return DataStream(j_data_stream=j_data_stream_source)
         finally:

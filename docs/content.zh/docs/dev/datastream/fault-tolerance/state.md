@@ -118,7 +118,7 @@ keyed state 接口提供不同类型状态的访问接口，这些状态都作�
 
 你必须创建一个 `StateDescriptor`，才能得到对应的状态句柄。 这保存了状态名称（正如我们稍后将看到的，你可以创建多个状态，并且它们必须具有唯一的名称以便可以引用它们），
 状态所持有值的类型，并且可能包含用户指定的函数，例如`ReduceFunction`。 根据不同的状态类型，可以创建`ValueStateDescriptor`，`ListStateDescriptor`，
-`ReducingStateDescriptor` 或 `MapStateDescriptor`。
+`AggregatingStateDescriptor`, `ReducingStateDescriptor` 或 `MapStateDescriptor`。
 
 状态通过 `RuntimeContext` 进行访问，因此只能在 *rich functions* 中使用。请参阅[这里]({{< ref "docs/dev/datastream/user_defined_functions" >}}#rich-functions)获取相关信息，
 但是我们很快也会看到一个例子。`RichFunction` 中 `RuntimeContext` 提供如下方法：

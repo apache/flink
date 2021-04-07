@@ -39,6 +39,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * {@link OneInputPythonFunctionOperator} is responsible for launching beam runner which will start
@@ -130,10 +131,14 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                 runnerOutputTypeInfo,
                 getFunctionUrn(),
                 getUserDefinedDataStreamFunctionProto(
-                        pythonFunctionInfo, getRuntimeContext(), getInternalParameters()),
+                        pythonFunctionInfo,
+                        getRuntimeContext(),
+                        getInternalParameters(),
+                        inBatchExecutionMode(getKeyedStateBackend())),
                 getCoderUrn(),
                 jobOptions,
                 getFlinkMetricContainer(),
+                null,
                 null,
                 null,
                 getContainingTask().getEnvironment().getMemoryManager(),

@@ -365,7 +365,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
             // filter by timestamp partition
             query =
                     tableEnv.sqlQuery(
-                            "select x from db1.part where timestamp '2018-08-08 08:08:09' = p2");
+                            "select x from db1.part where timestamp '2018-08-08 08:08:09.1' = p2");
             results = CollectionUtil.iteratorToList(query.execute().collect());
             assertEquals("[+I[2]]", results.toString());
         } finally {

@@ -74,7 +74,7 @@ LogicalProject(rate=[AS(*($0, $4), _UTF-16LE'rate')])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
       :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[Rates($2)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)], elementType=[class [Ljava.lang.Object;])
+      +- LogicalTableFunctionScan(invocation=[Rates($2)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
