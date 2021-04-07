@@ -43,7 +43,7 @@ FROM MyTable, LATERAL TABLE(func1(c)) AS T
 LogicalProject(a=[$0], b=[$1], c=[$2], f0=[$3], f1=[$4], f2=[$5], f3=[$6], f4=[$7], f5=[$8], f6=[$9], f7=[$10], f8=[$11], f9=[$12], f10=[$13], f11=[$14])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[*org.apache.flink.api.java.tuple.Tuple12* NOT NULL])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[*org.apache.flink.api.java.tuple.Tuple12<`f0` STRING, `f1` STRING, `f2` STRING, `f3` STRING, `f4` STRING, `f5` STRING, `f6` INT, `f7` INT, `f8` INT, `f9` INT, `f10` INT, `f11` INT>* NOT NULL])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
