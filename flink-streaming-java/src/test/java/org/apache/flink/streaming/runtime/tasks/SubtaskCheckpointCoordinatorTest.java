@@ -180,6 +180,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
     @Test
     public void testForceAlignedCheckpointResultingInPriorityEvents() throws Exception {
+        final long checkpointId = 42L;
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
 
         SubtaskCheckpointCoordinator coordinator =
@@ -202,10 +203,10 @@ public class SubtaskCheckpointCoordinatorTest {
                         coordinator
                                 .getChannelStateWriter()
                                 .addOutputData(
-                                        0,
+                                        checkpointId,
                                         new ResultSubpartitionInfo(0, 0),
                                         0,
-                                        BufferBuilderTestUtils.buildSomeBuffer(1337));
+                                        BufferBuilderTestUtils.buildSomeBuffer(500));
                     }
                 };
 
@@ -213,7 +214,7 @@ public class SubtaskCheckpointCoordinatorTest {
                 CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())
                         .withUnalignedUnsupported();
         coordinator.checkpointState(
-                new CheckpointMetaData(42, 0),
+                new CheckpointMetaData(checkpointId, 0),
                 forcedAlignedOptions,
                 new CheckpointMetricsBuilder(),
                 operatorChain,
