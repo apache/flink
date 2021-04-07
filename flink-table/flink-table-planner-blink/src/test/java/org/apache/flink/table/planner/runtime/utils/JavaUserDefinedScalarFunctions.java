@@ -312,4 +312,17 @@ public class JavaUserDefinedScalarFunctions {
             return PythonFunctionKind.PANDAS;
         }
     }
+
+    /** Test for Pandas Python Scalar Function. */
+    public static class RowPandasScalarFunction extends RowPythonScalarFunction {
+
+        public RowPandasScalarFunction(String name) {
+            super(name);
+        }
+
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return PythonFunctionKind.PANDAS;
+        }
+    }
 }
