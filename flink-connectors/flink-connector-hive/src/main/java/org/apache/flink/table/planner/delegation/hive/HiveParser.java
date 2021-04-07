@@ -161,7 +161,8 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_DROPFUNCTION,
                                 HiveASTParser.TOK_RELOADFUNCTION,
                                 HiveASTParser.TOK_CREATEVIEW,
-                                HiveASTParser.TOK_ALTERDATABASE_LOCATION));
+                                HiveASTParser.TOK_ALTERDATABASE_LOCATION,
+                                HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
     }
 
     private final PlannerContext plannerContext;
@@ -234,7 +235,6 @@ public class HiveParser extends ParserImpl {
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
                                 queryState,
-                                context,
                                 hiveCatalog,
                                 getCatalogManager().getCurrentDatabase());
                 Serializable work = ddlAnalyzer.analyzeInternal(node);
