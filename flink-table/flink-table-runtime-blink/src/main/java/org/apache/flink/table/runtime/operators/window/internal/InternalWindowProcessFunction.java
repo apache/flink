@@ -117,7 +117,9 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
      * the given window.
      */
     protected boolean isWindowLate(W window) {
-        return (windowAssigner.isEventTime() && (cleanupTime(window) <= ctx.currentWatermark()));
+        return (windowAssigner.isEventTime()
+                && (toEpochMillsForTimer(cleanupTime(window), ctx.getShiftTimeZone())
+                        <= ctx.currentWatermark()));
     }
 
     /**
@@ -128,12 +130,11 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
      * @param window the window whose cleanup time we are computing.
      */
     private long cleanupTime(W window) {
-        long windowMaxTs = toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
         if (windowAssigner.isEventTime()) {
-            long cleanupTime = windowMaxTs + allowedLateness;
-            return cleanupTime >= windowMaxTs ? cleanupTime : Long.MAX_VALUE;
+            long cleanupTime = window.maxTimestamp() + allowedLateness;
+            return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
         } else {
-            return windowMaxTs;
+            return window.maxTimestamp();
         }
     }
 

@@ -22,18 +22,17 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -43,7 +42,6 @@ import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /**
  * An implementation of {@link WindowCombineFunction} that save topN records of incremental input
@@ -52,7 +50,7 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsFor
 public final class TopNRecordsCombiner implements WindowCombineFunction {
 
     /** The service to register event-time or processing-time timers. */
-    private final InternalTimerService<Long> timerService;
+    private final WindowTimerService<Long> timerService;
 
     /** Context to switch current key for states. */
     private final StateKeyContext keyContext;
@@ -81,11 +79,8 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
-    /** The shifted timezone of the window. */
-    private final ZoneId shiftTimeZone;
-
     public TopNRecordsCombiner(
-            InternalTimerService<Long> timerService,
+            WindowTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowMapState<Long, List<RowData>> dataState,
             Comparator<RowData> sortKeyComparator,
@@ -94,8 +89,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
             boolean requiresCopyKey,
             TypeSerializer<RowData> keySerializer,
             TypeSerializer<RowData> recordSerializer,
-            boolean isEventTime,
-            ZoneId shiftTimeZone) {
+            boolean isEventTime) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.dataState = dataState;
@@ -106,7 +100,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         this.keySerializer = keySerializer;
         this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
-        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -151,8 +144,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         }
         // step 3: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeTimer(
-                    window, toEpochMillsForTimer(window - 1, shiftTimeZone));
+            timerService.registerEventTimeWindowTimer(window, window - 1);
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()
@@ -193,11 +185,10 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         @Override
         public WindowCombineFunction create(
                 RuntimeContext runtimeContext,
-                InternalTimerService<Long> timerService,
+                WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
-                boolean isEventTime,
-                ZoneId shiftTimeZone)
+                boolean isEventTime)
                 throws Exception {
             final Comparator<RowData> sortKeyComparator =
                     generatedSortKeyComparator.newInstance(runtimeContext.getUserCodeClassLoader());
@@ -214,8 +205,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
                     requiresCopyKey,
                     keySerializer,
                     recordSerializer,
-                    isEventTime,
-                    shiftTimeZone);
+                    isEventTime);
         }
     }
 }

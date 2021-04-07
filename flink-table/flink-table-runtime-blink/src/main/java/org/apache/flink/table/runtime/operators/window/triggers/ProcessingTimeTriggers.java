@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.operators.window.Window;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -100,11 +100,9 @@ public class ProcessingTimeTriggers {
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
             ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
             if (nextFiring.get() == null) {
-                long nextShiftedTimer =
-                        toUtcTimestampMills(ctx.getCurrentProcessingTime(), ctx.getShiftTimeZone())
-                                + interval;
-                ctx.registerProcessingTimeTimer(nextShiftedTimer);
-                nextFiring.add(nextShiftedTimer);
+                long nextTimer = ctx.getCurrentProcessingTime() + interval;
+                ctx.registerProcessingTimeTimer(nextTimer);
+                nextFiring.add(nextTimer);
             }
             return false;
         }
@@ -195,13 +193,14 @@ public class ProcessingTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            ctx.registerProcessingTimeTimer(window.maxTimestamp());
+            ctx.registerProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             return false;
         }
 
         @Override
         public boolean onProcessingTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp();
+            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
         }
 
         @Override
@@ -211,7 +210,8 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteProcessingTimeTimer(window.maxTimestamp());
+            ctx.deleteProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
         }
 
         @Override
@@ -221,7 +221,8 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerProcessingTimeTimer(window.maxTimestamp());
+            ctx.registerProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
         }
 
         @Override
@@ -252,13 +253,15 @@ public class ProcessingTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            ctx.registerProcessingTimeTimer(window.maxTimestamp());
+            ctx.registerProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             return earlyTrigger.onElement(element, timestamp, window);
         }
 
         @Override
         public boolean onProcessingTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp() || earlyTrigger.onProcessingTime(time, window);
+            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
+                    || earlyTrigger.onProcessingTime(time, window);
         }
 
         @Override
@@ -273,13 +276,15 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerProcessingTimeTimer(window.maxTimestamp());
+            ctx.registerProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             earlyTrigger.onMerge(window, mergeContext);
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteProcessingTimeTimer(window.maxTimestamp());
+            ctx.deleteProcessingTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             earlyTrigger.clear(window);
         }
 

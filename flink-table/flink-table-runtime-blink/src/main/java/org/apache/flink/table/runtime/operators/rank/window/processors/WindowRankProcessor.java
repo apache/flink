@@ -32,16 +32,18 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowB
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /** An window rank processor. */
 public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
@@ -61,14 +63,14 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private final long rankEnd;
     private final boolean outputRankNumber;
     private final int windowEndIndex;
-    /** The shifted timezone of the window. */
-    private final ZoneId shiftTimeZone;
 
     // ----------------------------------------------------------------------------------------
 
     private transient long currentProgress;
 
     private transient Context<Long> ctx;
+
+    private transient WindowTimerService<Long> timerService;
 
     private transient WindowBuffer windowBuffer;
 
@@ -87,8 +89,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
             long rankStart,
             long rankEnd,
             boolean outputRankNumber,
-            int windowEndIndex,
-            ZoneId shiftTimeZone) {
+            int windowEndIndex) {
         this.inputSerializer = inputSerializer;
         this.generatedSortKeyComparator = genSortKeyComparator;
         this.sortKeySerializer = sortKeySerializer;
@@ -98,7 +99,6 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
         this.windowEndIndex = windowEndIndex;
-        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -117,6 +117,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         MapState<RowData, List<RowData>> state =
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(namespaceSerializer, mapStateDescriptor);
+
+        this.timerService = ctx.getTimerService();
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
@@ -126,8 +128,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                         ctx.getTimerService(),
                         ctx.getKeyedStateBackend(),
                         windowState,
-                        true,
-                        shiftTimeZone);
+                        true);
         this.windowBuffer =
                 bufferFactory.create(
                         ctx.getOperatorOwner(),
@@ -153,8 +154,9 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        if (progress > currentProgress) {
-            currentProgress = progress;
+        long timestamp = toUtcTimestampMills(progress, timerService.getShiftTimeZone());
+        if (timestamp > currentProgress) {
+            currentProgress = timestamp;
             windowBuffer.advanceProgress(currentProgress);
         }
     }

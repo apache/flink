@@ -27,8 +27,10 @@ import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData
-import org.apache.flink.table.runtime.util.{RowDataHarnessAssertor, TimeWindowUtil}
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
+import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
+
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
@@ -310,7 +312,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
   private def localMills(dateTime: String): TimestampData = {
     val windowDateTime =  LocalDateTime.parse(dateTime).atZone(UTC_ZONE_ID)
      TimestampData.fromEpochMillis(
-       TimeWindowUtil.toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
+       toUtcTimestampMills(windowDateTime.toInstant.toEpochMilli, shiftTimeZone))
   }
 }
 

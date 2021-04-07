@@ -100,7 +100,8 @@ public class EventTimeTriggers {
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
-                ctx.registerEventTimeTimer(window.maxTimestamp());
+                ctx.registerEventTimeTimer(
+                        toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
                 return false;
             }
         }
@@ -112,12 +113,13 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onEventTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp();
+            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
         }
 
         @Override
@@ -127,7 +129,8 @@ public class EventTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
         }
 
         @Override
@@ -186,7 +189,8 @@ public class EventTimeTriggers {
                     return true;
                 } else {
                     // we are in the early phase
-                    ctx.registerEventTimeTimer(window.maxTimestamp());
+                    ctx.registerEventTimeTimer(
+                            toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
                     return earlyTrigger != null
                             && earlyTrigger.onElement(element, timestamp, window);
                 }
@@ -213,7 +217,7 @@ public class EventTimeTriggers {
                 // late fire
                 return lateTrigger != null && lateTrigger.onEventTime(time, window);
             } else {
-                if (time == window.maxTimestamp()) {
+                if (time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())) {
                     // fire on time and update state
                     hasFiredState.update(true);
                     return true;
@@ -242,7 +246,8 @@ public class EventTimeTriggers {
             // we assume that the new merged window has not fired yet its on-time timer.
             ctx.getPartitionedState(hasFiredOnTimeStateDesc).update(false);
 
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
         }
 
         @Override
@@ -253,7 +258,8 @@ public class EventTimeTriggers {
             if (lateTrigger != null) {
                 lateTrigger.clear(window);
             }
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             ctx.getPartitionedState(hasFiredOnTimeStateDesc).clear();
         }
 
@@ -312,7 +318,8 @@ public class EventTimeTriggers {
                 return true;
             } else {
                 // this is an early element so register the timer and let the early trigger decide
-                ctx.registerEventTimeTimer(window.maxTimestamp());
+                ctx.registerEventTimeTimer(
+                        toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
                 return earlyTrigger.onElement(element, timestamp, window);
             }
         }
@@ -324,7 +331,8 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onEventTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp() || earlyTrigger.onEventTime(time, window);
+            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
+                    || earlyTrigger.onEventTime(time, window);
         }
 
         @Override
@@ -334,13 +342,15 @@ public class EventTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             earlyTrigger.onMerge(window, mergeContext);
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(
+                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
             earlyTrigger.clear(window);
         }
 

@@ -61,6 +61,7 @@ import java.util.List;
 
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /** The Python Group Window AggregateFunction operator for the blink planner. */
@@ -245,16 +246,16 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
 
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
                     internalTimerService.registerEventTimeTimer(
-                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toEpochMillsForTimer(timestamp, shiftTimeZone));
                 } else if (timerOperandType == REGISTER_PROCESSING_TIMER) {
                     internalTimerService.registerProcessingTimeTimer(
-                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toEpochMillsForTimer(timestamp, shiftTimeZone));
                 } else if (timerOperandType == DELETE_EVENT_TIMER) {
                     internalTimerService.deleteEventTimeTimer(
-                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toEpochMillsForTimer(timestamp, shiftTimeZone));
                 } else if (timerOperandType == DELETE_PROCESSING_TIMER) {
                     internalTimerService.deleteProcessingTimeTimer(
-                            window, toUtcTimestampMills(timestamp, shiftTimeZone));
+                            window, toEpochMillsForTimer(timestamp, shiftTimeZone));
                 } else {
                     throw new RuntimeException(
                             String.format("Unsupported timerOperandType %s.", timerOperandType));

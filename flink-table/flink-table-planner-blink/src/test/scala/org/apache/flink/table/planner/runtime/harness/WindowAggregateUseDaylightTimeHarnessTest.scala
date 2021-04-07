@@ -117,7 +117,7 @@ class WindowAggregateUseDaylightTimeHarnessTest(backend: StateBackendMode, timeZ
       expected.add(record("a", 2L, 5.0D, 1L, ts("2021-03-14T03:00:00"), ts("2021-03-14T05:00:00")))
       expected.add(record("a", 3L, 5.0D, 1L, ts("2021-03-14T03:00:00"), ts("2021-03-14T06:00:00")))
 
-      // window [2021-11-07T00:00:00, 2021-11-07T02:00:00] windows contains 3 hours data
+      // [2021-11-07T00:00:00, 2021-11-07T02:00:00] window contains 3 hours data
       expected.add(record("a", 1L, 3.0D, 1L, ts("2021-11-07T00:00:00"), ts("2021-11-07T01:00:00")))
       expected.add(record("a", 3L, 3.0D, 2L, ts("2021-11-07T00:00:00"), ts("2021-11-07T02:00:00")))
       expected.add(record("a", 4L, 3.0D, 2L, ts("2021-11-07T00:00:00"), ts("2021-11-07T03:00:00")))

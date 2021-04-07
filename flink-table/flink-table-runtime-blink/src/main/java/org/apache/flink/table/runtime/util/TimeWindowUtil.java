@@ -77,18 +77,18 @@ public class TimeWindowUtil {
              * return the larger epoch mills if the time is leaving the DST.
              *  eg. Los_Angeles has two timestamp 2021-11-07 01:00:00 when leaving DST.
              * <pre>
-             *  2021-11-07 00:00:00 -> epoch0  = 1636268400000L;  2021-11-07 00:00:00
-             *  2021-11-07 01:00:00 -> epoch1  = 1636272000000L;  the first local timestamp 2021-11-07 01:00:00
-             *  2021-11-07 01:00:00 -> epoch2  = 1636275600000L;  back to local timestamp  2021-11-07 01:00:00
-             *  2021-11-07 02:00:00 -> epoch3  = 1636279200000L;  2021-11-07 02:00:00
+             *  2021-11-07 00:00:00 -> epoch0 = 1636268400000L;  2021-11-07 00:00:00
+             *  2021-11-07 01:00:00 -> epoch1 = 1636272000000L;  the first local timestamp 2021-11-07 01:00:00
+             *  2021-11-07 01:00:00 -> epoch2 = 1636275600000L;  back to local timestamp  2021-11-07 01:00:00
+             *  2021-11-07 02:00:00 -> epoch3 = 1636279200000L;  2021-11-07 02:00:00
              *
              * we should use the epoch1 + 1 hour to register timer to ensure the two hours' data can
              * be fired properly.
              *
              * <pre>
-             *  2021-11-07 00:00:00 => long epoch0 = 1636268400000L;
-             *  2021-11-07 01:00:00 => long epoch1 = 1636272000000L; register 1636275600000L(epoch2)
-             *  2021-11-07 02:00:00 => long epoch3 = 1636279200000L;
+             *  2021-11-07 00:00:00 -> epoch0 = 1636268400000L;
+             *  2021-11-07 01:00:00 -> epoch1 = 1636272000000L; register 1636275600000L(epoch2)
+             *  2021-11-07 02:00:00 -> epoch3 = 1636279200000L;
              */
             LocalDateTime utcTimestamp =
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(utcTimestampMills), UTC_ZONE_ID);
@@ -120,7 +120,8 @@ public class TimeWindowUtil {
      * @return the epoch mills.
      */
     public static long toEpochMills(long utcTimestampMills, ZoneId shiftTimeZone) {
-        if (UTC_ZONE_ID.equals(shiftTimeZone)) {
+        // Long.MAX_VALUE is a flag of max watermark, directly return it
+        if (UTC_ZONE_ID.equals(shiftTimeZone) || Long.MAX_VALUE == utcTimestampMills) {
             return utcTimestampMills;
         }
         LocalDateTime utcTimestamp =

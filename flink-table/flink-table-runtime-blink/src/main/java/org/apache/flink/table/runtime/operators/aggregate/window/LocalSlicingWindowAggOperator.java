@@ -31,15 +31,16 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import java.time.ZoneId;
+
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /**
  * The operator used for local window aggregation.
@@ -73,7 +74,7 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     private transient boolean functionsClosed = false;
 
     /** current watermark of this operator, the value has considered shifted timezone. */
-    private transient long currentWatermark;
+    private transient long currentShiftWatermark;
 
     /** The next watermark to trigger windows, the value has considered shifted timezone. */
     private transient long nextTriggerWatermark;
@@ -139,13 +140,14 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        long timestamp = TimeWindowUtil.toUtcTimestampMills(mark.getTimestamp(), shiftTimezone);
-        if (timestamp > currentWatermark) {
-            currentWatermark = timestamp;
-            if (currentWatermark >= nextTriggerWatermark) {
-                // we only need to call advanceProgress() when currentWatermark may trigger window
-                windowBuffer.advanceProgress(currentWatermark);
-                nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
+        long timestamp = toUtcTimestampMills(mark.getTimestamp(), shiftTimezone);
+        if (timestamp > currentShiftWatermark) {
+            currentShiftWatermark = timestamp;
+            if (currentShiftWatermark >= nextTriggerWatermark) {
+                // we only need to call advanceProgress() when current watermark may trigger window
+                windowBuffer.advanceProgress(currentShiftWatermark);
+                nextTriggerWatermark =
+                        getNextTriggerWatermark(currentShiftWatermark, windowInterval);
             }
         }
         super.processWatermark(mark);
@@ -190,11 +192,11 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
-    /** Method to get the next watermark to trigger window. */
-    private static long getNextTriggerWatermark(long currentWatermark, long interval) {
-        long start = TimeWindow.getWindowStartWithOffset(currentWatermark, 0L, interval);
+    /** Method to get the next shifted watermark to trigger window. */
+    private static long getNextTriggerWatermark(long currentShiftWatermark, long interval) {
+        long start = getWindowStartWithOffset(currentShiftWatermark, 0L, interval);
         long triggerWatermark = start + interval - 1;
-        if (triggerWatermark > currentWatermark) {
+        if (triggerWatermark > currentShiftWatermark) {
             return triggerWatermark;
         } else {
             return triggerWatermark + interval;

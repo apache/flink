@@ -25,8 +25,6 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowB
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
 
-import java.time.ZoneId;
-
 /**
  * An window aggregate processor implementation which works for {@link SliceUnsharedAssigner}, e.g.
  * tumbling windows.
@@ -39,15 +37,8 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
             WindowBuffer.Factory windowBufferFactory,
             WindowCombineFunction.Factory combineFactory,
             SliceUnsharedAssigner sliceAssigner,
-            TypeSerializer<RowData> accSerializer,
-            ZoneId shiftTimeZone) {
-        super(
-                genAggsHandler,
-                windowBufferFactory,
-                combineFactory,
-                sliceAssigner,
-                accSerializer,
-                shiftTimeZone);
+            TypeSerializer<RowData> accSerializer) {
+        super(genAggsHandler, windowBufferFactory, combineFactory, sliceAssigner, accSerializer);
     }
 
     @Override
