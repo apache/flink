@@ -56,6 +56,13 @@ public class FlinkDeserializationContext extends DefaultDeserializationContext {
         this.objectMapper = src.objectMapper;
     }
 
+    protected FlinkDeserializationContext(
+            FlinkDeserializationContext src, DeserializationConfig config) {
+        super(src, config);
+        this.serdeCtx = src.serdeCtx;
+        this.objectMapper = src.objectMapper;
+    }
+
     @Override
     public DefaultDeserializationContext with(DeserializerFactory factory) {
         return new FlinkDeserializationContext(this, factory);
@@ -65,6 +72,11 @@ public class FlinkDeserializationContext extends DefaultDeserializationContext {
     public DefaultDeserializationContext createInstance(
             DeserializationConfig config, JsonParser p, InjectableValues values) {
         return new FlinkDeserializationContext(this, config, p, values);
+    }
+
+    @Override
+    public DefaultDeserializationContext createDummyInstance(DeserializationConfig config) {
+        return new FlinkDeserializationContext(this, config);
     }
 
     public SerdeContext getSerdeContext() {
