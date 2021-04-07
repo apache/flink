@@ -19,6 +19,7 @@
 package org.apache.flink.table.types;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -31,7 +32,10 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -158,7 +162,8 @@ public class LogicalTypeCastsTest {
                         false,
                         false
                     },
-                    // test implicit cast between timestamp type and timestamp_ltz type
+
+                    // timestamp type and timestamp_ltz type
                     {new TimestampType(9), new TimestampType(9), true, true},
                     {new LocalZonedTimestampType(9), new LocalZonedTimestampType(9), true, true},
                     {new TimestampType(3), new LocalZonedTimestampType(3), true, true},
@@ -169,18 +174,48 @@ public class LogicalTypeCastsTest {
                     {new LocalZonedTimestampType(false, 3), new TimestampType(6), true, true},
                     {new TimestampType(6), new LocalZonedTimestampType(3), true, true},
                     {new LocalZonedTimestampType(6), new TimestampType(3), true, true},
+
+                    // row and structured type
                     {
                         new RowType(
                                 Arrays.asList(
                                         new RowField("f1", new TimestampType()),
-                                        new RowField("f2", new LocalZonedTimestampType()),
-                                        new RowField("f3", new IntType()))),
+                                        new RowField("f2", new IntType()))),
+                        StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"))
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("f2", new IntType())))
+                                .build(),
+                        true,
+                        true
+                    },
+                    {
                         new RowType(
                                 Arrays.asList(
-                                        new RowField("f1", new LocalZonedTimestampType()),
-                                        new RowField("f2", new TimestampType()),
-                                        new RowField("f3", new IntType()))),
+                                        new RowField("f1", new TimestampType()),
+                                        new RowField("f2", new IntType()))),
+                        StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"))
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("diff", new IntType())))
+                                .build(),
                         true,
+                        true
+                    },
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new TimestampType()),
+                                        new RowField("f2", new IntType()))),
+                        StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"))
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("diff", new TinyIntType())))
+                                .build(),
+                        false,
                         true
                     },
                 });
