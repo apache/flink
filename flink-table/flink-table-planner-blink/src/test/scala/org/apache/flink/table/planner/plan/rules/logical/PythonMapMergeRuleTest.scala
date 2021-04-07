@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.RowPythonScalarFunction
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{RowPandasScalarFunction, RowPythonScalarFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -62,6 +62,17 @@ class PythonMapMergeRuleTest extends TableTestBase {
     val result = sourceTable.map(func(withColumns('*)))
       .map(func(withColumns('*)))
       .map(func(withColumns('*)))
+    util.verifyRelPlan(result)
+  }
+
+  @Test
+  def testMapOperationMixedWithPandasUDFAndGeneralUDF(): Unit = {
+    val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
+    val general_func = new RowPythonScalarFunction("general_func")
+    val pandas_func = new RowPandasScalarFunction("pandas_func")
+
+    val result = sourceTable.map(general_func(withColumns('*)))
+      .map(pandas_func(withColumns('*)))
     util.verifyRelPlan(result)
   }
 }

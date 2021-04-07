@@ -31,4 +31,20 @@ FlinkLogicalCalc(select=[f0.f0 AS _c0, f0.f1 AS _c1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMapOperationMixedWithPandasUDFAndGeneralUDF">
+    <Resource name="ast">
+	  <![CDATA[
+LogicalProject(_c0=[org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPandasScalarFunction$55ec12d1188da02d641be38b6cf77e21(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPythonScalarFunction$19523bda2dba321ac79aaa8d4b9febb0($0, $1, $2).f0, org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPythonScalarFunction$19523bda2dba321ac79aaa8d4b9febb0($0, $1, $2).f1).f0], _c1=[org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPandasScalarFunction$55ec12d1188da02d641be38b6cf77e21(org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPythonScalarFunction$19523bda2dba321ac79aaa8d4b9febb0($0, $1, $2).f0, org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$RowPythonScalarFunction$19523bda2dba321ac79aaa8d4b9febb0($0, $1, $2).f1).f1])
++- LogicalTableScan(table=[[default_catalog, default_database, source, source: [TestTableSource(a, b, c)]]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS _c0, f0.f1 AS _c1])
++- FlinkLogicalCalc(select=[pandas_func(f0) AS f0])
+   +- FlinkLogicalCalc(select=[general_func(a, b, c) AS f0])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, source, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
