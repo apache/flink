@@ -219,10 +219,10 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         DataStream<Integer> source = env.fromElements(1, 10);
 
-        NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator(function);
+        NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator<>(function);
 
         source.transform("no-op udf operator", BasicTypeInfo.INT_TYPE_INFO, udfOperator)
-                .addSink(new DiscardingSink());
+                .addSink(new DiscardingSink<>());
 
         env.getStreamGraph();
 
