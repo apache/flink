@@ -24,13 +24,13 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -41,9 +41,12 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
+import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
+import static org.junit.Assert.assertThat;
 
 /** Tests if the coordinator handles up and downscaling. */
 public class CoordinatedSourceRescaleITCase {
@@ -72,17 +75,18 @@ public class CoordinatedSourceRescaleITCase {
             env.execute("create checkpoint");
             throw new AssertionError("No checkpoint");
         } catch (Exception e) {
-            assertEquals(CREATED_CHECKPOINT, ExceptionUtils.getRootCause(e).getMessage());
-            return Files.find(
-                            checkpointDir.toPath(),
-                            2,
-                            (file, attr) ->
-                                    attr.isDirectory()
-                                            && file.getFileName().toString().startsWith("chk"))
-                    .min(Comparator.comparing(Path::toString))
+            assertThat(e, FlinkMatchers.containsMessage(CREATED_CHECKPOINT));
+            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
+                    .max(Comparator.comparing(Path::toString))
                     .map(Path::toFile)
                     .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint", e));
         }
+    }
+
+    private boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
+        return attr.isDirectory()
+                && path.getFileName().toString().startsWith(CHECKPOINT_DIR_PREFIX)
+                && Files.exists(path.resolve(METADATA_FILE_NAME));
     }
 
     private void resumeCheckpoint(File checkpointDir, File restoreCheckpoint, int p) {
@@ -92,9 +96,7 @@ public class CoordinatedSourceRescaleITCase {
             env.execute("resume checkpoint");
             throw new AssertionError("No success error");
         } catch (Exception e) {
-            if (RESTORED_CHECKPOINT != ExceptionUtils.getRootCause(e).getMessage()) {
-                throw new AssertionError("Cannot resume", e);
-            }
+            assertThat(e, FlinkMatchers.containsMessage(RESTORED_CHECKPOINT));
         }
     }
 
