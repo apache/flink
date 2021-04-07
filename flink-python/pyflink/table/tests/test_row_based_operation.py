@@ -74,6 +74,10 @@ class RowBasedOperationTests(object):
         def func2(x):
             return x * 2
 
+        def func3(x):
+            assert isinstance(x, Row)
+            return x
+
         pandas_udf = udf(func,
                          result_type=DataTypes.ROW(
                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
@@ -86,7 +90,12 @@ class RowBasedOperationTests(object):
                                 DataTypes.FIELD("d", DataTypes.BIGINT())]),
                            func_type='pandas')
 
-        t.map(pandas_udf).map(pandas_udf_2).execute_insert("Results").wait()
+        general_udf = udf(func3,
+                          result_type=DataTypes.ROW(
+                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
+                               DataTypes.FIELD("d", DataTypes.BIGINT())]))
+
+        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
