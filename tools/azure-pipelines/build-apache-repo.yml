@@ -40,6 +40,10 @@ resources:
   # see https://github.com/flink-ci/flink-ci-docker
   - container: flink-build-container
     image: chesnay/flink-ci:java_8_11_17
+    # 6GB is the memory limit we have on Azure hosted VMs. Enforce the same limit on the custom CI servers.
+    # Set the swap to the same value as memory to disable using swap
+    # (see: https://docs.docker.com/config/containers/resource_constraints/)
+    options: --memory=6G --memory-swap=6G
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository

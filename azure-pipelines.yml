@@ -41,7 +41,10 @@ resources:
   - container: flink-build-container
     image: chesnay/flink-ci:java_8_11_17
     # On AZP provided machines, set this flag to allow writing coredumps in docker
-    options: --privileged
+    # Limit memory to 6 GB (7GB is the memory available to the host)
+    # Set the swap to the same value as memory to disable using swap
+    # (see: https://docs.docker.com/config/containers/resource_constraints/)
+    options: --privileged --memory=6G --memory-swap=6G
 
 # Define variables:
 # - See tools/azure-pipelines/jobs-template.yml for a short summary of the caching
