@@ -26,7 +26,6 @@ import org.apache.flink.table.runtime.operators.window.Window;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,14 +73,12 @@ public class ProcessingTimeTriggers {
      *
      * @param <W> type of window
      */
-    public static final class AfterFirstElementPeriodic<W extends Window> extends Trigger<W> {
+    public static final class AfterFirstElementPeriodic<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -4710472821577125673L;
 
         private final long interval;
         private final ReducingStateDescriptor<Long> nextFiringStateDesc;
-
-        private transient TriggerContext ctx;
 
         AfterFirstElementPeriodic(long interval) {
             checkArgument(interval > 0);
@@ -172,7 +169,7 @@ public class ProcessingTimeTriggers {
      * A {@link Trigger} that fires once the current system time passes the end of the window to
      * which a pane belongs.
      */
-    public static final class AfterEndOfWindow<W extends Window> extends Trigger<W> {
+    public static final class AfterEndOfWindow<W extends Window> extends WindowTrigger<W> {
         private static final long serialVersionUID = 2369815941792574642L;
 
         /**
@@ -184,8 +181,6 @@ public class ProcessingTimeTriggers {
             return new AfterEndOfWindowNoLate<>(earlyFirings);
         }
 
-        private TriggerContext ctx;
-
         @Override
         public void open(TriggerContext ctx) throws Exception {
             this.ctx = ctx;
@@ -193,14 +188,13 @@ public class ProcessingTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            ctx.registerProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.registerProcessingTimeTimer(triggerTime(window));
             return false;
         }
 
         @Override
         public boolean onProcessingTime(long time, W window) throws Exception {
-            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
+            return time == triggerTime(window);
         }
 
         @Override
@@ -210,8 +204,7 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.deleteProcessingTimeTimer(triggerTime(window));
         }
 
         @Override
@@ -221,8 +214,7 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.registerProcessingTimeTimer(triggerTime(window));
         }
 
         @Override
@@ -232,13 +224,12 @@ public class ProcessingTimeTriggers {
     }
 
     /** A composite {@link Trigger} that consist of AfterEndOfWindow and a early trigger. */
-    public static final class AfterEndOfWindowNoLate<W extends Window> extends Trigger<W> {
+    public static final class AfterEndOfWindowNoLate<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = 2310050856564792734L;
 
         // early trigger is always not null
         private final Trigger<W> earlyTrigger;
-        private TriggerContext ctx;
 
         AfterEndOfWindowNoLate(Trigger<W> earlyTrigger) {
             checkNotNull(earlyTrigger);
@@ -253,15 +244,13 @@ public class ProcessingTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            ctx.registerProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.registerProcessingTimeTimer(triggerTime(window));
             return earlyTrigger.onElement(element, timestamp, window);
         }
 
         @Override
         public boolean onProcessingTime(long time, W window) throws Exception {
-            return time == toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
-                    || earlyTrigger.onProcessingTime(time, window);
+            return time == triggerTime(window) || earlyTrigger.onProcessingTime(time, window);
         }
 
         @Override
@@ -276,15 +265,13 @@ public class ProcessingTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.registerProcessingTimeTimer(triggerTime(window));
             earlyTrigger.onMerge(window, mergeContext);
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteProcessingTimeTimer(
-                    toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+            ctx.deleteProcessingTimeTimer(triggerTime(window));
             earlyTrigger.clear(window);
         }
 

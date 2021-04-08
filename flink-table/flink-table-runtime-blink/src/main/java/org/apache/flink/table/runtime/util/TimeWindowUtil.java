@@ -162,4 +162,18 @@ public class TimeWindowUtil {
         boolean needShiftTimeZone = timeAttributeType instanceof LocalZonedTimestampType;
         return needShiftTimeZone ? tableConfig.getLocalTimeZone() : UTC_ZONE_ID;
     }
+
+    /**
+     * Returns the window should fired or not on current progress.
+     *
+     * @param windowEnd the end of the time window.
+     * @param currentProgress current progress of the window operator, it is processing time under
+     *     proctime, it is watermark value under rowtime.
+     * @param shiftTimeZone the shifted timezone of the time window.
+     */
+    public static boolean isWindowFired(
+            long windowEnd, long currentProgress, ZoneId shiftTimeZone) {
+        long windowTriggerTime = toEpochMillsForTimer(windowEnd - 1, shiftTimeZone);
+        return currentProgress >= windowTriggerTime;
+    }
 }

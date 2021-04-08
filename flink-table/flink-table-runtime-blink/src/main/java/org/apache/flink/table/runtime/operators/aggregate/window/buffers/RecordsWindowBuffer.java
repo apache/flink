@@ -25,7 +25,6 @@ import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap.LookupInfo;
 import org.apache.flink.table.runtime.util.collections.binary.WindowBytesMultiMap;
@@ -33,6 +32,8 @@ import org.apache.flink.table.runtime.util.collections.binary.WindowBytesMultiMa
 import java.io.EOFException;
 import java.time.ZoneId;
 import java.util.Iterator;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
  * An implementation of {@link WindowBuffer} that buffers input elements in a {@link
@@ -70,7 +71,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
         // track the lowest trigger time, if watermark exceeds the trigger time,
         // it means there are some elements in the buffer belong to a window going to be fired,
         // and we need to flush the buffer into state for firing.
-        minSliceEnd = Math.min(sliceEnd - 1, minSliceEnd);
+        minSliceEnd = Math.min(sliceEnd, minSliceEnd);
 
         reuseWindowKey.replace(sliceEnd, key);
         LookupInfo<WindowKey, Iterator<RowData>> lookup = recordsBuffer.lookup(reuseWindowKey);
@@ -86,7 +87,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        if (progress >= TimeWindowUtil.toEpochMillsForTimer(minSliceEnd, shiftTimeZone)) {
+        if (isWindowFired(minSliceEnd, progress, shiftTimeZone)) {
             // there should be some window to be fired, flush buffer to state first
             flush();
         }

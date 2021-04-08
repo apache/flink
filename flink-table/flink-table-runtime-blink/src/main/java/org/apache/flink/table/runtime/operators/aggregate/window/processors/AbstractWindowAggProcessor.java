@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
@@ -40,7 +39,7 @@ import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 
 import java.time.ZoneId;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -61,8 +60,6 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected transient Context<Long> ctx;
 
     protected transient ClockService clockService;
-
-    protected transient InternalTimerService<Long> timerService;
 
     protected transient WindowTimerService<Long> windowTimerService;
 
@@ -103,8 +100,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         this.windowState =
                 new WindowValueState<>((InternalValueState<RowData, Long, RowData>) state);
         this.clockService = ClockService.of(ctx.getTimerService());
-        this.timerService = ctx.getTimerService();
-        this.windowTimerService = new WindowTimerServiceImpl(timerService, shiftTimeZone);
+        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.aggregator =
                 genAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
         this.aggregator.open(
@@ -136,7 +132,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             // always register processing time for every element when processing time mode
             windowTimerService.registerProcessingTimeWindowTimer(sliceEnd);
         }
-        if (isEventTime && toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone) <= currentProgress) {
+        if (isEventTime && isWindowFired(sliceEnd, currentProgress, shiftTimeZone)) {
             // element is late and should be dropped
             return true;
         }

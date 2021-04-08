@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -46,7 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** An window rank processor. */
 public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
@@ -74,7 +73,6 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
 
     private transient Context<Long> ctx;
 
-    private transient InternalTimerService<Long> timerService;
     private transient WindowTimerService<Long> windowTimerService;
 
     private transient WindowBuffer windowBuffer;
@@ -125,8 +123,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                 ctx.getKeyedStateBackend()
                         .getOrCreateKeyedState(namespaceSerializer, mapStateDescriptor);
 
-        this.timerService = ctx.getTimerService();
-        this.windowTimerService = new WindowTimerServiceImpl(timerService, shiftTimeZone);
+        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
@@ -153,7 +150,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     @Override
     public boolean processElement(RowData key, RowData element) throws Exception {
         long sliceEnd = element.getLong(windowEndIndex);
-        if (toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone) <= currentProgress) {
+        if (isWindowFired(sliceEnd, currentProgress, shiftTimeZone)) {
             // element is late and should be dropped
             return true;
         }

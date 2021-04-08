@@ -40,6 +40,8 @@ import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import java.time.ZoneId;
 
 import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
 /**
  * The operator used for local window aggregation.
@@ -145,7 +147,8 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
             if (currentWatermark >= nextTriggerWatermark) {
                 // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);
-                nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
+                nextTriggerWatermark =
+                        getNextTriggerWatermark(currentWatermark, windowInterval, shiftTimezone);
             }
         }
         super.processWatermark(mark);
@@ -191,9 +194,13 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     //  Utilities
     // ------------------------------------------------------------------------
     /** Method to get the next watermark to trigger window. */
-    private static long getNextTriggerWatermark(long currentWatermark, long interval) {
-        long start = getWindowStartWithOffset(currentWatermark, 0L, interval);
-        long triggerWatermark = start + interval - 1;
+    private static long getNextTriggerWatermark(
+            long currentWatermark, long interval, ZoneId shiftTimezone) {
+        long utcWindowStart =
+                getWindowStartWithOffset(
+                        toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
+        long triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
+
         if (triggerWatermark > currentWatermark) {
             return triggerWatermark;
         } else {
