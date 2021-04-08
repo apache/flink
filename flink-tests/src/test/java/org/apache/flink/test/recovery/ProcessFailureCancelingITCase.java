@@ -257,7 +257,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                 clusterClient.close();
             }
             if (dispatcherResourceManagerComponent != null) {
-                dispatcherResourceManagerComponent.deregisterApplicationAndClose(
+                dispatcherResourceManagerComponent.stopApplication(
                         ApplicationStatus.SUCCEEDED, null);
             }
 
