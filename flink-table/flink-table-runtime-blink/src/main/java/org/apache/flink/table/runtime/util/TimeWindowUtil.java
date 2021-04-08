@@ -173,6 +173,10 @@ public class TimeWindowUtil {
      */
     public static boolean isWindowFired(
             long windowEnd, long currentProgress, ZoneId shiftTimeZone) {
+        // Long.MAX_VALUE is a flag of min window end, directly return false
+        if (windowEnd == Long.MAX_VALUE) {
+            return false;
+        }
         long windowTriggerTime = toEpochMillsForTimer(windowEnd - 1, shiftTimeZone);
         return currentProgress >= windowTriggerTime;
     }
