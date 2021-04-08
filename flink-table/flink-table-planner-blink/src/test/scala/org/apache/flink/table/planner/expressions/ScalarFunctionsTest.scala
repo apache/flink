@@ -4065,8 +4065,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testStringFunctionAndExpressionResultType(): Unit = {
     // this test is to check if the `resultType` of the `GeneratedExpression`
-    // of these string functions match their definition in `FlinkSqlOperatorTable`
-    // see FLINK-22106
+    // of these string functions match their definition in `FlinkSqlOperatorTable`,
+    // if not exceptions will be thrown from BridgingFunctionGenUtil#verifyArgumentTypes
 
     val str1 = "CAST('Hello' AS VARCHAR(5))"
     val str2 = "CAST('Hi' AS VARCHAR(2))"
