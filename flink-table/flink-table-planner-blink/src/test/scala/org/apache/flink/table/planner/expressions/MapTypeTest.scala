@@ -45,6 +45,7 @@ class MapTypeTest extends MapTypeTestBase {
     testSqlApi("f2['b']", "13")
     testSqlApi("f3[1]", "null")
     testSqlApi("f3[12]", "a")
+    testSqlApi("f2[f3[12]]", "12")
   }
 
   @Test
