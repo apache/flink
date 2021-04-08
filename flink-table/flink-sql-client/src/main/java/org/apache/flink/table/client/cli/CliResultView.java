@@ -228,6 +228,13 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
     @Override
     protected void cleanUp() {
         stopRetrieval(true);
+        synchronized (refreshThread) {
+            try {
+                refreshThread.join();
+            } catch (InterruptedException ex) {
+                // ignore
+            }
+        }
     }
 
     // --------------------------------------------------------------------------------------------
