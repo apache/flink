@@ -273,10 +273,17 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 }
 {
     (
-        <SYSTEM> <FUNCTION>
+        <SYSTEM>
+        {
+            if (!isTemporary){
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
+            }
+        }
+        <FUNCTION>
         ifNotExists = IfNotExistsOpt()
         functionIdentifier = SimpleIdentifier()
-        {  isSystemFunction = true; }
+        { isSystemFunction = true; }
     |
         <FUNCTION>
         ifNotExists = IfNotExistsOpt()

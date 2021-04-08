@@ -1142,9 +1142,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
                 .fails("(?s).*Encountered \".\" at.*");
 
-        // TODO: FLINK-17957: Forbidden syntax "CREATE SYSTEM FUNCTION" for sql parser
-        sql("create system function function1 as 'org.apache.fink.function.function1'")
-                .ok("CREATE SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+        sql("create ^system^ function function1 as 'org.apache.fink.function.function1'")
+                .fails(
+                        "CREATE SYSTEM FUNCTION is not supported, "
+                                + "system functions can only be registered as temporary "
+                                + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
     }
 
     @Test
