@@ -65,6 +65,7 @@ This will ensure that the maximum amount of memory is allocated for user code on
 
 The EmbeddedRocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
 that is (per default) stored in the TaskManager local data directories.
+Unlike storing java objects in `HashMapStateBackend`, data is stored as serialized byte arrays, which are mainly defined by the type serializer, resulting in key comparisons being byte-wise instead of using Java's `hashCode()` and `equals()` methods.
 
 The EmbeddedRocksDBStateBackend always performs asynchronous snapshots.
 
