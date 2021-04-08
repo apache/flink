@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
-
+import org.hamcrest.core.StringContains
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -4132,5 +4132,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' YEAR AS VARCHAR(20)), $str2)", "+2-00")
     testSqlApi(s"IFNULL(CAST(INTERVAL '2' DAY AS VARCHAR(20)), $str2)", "+2 00:00:00.000")
     testSqlApi(s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)", "hello world")
+  }
+
+  @Test
+  def testInvalidNestedFunction(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(StringContains.containsString(
+      """Invalid number of arguments to function 'SUBSTR'"""))
+    testSqlApi(
+      "IFNULL(SUBSTR('abc'), 'def')",
+      "abc")
   }
 }
