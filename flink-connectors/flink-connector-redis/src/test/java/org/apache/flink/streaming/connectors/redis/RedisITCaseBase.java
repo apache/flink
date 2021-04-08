@@ -17,28 +17,45 @@
 
 package org.apache.flink.streaming.connectors.redis;
 
+import org.apache.flink.streaming.connectors.redis.config.RedisConfigConstants;
+import org.apache.flink.streaming.connectors.redis.util.JedisUtils;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.After;
 import org.junit.Before;
+import org.testcontainers.containers.GenericContainer;
 import redis.clients.jedis.Jedis;
 
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** */
 public abstract class RedisITCaseBase extends AbstractTestBase {
 
-    //    public static final int REDIS_PORT = getAvailablePort();
-    public static final int REDIS_PORT = 6379;
-    public static final String REDIS_HOST = "127.0.0.1";
+    public static final String REDIS_IMAGE = "redis";
+    private static final int REDIS_PORT = 6379;
 
-    private static final Properties defaultConfigProps = new Properties();
+    private static final AtomicBoolean running = new AtomicBoolean(false);
+    private static final GenericContainer<?> container =
+            new GenericContainer<>(REDIS_IMAGE).withExposedPorts(REDIS_PORT);
 
     protected Jedis jedis;
 
+    protected static synchronized void start() {
+        if (!running.get()) {
+            container.start();
+            running.set(true);
+        }
+    }
+
+    protected static void stop() {
+        container.stop();
+        running.set(false);
+    }
+
     @Before
     public void setUp() {
-        jedis = new Jedis(REDIS_HOST, REDIS_PORT);
+        jedis = JedisUtils.createResource(getConfigProperties());
         jedis.flushAll();
     }
 
@@ -49,7 +66,13 @@ public abstract class RedisITCaseBase extends AbstractTestBase {
         }
     }
 
-    protected static Properties getDefaultConfigProperties() {
-        return defaultConfigProps;
+    protected Properties getConfigProperties() {
+        start();
+
+        Properties configProps = new Properties();
+        configProps.setProperty(RedisConfigConstants.REDIS_HOST, container.getContainerIpAddress());
+        configProps.setProperty(
+                RedisConfigConstants.REDIS_PORT, Integer.toString(container.getFirstMappedPort()));
+        return configProps;
     }
 }

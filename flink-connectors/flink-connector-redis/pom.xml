@@ -37,6 +37,7 @@ under the License.
 
 	<properties>
 		<jedis.version>3.5.2</jedis.version>
+		<testcontainers.version>1.15.2</testcontainers.version>
 	</properties>
 
 	<dependencies>
@@ -51,6 +52,12 @@ under the License.
 					<artifactId>slf4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<version>${testcontainers.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Flink ecosystem -->

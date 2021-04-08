@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.redis;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.connectors.redis.util.JedisUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,15 +75,11 @@ public abstract class RedisConsumerBase<T> extends RichParallelSourceFunction<T>
         if (!running) {
             return;
         }
-        this.jedis = createResource(this.configProps);
+        this.jedis = JedisUtils.createResource(this.configProps);
 
         while (running) {
             running = readAndCollect(this.jedis, this.keys, sourceContext);
         }
-    }
-
-    private static Jedis createResource(Properties configProps) {
-        return new Jedis();
     }
 
     protected abstract boolean readAndCollect(

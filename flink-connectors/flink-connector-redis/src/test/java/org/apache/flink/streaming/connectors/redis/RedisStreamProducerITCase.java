@@ -25,7 +25,9 @@ import org.apache.flink.streaming.connectors.redis.internal.SchemalessDataRowToM
 import org.apache.flink.types.Row;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,6 +42,16 @@ public class RedisStreamProducerITCase extends RedisITCaseBase {
     private static final String REDIS_KEY = "TEST_KEY";
 
     private StreamExecutionEnvironment env;
+
+    @BeforeClass
+    public static void prepare() {
+        start();
+    }
+
+    @AfterClass
+    public static void cleanUp() {
+        stop();
+    }
 
     @Before
     @Override
@@ -60,7 +72,7 @@ public class RedisStreamProducerITCase extends RedisITCaseBase {
 
         SinkFunction<Row> producer =
                 new FlinkRedisStreamProducer<>(
-                        new SchemalessDataRowToMap(), REDIS_KEY, getDefaultConfigProperties());
+                        new SchemalessDataRowToMap(), REDIS_KEY, getConfigProperties());
         source.addSink(producer);
 
         env.execute("Test Redis Stream Producer");

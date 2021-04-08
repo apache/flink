@@ -25,7 +25,9 @@ import org.apache.flink.streaming.connectors.redis.internal.SchemalessDataRowToM
 import org.apache.flink.types.Row;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.StreamEntryID;
@@ -45,6 +47,16 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
     private StreamExecutionEnvironment env;
 
     private static final AtomicInteger count = new AtomicInteger();
+
+    @BeforeClass
+    public static void prepare() {
+        start();
+    }
+
+    @AfterClass
+    public static void cleanUp() {
+        stop();
+    }
 
     @Before
     @Override
@@ -67,7 +79,7 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
         DataStreamSource<Row> source =
                 env.addSource(
                         new RedisStreamConsumer<>(
-                                getDefaultConfigProperties(),
+                                getConfigProperties(),
                                 StartupMode.EARLIEST,
                                 new SchemalessDataRowToMap(),
                                 REDIS_KEY));

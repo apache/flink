@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.redis.util.JedisUtils;
 
 import redis.clients.jedis.Jedis;
 
@@ -52,11 +53,7 @@ public abstract class FlinkRedisProducerBase<OUT> extends RichSinkFunction<OUT>
     public void open(Configuration configuration) throws Exception {
         super.open(configuration);
         // code
-        createResource(this.configProps);
-    }
-
-    protected void createResource(Properties config) {
-        this.jedis = new Jedis();
+        this.jedis = JedisUtils.createResource(this.configProps);
     }
 
     @Override

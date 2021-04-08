@@ -26,7 +26,9 @@ import org.apache.flink.streaming.connectors.redis.util.ConsumerGroupUtils;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,16 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
 
     StreamExecutionEnvironment env;
     private static final AtomicInteger[] count = new AtomicInteger[NUM_THREADS];
+
+    @BeforeClass
+    public static void prepare() {
+        start();
+    }
+
+    @AfterClass
+    public static void cleanUp() {
+        stop();
+    }
 
     @Before
     @Override
@@ -84,7 +96,7 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
                                     "consumer" + t,
                                     new SchemalessDataRowToMap(),
                                     REDIS_KEY,
-                                    getDefaultConfigProperties()));
+                                    getConfigProperties()));
             source.setParallelism(1);
 
             final int index = t;
