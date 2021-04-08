@@ -126,13 +126,29 @@ public class CommonTestUtils {
             Deadline timeout,
             long retryIntervalMillis)
             throws Exception {
+        waitUntilCondition(
+                condition, timeout, retryIntervalMillis, "Condition was not met in given timeout.");
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition, Deadline timeout, String errorMsg)
+            throws Exception {
+        waitUntilCondition(condition, timeout, RETRY_INTERVAL, errorMsg);
+    }
+
+    public static void waitUntilCondition(
+            SupplierWithException<Boolean, Exception> condition,
+            Deadline timeout,
+            long retryIntervalMillis,
+            String errorMsg)
+            throws Exception {
         while (timeout.hasTimeLeft() && !condition.get()) {
             final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
             Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
         }
 
         if (!timeout.hasTimeLeft()) {
-            throw new TimeoutException("Condition was not met in given timeout.");
+            throw new TimeoutException(errorMsg);
         }
     }
 
