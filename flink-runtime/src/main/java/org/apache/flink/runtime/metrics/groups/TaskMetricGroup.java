@@ -45,8 +45,6 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
-    static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
-
     private final TaskIOMetricGroup ioMetrics;
 
     /**
@@ -150,12 +148,13 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String operatorName) {
         final String truncatedOperatorName;
-        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
+        int maxOperatorNameLength = getMaxOperatorNameLength();
+        if (operatorName != null && operatorName.length() > maxOperatorNameLength) {
             LOG.warn(
                     "The operator name {} exceeded the {} characters length limit and was truncated.",
                     operatorName,
-                    METRICS_OPERATOR_NAME_MAX_LENGTH);
-            truncatedOperatorName = operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+                    maxOperatorNameLength);
+            truncatedOperatorName = operatorName.substring(0, maxOperatorNameLength);
         } else {
             truncatedOperatorName = operatorName;
         }

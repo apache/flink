@@ -202,6 +202,8 @@ public class TaskMetricGroupTest extends TestLogger {
     @Test
     public void testOperatorNameTruncation() throws Exception {
         Configuration cfg = new Configuration();
+        int maxLength = 80;
+        cfg.setInteger(MetricOptions.MAX_OPERATOR_NAME_LENGTH, maxLength);
         cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
@@ -216,9 +218,9 @@ public class TaskMetricGroupTest extends TestLogger {
         OperatorMetricGroup operatorMetricGroup = taskMetricGroup.getOrAddOperator(originalName);
 
         String storedName = operatorMetricGroup.getScopeComponents()[0];
-        Assert.assertEquals(TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH, storedName.length());
+        Assert.assertEquals(maxLength, storedName.length());
         Assert.assertEquals(
-                originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH),
+                originalName.substring(0, maxLength),
                 storedName);
         registry.shutdown().get();
     }

@@ -79,6 +79,12 @@ public class MetricOptions {
                     .defaultValue(".")
                     .withDescription("Delimiter used to assemble the metric identifier.");
 
+    /** Max length allowed for operator name. */
+    public static final ConfigOption<Integer> MAX_OPERATOR_NAME_LENGTH =
+            key("metrics.scope.max-operator-name-length")
+                    .defaultValue(80)
+                    .withDescription("Max length allowed for operator name");
+
     /** The scope format string that is applied to all metrics scoped to a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM =
             key("metrics.scope.jm")

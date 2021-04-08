@@ -72,4 +72,13 @@ public interface MetricRegistry {
     default String getMetricQueryServiceGatewayRpcAddress() {
         return null;
     }
+
+    static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
+    /**
+     * Returns max operator name length.
+     * Use METRICS_OPERATOR_NAME_MAX_LENGTH as default implementation for backward compatibility.
+     */
+    default int getMaxOperatorNameLength() {
+        return METRICS_OPERATOR_NAME_MAX_LENGTH;
+    }
 }

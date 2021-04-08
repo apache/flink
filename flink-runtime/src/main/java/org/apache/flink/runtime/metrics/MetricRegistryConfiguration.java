@@ -42,12 +42,15 @@ public class MetricRegistryConfiguration {
 
     private final long queryServiceMessageSizeLimit;
 
-    public MetricRegistryConfiguration(
-            ScopeFormats scopeFormats, char delimiter, long queryServiceMessageSizeLimit) {
+    private final int maxOperatorNameLength;
+
+    public MetricRegistryConfiguration(ScopeFormats scopeFormats,
+            char delimiter, long queryServiceMessageSizeLimit, int maxOperatorNameLength) {
 
         this.scopeFormats = Preconditions.checkNotNull(scopeFormats);
         this.delimiter = delimiter;
         this.queryServiceMessageSizeLimit = queryServiceMessageSizeLimit;
+        this.maxOperatorNameLength = maxOperatorNameLength;
     }
 
     // ------------------------------------------------------------------------
@@ -66,6 +69,9 @@ public class MetricRegistryConfiguration {
         return queryServiceMessageSizeLimit;
     }
 
+    public int getMaxOperatorNameLength() {
+        return maxOperatorNameLength;
+    }
     // ------------------------------------------------------------------------
     //  Static factory methods
     // ------------------------------------------------------------------------
@@ -85,6 +91,14 @@ public class MetricRegistryConfiguration {
             scopeFormats = ScopeFormats.fromConfig(new Configuration());
         }
 
+        int maxOperatorNameLength;
+        try {
+            maxOperatorNameLength = configuration.getInteger(MetricOptions.MAX_OPERATOR_NAME_LENGTH);
+        } catch (Exception e) {
+            LOG.warn("Failed to get max operator name length, using value 80", e);
+            maxOperatorNameLength = 80;
+        }
+
         char delim;
         try {
             delim = configuration.getString(MetricOptions.SCOPE_DELIMITER).charAt(0);
@@ -99,7 +113,7 @@ public class MetricRegistryConfiguration {
         final long messageSizeLimitPadding = 256;
 
         return new MetricRegistryConfiguration(
-                scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
+                scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding, maxOperatorNameLength);
     }
 
     public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {

@@ -182,6 +182,9 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
         return getLogicalScope(filter, registry.getDelimiter());
     }
 
+    public int getMaxOperatorNameLength() {
+        return registry.getMaxOperatorNameLength();
+    }
     /**
      * Returns the logical scope of this group, for example {@code "taskmanager.job.task"}.
      *

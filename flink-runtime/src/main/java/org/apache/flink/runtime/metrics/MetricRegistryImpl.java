@@ -74,6 +74,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 
     private final ScopeFormats scopeFormats;
     private final char globalDelimiter;
+    private final int maxOperatorNameLength;
 
     private final CompletableFuture<Void> terminationFuture;
 
@@ -109,6 +110,7 @@ public class MetricRegistryImpl implements MetricRegistry {
         this.maximumFramesize = config.getQueryServiceMessageSizeLimit();
         this.scopeFormats = config.getScopeFormats();
         this.globalDelimiter = config.getDelimiter();
+        this.maxOperatorNameLength = config.getMaxOperatorNameLength();
         this.terminationFuture = new CompletableFuture<>();
         this.isShutdown = false;
 
@@ -247,6 +249,11 @@ public class MetricRegistryImpl implements MetricRegistry {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public int getMaxOperatorNameLength() {
+        return maxOperatorNameLength;
     }
 
     @VisibleForTesting
