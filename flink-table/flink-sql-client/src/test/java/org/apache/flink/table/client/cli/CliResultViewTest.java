@@ -94,7 +94,6 @@ public class CliResultViewTest {
                         false,
                         true);
 
-        Thread resultViewRunner = null;
         try (CliClient cli =
                 new CliClient(
                         TerminalUtils.createDummyTerminal(),
@@ -102,10 +101,11 @@ public class CliResultViewTest {
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
                         null)) {
-            resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
+            Thread resultViewRunner =
+                    new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
 
-            if (resultViewRunner != null && !resultViewRunner.isInterrupted()) {
+            if (!resultViewRunner.isInterrupted()) {
                 resultViewRunner.interrupt();
             }
             // close the client until view exit
