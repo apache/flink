@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -320,6 +321,11 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
             IntermediateResultPartitionID partitionId, SchedulingPipelinedRegion pipelinedRegion) {
         return !pipelinedRegion.contains(
                 schedulingTopology.getResultPartition(partitionId).getProducer().getId());
+    }
+
+    @VisibleForTesting
+    Set<ConsumedPartitionGroup> getCrossRegionConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(crossRegionConsumedPartitionGroups);
     }
 
     /** The factory for creating {@link PipelinedRegionSchedulingStrategy}. */
