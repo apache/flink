@@ -116,7 +116,7 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         accState.update(window, stateAcc);
 
         // step 3: register timer for current window
-        timerService.registerEventTimeWindowTimer(window, window - 1);
+        timerService.registerEventTimeWindowTimer(window);
     }
 
     @Override

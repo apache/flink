@@ -338,10 +338,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     val head = inputTypes.head.getFieldList.map(_.getType)
 
-    inputTypes.forall { t =>
+    inputTypes.foreach { t =>
       val fieldTypes = t.getFieldList.map(_.getType)
 
-      fieldTypes.zip(head).forall { case (l, r) =>
+      fieldTypes.zip(head).foreach{ case (l, r) =>
         validateUnionPair(l, r)
       }
     }
@@ -349,18 +349,18 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     setOp.copy(setOp.getTraitSet, inputs, setOp.all)
   }
 
-  private def validateUnionPair(l: RelDataType, r: RelDataType): Boolean = {
+  private def validateUnionPair(l: RelDataType, r: RelDataType): Unit = {
     val exceptionMsg =
       s"Union fields with time attributes requires same types, but the types are %s and %s."
     // check if time indicators match
     val isValid = if (isTimeIndicatorType(l) && isTimeIndicatorType(r)) {
-      val leftTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-      val rightTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-      if (leftTime && leftTime) {
+      val leftIsEventTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+      val rightIsEventTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+      if (leftIsEventTime && rightIsEventTime) {
         //rowtime must have same type
         isTimestampLtzIndicatorType(l) == isTimestampLtzIndicatorType(r)
       } else {
-        leftTime == rightTime
+        leftIsEventTime == rightIsEventTime
       }
     }
     // one side is not an indicator
@@ -376,7 +376,6 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       throw new ValidationException(
         String.format(exceptionMsg, l.toString, r.toString))
     }
-    isValid
   }
 
   private def gatherIndicesToMaterialize(aggregate: Aggregate, input: RelNode): Set[Int] = {

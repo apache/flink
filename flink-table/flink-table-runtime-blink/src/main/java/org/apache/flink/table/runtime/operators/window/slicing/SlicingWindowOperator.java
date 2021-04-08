@@ -29,6 +29,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -39,8 +40,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
-
-import java.time.ZoneId;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -106,9 +105,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     /** The concrete window operator implementation. */
     private final SlicingWindowProcessor<W> windowProcessor;
 
-    /** The shift timezone of the window. */
-    private final ZoneId shiftTimeZone;
-
     // ------------------------------------------------------------------------
 
     /** This is used for emitting elements with a given timestamp. */
@@ -118,7 +114,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     private transient boolean functionsClosed = false;
 
     /** The service to register timers. */
-    private transient WindowTimerService<W> windowTimerService;
+    private transient InternalTimerService<W> internalTimerService;
 
     /** The tracked processing time triggered last time. */
     private transient long lastTriggeredProcessingTime;
@@ -131,9 +127,8 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     private transient Meter lateRecordsDroppedRate;
     private transient Gauge<Long> watermarkLatency;
 
-    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor, ZoneId shiftTimeZone) {
+    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor) {
         this.windowProcessor = windowProcessor;
-        this.shiftTimeZone = shiftTimeZone;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -146,18 +141,16 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
         collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
 
-        windowTimerService =
-                new WindowTimerServiceImpl<>(
-                        getInternalTimerService(
-                                "window-timers", windowProcessor.createWindowSerializer(), this),
-                        shiftTimeZone);
+        internalTimerService =
+                getInternalTimerService(
+                        "window-timers", windowProcessor.createWindowSerializer(), this);
 
         windowProcessor.open(
                 new WindowProcessorContext<>(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
-                        windowTimerService,
+                        internalTimerService,
                         getKeyedStateBackend(),
                         collector,
                         getRuntimeContext()));
@@ -172,11 +165,11 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
                 metrics.gauge(
                         WATERMARK_LATENCY_METRIC_NAME,
                         () -> {
-                            long watermark = windowTimerService.currentWatermark();
+                            long watermark = internalTimerService.currentWatermark();
                             if (watermark < 0) {
                                 return 0L;
                             } else {
-                                return windowTimerService.currentProcessingTime() - watermark;
+                                return internalTimerService.currentProcessingTime() - watermark;
                             }
                         });
     }
@@ -255,7 +248,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
         private final Object operatorOwner;
         private final MemoryManager memoryManager;
         private final long memorySize;
-        private final WindowTimerService<W> timerService;
+        private final InternalTimerService<W> timerService;
         private final KeyedStateBackend<RowData> keyedStateBackend;
         private final Output<RowData> collector;
         private final RuntimeContext runtimeContext;
@@ -264,7 +257,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowTimerService<W> timerService,
+                InternalTimerService<W> timerService,
                 KeyedStateBackend<RowData> keyedStateBackend,
                 Output<RowData> collector,
                 RuntimeContext runtimeContext) {
@@ -298,7 +291,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
         }
 
         @Override
-        public WindowTimerService<W> getTimerService() {
+        public InternalTimerService<W> getTimerService() {
             return timerService;
         }
 

@@ -198,14 +198,11 @@ class DefaultSchemaResolver implements SchemaResolver {
         }
         validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
 
-        if (!watermarkExpression
-                .getOutputDataType()
-                .getLogicalType()
-                .getTypeRoot()
-                .equals(validatedTimeColumn.getDataType().getLogicalType().getTypeRoot())) {
+        if (!(watermarkExpression.getOutputDataType().getLogicalType().getTypeRoot()
+                == validatedTimeColumn.getDataType().getLogicalType().getTypeRoot())) {
             throw new ValidationException(
                     String.format(
-                            "The watermark output type %s is different with input time filed type %s.",
+                            "The watermark output type %s is different from input time filed type %s.",
                             watermarkExpression.getOutputDataType(),
                             validatedTimeColumn.getDataType()));
         }

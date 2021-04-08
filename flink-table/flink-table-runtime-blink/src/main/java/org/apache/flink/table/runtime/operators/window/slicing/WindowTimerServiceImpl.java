@@ -24,13 +24,13 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import java.time.ZoneId;
 
 /** Simple Implements of {@link WindowTimerService}. */
-public class WindowTimerServiceImpl<W> implements WindowTimerService<W> {
+public class WindowTimerServiceImpl implements WindowTimerService<Long> {
 
-    private final InternalTimerService<W> internalTimerService;
+    private final InternalTimerService<Long> internalTimerService;
     private final ZoneId shiftTimeZone;
 
     public WindowTimerServiceImpl(
-            InternalTimerService<W> internalTimerService, ZoneId shiftTimeZone) {
+            InternalTimerService<Long> internalTimerService, ZoneId shiftTimeZone) {
         this.internalTimerService = internalTimerService;
         this.shiftTimeZone = shiftTimeZone;
     }
@@ -51,31 +51,14 @@ public class WindowTimerServiceImpl<W> implements WindowTimerService<W> {
     }
 
     @Override
-    public InternalTimerService<W> getInternalTimerService() {
-        return internalTimerService;
-    }
-
-    @Override
-    public void registerProcessingTimeWindowTimer(W window, long windowEnd) {
+    public void registerProcessingTimeWindowTimer(Long window) {
         internalTimerService.registerProcessingTimeTimer(
-                window, TimeWindowUtil.toEpochMillsForTimer(windowEnd, shiftTimeZone));
+                window, TimeWindowUtil.toEpochMillsForTimer(window - 1, shiftTimeZone));
     }
 
     @Override
-    public void deleteProcessingTimeWindowTimer(W window, long windowEnd) {
-        internalTimerService.deleteProcessingTimeTimer(
-                window, TimeWindowUtil.toEpochMillsForTimer(windowEnd, shiftTimeZone));
-    }
-
-    @Override
-    public void registerEventTimeWindowTimer(W window, long windowEnd) {
+    public void registerEventTimeWindowTimer(Long window) {
         internalTimerService.registerEventTimeTimer(
-                window, TimeWindowUtil.toEpochMillsForTimer(windowEnd, shiftTimeZone));
-    }
-
-    @Override
-    public void deleteEventTimeWindowTimer(W window, long windowEnd) {
-        internalTimerService.deleteEventTimeTimer(
-                window, TimeWindowUtil.toEpochMillsForTimer(windowEnd, shiftTimeZone));
+                window, TimeWindowUtil.toEpochMillsForTimer(window - 1, shiftTimeZone));
     }
 }

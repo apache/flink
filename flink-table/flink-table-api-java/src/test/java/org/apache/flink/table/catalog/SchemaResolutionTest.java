@@ -216,7 +216,7 @@ public class SchemaResolutionTest {
                         .column("ts", DataTypes.TIMESTAMP(3))
                         .watermark("ts", callSql(INVALID_WATERMARK_SQL))
                         .build(),
-                "The watermark output type TIMESTAMP_LTZ(3) is different with input time filed type TIMESTAMP(3).");
+                "The watermark output type TIMESTAMP_LTZ(3) is different from input time filed type TIMESTAMP(3).");
 
         testError(
                 Schema.newBuilder()

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -33,9 +34,11 @@ import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
 import org.apache.flink.types.RowKind;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -43,7 +46,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /** An window rank processor. */
 public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
@@ -63,6 +66,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private final long rankEnd;
     private final boolean outputRankNumber;
     private final int windowEndIndex;
+    private final ZoneId shiftTimeZone;
 
     // ----------------------------------------------------------------------------------------
 
@@ -70,7 +74,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
 
     private transient Context<Long> ctx;
 
-    private transient WindowTimerService<Long> timerService;
+    private transient InternalTimerService<Long> timerService;
+    private transient WindowTimerService<Long> windowTimerService;
 
     private transient WindowBuffer windowBuffer;
 
@@ -89,7 +94,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
             long rankStart,
             long rankEnd,
             boolean outputRankNumber,
-            int windowEndIndex) {
+            int windowEndIndex,
+            ZoneId shiftTimeZone) {
         this.inputSerializer = inputSerializer;
         this.generatedSortKeyComparator = genSortKeyComparator;
         this.sortKeySerializer = sortKeySerializer;
@@ -99,6 +105,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
         this.windowEndIndex = windowEndIndex;
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -119,13 +126,14 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                         .getOrCreateKeyedState(namespaceSerializer, mapStateDescriptor);
 
         this.timerService = ctx.getTimerService();
+        this.windowTimerService = new WindowTimerServiceImpl(timerService, shiftTimeZone);
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
         final WindowCombineFunction combineFunction =
                 combineFactory.create(
                         ctx.getRuntimeContext(),
-                        ctx.getTimerService(),
+                        windowTimerService,
                         ctx.getKeyedStateBackend(),
                         windowState,
                         true);
@@ -134,7 +142,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
                         ctx.getOperatorOwner(),
                         ctx.getMemoryManager(),
                         ctx.getMemorySize(),
-                        combineFunction);
+                        combineFunction,
+                        shiftTimeZone);
 
         this.reuseOutput = new JoinedRowData();
         this.reuseRankRow = new GenericRowData(1);
@@ -144,7 +153,7 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     @Override
     public boolean processElement(RowData key, RowData element) throws Exception {
         long sliceEnd = element.getLong(windowEndIndex);
-        if (sliceEnd - 1 <= currentProgress) {
+        if (toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone) <= currentProgress) {
             // element is late and should be dropped
             return true;
         }
@@ -154,9 +163,8 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        long timestamp = toUtcTimestampMills(progress, timerService.getShiftTimeZone());
-        if (timestamp > currentProgress) {
-            currentProgress = timestamp;
+        if (progress > currentProgress) {
+            currentProgress = progress;
             windowBuffer.advanceProgress(currentProgress);
         }
     }

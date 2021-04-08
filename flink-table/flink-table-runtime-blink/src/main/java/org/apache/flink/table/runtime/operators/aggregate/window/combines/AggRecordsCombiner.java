@@ -129,7 +129,7 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
 
         // step 5: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeWindowTimer(window, window - 1);
+            timerService.registerEventTimeWindowTimer(window);
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()

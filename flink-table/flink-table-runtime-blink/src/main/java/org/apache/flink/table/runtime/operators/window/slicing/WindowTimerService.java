@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.window.slicing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 
 import java.time.ZoneId;
 
@@ -44,24 +43,15 @@ public interface WindowTimerService<W> {
     /** Returns the current event-time watermark. */
     long currentWatermark();
 
-    /** Returns the current {@link InternalTimerService}. */
-    InternalTimerService<W> getInternalTimerService();
-
     /**
      * Registers a window timer to be fired when processing time passes the window. The window you
      * pass here will be provided when the timer fires.
      */
-    void registerProcessingTimeWindowTimer(W window, long windowEnd);
-
-    /** Deletes the timer for the given key and window. */
-    void deleteProcessingTimeWindowTimer(W window, long windowEnd);
+    void registerProcessingTimeWindowTimer(W window);
 
     /**
      * Registers a window timer to be fired when event time watermark passes the window. The window
      * you pass here will be provided when the timer fires.
      */
-    void registerEventTimeWindowTimer(W window, long windowEnd);
-
-    /** Deletes the timer for the given key and window. */
-    void deleteEventTimeWindowTimer(W window, long windowEnd);
+    void registerEventTimeWindowTimer(W window);
 }

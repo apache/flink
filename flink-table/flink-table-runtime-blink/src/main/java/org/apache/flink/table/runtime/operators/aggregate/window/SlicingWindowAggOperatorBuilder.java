@@ -156,7 +156,8 @@ public class SlicingWindowAggOperatorBuilder {
                             combinerFactory,
                             (SliceSharedAssigner) assigner,
                             accSerializer,
-                            indexOfCountStart);
+                            indexOfCountStart,
+                            shiftTimeZone);
         } else if (assigner instanceof SliceUnsharedAssigner) {
             windowProcessor =
                     new SliceUnsharedWindowAggProcessor(
@@ -164,11 +165,12 @@ public class SlicingWindowAggOperatorBuilder {
                             bufferFactory,
                             combinerFactory,
                             (SliceUnsharedAssigner) assigner,
-                            accSerializer);
+                            accSerializer,
+                            shiftTimeZone);
         } else {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
-        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
+        return new SlicingWindowOperator<>(windowProcessor);
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
@@ -34,9 +35,12 @@ import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
+import java.time.ZoneId;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -48,6 +52,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected final SliceAssigner sliceAssigner;
     protected final TypeSerializer<RowData> accSerializer;
     protected final boolean isEventTime;
+    private final ZoneId shiftTimeZone;
 
     // ----------------------------------------------------------------------------------------
 
@@ -57,7 +62,9 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
 
     protected transient ClockService clockService;
 
-    protected transient WindowTimerService<Long> timerService;
+    protected transient InternalTimerService<Long> timerService;
+
+    protected transient WindowTimerService<Long> windowTimerService;
 
     protected transient NamespaceAggsHandleFunction<Long> aggregator;
 
@@ -73,13 +80,15 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             WindowBuffer.Factory bufferFactory,
             WindowCombineFunction.Factory combinerFactory,
             SliceAssigner sliceAssigner,
-            TypeSerializer<RowData> accSerializer) {
+            TypeSerializer<RowData> accSerializer,
+            ZoneId shiftTimeZone) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
         this.combineFactory = combinerFactory;
         this.sliceAssigner = sliceAssigner;
         this.accSerializer = accSerializer;
         this.isEventTime = sliceAssigner.isEventTime();
+        this.shiftTimeZone = shiftTimeZone;
     }
 
     @Override
@@ -93,8 +102,9 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
                                 new ValueStateDescriptor<>("window-aggs", accSerializer));
         this.windowState =
                 new WindowValueState<>((InternalValueState<RowData, Long, RowData>) state);
-        this.clockService = ClockService.of(ctx.getTimerService().getInternalTimerService());
+        this.clockService = ClockService.of(ctx.getTimerService());
         this.timerService = ctx.getTimerService();
+        this.windowTimerService = new WindowTimerServiceImpl(timerService, shiftTimeZone);
         this.aggregator =
                 genAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
         this.aggregator.open(
@@ -103,7 +113,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         final WindowCombineFunction combineFunction =
                 combineFactory.create(
                         ctx.getRuntimeContext(),
-                        ctx.getTimerService(),
+                        windowTimerService,
                         ctx.getKeyedStateBackend(),
                         windowState,
                         isEventTime);
@@ -112,7 +122,8 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
                         ctx.getOperatorOwner(),
                         ctx.getMemoryManager(),
                         ctx.getMemorySize(),
-                        combineFunction);
+                        combineFunction,
+                        shiftTimeZone);
 
         this.reuseOutput = new JoinedRowData();
         this.currentProgress = Long.MIN_VALUE;
@@ -123,9 +134,9 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         long sliceEnd = sliceAssigner.assignSliceEnd(element, clockService);
         if (!isEventTime) {
             // always register processing time for every element when processing time mode
-            timerService.registerProcessingTimeWindowTimer(sliceEnd, sliceEnd - 1);
+            windowTimerService.registerProcessingTimeWindowTimer(sliceEnd);
         }
-        if (isEventTime && sliceEnd - 1 <= currentProgress) {
+        if (isEventTime && toEpochMillsForTimer(sliceEnd - 1, shiftTimeZone) <= currentProgress) {
             // element is late and should be dropped
             return true;
         }
@@ -135,9 +146,8 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
 
     @Override
     public void advanceProgress(long progress) throws Exception {
-        long timestamp = toUtcTimestampMills(progress, timerService.getShiftTimeZone());
-        if (timestamp > currentProgress) {
-            currentProgress = timestamp;
+        if (progress > currentProgress) {
+            currentProgress = progress;
             windowBuffer.advanceProgress(currentProgress);
         }
     }

@@ -67,14 +67,34 @@ public class TimeWindowUtil {
      */
     public static long toEpochMillsForTimer(long utcTimestampMills, ZoneId shiftTimeZone) {
         // Long.MAX_VALUE is a flag of max watermark, directly return it
-        if (UTC_ZONE_ID.equals(shiftTimeZone.equals(shiftTimeZone))
-                || Long.MAX_VALUE == utcTimestampMills) {
+        if (UTC_ZONE_ID.equals(shiftTimeZone) || Long.MAX_VALUE == utcTimestampMills) {
             return utcTimestampMills;
         }
 
         if (TimeZone.getTimeZone(shiftTimeZone).useDaylightTime()) {
             /*
-             * return the larger epoch mills if the time is leaving the DST.
+             * return the first skipped epoch mills as timer time if the time is coming the DST.
+             *  eg. Los_Angele has no timestamp 2021-03-14 02:00:00 when coming DST.
+             * <pre>
+             *  2021-03-14 00:00:00 -> epoch1 = 1615708800000L;
+             *  2021-03-14 01:00:00 -> epoch2 = 1615712400000L;
+             *  2021-03-14 03:00:00 -> epoch3 = 1615716000000L;  skip one hour (2021-03-14 02:00:00)
+             *  2021-03-14 04:00:00 -> epoch4 = 1615719600000L;
+             *
+             * we should use the epoch3 to register timer for window that end with
+             *  [2021-03-14 02:00:00, 2021-03-14 03:00:00] to ensure the window can be fired
+             *  immediately once the window passed.
+             *
+             * <pre>
+             *  2021-03-14 00:00:00 -> epoch0 = 1615708800000L;
+             *  2021-03-14 01:00:00 -> epoch1 = 1615712400000L;
+             *  2021-03-14 02:00:00 -> epoch3 = 1615716000000L; register 1615716000000L(epoch3)
+             *  2021-03-14 02:59:59 -> epoch3 = 1615719599000L; register 1615716000000L(epoch3)
+             *  2021-03-14 03:00:00 -> epoch3 = 1615716000000L;
+             */
+
+            /*
+             * return the larger epoch mills as timer time if the time is leaving the DST.
              *  eg. Los_Angeles has two timestamp 2021-11-07 01:00:00 when leaving DST.
              * <pre>
              *  2021-11-07 00:00:00 -> epoch0 = 1636268400000L;  2021-11-07 00:00:00
@@ -99,8 +119,13 @@ public class TimeWindowUtil {
                             .atZone(shiftTimeZone)
                             .toInstant()
                             .toEpochMilli();
+
+            boolean hasNoEpoch = t1 == t2;
             boolean hasTwoEpochs = t2 - t1 > MILLS_PER_HOUR;
-            if (hasTwoEpochs) {
+
+            if (hasNoEpoch) {
+                return t1 - t1 % MILLS_PER_HOUR;
+            } else if (hasTwoEpochs) {
                 return t1 + MILLS_PER_HOUR;
             } else {
                 return t1;

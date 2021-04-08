@@ -109,7 +109,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 
     /** Returns {@code true} if the given time is the cleanup time for the given window. */
     protected final boolean isCleanupTime(W window, long time) {
-        return time == cleanupTime(window);
+        return time == toEpochMillsForTimer(cleanupTime(window), ctx.getShiftTimeZone());
     }
 
     /**

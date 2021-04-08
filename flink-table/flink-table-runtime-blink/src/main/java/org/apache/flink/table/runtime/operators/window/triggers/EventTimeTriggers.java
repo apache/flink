@@ -95,15 +95,17 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            if (toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone())
-                    <= ctx.getCurrentWatermark()) {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
-                ctx.registerEventTimeTimer(
-                        toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone()));
+                ctx.registerEventTimeTimer(triggerTime(window));
                 return false;
             }
+        }
+
+        private long triggerTime(W window) {
+            return toEpochMillsForTimer(window.maxTimestamp(), ctx.getShiftTimeZone());
         }
 
         @Override

@@ -107,7 +107,7 @@ public interface SlicingWindowProcessor<W> extends Serializable {
         KeyedStateBackend<RowData> getKeyedStateBackend();
 
         /** Returns the current {@link InternalTimerService}. */
-        WindowTimerService<W> getTimerService();
+        InternalTimerService<W> getTimerService();
 
         /** Returns the current {@link RuntimeContext}. */
         RuntimeContext getRuntimeContext();
