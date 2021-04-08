@@ -121,7 +121,7 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
  * </tbody>
  * </table>
  *
- * @since 1.11
+ * @since 1.13
  */
 @Internal
 public class JdbcXaSinkFunction<T> extends AbstractRichFunction
