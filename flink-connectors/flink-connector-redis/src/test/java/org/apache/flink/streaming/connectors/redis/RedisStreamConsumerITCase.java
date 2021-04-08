@@ -85,14 +85,7 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
                                 REDIS_KEY));
         source.setParallelism(1);
 
-        SinkFunction<Row> sink =
-                new SinkFunction<Row>() {
-                    @Override
-                    public void invoke(Row value, Context context) throws Exception {
-                        count.incrementAndGet();
-                    }
-                };
-        source.addSink(sink);
+        source.addSink(new TestRowSinkFunction());
 
         env.execute("Test Redis Row Consumer");
 
@@ -106,6 +99,18 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
                 map.put("f" + j, "" + j);
             }
             iJedis.xadd(REDIS_KEY, StreamEntryID.NEW_ENTRY, map);
+        }
+    }
+
+    private static class TestRowSinkFunction implements SinkFunction<Row> {
+
+        private static final long serialVersionUID = 1L;
+
+        TestRowSinkFunction() {}
+
+        @Override
+        public void invoke(Row value, Context context) throws Exception {
+            count.incrementAndGet();
         }
     }
 }

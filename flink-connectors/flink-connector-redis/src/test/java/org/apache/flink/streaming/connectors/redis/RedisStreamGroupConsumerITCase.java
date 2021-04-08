@@ -99,14 +99,7 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
                                     getConfigProperties()));
             source.setParallelism(1);
 
-            final int index = t;
-            source.addSink(
-                    new SinkFunction<Row>() {
-                        @Override
-                        public void invoke(Row value, Context context) throws Exception {
-                            count[index].incrementAndGet();
-                        }
-                    });
+            source.addSink(new TestRowSinkFunction(t));
         }
 
         env.execute("Test Redis Consumer Group");
@@ -128,6 +121,22 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
                 map.put("f" + j, "" + j);
             }
             iJedis.xadd(REDIS_KEY, StreamEntryID.NEW_ENTRY, map);
+        }
+    }
+
+    private static class TestRowSinkFunction implements SinkFunction<Row> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final int countIndex;
+
+        TestRowSinkFunction(final int countIndex) {
+            this.countIndex = countIndex;
+        }
+
+        @Override
+        public void invoke(Row value, Context context) throws Exception {
+            count[countIndex].incrementAndGet();
         }
     }
 }
