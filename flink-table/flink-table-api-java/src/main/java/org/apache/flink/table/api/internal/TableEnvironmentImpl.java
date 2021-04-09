@@ -267,7 +267,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         isStreamingMode);
 
         catalogManager.initSchemaResolver(
-                isStreamingMode, operationTreeBuilder.expressionResolverBuilder());
+                isStreamingMode, operationTreeBuilder.getResolverBuilder());
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
