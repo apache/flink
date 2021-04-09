@@ -248,10 +248,14 @@ public class DeclarativeSlotManager implements SlotManager {
     @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         checkInit();
-        LOG.debug(
-                "Received resource requirements from job {}: {}",
-                resourceRequirements.getJobId(),
-                resourceRequirements.getResourceRequirements());
+        if (resourceRequirements.getResourceRequirements().isEmpty()) {
+            LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
+        } else {
+            LOG.info(
+                    "Received resource requirements from job {}: {}",
+                    resourceRequirements.getJobId(),
+                    resourceRequirements.getResourceRequirements());
+        }
 
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
             jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
