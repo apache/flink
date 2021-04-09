@@ -1479,22 +1479,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 if (isJobManagerConnectionValid(jobId, jobMasterId)) {
                     // mark accepted slots active
                     for (SlotOffer acceptedSlot : acceptedSlots) {
+                        final AllocationID allocationId = acceptedSlot.getAllocationId();
                         try {
-                            if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
+                            if (!taskSlotTable.markSlotActive(allocationId)) {
                                 // the slot is either free or releasing at the moment
-                                final String message = "Could not mark slot " + jobId + " active.";
+                                final String message =
+                                        "Could not mark slot " + allocationId + " active.";
                                 log.debug(message);
                                 jobMasterGateway.failSlot(
-                                        getResourceID(),
-                                        acceptedSlot.getAllocationId(),
-                                        new FlinkException(message));
+                                        getResourceID(), allocationId, new FlinkException(message));
                             }
                         } catch (SlotNotFoundException e) {
-                            final String message = "Could not mark slot " + jobId + " active.";
+                            final String message =
+                                    "Could not mark slot " + allocationId + " active.";
                             jobMasterGateway.failSlot(
-                                    getResourceID(),
-                                    acceptedSlot.getAllocationId(),
-                                    new FlinkException(message));
+                                    getResourceID(), allocationId, new FlinkException(message));
                         }
 
                         offeredSlots.remove(acceptedSlot);
