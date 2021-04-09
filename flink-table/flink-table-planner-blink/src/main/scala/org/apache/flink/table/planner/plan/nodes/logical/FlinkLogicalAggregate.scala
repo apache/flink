@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
@@ -30,7 +31,8 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.util.ImmutableBitSet
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.util.{ImmutableBitSet, Litmus}
 
 import java.util
 import java.util.Collections
@@ -159,6 +161,12 @@ object FlinkLogicalAggregate {
       aggCalls: util.List[AggregateCall]): FlinkLogicalAggregate = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
+    groupSets.flatMap(_.asList())
+        .map(input.getRowType.getFieldList.get(_))
+        .map(_.getType.getSqlTypeName).foreach {
+      case SqlTypeName.MAP | SqlTypeName.MULTISET | SqlTypeName.ARRAY =>
+        Litmus.THROW.fail("Collection type is not supported as a GROUP BY field.")
+    }
     new FlinkLogicalAggregate(cluster, traitSet, input, groupSet, groupSets, aggCalls)
   }
 }
