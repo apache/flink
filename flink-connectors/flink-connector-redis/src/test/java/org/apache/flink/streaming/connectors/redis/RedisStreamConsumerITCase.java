@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.redis;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -83,6 +84,7 @@ public class RedisStreamConsumerITCase extends RedisITCaseBase {
                                 StartupMode.EARLIEST,
                                 new SchemalessDataRowToMap(),
                                 REDIS_KEY));
+        source.returns(Types.ROW(Types.STRING, Types.STRING, Types.STRING));
         source.setParallelism(1);
 
         source.addSink(new TestRowSinkFunction());
