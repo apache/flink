@@ -56,6 +56,9 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable2", createTemporalTable2())
     rootSchema.add("TemporalTable3", createTemporalTable3())
     rootSchema.add("projected_table_source_table", createProjectedTableSourceTable())
+    rootSchema.add(
+      "projected_table_source_table_with_partial_pk",
+      createProjectedTableSourceTableWithPartialCompositePrimaryKey())
     rootSchema
   }
 
@@ -275,6 +278,43 @@ object MetadataTestUtil {
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
       Array("project=[a, c, d]"))
+  }
+
+  private def createProjectedTableSourceTableWithPartialCompositePrimaryKey(): Table = {
+    val catalogTable = CatalogTable.fromProperties(
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true",
+        "schema.0.name" -> "a",
+        "schema.0.data-type" -> "BIGINT NOT NULL",
+        "schema.1.name" -> "b",
+        "schema.1.data-type" -> "BIGINT NOT NULL",
+        "schema.primary-key.name" -> "PK_1",
+        "schema.primary-key.columns" -> "a,b")
+    )
+
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a"),
+      Seq(new BigIntType(false)))
+
+    new MockTableSourceTable(
+      ObjectIdentifier.of(
+        "default_catalog",
+        "default_database",
+        "projected_table_source_table_with_partial_pk"),
+      rowType,
+      new TestTableSource(),
+      true,
+      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      Array("project=[a]"))
   }
 
   private def getMetadataTable(
