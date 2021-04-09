@@ -1281,4 +1281,74 @@ SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testReduceGroupingOnTableWithCompositePrimaryKey[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(val) FROM tableWithCompositePk GROUP BY grp1, grp2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(grp1=[$3], grp2=[$4], val=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[grp1, grp2], select=[grp1, grp2, Final_SUM(sum$0) AS EXPR$0])
+   +- Sort(orderBy=[grp1 ASC, grp2 ASC])
+      +- Exchange(distribution=[hash[grp1, grp2]])
+         +- LocalSortAggregate(groupBy=[grp1, grp2], select=[grp1, grp2, Partial_SUM(val) AS sum$0])
+            +- Sort(orderBy=[grp1 ASC, grp2 ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[grp1, grp2, val]]], fields=[grp1, grp2, val])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceGroupingOnTableWithCompositePrimaryKey[aggStrategy=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(val) FROM tableWithCompositePk GROUP BY grp1, grp2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(grp1=[$3], grp2=[$4], val=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[grp1, grp2], select=[grp1, grp2, Final_SUM(sum$0) AS EXPR$0])
+   +- Sort(orderBy=[grp1 ASC, grp2 ASC])
+      +- Exchange(distribution=[hash[grp1, grp2]])
+         +- LocalSortAggregate(groupBy=[grp1, grp2], select=[grp1, grp2, Partial_SUM(val) AS sum$0])
+            +- Sort(orderBy=[grp1 ASC, grp2 ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[grp1, grp2, val]]], fields=[grp1, grp2, val])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReduceGroupingOnTableWithCompositePrimaryKey[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(val) FROM tableWithCompositePk GROUP BY grp1, grp2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
+   +- LogicalProject(grp1=[$3], grp2=[$4], val=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[grp1, grp2], select=[grp1, grp2, SUM(val) AS EXPR$0])
+   +- Sort(orderBy=[grp1 ASC, grp2 ASC])
+      +- Exchange(distribution=[hash[grp1, grp2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[grp1, grp2, val]]], fields=[grp1, grp2, val])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

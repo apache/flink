@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
@@ -207,6 +206,25 @@ abstract class AggregateTestBase extends TableTestBase {
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, c
       """.stripMargin
     util.verifyPlan(sql)
+  }
+
+  @Test
+  def testReduceGroupingOnTableWithCompositePrimaryKey(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE tableWithCompositePk (
+        |  pk1 INT,
+        |  pk2 BIGINT,
+        |  val BIGINT,
+        |  grp1 BIGINT,
+        |  grp2 BIGINT,
+        |  PRIMARY KEY (pk1, pk2) NOT ENFORCED
+        |) WITH (
+        |  'connector'='values',
+        |  'bounded'='true'
+        |)
+        |""".stripMargin)
+    util.verifyPlan("SELECT SUM(val) FROM tableWithCompositePk GROUP BY grp1, grp2")
   }
 
   // TODO supports group sets
