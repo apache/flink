@@ -70,11 +70,11 @@ class TableSourceITCase extends BatchTestBase {
          |  id BIGINT,
          |  deepNested ROW<
          |     nested1 ROW<name STRING, `value.` INT>,
-         |     `nested2.` ROW<num INT, flag BOOLEAN>
-         |   >,
-         |   nested ROW<name STRING, `value` INT>,
-         |   name STRING,
-         |   lower_name AS LOWER(name)
+         |     `nested2.` ROW<num INT, flag BOOLEAN>>,
+         |  nested ROW<name STRING, `value` INT>,
+         |  name STRING,
+         |  nestedItem ROW<deepArray ROW<`value` INT> ARRAY, deepMap MAP<STRING, INT>>,
+         |  lower_name AS LOWER(name)
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
@@ -120,6 +120,16 @@ class TableSourceITCase extends BatchTestBase {
         row(2, "Rob", 20000, false, 2200, "bob"),
         row(3, "Mike", 30000, true, 3300, "liz")
       )
+    )
+  }
+
+  @Test
+  def testNestedProjectWithItem(): Unit = {
+    checkResult(
+      """
+        |SELECT nestedItem.deepArray[nestedItem.deepMap['Monday']] FROM  NestedTable
+        |""".stripMargin,
+      Seq(row(row(1)), row(row(1)), row(row(1)))
     )
   }
 

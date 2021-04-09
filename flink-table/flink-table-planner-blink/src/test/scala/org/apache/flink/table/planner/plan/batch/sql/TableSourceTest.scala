@@ -73,6 +73,22 @@ class TableSourceTest extends TableTestBase {
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl3)
+    val ddl4 =
+      s"""
+         |CREATE TABLE NestedItemTable (
+         |  `id` INT,
+         |  `name` STRING,
+         |  `result` ROW<
+         |     `data_arr` ROW<`value` BIGINT> ARRAY,
+         |     `data_map` MAP<STRING, ROW<`value` BIGINT>>>,
+         |  `extra` STRING
+         |  ) WITH (
+         |    'connector' = 'values',
+         |    'nested-projection-supported' = 'true',
+         |    'bounded' = 'true'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl4)
   }
 
   @Test
@@ -109,5 +125,18 @@ class TableSourceTest extends TableTestBase {
         |FROM T
         |""".stripMargin
     util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testNestedProjectFieldWithITEM(): Unit = {
+    //TODO: always push projection into table source in FLINK-22118
+    util.verifyPlan(
+      s"""
+         |SELECT
+         |  `result`.`data_arr`[`id`].`value`,
+         |  `result`.`data_map`['item'].`value`
+         |FROM NestedItemTable
+         |""".stripMargin
+    )
   }
 }

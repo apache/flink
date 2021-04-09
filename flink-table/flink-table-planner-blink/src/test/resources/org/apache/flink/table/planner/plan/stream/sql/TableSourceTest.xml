@@ -40,6 +40,28 @@ Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedVa
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNestedProjectWithItem">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  `result`.`data_arr`[`id`].`value`,
+  `result`.`data_map`['item'].`value`
+FROM NestedItemTable
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id]]], fields=[result_data_arr, result_data_map, id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedProjectWithMetadata">
     <Resource name="sql">
       <![CDATA[
