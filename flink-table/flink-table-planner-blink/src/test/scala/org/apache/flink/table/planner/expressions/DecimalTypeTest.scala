@@ -102,10 +102,9 @@ class DecimalTypeTest extends ExpressionTestBase {
       Long.MinValue.toString)
   }
 
-  @Ignore
   @Test
   def testDefaultDecimalCasting(): Unit = {
-//    // from String
+    // from String
     testTableApi(
       "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
       "123456789123456789123456789")
