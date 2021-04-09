@@ -326,17 +326,23 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
-    def internalVisit(fieldAccess: RexFieldAccess): (Int, List[String]) = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Boolean, Int, List[String]) = {
       fieldAccess.getReferenceExpr match {
         case ref: RexInputRef =>
-          (ref.getIndex, List(fieldAccess.getField.getName))
+          (true, ref.getIndex, List(fieldAccess.getField.getName))
         case fac: RexFieldAccess =>
-          val (i, n) = internalVisit(fac)
-          (i, n :+ fieldAccess.getField.getName)
+          val (success, i, n) = internalVisit(fac)
+          (success, i, if (success) n :+ fieldAccess.getField.getName else null)
+        case expr =>
+          expr.accept(this)
+          (false, -1, null)
       }
     }
 
-    val (index, fullName) = internalVisit(fieldAccess)
+    val (success, index, fullName) = internalVisit(fieldAccess)
+    if (!success) {
+      return
+    }
     val outputIndex = order.getOrElse(index, -1)
     val fields: List[List[String]] = projectedFields(outputIndex)
     projectedFields(outputIndex) = fields :+ fullName

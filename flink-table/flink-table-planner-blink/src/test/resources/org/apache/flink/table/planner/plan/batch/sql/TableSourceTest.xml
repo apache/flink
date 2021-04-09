@@ -40,6 +40,44 @@ Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedVa
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectFieldWithITEM">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  `result`.`data_arr`[`id`].`value`,
+  `result`.`data_map`['item'].`value`
+FROM NestedItemTable
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id]]], fields=[result_data_arr, result_data_map, id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestProjectWithMetadata">
     <Resource name="sql">
       <![CDATA[
@@ -62,39 +100,6 @@ Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + dee
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleProject">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c FROM ProjectableTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSimpleProjectWithProctime">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c, PROCTIME() FROM ProjectableTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
-+- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
-+- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testProjectWithoutInputRef">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
@@ -112,6 +117,23 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
       +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProjectWithProctime">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, PROCTIME() FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>

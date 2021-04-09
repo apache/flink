@@ -94,15 +94,16 @@ class TableSourceITCase extends StreamingTestBase {
          |  id BIGINT,
          |  deepNested ROW<
          |     nested1 ROW<name STRING, `value.` INT>,
-         |     `nested2.` ROW<num INT, flag BOOLEAN>
-         |   >,
-         |   nested ROW<name STRING, `value` INT>,
-         |   name STRING,
-         |   lower_name AS LOWER(name)
+         |     `nested2.` ROW<num INT, flag BOOLEAN>>,
+         |  nested ROW<name STRING, `value` INT>,
+         |  name STRING,
+         |  nestedItem ROW<deepArray ROW<`value` INT> ARRAY, deepMap MAP<STRING, INT>>,
+         |  lower_name AS LOWER(name)
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
-         |  'data-id' = '$nestedTableDataId'
+         |  'data-id' = '$nestedTableDataId',
+         |  'bounded' = 'true'
          |)
          |""".stripMargin
     )
@@ -157,6 +158,22 @@ class TableSourceITCase extends StreamingTestBase {
       "3,Mike,30000,true,3300,liz")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testNestedProjectWithItem(): Unit = {
+    val query =
+      """
+        |SELECT nestedItem.deepArray[nestedItem.deepMap['Monday']] FROM  NestedTable
+        |""".stripMargin
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1", "1", "1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
