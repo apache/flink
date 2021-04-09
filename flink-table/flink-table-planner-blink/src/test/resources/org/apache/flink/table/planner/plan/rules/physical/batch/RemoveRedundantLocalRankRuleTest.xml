@@ -100,7 +100,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2], rk1=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0, w0$o0_0])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, w0$o0])
    +- Sort(orderBy=[a ASC, b ASC])
       +- Exchange(distribution=[hash[a]])
