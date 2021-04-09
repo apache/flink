@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.catalog;
 
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
@@ -76,9 +76,11 @@ class DatabaseCalciteSchema extends FlinkSchema {
                 .getTable(identifier)
                 .map(
                         result -> {
-                            CatalogBaseTable table = result.getTable();
+                            ResolvedCatalogBaseTable<?> resolvedBaseTable =
+                                    result.getResolvedTable();
                             FlinkStatistic statistic =
-                                    getStatistic(result.isTemporary(), table, identifier);
+                                    getStatistic(
+                                            result.isTemporary(), resolvedBaseTable, identifier);
                             return new CatalogSchemaTable(
                                     identifier,
                                     result,
@@ -93,17 +95,18 @@ class DatabaseCalciteSchema extends FlinkSchema {
 
     private FlinkStatistic getStatistic(
             boolean isTemporary,
-            CatalogBaseTable catalogBaseTable,
+            ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable,
             ObjectIdentifier tableIdentifier) {
-        if (isTemporary || catalogBaseTable instanceof QueryOperationCatalogView) {
+        if (isTemporary
+                || resolvedCatalogBaseTable.getOrigin() instanceof QueryOperationCatalogView) {
             return FlinkStatistic.UNKNOWN();
         }
-        if (catalogBaseTable instanceof CatalogTable) {
+        if (resolvedCatalogBaseTable.getOrigin() instanceof CatalogTable) {
             Catalog catalog = catalogManager.getCatalog(catalogName).get();
             return FlinkStatistic.builder()
                     .tableStats(extractTableStats(catalog, tableIdentifier))
                     // this is a temporary solution, FLINK-15123 will resolve this
-                    .uniqueKeys(extractUniqueKeys(catalogBaseTable.getSchema()))
+                    .uniqueKeys(extractUniqueKeys(resolvedCatalogBaseTable.getResolvedSchema()))
                     .build();
         } else {
             return FlinkStatistic.UNKNOWN();
@@ -128,8 +131,8 @@ class DatabaseCalciteSchema extends FlinkSchema {
         }
     }
 
-    private static Set<Set<String>> extractUniqueKeys(TableSchema tableSchema) {
-        Optional<UniqueConstraint> primaryKeyConstraint = tableSchema.getPrimaryKey();
+    private static Set<Set<String>> extractUniqueKeys(ResolvedSchema schema) {
+        Optional<UniqueConstraint> primaryKeyConstraint = schema.getPrimaryKey();
         if (primaryKeyConstraint.isPresent()) {
             Set<String> primaryKey = new HashSet<>(primaryKeyConstraint.get().getColumns());
             Set<Set<String>> uniqueKeys = new HashSet<>();
