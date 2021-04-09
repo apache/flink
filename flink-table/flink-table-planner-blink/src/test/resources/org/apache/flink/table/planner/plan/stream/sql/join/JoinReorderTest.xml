@@ -225,9 +225,9 @@ LogicalProject(a1=[$0], b1=[$1], c1=[$2], a2=[$3], b2=[$4], c2=[$5], a3=[$6], b3
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((b3 = b5) AND (b2 = b3) AND (b3 = b1) AND (b4 = b3))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[((b3 = b5) AND (b2 = b3) AND (b3 = b1) AND (b3 = b4))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[b5, b2, b1, b4]])
-   :  +- Join(joinType=[InnerJoin], where=[((b1 = b4) AND (b1 = b2) AND (b5 = b1))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[((b1 = b4) AND (b1 = b2) AND (b1 = b5))], select=[a1, b1, c1, a5, b5, c5, a2, b2, c2, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[b1, b1, b1]])
    :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
    :     +- Exchange(distribution=[hash[b4, b2, b5]])
@@ -453,7 +453,7 @@ LogicalProject(a4=[$0], b4=[$1], c4=[$2], a1=[$3], b1=[$4], c1=[$5], a2=[$6], b2
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a4, b4, c4, a1, b1, c1, a2, b2, c2, a3, b3, c3, a5, b5, c5])
-+- Join(joinType=[InnerJoin], where=[((a4 = a5) AND (a3 = a4) AND (a4 = a2) AND (a1 = a4) AND ((b2 + b4) > 100))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- Join(joinType=[InnerJoin], where=[((a4 = a5) AND (a3 = a4) AND (a4 = a2) AND (a4 = a1) AND ((b2 + b4) > 100))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a5, a3, a2, a1]])
    :  +- Join(joinType=[InnerJoin], where=[((a2 = a3) AND (a1 = a2) AND (a2 = a5) AND ((b1 * b2) > 10))], select=[a2, b2, c2, a5, b5, c5, a1, b1, c1, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a2, a2, a2]])
@@ -654,7 +654,7 @@ Calc(select=[a1, b1, c1, a2, b2, c2, a3, b3, c3, a4, b4, c4, a5, b5, c5])
          :- Exchange(distribution=[hash[c2, c2, c2]])
          :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
          +- Exchange(distribution=[hash[c4, c5, c3]])
-            +- Join(joinType=[InnerJoin], where=[((c4 = c5) AND (c4 = c3))], select=[a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            +- Join(joinType=[InnerJoin], where=[((c5 = c4) AND (c3 = c4))], select=[a5, b5, c5, a3, b3, c3, a4, b4, c4], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :- Exchange(distribution=[hash[c5, c3]])
                :  +- Join(joinType=[InnerJoin], where=[(c5 = c3)], select=[a5, b5, c5, a3, b3, c3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
                :     :- Exchange(distribution=[hash[c5]])
