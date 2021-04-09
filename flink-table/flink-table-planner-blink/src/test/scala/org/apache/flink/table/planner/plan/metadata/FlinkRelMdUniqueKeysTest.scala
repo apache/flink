@@ -57,6 +57,20 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetUniqueKeysOnProjectedTableScanWithPartialCompositePrimaryKey(): Unit = {
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(Seq("projected_table_source_table_with_partial_pk"))
+      .asInstanceOf[TableSourceTable]
+    val tableSourceScan = new StreamPhysicalTableSourceScan(
+      cluster,
+      streamPhysicalTraits,
+      table)
+    assertNull(mq.getUniqueKeys(tableSourceScan))
+  }
+
+  @Test
   def testGetUniqueKeysOnValues(): Unit = {
     assertNull(mq.getUniqueKeys(logicalValues))
     assertNull(mq.getUniqueKeys(emptyValues))
