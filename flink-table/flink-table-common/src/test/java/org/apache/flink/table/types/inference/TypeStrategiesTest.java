@@ -29,6 +29,7 @@ import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -299,7 +300,18 @@ public class TypeStrategiesTest {
                                         .notNull(),
                                 DataTypes.INT().notNull())
                         .expectErrorMessage(
-                                "Could not infer an output type for the given arguments."));
+                                "Could not infer an output type for the given arguments."),
+                TestSpec.forStrategy(
+                                "Average with grouped aggregation",
+                                TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
+                        .inputTypes(DataTypes.INT().notNull())
+                        .calledWithGroupedAggregation()
+                        .expectDataType(DataTypes.INT()),
+                TestSpec.forStrategy(
+                                "Average without grouped aggregation",
+                                TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
+                        .inputTypes(DataTypes.INT().notNull())
+                        .expectDataType(DataTypes.INT().notNull()));
     }
 
     @Parameter public TestSpec testSpec;
@@ -329,6 +341,7 @@ public class TypeStrategiesTest {
         callContextMock.argumentDataTypes = testSpec.inputTypes;
         callContextMock.name = "f";
         callContextMock.outputDataType = Optional.empty();
+        callContextMock.isGroupedAggregation = testSpec.isGroupedAggregation;
 
         callContextMock.argumentLiterals =
                 IntStream.range(0, testSpec.inputTypes.size())
@@ -369,6 +382,8 @@ public class TypeStrategiesTest {
 
         private @Nullable Object literalValue;
 
+        private boolean isGroupedAggregation;
+
         private TestSpec(@Nullable String description, TypeStrategy strategy) {
             this.description = description;
             this.strategy = strategy;
@@ -390,6 +405,11 @@ public class TypeStrategiesTest {
         TestSpec calledWithLiteralAt(int pos, Object value) {
             this.literalPos = pos;
             this.literalValue = value;
+            return this;
+        }
+
+        TestSpec calledWithGroupedAggregation() {
+            this.isGroupedAggregation = true;
             return this;
         }
 

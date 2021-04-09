@@ -41,11 +41,14 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
@@ -416,6 +419,28 @@ public final class TypeStrategies {
                 }
                 return Optional.of(nullReplacementDataType);
             };
+
+    /**
+     * Type strategy specific for aggregations that partially produce different nullability
+     * depending whether the result is grouped or not.
+     */
+    public static TypeStrategy aggArg0(
+            Function<LogicalType, LogicalType> aggType,
+            @Nullable Boolean groupingNullableCondition) {
+        return callContext -> {
+            final DataType argDataType = callContext.getArgumentDataTypes().get(0);
+            final LogicalType argType = argDataType.getLogicalType();
+            LogicalType result = aggType.apply(argType);
+            if (groupingNullableCondition == null) {
+                // never null
+                result = result.copy(false);
+            } else if (callContext.isGroupedAggregation() == groupingNullableCondition) {
+                // null only if condition is met, otherwise arguments nullability
+                result = result.copy(true);
+            }
+            return Optional.of(fromLogicalToDataType(result));
+        };
+    }
 
     // --------------------------------------------------------------------------------------------
 
