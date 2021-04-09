@@ -182,7 +182,7 @@ public class DeclarativeSlotManager implements SlotManager {
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
             ResourceActions newResourceActions) {
-        LOG.info("Starting the slot manager.");
+        LOG.debug("Starting the slot manager.");
 
         this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
         mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
