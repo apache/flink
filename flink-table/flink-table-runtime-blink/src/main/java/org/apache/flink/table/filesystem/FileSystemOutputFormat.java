@@ -26,8 +26,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.util.ExceptionUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -85,15 +85,26 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
 
     @Override
     public void finalizeGlobal(int parallelism) {
+        Exception exception = null;
         try {
             FileSystemCommitter committer =
                     new FileSystemCommitter(
                             fsFactory, msFactory, overwrite, tmpPath, partitionColumns.length);
             committer.commitUpToCheckpoint(CHECKPOINT_ID);
         } catch (Exception e) {
-            throw new TableException("Exception in finalizeGlobal", e);
-        } finally {
-            new File(tmpPath.getPath()).delete();
+            exception = new TableException("Exception in finalizeGlobal", e);
+        }
+
+        // delete the temporary directory
+        try {
+            fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        // rethrow the exception if it is not null
+        if (exception != null) {
+            ExceptionUtils.rethrow(exception);
         }
     }
 
