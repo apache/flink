@@ -26,6 +26,8 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggrega
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase, BatchPhysicalPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
+
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel._
@@ -33,7 +35,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.tools.ValidationException
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -191,7 +192,7 @@ class BatchPhysicalOverAggregateRule
     val inputTypeList = inputType.getFieldList.asScala.map(field => field.getType)
 
     // we should avoid duplicated names with input column names
-    val aggNames = aggCalls.map(c => RowTypeUtils.getUniqueName(c.getName, inputNameList))
+    val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
     val aggTypes = aggCalls.map(_.getType)
 
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]

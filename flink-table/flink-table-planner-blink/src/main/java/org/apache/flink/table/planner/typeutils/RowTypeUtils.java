@@ -18,22 +18,32 @@
 
 package org.apache.flink.table.planner.typeutils;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-/**
- * Utils for deriving row types of {@link org.apache.calcite.rel.RelNode}s.
- */
+/** Utils for deriving row types of {@link org.apache.calcite.rel.RelNode}s. */
 public class RowTypeUtils {
 
-    public static String getUniqueName(String nameToChange, List<String> namesToCheck) {
-        if (namesToCheck.contains(nameToChange)) {
-            int suffix = 0;
-            while (namesToCheck.contains(nameToChange + "_" + suffix)) {
-                suffix++;
+    public static String getUniqueName(String oldName, List<String> checklist) {
+        return getUniqueName(Collections.singletonList(oldName), checklist).get(0);
+    }
+
+    public static List<String> getUniqueName(List<String> oldNames, List<String> checklist) {
+        List<String> result = new ArrayList<>();
+        for (String oldName : oldNames) {
+            if (checklist.contains(oldName) || result.contains(oldName)) {
+                int suffix = -1;
+                String changedName;
+                do {
+                    suffix++;
+                    changedName = oldName + "_" + suffix;
+                } while (checklist.contains(changedName) || result.contains(changedName));
+                result.add(changedName);
+            } else {
+                result.add(oldName);
             }
-            return nameToChange + "_" + suffix;
-        } else {
-            return nameToChange;
         }
+        return result;
     }
 }
