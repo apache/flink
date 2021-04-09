@@ -1443,4 +1443,18 @@ class CalcITCase extends BatchTestBase {
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
   }
+
+  @Test
+  def testOrWithIsNull(): Unit = {
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a = 1 OR T.a = 3 OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple")))
+  }
 }
