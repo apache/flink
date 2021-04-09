@@ -64,7 +64,11 @@ public class NumberSequenceSourceTest {
 
                 // re-create and restore
                 reader = createReader();
-                reader.addSplits(splits);
+                if (splits.isEmpty()) {
+                    reader.notifyNoMoreSplits();
+                } else {
+                    reader.addSplits(splits);
+                }
             }
         }
 
