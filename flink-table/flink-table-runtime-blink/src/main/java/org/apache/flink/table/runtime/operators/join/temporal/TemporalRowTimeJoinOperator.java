@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.temporal;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -209,6 +210,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
                 registerProcessingCleanupTimer();
             } else {
                 cleanupLastTimer();
+                nextLeftIndex.clear();
             }
         }
     }
@@ -301,6 +303,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     public void cleanupState(long time) {
         leftState.clear();
         rightState.clear();
+        nextLeftIndex.clear();
+        registeredTimer.clear();
     }
 
     private int firstIndexToKeep(long timerTimestamp, List<RowData> rightRowsSorted) {
@@ -425,5 +429,15 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
             long o2Time = o2.getLong(timeAttribute);
             return Long.compare(o1Time, o2Time);
         }
+    }
+
+    @VisibleForTesting
+    static String getNextLeftIndexStateName() {
+        return NEXT_LEFT_INDEX_STATE_NAME;
+    }
+
+    @VisibleForTesting
+    static String getRegisteredTimerStateName() {
+        return REGISTERED_TIMER_STATE_NAME;
     }
 }
