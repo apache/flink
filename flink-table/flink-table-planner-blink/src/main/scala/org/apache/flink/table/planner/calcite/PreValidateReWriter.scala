@@ -272,7 +272,7 @@ object PreValidateReWriter {
       targetPosition: util.List[Int]): util.ArrayList[SqlNode] = {
     val targetList = new Array[SqlNode](sourceList.size())
     0 until sourceList.size() foreach {
-      idx => targetList(targetPosition.get(idx)) = sourceList.get(idx)
+      idx => targetList(idx) = sourceList.get(targetPosition.get(idx))
     }
     new util.ArrayList[SqlNode](targetList.toList)
   }
