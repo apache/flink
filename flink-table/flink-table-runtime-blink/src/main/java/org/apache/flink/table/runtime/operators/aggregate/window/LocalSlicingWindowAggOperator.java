@@ -38,6 +38,7 @@ import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
 import java.time.ZoneId;
+import java.util.TimeZone;
 
 import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
@@ -65,6 +66,9 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
      * which means never shift when assigning windows.
      */
     private final ZoneId shiftTimezone;
+
+    /** The shift timezone is using DayLightSaving time or not. */
+    private final boolean useDayLightSaving;
 
     // ------------------------------------------------------------------------
 
@@ -110,6 +114,7 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         this.windowBufferFactory = windowBufferFactory;
         this.combinerFactory = combinerFactory;
         this.shiftTimezone = shiftTimezone;
+        this.useDayLightSaving = TimeZone.getTimeZone(shiftTimezone).useDaylightTime();
     }
 
     @Override
@@ -148,7 +153,8 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                 // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);
                 nextTriggerWatermark =
-                        getNextTriggerWatermark(currentWatermark, windowInterval, shiftTimezone);
+                        getNextTriggerWatermark(
+                                currentWatermark, windowInterval, shiftTimezone, useDayLightSaving);
             }
         }
         super.processWatermark(mark);
@@ -195,11 +201,22 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     // ------------------------------------------------------------------------
     /** Method to get the next watermark to trigger window. */
     private static long getNextTriggerWatermark(
-            long currentWatermark, long interval, ZoneId shiftTimezone) {
-        long utcWindowStart =
-                getWindowStartWithOffset(
-                        toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
-        long triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
+            long currentWatermark, long interval, ZoneId shiftTimezone, boolean useDayLightSaving) {
+        if (currentWatermark == Long.MAX_VALUE) {
+            return currentWatermark;
+        }
+
+        long triggerWatermark;
+        // consider the DST timezone
+        if (useDayLightSaving) {
+            long utcWindowStart =
+                    getWindowStartWithOffset(
+                            toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
+            triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
+        } else {
+            long start = getWindowStartWithOffset(currentWatermark, 0L, interval);
+            triggerWatermark = start + interval - 1;
+        }
 
         if (triggerWatermark > currentWatermark) {
             return triggerWatermark;
