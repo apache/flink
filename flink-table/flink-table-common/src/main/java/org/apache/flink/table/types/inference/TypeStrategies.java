@@ -46,6 +46,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
@@ -416,6 +417,27 @@ public final class TypeStrategies {
                 }
                 return Optional.of(nullReplacementDataType);
             };
+
+    /**
+     * Type strategy specific for aggregations that partially produce different nullability
+     * depending whether the result is grouped or not.
+     */
+    public static TypeStrategy aggArg0(
+            Function<LogicalType, LogicalType> aggType, boolean nullableIfGroupingEmpty) {
+        return callContext -> {
+            final DataType argDataType = callContext.getArgumentDataTypes().get(0);
+            final LogicalType argType = argDataType.getLogicalType();
+            LogicalType result = aggType.apply(argType);
+            if (nullableIfGroupingEmpty && !callContext.isGroupedAggregation()) {
+                // null only if condition is met, otherwise arguments nullability
+                result = result.copy(true);
+            } else if (!nullableIfGroupingEmpty) {
+                // never null
+                result = result.copy(false);
+            }
+            return Optional.of(fromLogicalToDataType(result));
+        };
+    }
 
     // --------------------------------------------------------------------------------------------
 

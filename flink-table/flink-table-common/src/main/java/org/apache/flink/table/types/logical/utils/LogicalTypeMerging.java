@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -255,6 +256,42 @@ public final class LogicalTypeMerging {
         // 0 <= r < s
         // NOTE: rounding may increase the digits by 1, therefore we need +1 on precisions.
         return new DecimalType(false, 1 + precision - scale + round, round);
+    }
+
+    /** Finds the result type of a decimal average aggregation. */
+    public static LogicalType findAvgAggType(LogicalType argType) {
+        final LogicalType resultType;
+        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+            // a hack to make legacy types possible until we drop them
+            if (argType instanceof LegacyTypeInformationType) {
+                return argType;
+            }
+            // adopted from
+            // https://docs.microsoft.com/en-us/sql/t-sql/functions/avg-transact-sql
+            // however, we count by BIGINT, therefore divide by DECIMAL(20,0),
+            // but the end result is actually the same, which is DECIMAL(38, MAX(6, s)).
+            resultType = LogicalTypeMerging.findDivisionDecimalType(38, getScale(argType), 20, 0);
+        } else {
+            resultType = argType;
+        }
+        return resultType.copy(argType.isNullable());
+    }
+
+    /** Finds the result type of a decimal sum aggregation. */
+    public static LogicalType findSumAggType(LogicalType argType) {
+        // adopted from
+        // https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql
+        final LogicalType resultType;
+        if (hasRoot(argType, LogicalTypeRoot.DECIMAL)) {
+            // a hack to make legacy types possible until we drop them
+            if (argType instanceof LegacyTypeInformationType) {
+                return argType;
+            }
+            resultType = new DecimalType(false, 38, getScale(argType));
+        } else {
+            resultType = argType;
+        }
+        return resultType.copy(argType.isNullable());
     }
 
     // --------------------------------------------------------------------------------------------

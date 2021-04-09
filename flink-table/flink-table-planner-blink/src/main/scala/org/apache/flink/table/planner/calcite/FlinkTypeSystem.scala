@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.calcite
 
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, LogicalType, TimestampType}
+
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
@@ -76,19 +79,21 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
   override def shouldConvertRaggedUnionTypesToVarying(): Boolean = true
 
   override def deriveAvgAggType(
-      typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
-    val argTypeInfo = FlinkTypeFactory.toLogicalType(argType)
-    val avgType = FlinkTypeSystem.deriveAvgAggType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
-      avgType.copy(argType.isNullable))
+      typeFactory: RelDataTypeFactory,
+      argRelDataType: RelDataType)
+    : RelDataType = {
+    val argType = FlinkTypeFactory.toLogicalType(argRelDataType)
+    val resultType = LogicalTypeMerging.findAvgAggType(argType)
+    unwrapTypeFactory(typeFactory).createFieldTypeFromLogicalType(resultType)
   }
 
   override def deriveSumType(
-      typeFactory: RelDataTypeFactory, argType: RelDataType): RelDataType = {
-    val argTypeInfo = FlinkTypeFactory.toLogicalType(argType)
-    val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
-    typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
-      sumType.copy(argType.isNullable))
+      typeFactory: RelDataTypeFactory,
+      argRelDataType: RelDataType)
+    : RelDataType = {
+    val argType = FlinkTypeFactory.toLogicalType(argRelDataType)
+    val resultType = LogicalTypeMerging.findSumAggType(argType)
+    unwrapTypeFactory(typeFactory).createFieldTypeFromLogicalType(resultType)
   }
 
   /**
@@ -116,43 +121,6 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
 }
 
 object FlinkTypeSystem {
-
-  def deriveAvgAggType(argType: LogicalType): LogicalType = argType match {
-    case dt: DecimalType =>
-      val result = inferAggAvgType(dt.getScale)
-      new DecimalType(result.getPrecision, result.getScale)
-    case nt if TypeCheckUtils.isNumeric(nt) => nt
-    case _ =>
-      throw new RuntimeException("Unsupported argType for AVG(): " + argType)
-  }
-
-  def deriveSumType(argType: LogicalType): LogicalType = argType match {
-    case dt: DecimalType =>
-      val result = inferAggSumType(dt.getScale())
-      new DecimalType(result.getPrecision(), result.getScale())
-    case nt if TypeCheckUtils.isNumeric(nt) =>
-      argType
-    case _ =>
-      throw new RuntimeException("Unsupported argType for SUM(): " + argType)
-  }
-
-  def inferIntDivType(precision1: Int, scale1: Int, scale2: Int): DecimalType = {
-    val p = Math.min(38, precision1 - scale1 + scale2)
-    new DecimalType(p, 0)
-  }
-
-  /**
-    * https://docs.microsoft.com/en-us/sql/t-sql/functions/sum-transact-sql.
-    */
-  def inferAggSumType(scale: Int) = new DecimalType(38, scale)
-
-  /**
-    * https://docs.microsoft.com/en-us/sql/t-sql/functions/avg-transact-sql
-    * however, we count by LONG, therefore divide by Decimal(20,0),
-    * but the end result is actually the same, which is Decimal(38, max(6,s)).
-    */
-  def inferAggAvgType(scale: Int): DecimalType =
-    LogicalTypeMerging.findDivisionDecimalType(38, scale, 20, 0)
 
   val DECIMAL_SYSTEM_DEFAULT = new DecimalType(DecimalType.MAX_PRECISION, 18)
 }

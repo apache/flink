@@ -168,8 +168,8 @@ public final class InputTypeStrategies {
     }
 
     /**
-     * Strategy that checks all types are comparable with each other. Requires at least two
-     * arguments.
+     * Strategy that checks all types are comparable with each other. Requires at least one
+     * argument.
      */
     public static InputTypeStrategy comparable(
             ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
