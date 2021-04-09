@@ -294,10 +294,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         try {
             if (sharedResources != null) {
-                if (sharedResources.getResourceHandle().release()) {
-                    // release sharedResources iff there are no more Python operators sharing it
-                    sharedResources.close();
-                }
+                sharedResources.close();
             } else {
                 // if sharedResources is not null, the close of environmentManager will be managed
                 // in sharedResources,
