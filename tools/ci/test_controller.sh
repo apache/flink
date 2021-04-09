@@ -104,7 +104,7 @@ if [ $STAGE == $STAGE_PYTHON ]; then
 	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 else
-	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
+	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl -Dflink.tests.check-segment-multiple-free"
 	if [ $STAGE = $STAGE_LEGACY_SLOT_MANAGEMENT ]; then
 		if [[ ${PROFILE} == *"enable-adaptive-scheduler"* ]]; then
 			echo "Skipping legacy slot management test stage in adaptive scheduler job"
