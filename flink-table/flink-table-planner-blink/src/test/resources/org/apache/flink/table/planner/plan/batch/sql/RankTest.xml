@@ -245,4 +245,42 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderB
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRankWithAnotherRankAsInput">
+    <Resource name="sql">
+      <![CDATA[
+SELECT CAST(rna AS INT) AS rn1, CAST(rnb AS INT) AS rn2 FROM (
+  SELECT *, row_number() over (partition by a order by b desc) AS rnb
+  FROM (
+    SELECT *, row_number() over (partition by a, c order by b desc) AS rna
+    FROM MyTable
+  )
+  WHERE rna <= 100
+)
+WHERE rnb <= 200
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
++- LogicalFilter(condition=[<=($4, 200)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[$3], rnb=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[<=($3, 100)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[ROW_NUMBER() OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CAST(rna) AS rn1, CAST(w0$o0) AS rn2], where=[(w0$o0 <= 200)])
++- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
+   +- Sort(orderBy=[a ASC, b DESC])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
+            +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+               +- Sort(orderBy=[a ASC, c ASC, b DESC])
+                  +- Exchange(distribution=[hash[a, c]])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

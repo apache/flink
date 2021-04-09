@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggrega
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase, BatchPhysicalPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
@@ -190,7 +191,8 @@ class BatchPhysicalOverAggregateRule
     val inputNameList = inputType.getFieldNames
     val inputTypeList = inputType.getFieldList.asScala.map(field => field.getType)
 
-    val aggNames = aggCalls.map(_.getName)
+    // we should avoid duplicated names with input column names
+    val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
     val aggTypes = aggCalls.map(_.getType)
 
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
