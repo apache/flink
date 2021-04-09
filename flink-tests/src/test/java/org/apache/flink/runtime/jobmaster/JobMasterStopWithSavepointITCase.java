@@ -45,7 +45,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,8 +77,7 @@ import static org.junit.Assert.fail;
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
  * TERMINATE.
  */
-@Ignore("broken test; see FLINK-21031")
-public class JobMasterStopWithSavepointIT extends AbstractTestBase {
+public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -91,7 +89,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
     private static CountDownLatch invokeLatch;
 
     private static CountDownLatch numberOfRestarts;
-    private static AtomicLong syncSavepointId = new AtomicLong();
+    private static final AtomicLong syncSavepointId = new AtomicLong();
     private static volatile CountDownLatch checkpointsToWaitFor;
 
     private Path savepointDirectory;
@@ -150,7 +148,6 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             stopWithSavepoint(terminate).get();
             fail();
         } catch (Exception e) {
-            // expected
         }
 
         // verifying that we actually received a synchronous checkpoint
@@ -172,7 +169,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     private void throwingExceptionOnCallbackWithRestartsHelper(final boolean terminate)
             throws Exception {
-        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(15));
         final int numberOfCheckpointsToExpect = 10;
 
         numberOfRestarts = new CountDownLatch(2);
@@ -210,7 +207,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
                 either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
         setUpJobGraph(CheckpointCountingTask.class, RestartStrategies.noRestart());
 
@@ -232,9 +229,8 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             String exceptionMessage = checkpointExceptionOptional.get().getMessage();
             assertTrue(
                     "Stop with savepoint failed because of another cause " + exceptionMessage,
-                    exceptionMessage.contains("Failed to trigger savepoint")
-                            && exceptionMessage.contains(
-                                    CheckpointFailureReason.EXCEPTION.message()));
+                    exceptionMessage.contains(
+                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE.message()));
         }
 
         final JobStatus jobStatus =
@@ -357,7 +353,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
+            if (checkpointType.isSynchronous()) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }
@@ -384,24 +380,28 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
     /** A {@link StreamTask} that simply waits to be terminated normally. */
     public static class NoOpBlockingStreamTask extends NoOpStreamTask {
 
-        private final transient OneShotLatch finishLatch;
+        private transient MailboxDefaultAction.Suspension suspension;
 
         public NoOpBlockingStreamTask(final Environment environment) throws Exception {
             super(environment);
-            this.finishLatch = new OneShotLatch();
         }
 
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             invokeLatch.countDown();
-            finishLatch.await();
-            controller.allActionsCompleted();
+            if (suspension == null) {
+                suspension = controller.suspendDefaultAction();
+            } else {
+                controller.allActionsCompleted();
+            }
         }
 
         @Override
         public void finishTask() throws Exception {
             finishingLatch.await();
-            finishLatch.trigger();
+            if (suspension != null) {
+                suspension.resume();
+            }
         }
     }
 
@@ -411,24 +411,28 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
      */
     public static class CheckpointCountingTask extends NoOpStreamTask {
 
-        private final transient OneShotLatch finishLatch;
+        private transient MailboxDefaultAction.Suspension suspension;
 
         public CheckpointCountingTask(final Environment environment) throws Exception {
             super(environment);
-            this.finishLatch = new OneShotLatch();
         }
 
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             invokeLatch.countDown();
-            finishLatch.await();
-            controller.allActionsCompleted();
+            if (suspension == null) {
+                suspension = controller.suspendDefaultAction();
+            } else {
+                controller.allActionsCompleted();
+            }
         }
 
         @Override
         protected void cancelTask() throws Exception {
             super.cancelTask();
-            finishLatch.trigger();
+            if (suspension != null) {
+                suspension.resume();
+            }
         }
 
         @Override
@@ -440,7 +444,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
                 checkpointsToWaitFor.countDown();
             }
 
-            return CompletableFuture.completedFuture(true);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         }
     }
 }
