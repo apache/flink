@@ -100,9 +100,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val expected = Array(
       Array(Arrays.asList("amount")),
       Array(Arrays.asList("*")),
-      Array(Arrays.asList("with", "deeper", "entry"), Arrays.asList("with", "deep", "entry")))
+      Array(Arrays.asList("with", "deeper", "entry"), Arrays.asList("with", "deep", "entry")),
+      Array(Arrays.asList("outer"), Arrays.asList("inner", "deep_array")))
 
-    assertThat(usedFields, is(Array(1, 0, 2)))
+    assertThat(usedFields, is(Array(1, 0, 2, 3)))
     assertThat(usedNestedFields, is(expected))
   }
 
