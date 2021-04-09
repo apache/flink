@@ -142,7 +142,7 @@ abstract class TableEnvImpl(
 
   catalogManager.initSchemaResolver(
     isStreamingMode,
-    operationTreeBuilder.expressionResolverBuilder())
+    operationTreeBuilder.getResolverBuilder())
 
   def getConfig: TableConfig = config
 

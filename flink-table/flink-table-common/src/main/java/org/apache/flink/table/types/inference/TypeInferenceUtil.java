@@ -224,17 +224,21 @@ public final class TypeInferenceUtil {
 
         private final int innerCallPosition;
 
+        private final boolean isGroupedAggregation;
+
         public SurroundingInfo(
                 String name,
                 FunctionDefinition functionDefinition,
                 TypeInference typeInference,
                 int argumentCount,
-                int innerCallPosition) {
+                int innerCallPosition,
+                boolean isGroupedAggregation) {
             this.name = name;
             this.functionDefinition = functionDefinition;
             this.typeInference = typeInference;
             this.argumentCount = argumentCount;
             this.innerCallPosition = innerCallPosition;
+            this.isGroupedAggregation = isGroupedAggregation;
         }
 
         private Optional<DataType> inferOutputType(DataTypeFactory typeFactory) {
@@ -249,7 +253,12 @@ public final class TypeInferenceUtil {
             // for "takes_string(this_function(NULL))" simulate "takes_string(NULL)"
             // for retrieving the output type of "this_function(NULL)"
             final CallContext callContext =
-                    new UnknownCallContext(typeFactory, name, functionDefinition, argumentCount);
+                    new UnknownCallContext(
+                            typeFactory,
+                            name,
+                            functionDefinition,
+                            argumentCount,
+                            isGroupedAggregation);
 
             // We might not be able to infer the input types at this moment, if the surrounding
             // function

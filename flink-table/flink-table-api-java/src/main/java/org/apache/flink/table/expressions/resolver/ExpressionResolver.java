@@ -119,6 +119,8 @@ public class ExpressionResolver {
 
     private final Map<Expression, LocalOverWindow> localOverWindows;
 
+    private final boolean isGroupedAggregation;
+
     private ExpressionResolver(
             TableConfig config,
             TableReferenceLookup tableLookup,
@@ -127,7 +129,8 @@ public class ExpressionResolver {
             SqlExpressionResolver sqlExpressionResolver,
             FieldReferenceLookup fieldLookup,
             List<OverWindow> localOverWindows,
-            List<LocalReferenceExpression> localReferences) {
+            List<LocalReferenceExpression> localReferences,
+            boolean isGroupedAggregation) {
         this.config = Preconditions.checkNotNull(config).getConfiguration();
         this.tableLookup = Preconditions.checkNotNull(tableLookup);
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
@@ -147,6 +150,7 @@ public class ExpressionResolver {
                                         },
                                         LinkedHashMap::new));
         this.localOverWindows = prepareOverWindows(localOverWindows);
+        this.isGroupedAggregation = isGroupedAggregation;
     }
 
     /**
@@ -323,6 +327,11 @@ public class ExpressionResolver {
         public Optional<LocalOverWindow> getOverWindow(Expression alias) {
             return Optional.ofNullable(localOverWindows.get(alias));
         }
+
+        @Override
+        public boolean isGroupedAggregation() {
+            return isGroupedAggregation;
+        }
     }
 
     private LocalOverWindow resolveOverWindow(OverWindow overWindow) {
@@ -434,6 +443,7 @@ public class ExpressionResolver {
         private final SqlExpressionResolver sqlExpressionResolver;
         private List<OverWindow> logicalOverWindows = new ArrayList<>();
         private List<LocalReferenceExpression> localReferences = new ArrayList<>();
+        private boolean isGroupedAggregation;
 
         private ExpressionResolverBuilder(
                 QueryOperation[] queryOperations,
@@ -461,6 +471,11 @@ public class ExpressionResolver {
             return this;
         }
 
+        public ExpressionResolverBuilder withGroupedAggregation(boolean isGroupedAggregation) {
+            this.isGroupedAggregation = isGroupedAggregation;
+            return this;
+        }
+
         public ExpressionResolver build() {
             return new ExpressionResolver(
                     config,
@@ -470,7 +485,8 @@ public class ExpressionResolver {
                     sqlExpressionResolver,
                     new FieldReferenceLookup(queryOperations),
                     logicalOverWindows,
-                    localReferences);
+                    localReferences,
+                    isGroupedAggregation);
         }
     }
 }

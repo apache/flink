@@ -118,7 +118,12 @@ public abstract class InputTypeStrategiesTestBase {
                             .build();
             surroundingInfo =
                     new TypeInferenceUtil.SurroundingInfo(
-                            "f_outer", functionDefinitionMock, outerTypeInference, 1, 0);
+                            "f_outer",
+                            functionDefinitionMock,
+                            outerTypeInference,
+                            1,
+                            0,
+                            callContextMock.isGroupedAggregation);
         } else {
             surroundingInfo = null;
         }
