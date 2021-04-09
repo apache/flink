@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.scala.DataStream;
-import org.apache.flink.table.planner.runtime.utils.ParallelFiniteTestSource;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -73,14 +73,15 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
 
         DataStream<Row> stream =
                 new DataStream<>(
-                        env().getJavaEnv()
-                                .addSource(
-                                        new ParallelFiniteTestSource<>(rows),
-                                        new RowTypeInfo(
-                                                new TypeInformation[] {
-                                                    Types.INT, Types.STRING, Types.STRING
-                                                },
-                                                new String[] {"a", "b", "c"})));
+                                env().getJavaEnv()
+                                        .addSource(
+                                                new FiniteTestSource<>(rows),
+                                                new RowTypeInfo(
+                                                        new TypeInformation[] {
+                                                            Types.INT, Types.STRING, Types.STRING
+                                                        },
+                                                        new String[] {"a", "b", "c"})))
+                        .rebalance(); // rebalance to parallel tasks
 
         tEnv().createTemporaryView("my_table", stream);
     }
