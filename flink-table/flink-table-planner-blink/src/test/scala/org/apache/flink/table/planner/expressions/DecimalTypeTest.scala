@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
 
