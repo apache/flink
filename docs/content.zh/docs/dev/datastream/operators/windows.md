@@ -445,7 +445,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .reduce(new ReduceFunction<Tuple2<String, Long>> {
+    .reduce(new ReduceFunction<Tuple2<String, Long>>() {
       public Tuple2<String, Long> reduce(Tuple2<String, Long> v1, Tuple2<String, Long> v2) {
         return new Tuple2<>(v1.f0, v1.f1 + v2.f1);
       }
