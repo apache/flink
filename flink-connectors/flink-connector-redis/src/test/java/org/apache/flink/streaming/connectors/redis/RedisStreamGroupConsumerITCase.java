@@ -98,7 +98,14 @@ public class RedisStreamGroupConsumerITCase extends RedisITCaseBase {
                                     new SchemalessDataRowToMap(),
                                     REDIS_KEY,
                                     getConfigProperties()));
-            source.returns(Types.ROW(Types.STRING, Types.STRING, Types.STRING));
+            source.returns(
+                    Types.ROW(
+                            Types.STRING,
+                            Types.STRING,
+                            Types.STRING,
+                            Types.STRING,
+                            Types.STRING,
+                            Types.STRING));
             source.setParallelism(1);
 
             source.addSink(new TestRowSinkFunction(t));
