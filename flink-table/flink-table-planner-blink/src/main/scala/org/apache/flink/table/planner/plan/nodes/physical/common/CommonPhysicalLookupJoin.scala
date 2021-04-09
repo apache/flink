@@ -109,7 +109,7 @@ abstract class CommonPhysicalLookupJoin(
     cluster.getRexBuilder,
     input.getRowType,
     calcOnTemporalTable,
-    allLookupKeys.keys.toList.sorted.toArray,
+    allLookupKeys.values.toList,
     joinInfo)
 
   if (containsPythonCall(joinInfo.getRemaining(cluster.getRexBuilder))) {
@@ -191,22 +191,15 @@ abstract class CommonPhysicalLookupJoin(
       rexBuilder: RexBuilder,
       leftRelDataType: RelDataType,
       calcOnTemporalTable: Option[RexProgram],
-      checkedLookupFields: Array[Int],
+      leftKeys: List[LookupKey],
       joinInfo: JoinInfo): Option[RexNode] = {
-
-    // indexes of right key field
-    val rightKeyIndexes = calcOnTemporalTable match {
-      case Some(program) =>
-        checkedLookupFields.map { lookupFieldIndex => // lookupFieldIndex is field index on table
-          program
-            .getOutputRowType.getFieldNames
-            .indexOf(program.getInputRowType.getFieldNames.get(lookupFieldIndex))
-        }
-      case None =>
-        checkedLookupFields
-    }
+    // indexes of left key fields
+    val leftKeyIndexes =
+      leftKeys
+        .filter(k => k.isInstanceOf[FieldRefLookupKey])
+        .map(k => k.asInstanceOf[FieldRefLookupKey].index)
     val joinPairs = joinInfo.pairs().asScala.toArray
-    val remainingPairs = joinPairs.filter(p => !rightKeyIndexes.contains(p.target))
+    val remainingPairs = joinPairs.filter(p => !leftKeyIndexes.contains(p.source))
     val joinRowType = getRowType
     // convert remaining pairs to RexInputRef tuple for building SqlStdOperatorTable.EQUALS calls
     val remainingEquals = remainingPairs.map { p =>
