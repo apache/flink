@@ -296,6 +296,7 @@ public class Task
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
      * case of a failing task deployment.
      */
+    //TODO 封装每个Task的所有信息，
     public Task(
             JobInformation jobInformation,
             TaskInformation taskInformation,
@@ -397,6 +398,7 @@ public class Task
                         taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
         // produced intermediate result partitions
+        //TODO 创建ResultPartition(Task的输出，包括会根据下游算子并行度设置 ResultSubpartition)；与1.12之前的版本有区别
         final ResultPartitionWriter[] resultPartitionWriters =
                 shuffleEnvironment
                         .createResultPartitionWriters(

@@ -14,8 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *//*
-
+ */
 
 package org.apache.flink.streaming.examples.socket;
 
@@ -28,7 +27,6 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTime
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
-*/
 /**
  * Implements a streaming windowed version of the "WordCount" program.
  *
@@ -40,8 +38,7 @@ import org.apache.flink.util.Collector;
  * </pre>
  *
  * <p>and run this example with the hostname and the port as arguments.
- *//*
-
+ */
 @SuppressWarnings("serial")
 public class SocketWindowWordCount {
 
@@ -95,16 +92,12 @@ public class SocketWindowWordCount {
 
         // print the results with a single thread, rather than in parallel
         windowCounts.print().setParallelism(1);
-       // System.out.println("打印streamGraphe:====="+env.getExecutionPlan());
-
         env.execute("Socket Window WordCount");
     }
 
     // ------------------------------------------------------------------------
 
-    */
-/** Data type for words with count. *//*
-
+    /** Data type for words with count. */
     public static class WordWithCount {
 
         public String word;
@@ -123,4 +116,3 @@ public class SocketWindowWordCount {
         }
     }
 }
-*/

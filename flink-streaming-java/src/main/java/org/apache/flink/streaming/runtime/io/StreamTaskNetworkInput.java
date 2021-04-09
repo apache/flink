@@ -171,6 +171,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
                 }
 
                 if (result.isFullRecord()) {
+                    //TODO
                     processElement(deserializationDelegate.getInstance(), output);
                     return InputStatus.MORE_AVAILABLE;
                 }
@@ -201,6 +202,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
     private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
         if (recordOrMark.isRecord()) {
+            //TODO
             output.emitRecord(recordOrMark.asRecord());
         } else if (recordOrMark.isWatermark()) {
             statusWatermarkValve.inputWatermark(

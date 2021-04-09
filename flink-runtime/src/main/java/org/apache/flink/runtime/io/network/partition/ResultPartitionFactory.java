@@ -125,7 +125,7 @@ public class ResultPartitionFactory {
         if (type.isBlocking() && blockingShuffleCompressionEnabled) {
             bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
         }
-
+        //TODO ResultPartition由ResultSubpartition构成，ResultSubpartition的数量由下游Task数和DistributionType决定
         ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
         final ResultPartition partition;
