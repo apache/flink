@@ -320,6 +320,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 coordinator.getLastTriggeredCheckpoint();
 
         coordinatorStateFuture.completeExceptionally(new TestException());
+        waitForCompletionToPropagate(checkpointFuture);
 
         assertThat(checkpointFuture, futureWillCompleteWithTestException());
     }
@@ -808,6 +809,20 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         }
 
         return future;
+    }
+
+    private void waitForCompletionToPropagate(CompletableFuture<?> checkpointFuture) {
+        // this part is necessary because the user/application-code-driven coordinator
+        // forwards the checkpoint to the scheduler thread, which in turn needs to finish
+        // work
+        while (!checkpointFuture.isDone()) {
+            executor.triggerAll();
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                throw new Error(e);
+            }
+        }
     }
 
     private void acknowledgeCurrentCheckpoint(DefaultScheduler scheduler) {
