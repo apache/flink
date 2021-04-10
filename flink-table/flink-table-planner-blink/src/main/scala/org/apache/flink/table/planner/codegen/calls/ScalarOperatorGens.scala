@@ -1836,7 +1836,14 @@ object ScalarOperatorGens {
 
     val mapTerm = map.resultTerm
 
-    val equal = generateEquals(ctx, key, GeneratedExpression(tmpKey, NEVER_NULL, NO_CODE, keyType))
+    val equal = generateEquals(
+      ctx,
+      // We have to create a new GeneratedExpression from `key`, but erase the code of it.
+      // Otherwise, the code of `key` will be called twice in `accessCode`, which may lead to
+      // exceptions such as 'Redefinition of local variable'.
+      GeneratedExpression(key.resultTerm, key.nullTerm, NO_CODE, key.resultType, key.literalValue),
+      GeneratedExpression(tmpKey, NEVER_NULL, NO_CODE, keyType)
+    )
     val code =
       s"""
          |if ($mapTerm instanceof $BINARY_MAP) {
