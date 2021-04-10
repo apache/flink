@@ -30,7 +30,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -147,16 +146,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
         callInCoordinatorThread(
                 () -> {
-                    try {
-                        operatorCoordinatorContext.sendEvent(
-                                new SourceEventWrapper(event), subtaskId);
-                        return null;
-                    } catch (TaskNotRunningException e) {
-                        throw new FlinkRuntimeException(
-                                String.format(
-                                        "Failed to send event %s to subtask %d", event, subtaskId),
-                                e);
-                    }
+                    operatorCoordinatorContext.sendEvent(new SourceEventWrapper(event), subtaskId);
+                    return null;
                 },
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
@@ -195,12 +186,6 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                                             operatorCoordinatorContext.sendEvent(
                                                     new AddSplitEvent<>(splits, splitSerializer),
                                                     id);
-                                        } catch (TaskNotRunningException e) {
-                                            throw new FlinkRuntimeException(
-                                                    String.format(
-                                                            "Failed to assign splits %s to reader %d.",
-                                                            splits, id),
-                                                    e);
                                         } catch (IOException e) {
                                             throw new FlinkRuntimeException(
                                                     "Failed to serialize splits.", e);
@@ -216,13 +201,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         // Ensure the split assignment is done by the the coordinator executor.
         callInCoordinatorThread(
                 () -> {
-                    try {
-                        operatorCoordinatorContext.sendEvent(new NoMoreSplitsEvent(), subtask);
-                        return null; // void return value
-                    } catch (TaskNotRunningException e) {
-                        throw new FlinkRuntimeException(
-                                "Failed to send 'NoMoreSplits' to reader " + subtask, e);
-                    }
+                    operatorCoordinatorContext.sendEvent(new NoMoreSplitsEvent(), subtask);
+                    return null; // void return value
                 },
                 "Failed to send 'NoMoreSplits' to reader " + subtask);
     }

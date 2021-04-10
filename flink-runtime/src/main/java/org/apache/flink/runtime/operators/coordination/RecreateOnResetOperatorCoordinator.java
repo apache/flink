@@ -212,7 +212,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
         @Override
         public synchronized CompletableFuture<Acknowledge> sendEvent(
-                OperatorEvent evt, int targetSubtask) throws TaskNotRunningException {
+                OperatorEvent evt, int targetSubtask) {
             // Do not enter the sending procedure if the context has been quiesced.
             if (quiesced) {
                 return CompletableFuture.completedFuture(Acknowledge.get());
