@@ -42,8 +42,8 @@ public class OperatorEventValveTest {
         final OperatorEventValve valve = new OperatorEventValve(sender);
 
         final OperatorEvent event = new TestOperatorEvent();
-        final CompletableFuture<Acknowledge> future =
-                valve.sendEvent(new SerializedValue<>(event), 11);
+        final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(event), 11, future);
 
         assertThat(sender.events, contains(new EventWithSubtask(event, 11)));
         assertTrue(future.isDone());
@@ -74,8 +74,8 @@ public class OperatorEventValveTest {
         valve.markForCheckpoint(1L);
         valve.shutValve(1L);
 
-        final CompletableFuture<Acknowledge> future =
-                valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 1);
+        final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 1, future);
 
         assertTrue(sender.events.isEmpty());
         assertFalse(future.isDone());
@@ -91,10 +91,10 @@ public class OperatorEventValveTest {
 
         final OperatorEvent event1 = new TestOperatorEvent();
         final OperatorEvent event2 = new TestOperatorEvent();
-        final CompletableFuture<Acknowledge> future1 =
-                valve.sendEvent(new SerializedValue<>(event1), 3);
-        final CompletableFuture<Acknowledge> future2 =
-                valve.sendEvent(new SerializedValue<>(event2), 0);
+        final CompletableFuture<Acknowledge> future1 = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(event1), 3, future1);
+        final CompletableFuture<Acknowledge> future2 = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(event2), 0, future2);
 
         valve.openValveAndUnmarkCheckpoint();
 
@@ -114,8 +114,8 @@ public class OperatorEventValveTest {
         valve.markForCheckpoint(17L);
         valve.shutValve(17L);
 
-        final CompletableFuture<Acknowledge> future =
-                valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 10);
+        final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 10, future);
         valve.openValveAndUnmarkCheckpoint();
 
         assertTrue(future.isCompletedExceptionally());
@@ -128,8 +128,10 @@ public class OperatorEventValveTest {
         valve.markForCheckpoint(17L);
         valve.shutValve(17L);
 
-        valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 0);
-        valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 1);
+        valve.sendEvent(
+                new SerializedValue<>(new TestOperatorEvent()), 0, new CompletableFuture<>());
+        valve.sendEvent(
+                new SerializedValue<>(new TestOperatorEvent()), 1, new CompletableFuture<>());
 
         valve.reset();
         valve.openValveAndUnmarkCheckpoint();
@@ -146,10 +148,10 @@ public class OperatorEventValveTest {
 
         final OperatorEvent event1 = new TestOperatorEvent();
         final OperatorEvent event2 = new TestOperatorEvent();
-        final CompletableFuture<Acknowledge> future1 =
-                valve.sendEvent(new SerializedValue<>(event1), 0);
-        final CompletableFuture<Acknowledge> future2 =
-                valve.sendEvent(new SerializedValue<>(event2), 1);
+        final CompletableFuture<Acknowledge> future1 = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(event1), 0, future1);
+        final CompletableFuture<Acknowledge> future2 = new CompletableFuture<>();
+        valve.sendEvent(new SerializedValue<>(event2), 1, future2);
 
         valve.resetForTask(1);
         valve.openValveAndUnmarkCheckpoint();
