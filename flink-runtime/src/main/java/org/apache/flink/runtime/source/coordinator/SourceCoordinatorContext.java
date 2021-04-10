@@ -182,14 +182,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                             .assignment()
                             .forEach(
                                     (id, splits) -> {
+                                        final AddSplitEvent<SplitT> addSplitEvent;
                                         try {
-                                            operatorCoordinatorContext.sendEvent(
-                                                    new AddSplitEvent<>(splits, splitSerializer),
-                                                    id);
+                                            addSplitEvent =
+                                                    new AddSplitEvent<>(splits, splitSerializer);
                                         } catch (IOException e) {
                                             throw new FlinkRuntimeException(
                                                     "Failed to serialize splits.", e);
                                         }
+                                        operatorCoordinatorContext.sendEvent(addSplitEvent, id);
                                     });
                     return null;
                 },
