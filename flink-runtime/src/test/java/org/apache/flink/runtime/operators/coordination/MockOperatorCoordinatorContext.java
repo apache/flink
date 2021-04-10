@@ -75,8 +75,7 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     }
 
     @Override
-    public CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask)
-            throws TaskNotRunningException {
+    public CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask) {
         eventsToOperator.computeIfAbsent(targetSubtask, subtaskId -> new ArrayList<>()).add(evt);
         if (failEventSending) {
             CompletableFuture<Acknowledge> future = new CompletableFuture<>();
