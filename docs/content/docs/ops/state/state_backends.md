@@ -53,12 +53,6 @@ If nothing else is configured, the system will use the HashMapStateBackend.
 The *HashMapStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
 that store the values, triggers, etc.
 
-The HashMapStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a HashMapStateBackend with the corresponding boolean flag in the constructor set to `false`, e.g.:
-
-```java
-new HashMapStateBackend(false);
-```
-
 The HashMapStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
