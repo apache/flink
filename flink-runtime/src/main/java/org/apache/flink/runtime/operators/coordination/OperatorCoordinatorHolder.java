@@ -21,7 +21,6 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -70,9 +69,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <ul>
  *   <li>Events pass through a special channel, the {@link OperatorEventValve}. If we are not
  *       currently triggering a checkpoint, then events simply pass through.
- *   <li>Atomically, with the completion of the checkpoint future for the coordinator, this operator
- *       operator event valve is closed. Events coming after that are held back (buffered), because
- *       they belong to the epoch after the checkpoint.
+ *   <li>With the completion of the checkpoint future for the coordinator, this operator event valve
+ *       is closed. Events coming after that are held back (buffered), because they belong to the
+ *       epoch after the checkpoint.
  *   <li>Once all coordinators in the job have completed the checkpoint, the barriers to the sources
  *       are injected. After that (see {@link #afterSourceBarrierInjection(long)}) the valves are
  *       opened again and the events are sent.
@@ -107,10 +106,13 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h3>Concurrency and Threading Model</h3>
  *
- * <p>This component runs mainly in a main-thread-executor, like RPC endpoints. However, some
- * actions need to be triggered synchronously by other threads. Most notably, when the checkpoint
- * future is completed by the {@code OperatorCoordinator} implementation, we need to synchronously
- * suspend event-sending.
+ * <p>This component runs strictly in the Scheduler's main-thread-executor. All calls "from the
+ * outside" are either already in the main-thread-executor (when coming from Scheduler) or put into
+ * the main-thread-executor (when coming from the CheckpointCoordinator). We rely on the executor to
+ * preserve strict order of the calls.
+ *
+ * <p>Actions from the coordinator to the "outside world" (like completing a checkpoint and sending
+ * an event) are also enqueued back into the scheduler main-thread executor, strictly in order.
  */
 public class OperatorCoordinatorHolder
         implements OperatorCoordinator, OperatorCoordinatorCheckpointContext {
@@ -153,6 +155,7 @@ public class OperatorCoordinatorHolder
             ComponentMainThreadExecutor mainThreadExecutor) {
         this.globalFailureHandler = globalFailureHandler;
         this.mainThreadExecutor = mainThreadExecutor;
+        eventValve.setMainThreadExecutorForValidation(mainThreadExecutor);
         context.lazyInitialize(globalFailureHandler, mainThreadExecutor);
     }
 
@@ -248,8 +251,11 @@ public class OperatorCoordinatorHolder
     @Override
     public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
             throws Exception {
-        // ideally we would like to check this here, however this method is called early during
-        // execution graph construction, before the main thread executor is set
+        // the first time this method is called is early during execution graph construction,
+        // before the main thread executor is set. hence this conditional check.
+        if (mainThreadExecutor != null) {
+            mainThreadExecutor.assertRunningInMainThread();
+        }
 
         eventValve.reset();
         if (context != null) {
@@ -262,8 +268,9 @@ public class OperatorCoordinatorHolder
             final long checkpointId, final CompletableFuture<byte[]> result) {
         mainThreadExecutor.assertRunningInMainThread();
 
-        // synchronously!!!, with the completion, we need to shut the event valve
-        result.whenComplete(
+        final CompletableFuture<byte[]> coordinatorCheckpoint = new CompletableFuture<>();
+
+        coordinatorCheckpoint.whenCompleteAsync(
                 (success, failure) -> {
                     if (failure != null) {
                         result.completeExceptionally(failure);
@@ -275,11 +282,12 @@ public class OperatorCoordinatorHolder
                             result.completeExceptionally(e);
                         }
                     }
-                });
+                },
+                mainThreadExecutor);
 
         try {
             eventValve.markForCheckpoint(checkpointId);
-            coordinator.checkpointCoordinator(checkpointId, result);
+            coordinator.checkpointCoordinator(checkpointId, coordinatorCheckpoint);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             result.completeExceptionally(t);
@@ -293,34 +301,20 @@ public class OperatorCoordinatorHolder
 
     @Override
     public void afterSourceBarrierInjection(long checkpointId) {
-        // this method is commonly called by the CheckpointCoordinator's executor thread (timer
-        // thread).
-
-        // we ideally want the scheduler main-thread to be the one that sends the blocked events
-        // however, we need to react synchronously here, to maintain consistency and not allow
-        // another checkpoint injection in-between (unlikely, but possible).
-        // fortunately, the event-sending goes pretty much directly to the RPC gateways, which are
-        // thread safe.
-
-        // this will automatically be fixed once the checkpoint coordinator runs in the
+        // unfortunately, this method does not run in the scheduler executor, but in the
+        // checkpoint coordinator time thread.
+        // we can remove the delegation once the checkpoint coordinator runs fully in the
         // scheduler's main thread executor
-        eventValve.openValveAndUnmarkCheckpoint();
+        mainThreadExecutor.execute(() -> eventValve.openValveAndUnmarkCheckpoint(checkpointId));
     }
 
     @Override
     public void abortCurrentTriggering() {
-        // this method is commonly called by the CheckpointCoordinator's executor thread (timer
-        // thread).
-
-        // we ideally want the scheduler main-thread to be the one that sends the blocked events
-        // however, we need to react synchronously here, to maintain consistency and not allow
-        // another checkpoint injection in-between (unlikely, but possible).
-        // fortunately, the event-sending goes pretty much directly to the RPC gateways, which are
-        // thread safe.
-
-        // this will automatically be fixed once the checkpoint coordinator runs in the
+        // unfortunately, this method does not run in the scheduler executor, but in the
+        // checkpoint coordinator time thread.
+        // we can remove the delegation once the checkpoint coordinator runs fully in the
         // scheduler's main thread executor
-        eventValve.openValveAndUnmarkCheckpoint();
+        mainThreadExecutor.execute(eventValve::openValveAndUnmarkCheckpoint);
     }
 
     // ------------------------------------------------------------------------
@@ -475,12 +469,10 @@ public class OperatorCoordinatorHolder
                 throw new FlinkRuntimeException("Cannot serialize operator event", e);
             }
 
-            try {
-                return eventValve.sendEvent(serializedEvent, targetSubtask);
-            } catch (Throwable t) {
-                ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-                return FutureUtils.completedExceptionally(t);
-            }
+            final CompletableFuture<Acknowledge> result = new CompletableFuture<>();
+            schedulerExecutor.execute(
+                    () -> eventValve.sendEvent(serializedEvent, targetSubtask, result));
+            return result;
         }
 
         @Override

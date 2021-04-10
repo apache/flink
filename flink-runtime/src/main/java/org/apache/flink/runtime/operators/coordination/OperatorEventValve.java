@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -40,30 +40,27 @@ import java.util.function.BiFunction;
  *
  * <p>The valve can also drop buffered events for all or selected targets.
  *
- * <p>This class is fully thread safe, under the assumption that the event sender is thread-safe.
+ * <p>This class is NOT thread safe, but assumed to be used in a single threaded context. To guard
+ * that, one can register a "main thread executor" (as used by the mailbox components like RPC
+ * components) via {@link #setMainThreadExecutorForValidation(ComponentMainThreadExecutor)}.
  */
 final class OperatorEventValve {
 
     private static final long NO_CHECKPOINT = Long.MIN_VALUE;
 
-    private final Object lock = new Object();
-
-    @GuardedBy("lock")
     private final BiFunction<
                     SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>>
             eventSender;
 
-    @GuardedBy("lock")
     private final Map<Integer, List<BlockedEvent>> blockedEvents = new LinkedHashMap<>();
 
-    @GuardedBy("lock")
     private long currentCheckpointId;
 
-    @GuardedBy("lock")
     private long lastCheckpointId;
 
-    @GuardedBy("lock")
     private boolean shut;
+
+    @Nullable private ComponentMainThreadExecutor mainThreadExecutor;
 
     /**
      * Constructs a new OperatorEventValve, passing the events to the given function when the valve
@@ -78,13 +75,16 @@ final class OperatorEventValve {
         this.lastCheckpointId = Long.MIN_VALUE;
     }
 
+    public void setMainThreadExecutorForValidation(ComponentMainThreadExecutor mainThreadExecutor) {
+        this.mainThreadExecutor = mainThreadExecutor;
+    }
+
     // ------------------------------------------------------------------------
 
     public boolean isShut() {
-        // synchronized block for visibility
-        synchronized (lock) {
-            return shut;
-        }
+        checkRunsInMainThread();
+
+        return shut;
     }
 
     /**
@@ -95,43 +95,54 @@ final class OperatorEventValve {
      * is completed with the original result once the valve is opened. If the event is never sent
      * (because it gets dropped through a call to {@link #reset()} or {@link #resetForTask(int)},
      * then the returned future till be completed exceptionally.
+     *
+     * <p>This method makes no assumptions and gives no guarantees from which thread the result
+     * future gets completed.
      */
-    public CompletableFuture<Acknowledge> sendEvent(
-            SerializedValue<OperatorEvent> event, int subtask) {
-        synchronized (lock) {
-            if (!shut) {
-                return eventSender.apply(event, subtask);
-            }
+    public void sendEvent(
+            SerializedValue<OperatorEvent> event,
+            int subtask,
+            CompletableFuture<Acknowledge> result) {
+        checkRunsInMainThread();
 
-            final List<BlockedEvent> eventsForTask =
-                    blockedEvents.computeIfAbsent(subtask, (key) -> new ArrayList<>());
-            final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
-            eventsForTask.add(new BlockedEvent(event, subtask, future));
-            return future;
+        if (!shut) {
+            final CompletableFuture<Acknowledge> ack = eventSender.apply(event, subtask);
+            FutureUtils.forward(ack, result);
+            return;
         }
+
+        final List<BlockedEvent> eventsForTask =
+                blockedEvents.computeIfAbsent(subtask, (key) -> new ArrayList<>());
+        eventsForTask.add(new BlockedEvent(event, subtask, result));
     }
 
     /**
-     * Shuts the value. All events sent through this valve are blocked until the valve is re-opened.
-     * If the valve is already shut, this does nothing.
+     * Marks the valve for the next checkpoint. This remembers the checkpoint ID and will only allow
+     * shutting the value for this specific checkpoint.
+     *
+     * <p>This is the valve's mechanism to detect situations where multiple coordinator checkpoints
+     * would be attempted overlapping, which is currently not supported (the valve doesn't keep a
+     * list of events blocked per checkpoint). It also helps to identify situations where the
+     * checkpoint was aborted even before the valve was shut (by finding out that the {@code
+     * currentCheckpointId} was already reset to {@code NO_CHECKPOINT}.
      */
     public void markForCheckpoint(long checkpointId) {
-        synchronized (lock) {
-            if (currentCheckpointId != NO_CHECKPOINT && currentCheckpointId != checkpointId) {
-                throw new IllegalStateException(
-                        String.format(
-                                "Cannot mark for checkpoint %d, already marked for checkpoint %d",
-                                checkpointId, currentCheckpointId));
-            }
-            if (checkpointId > lastCheckpointId) {
-                currentCheckpointId = checkpointId;
-                lastCheckpointId = checkpointId;
-            } else {
-                throw new IllegalStateException(
-                        String.format(
-                                "Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
-                                lastCheckpointId, checkpointId));
-            }
+        checkRunsInMainThread();
+
+        if (currentCheckpointId != NO_CHECKPOINT && currentCheckpointId != checkpointId) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot mark for checkpoint %d, already marked for checkpoint %d",
+                            checkpointId, currentCheckpointId));
+        }
+        if (checkpointId > lastCheckpointId) {
+            currentCheckpointId = checkpointId;
+            lastCheckpointId = checkpointId;
+        } else {
+            throw new IllegalStateException(
+                    String.format(
+                            "Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
+                            lastCheckpointId, checkpointId));
         }
     }
 
@@ -140,76 +151,75 @@ final class OperatorEventValve {
      * If the valve is already shut, this does nothing.
      */
     public void shutValve(long checkpointId) {
-        synchronized (lock) {
-            if (checkpointId == currentCheckpointId) {
-                shut = true;
-            } else {
-                throw new IllegalStateException(
-                        String.format(
-                                "Cannot shut valve for non-prepared checkpoint. "
-                                        + "Prepared checkpoint = %s, attempting-to-close checkpoint = %d",
-                                (currentCheckpointId == NO_CHECKPOINT
-                                        ? "(none)"
-                                        : String.valueOf(currentCheckpointId)),
-                                checkpointId));
-            }
+        checkRunsInMainThread();
+
+        if (checkpointId == currentCheckpointId) {
+            shut = true;
+        } else {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot shut valve for non-prepared checkpoint. "
+                                    + "Prepared checkpoint = %s, attempting-to-close checkpoint = %d",
+                            (currentCheckpointId == NO_CHECKPOINT
+                                    ? "(none)"
+                                    : String.valueOf(currentCheckpointId)),
+                            checkpointId));
         }
+    }
+
+    public void openValveAndUnmarkCheckpoint(long expectedCheckpointId) {
+        checkRunsInMainThread();
+
+        if (expectedCheckpointId != currentCheckpointId) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Valve closed for different checkpoint: closed for = %d, expected = %d",
+                            currentCheckpointId, expectedCheckpointId));
+        }
+        openValveAndUnmarkCheckpoint();
     }
 
     /** Opens the value, releasing all buffered events. */
     public void openValveAndUnmarkCheckpoint() {
-        final ArrayList<FuturePair> futures;
+        checkRunsInMainThread();
 
-        // send all events under lock, so that no new event can sneak between
-        synchronized (lock) {
-            currentCheckpointId = NO_CHECKPOINT;
-
-            if (!shut) {
-                return;
-            }
-
-            futures = new ArrayList<>(blockedEvents.size());
-
-            for (List<BlockedEvent> eventsForTask : blockedEvents.values()) {
-                for (BlockedEvent blockedEvent : eventsForTask) {
-                    final CompletableFuture<Acknowledge> ackFuture =
-                            eventSender.apply(blockedEvent.event, blockedEvent.subtask);
-                    futures.add(new FuturePair(blockedEvent.future, ackFuture));
-                }
-            }
-            blockedEvents.clear();
-            shut = false;
+        currentCheckpointId = NO_CHECKPOINT;
+        if (!shut) {
+            return;
         }
 
-        // apply the logic on the future outside the lock, to be safe
-        for (FuturePair pair : futures) {
-            FutureUtils.forward(pair.ackFuture, pair.originalFuture);
+        for (List<BlockedEvent> eventsForTask : blockedEvents.values()) {
+            for (BlockedEvent blockedEvent : eventsForTask) {
+                final CompletableFuture<Acknowledge> ackFuture =
+                        eventSender.apply(blockedEvent.event, blockedEvent.subtask);
+                FutureUtils.forward(ackFuture, blockedEvent.future);
+            }
         }
+        blockedEvents.clear();
+        shut = false;
     }
 
     /** Drops all blocked events for a specific subtask. */
     public void resetForTask(int subtask) {
-        final List<BlockedEvent> events;
-        synchronized (lock) {
-            events = blockedEvents.remove(subtask);
-        }
+        checkRunsInMainThread();
 
+        final List<BlockedEvent> events = blockedEvents.remove(subtask);
         failAllFutures(events);
     }
 
     /** Resets the valve, dropping all blocked events and opening the valve. */
     public void reset() {
+        checkRunsInMainThread();
+
         final List<BlockedEvent> events = new ArrayList<>();
-        synchronized (lock) {
-            for (List<BlockedEvent> taskEvents : blockedEvents.values()) {
-                if (taskEvents != null) {
-                    events.addAll(taskEvents);
-                }
+        for (List<BlockedEvent> taskEvents : blockedEvents.values()) {
+            if (taskEvents != null) {
+                events.addAll(taskEvents);
             }
-            blockedEvents.clear();
-            shut = false;
-            currentCheckpointId = NO_CHECKPOINT;
         }
+        blockedEvents.clear();
+        shut = false;
+        currentCheckpointId = NO_CHECKPOINT;
 
         failAllFutures(events);
     }
@@ -223,6 +233,12 @@ final class OperatorEventValve {
                 new FlinkException("Event discarded due to failure of target task");
         for (BlockedEvent evt : events) {
             evt.future.completeExceptionally(failureCause);
+        }
+    }
+
+    private void checkRunsInMainThread() {
+        if (mainThreadExecutor != null) {
+            mainThreadExecutor.assertRunningInMainThread();
         }
     }
 
@@ -241,19 +257,6 @@ final class OperatorEventValve {
             this.event = event;
             this.future = future;
             this.subtask = subtask;
-        }
-    }
-
-    private static final class FuturePair {
-
-        final CompletableFuture<Acknowledge> originalFuture;
-        final CompletableFuture<Acknowledge> ackFuture;
-
-        FuturePair(
-                CompletableFuture<Acknowledge> originalFuture,
-                CompletableFuture<Acknowledge> ackFuture) {
-            this.originalFuture = originalFuture;
-            this.ackFuture = ackFuture;
         }
     }
 }
