@@ -212,8 +212,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> checkpointCoordinatorInternal(checkpointId, result));
     }
 
@@ -222,8 +221,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> coordinator.notifyCheckpointComplete(checkpointId));
     }
 
@@ -232,8 +230,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> coordinator.notifyCheckpointAborted(checkpointId));
     }
 
