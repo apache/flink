@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -474,7 +475,12 @@ public class OperatorCoordinatorHolder
                 throw new FlinkRuntimeException("Cannot serialize operator event", e);
             }
 
-            return eventValve.sendEvent(serializedEvent, targetSubtask);
+            try {
+                return eventValve.sendEvent(serializedEvent, targetSubtask);
+            } catch (Throwable t) {
+                ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+                return FutureUtils.completedExceptionally(t);
+            }
         }
 
         @Override
