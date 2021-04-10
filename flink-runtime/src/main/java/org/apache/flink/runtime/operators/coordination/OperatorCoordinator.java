@@ -202,8 +202,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * target TaskManager. The future is completed exceptionally if the event cannot be sent.
          * That includes situations where the target task is not running.
          */
-        CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask)
-                throws TaskNotRunningException;
+        CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask);
 
         /**
          * Fails the job and trigger a global failover operation.

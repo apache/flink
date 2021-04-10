@@ -349,15 +349,13 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
             if (nextNumber > maxNumber) {
                 return;
             }
-            try {
-                if (nextNumber == maxNumber) {
-                    context.sendEvent(new EndEvent(), 0);
-                } else {
-                    context.sendEvent(new IntegerEvent(nextNumber), 0);
-                }
-                nextNumber++;
-            } catch (TaskNotRunningException ignored) {
+
+            if (nextNumber == maxNumber) {
+                context.sendEvent(new EndEvent(), 0);
+            } else {
+                context.sendEvent(new IntegerEvent(nextNumber), 0);
             }
+            nextNumber++;
         }
 
         private void checkWhetherToTriggerFailure() {
