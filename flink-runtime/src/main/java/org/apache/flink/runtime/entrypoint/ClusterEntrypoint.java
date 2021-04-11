@@ -212,8 +212,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             "Failed to initialize the cluster entrypoint %s.",
                             getClass().getSimpleName()),
                     strippedThrowable);
-        } finally {
-            SecurityUtils.uninstall();
         }
     }
 

@@ -1136,7 +1136,6 @@ public class CliFrontend {
             LOG.error("Fatal error while running command line interface.", strippedThrowable);
             strippedThrowable.printStackTrace();
         } finally {
-            SecurityUtils.uninstall();
             System.exit(retCode);
         }
     }

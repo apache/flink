@@ -864,8 +864,6 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
             final Throwable strippedThrowable =
                     ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
             retCode = handleError(strippedThrowable, LOG);
-        } finally {
-            SecurityUtils.uninstall();
         }
 
         System.exit(retCode);
