@@ -115,7 +115,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * an event) are also enqueued back into the scheduler main-thread executor, strictly in order.
  */
 public class OperatorCoordinatorHolder
-        implements OperatorCoordinator, OperatorCoordinatorCheckpointContext {
+        implements OperatorCoordinatorCheckpointContext, AutoCloseable {
 
     private final OperatorCoordinator coordinator;
     private final OperatorID operatorId;
@@ -186,7 +186,6 @@ public class OperatorCoordinatorHolder
     //  OperatorCoordinator Interface
     // ------------------------------------------------------------------------
 
-    @Override
     public void start() throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
         checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
@@ -199,13 +198,11 @@ public class OperatorCoordinatorHolder
         context.unInitialize();
     }
 
-    @Override
     public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
         mainThreadExecutor.assertRunningInMainThread();
         coordinator.handleEventFromOperator(subtask, event);
     }
 
-    @Override
     public void subtaskFailed(int subtask, @Nullable Throwable reason) {
         mainThreadExecutor.assertRunningInMainThread();
         coordinator.subtaskFailed(subtask, reason);
