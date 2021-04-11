@@ -149,6 +149,13 @@ public class Execution
 
     private final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture;
 
+    /**
+     * Gets completed successfully when the task switched to {@link ExecutionState#INITIALIZING} or
+     * {@link ExecutionState#RUNNING}. If the task never switches to those state, but fails
+     * immediately, then this future never completes.
+     */
+    private final CompletableFuture<?> initializingOrRunningFuture;
+
     private volatile ExecutionState state = CREATED;
 
     private LogicalSlot assignedResource;
@@ -214,6 +221,7 @@ public class Execution
         this.terminalStateFuture = new CompletableFuture<>();
         this.releaseFuture = new CompletableFuture<>();
         this.taskManagerLocationFuture = new CompletableFuture<>();
+        this.initializingOrRunningFuture = new CompletableFuture<>();
 
         this.assignedResource = null;
     }
@@ -350,6 +358,23 @@ public class Execution
      */
     public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
+    }
+
+    /**
+     * Gets a future that completes once the task execution reaches one of the states {@link
+     * ExecutionState#INITIALIZING} or {@link ExecutionState#RUNNING}. If this task never reaches
+     * these states (for example because the task is cancelled before it was properly deployed and
+     * restored), then this future will never complete.
+     *
+     * <p>The future is completed already in the {@link ExecutionState#INITIALIZING} state, because
+     * various running actions are already possible in that state (the task already accepts and
+     * sends events and network data for task recovery). (Note that in earlier versions, the
+     * INITIALIZING state was not separate but part of the RUNNING state).
+     *
+     * <p>This future is always completed from the job master's main thread.
+     */
+    public CompletableFuture<?> getInitializingOrRunningFuture() {
+        return initializingOrRunningFuture;
     }
 
     /**
@@ -1428,7 +1453,9 @@ public class Execution
                 }
             }
 
-            if (targetState.isTerminal()) {
+            if (targetState == INITIALIZING || targetState == RUNNING) {
+                initializingOrRunningFuture.complete(null);
+            } else if (targetState.isTerminal()) {
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
             }
