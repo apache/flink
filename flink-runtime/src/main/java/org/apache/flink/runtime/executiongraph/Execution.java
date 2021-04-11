@@ -171,6 +171,12 @@ public class Execution
 
     private final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture;
 
+    /**
+     * Gets completed successfully when the task switched to {@link ExecutionState#RUNNING}. If the
+     * task never switches to that state, but fails immediately, then this future never completes.
+     */
+    private final CompletableFuture<?> initializingOrRunningFuture;
+
     private volatile ExecutionState state = CREATED;
 
     private LogicalSlot assignedResource;
@@ -239,6 +245,7 @@ public class Execution
         this.terminalStateFuture = new CompletableFuture<>();
         this.releaseFuture = new CompletableFuture<>();
         this.taskManagerLocationFuture = new CompletableFuture<>();
+        this.initializingOrRunningFuture = new CompletableFuture<>();
 
         this.assignedResource = null;
     }
@@ -390,6 +397,22 @@ public class Execution
      */
     public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
+    }
+
+    /**
+     * Gets a future that completes once the task execution reaches the state {@link
+     * ExecutionState#RUNNING}. If this task never reaches that state (for example because the task
+     * is cancelled before it was properly deployed and restored), then this future will never
+     * complete.
+     *
+     * <p>The method is already called "getInitializingOrRunningFuture()" because it is back-ported
+     * from a later version where the RUNNING state was split into INITIALIZING and RUNNING. We keep
+     * the name for simplicity of back-porting related changes.
+     *
+     * <p>This future is always completed from the job master's main thread.
+     */
+    public CompletableFuture<?> getInitializingOrRunningFuture() {
+        return initializingOrRunningFuture;
     }
 
     /**
@@ -1787,7 +1810,9 @@ public class Execution
                 }
             }
 
-            if (targetState.isTerminal()) {
+            if (targetState == RUNNING) {
+                initializingOrRunningFuture.complete(null);
+            } else if (targetState.isTerminal()) {
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
             }
