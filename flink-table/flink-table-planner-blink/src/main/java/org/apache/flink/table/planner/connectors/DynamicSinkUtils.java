@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -35,6 +36,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -48,6 +50,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -77,6 +80,49 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class DynamicSinkUtils {
 
+    /** Converts an {@link TableResult#collect()} sink to a {@link RelNode}. */
+    public static RelNode convertCollectToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            CollectModifyOperation collectModifyOperation) {
+        final DataTypeFactory dataTypeFactory =
+                unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
+        final ResolvedSchema childSchema = collectModifyOperation.getChild().getResolvedSchema();
+        final ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        childSchema.getColumnNames(), childSchema.getColumnDataTypes());
+        final CatalogTable unresolvedTable = new InlineCatalogTable(schema);
+        final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
+
+        final DataType consumedDataType = fixCollectDataType(dataTypeFactory, schema);
+
+        final CollectDynamicSink tableSink =
+                new CollectDynamicSink(
+                        collectModifyOperation.getTableIdentifier(), consumedDataType);
+        collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                collectModifyOperation.getTableIdentifier(),
+                Collections.emptyMap(),
+                false,
+                tableSink,
+                catalogTable);
+    }
+
+    /** Temporary solution until we drop legacy types. */
+    private static DataType fixCollectDataType(
+            DataTypeFactory dataTypeFactory, ResolvedSchema schema) {
+        final DataType fixedDataType =
+                DataTypeUtils.transform(
+                        dataTypeFactory,
+                        schema.toSourceRowDataType(),
+                        TypeTransformations.legacyRawToTypeInfoRaw(),
+                        TypeTransformations.legacyToNonLegacy());
+        // TODO erase the conversion class earlier when dropping legacy code
+        return TypeConversions.fromLogicalToDataType(fixedDataType.getLogicalType());
+    }
+
     /**
      * Converts an external sink (i.e. further {@link DataStream} transformations) to a {@link
      * RelNode}.
@@ -86,7 +132,7 @@ public final class DynamicSinkUtils {
             RelNode input,
             ExternalModifyOperation externalModifyOperation) {
         final ResolvedSchema schema = externalModifyOperation.getResolvedSchema();
-        final CatalogTable unresolvedTable = new ExternalCatalogTable(schema);
+        final CatalogTable unresolvedTable = new InlineCatalogTable(schema);
         final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
         final DynamicTableSink tableSink =
                 new ExternalDynamicSink(

@@ -19,31 +19,46 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.api.internal.CollectResultProvider;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Special, internal kind of {@link ModifyOperation} that collects the content of {@link
  * QueryOperation} to local.
  */
 @Internal
-public class SelectSinkOperation implements ModifyOperation {
+public final class CollectModifyOperation implements ModifyOperation {
+
+    private static final AtomicInteger uniqueId = new AtomicInteger(0);
+
+    private final ObjectIdentifier tableIdentifier;
 
     private final QueryOperation child;
-    // help the client to get the execute result from a specific sink.
-    private SelectResultProvider resultProvider;
 
-    public SelectSinkOperation(QueryOperation child) {
+    // help the client to get the execute result from a specific sink.
+    private CollectResultProvider resultProvider;
+
+    public CollectModifyOperation(ObjectIdentifier tableIdentifier, QueryOperation child) {
+        this.tableIdentifier = tableIdentifier;
         this.child = child;
     }
 
-    public void setSelectResultProvider(SelectResultProvider resultProvider) {
+    public static int getUniqueId() {
+        return uniqueId.incrementAndGet();
+    }
+
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
+
+    public void setSelectResultProvider(CollectResultProvider resultProvider) {
         this.resultProvider = resultProvider;
     }
 
-    public SelectResultProvider getSelectResultProvider() {
+    public CollectResultProvider getSelectResultProvider() {
         return resultProvider;
     }
 
@@ -60,8 +75,8 @@ public class SelectSinkOperation implements ModifyOperation {
     @Override
     public String asSummaryString() {
         return OperationUtils.formatWithChildren(
-                "SelectSink",
-                new HashMap<>(),
+                "CollectSink",
+                Collections.singletonMap("identifier", tableIdentifier),
                 Collections.singletonList(child),
                 Operation::asSummaryString);
     }
