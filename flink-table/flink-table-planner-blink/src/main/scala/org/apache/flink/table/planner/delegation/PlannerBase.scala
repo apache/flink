@@ -63,6 +63,8 @@ import java.util
 import java.util.TimeZone
 import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 
+import org.apache.calcite.rel.hint.RelHint
+
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -221,8 +223,13 @@ abstract class PlannerBase(
               TableSchemaUtils.getPhysicalSchema(table.getSchema),
               catalogSink.getTableIdentifier,
               getTypeFactory)
+            val hints = new util.ArrayList[RelHint]
+            if (!dynamicOptions.isEmpty) {
+              hints.add(RelHint.builder("OPTIONS").hintOptions(dynamicOptions).build)
+            }
             LogicalLegacySink.create(
               query,
+              hints,
               sink,
               identifier.toString,
               table,

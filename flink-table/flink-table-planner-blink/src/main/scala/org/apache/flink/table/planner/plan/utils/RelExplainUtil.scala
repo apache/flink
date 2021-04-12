@@ -862,7 +862,7 @@ object RelExplainUtil {
   /**
    * Converts [[RelHint]]s to String.
    */
-  def hintsToString(hints: ImmutableList[RelHint]): String = {
+  def hintsToString(hints: util.List[RelHint]): String = {
     val sb = new StringBuilder
     sb.append("[")
     hints.foreach { hint =>
