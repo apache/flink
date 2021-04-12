@@ -1,20 +1,20 @@
 /*
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package org.apache.flink.runtime.source.coordinator;
 
@@ -35,21 +35,18 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.source.event.AddSplitEvent;
-import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -101,55 +98,41 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 "The coordinator can only be reset if it was not yet started");
     }
 
-    @Test(timeout = 10000L)
+    @Test
     public void testStart() throws Exception {
         sourceCoordinator.start();
-        while (!getEnumerator().started()) {
-            Thread.sleep(1);
-        }
+        waitForCoordinatorToProcessActions();
+
+        assertTrue(getEnumerator().isStarted());
     }
 
     @Test
     public void testClosed() throws Exception {
         sourceCoordinator.start();
         sourceCoordinator.close();
-        assertTrue(getEnumerator().closed());
-    }
-
-    @Test
-    public void testReaderRegistration() throws Exception {
-        sourceCoordinator.start();
-        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
-        check(
-                () -> {
-                    assertEquals(
-                            "2 splits should have been assigned to reader 0",
-                            4,
-                            getEnumerator().getUnassignedSplits().size());
-                    assertTrue(context.registeredReaders().containsKey(0));
-                    assertTrue(getEnumerator().getHandledSourceEvent().isEmpty());
-                    verifyAssignment(
-                            Arrays.asList("0", "3"),
-                            splitSplitAssignmentTracker.uncheckpointedAssignments().get(0));
-                });
+        assertTrue(getEnumerator().isClosed());
     }
 
     @Test
     public void testHandleSourceEvent() throws Exception {
-        sourceCoordinator.start();
+        sourceReady();
+
         SourceEvent sourceEvent = new SourceEvent() {};
         sourceCoordinator.handleEventFromOperator(0, new SourceEventWrapper(sourceEvent));
-        check(
-                () -> {
-                    assertEquals(1, getEnumerator().getHandledSourceEvent().size());
-                    assertEquals(sourceEvent, getEnumerator().getHandledSourceEvent().get(0));
-                });
+        waitForCoordinatorToProcessActions();
+
+        assertEquals(1, getEnumerator().getHandledSourceEvent().size());
+        assertEquals(sourceEvent, getEnumerator().getHandledSourceEvent().get(0));
     }
 
     @Test
     public void testCheckpointCoordinatorAndRestore() throws Exception {
-        sourceCoordinator.start();
-        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
+        sourceReady();
+        addTestingSplitSet(6);
+
+        registerReader(0);
+        getEnumerator().executeAssignOneSplit(0);
+        getEnumerator().executeAssignOneSplit(0);
 
         final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
         sourceCoordinator.checkpointCoordinator(100L, checkpointFuture);
@@ -158,14 +141,14 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         // restore from the checkpoints.
         SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
         restoredCoordinator.resetToCheckpoint(100L, bytes);
-        MockSplitEnumerator restoredEnumerator =
-                (MockSplitEnumerator) restoredCoordinator.getEnumerator();
+        TestingSplitEnumerator<?> restoredEnumerator =
+                (TestingSplitEnumerator<?>) restoredCoordinator.getEnumerator();
         SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
         assertEquals(
                 "2 splits should have been assigned to reader 0",
                 4,
                 restoredEnumerator.getUnassignedSplits().size());
-        assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
+        assertTrue(restoredEnumerator.getContext().registeredReaders().isEmpty());
         assertEquals(
                 "Registered readers should not be recovered by restoring",
                 0,
@@ -173,119 +156,75 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testSubtaskFailedAndRevertUncompletedAssignments() throws Exception {
-        sourceCoordinator.start();
+        sourceReady();
+        addTestingSplitSet(6);
 
-        // Assign some splits to reader 0 then take snapshot 100.
-        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
+        // two splits pending for checkpoint 100
+        registerReader(0);
+        getEnumerator().executeAssignOneSplit(0);
+        getEnumerator().executeAssignOneSplit(0);
+        sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
 
-        final CompletableFuture<byte[]> checkpointFuture1 = new CompletableFuture<>();
-        sourceCoordinator.checkpointCoordinator(100L, checkpointFuture1);
-        checkpointFuture1.get();
-
-        // Add split 6, assign it to reader 0 and take another snapshot 101.
-        getEnumerator().addNewSplits(Collections.singletonList(new MockSourceSplit(6)));
-
-        final CompletableFuture<byte[]> checkpointFuture2 = new CompletableFuture<>();
-        sourceCoordinator.checkpointCoordinator(101L, checkpointFuture2);
-        checkpointFuture2.get();
+        getEnumerator().addNewSplits(new MockSourceSplit(6));
+        getEnumerator().executeAssignOneSplit(0);
+        sourceCoordinator.checkpointCoordinator(101L, new CompletableFuture<>());
 
         // check the state.
-        check(
-                () -> {
-                    // There should be 4 unassigned splits.
-                    assertEquals(4, getEnumerator().getUnassignedSplits().size());
-                    verifyAssignment(
-                            Arrays.asList("0", "3"),
-                            splitSplitAssignmentTracker
-                                    .assignmentsByCheckpointId()
-                                    .get(100L)
-                                    .get(0));
-                    assertTrue(splitSplitAssignmentTracker.uncheckpointedAssignments().isEmpty());
-                    verifyAssignment(
-                            Arrays.asList("0", "3"),
-                            splitSplitAssignmentTracker.assignmentsByCheckpointId(100L).get(0));
-                    verifyAssignment(
-                            Arrays.asList("6"),
-                            splitSplitAssignmentTracker.assignmentsByCheckpointId(101L).get(0));
+        waitForCoordinatorToProcessActions();
 
-                    List<OperatorEvent> eventsToReader0 =
-                            operatorCoordinatorContext.getEventsToOperator().get(0);
-                    assertEquals(2, eventsToReader0.size());
-                    try {
-                        verifyAssignment(
-                                Arrays.asList("0", "3"),
-                                ((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(0))
-                                        .splits(new MockSourceSplitSerializer()));
-                        verifyAssignment(
-                                Arrays.asList("6"),
-                                ((AddSplitEvent<MockSourceSplit>) eventsToReader0.get(1))
-                                        .splits(new MockSourceSplitSerializer()));
-                    } catch (IOException e) {
-                        fail("Failed to deserialize splits.");
-                    }
-                });
+        assertEquals(4, getEnumerator().getUnassignedSplits().size());
+        assertTrue(splitSplitAssignmentTracker.uncheckpointedAssignments().isEmpty());
+        verifyAssignment(
+                Arrays.asList("0", "1"),
+                splitSplitAssignmentTracker.assignmentsByCheckpointId().get(100L).get(0));
+        verifyAssignment(
+                Collections.singletonList("2"),
+                splitSplitAssignmentTracker.assignmentsByCheckpointId(101L).get(0));
 
-        // Fail reader 0.
+        // none of the checkpoints is confirmed, we fail and revert to the previous one
         sourceCoordinator.subtaskFailed(0, null);
-        sourceCoordinator.subtaskReset(0, 99L); // checkpoint ID before the triggered checkpoints
+        sourceCoordinator.subtaskReset(0, 99L);
+        waitForCoordinatorToProcessActions();
 
-        // check the state again.
-        check(
-                () -> {
-                    //
-                    assertFalse(
-                            "Reader 0 should have been unregistered.",
-                            context.registeredReaders().containsKey(0));
-                    // The tracker should have reverted all the splits assignment to reader 0.
-                    for (Map<Integer, ?> assignment :
-                            splitSplitAssignmentTracker.assignmentsByCheckpointId().values()) {
-                        assertFalse(
-                                "Assignment in uncompleted checkpoint should have been reverted.",
-                                assignment.containsKey(0));
-                    }
-                    assertFalse(
-                            splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
-                    // The split enumerator should now contains the splits used to be assigned to
-                    // reader 0.
-                    assertEquals(7, getEnumerator().getUnassignedSplits().size());
-                });
+        assertFalse(
+                "Reader 0 should have been unregistered.",
+                context.registeredReaders().containsKey(0));
+        // The tracker should have reverted all the splits assignment to reader 0.
+        for (Map<Integer, ?> assignment :
+                splitSplitAssignmentTracker.assignmentsByCheckpointId().values()) {
+            assertFalse(
+                    "Assignment in uncompleted checkpoint should have been reverted.",
+                    assignment.containsKey(0));
+        }
+        assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
+        // The split enumerator should now contains the splits used to b
+        // assigned to reader 0.
+        assertEquals(7, getEnumerator().getUnassignedSplits().size());
     }
 
     @Test
     public void testFailedSubtaskDoNotRevertCompletedCheckpoint() throws Exception {
-        sourceCoordinator.start();
+        sourceReady();
+        addTestingSplitSet(6);
 
         // Assign some splits to reader 0 then take snapshot 100.
-        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
+        registerReader(0);
+        getEnumerator().executeAssignOneSplit(0);
+        getEnumerator().executeAssignOneSplit(0);
 
-        final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
-        sourceCoordinator.checkpointCoordinator(100L, checkpointFuture);
-        checkpointFuture.get();
-
-        // Complete checkpoint 100.
+        sourceCoordinator.checkpointCoordinator(100L, new CompletableFuture<>());
         sourceCoordinator.notifyCheckpointComplete(100L);
-        waitUtil(
-                () -> !getEnumerator().getSuccessfulCheckpoints().isEmpty(),
-                Duration.ofMillis(1000L),
-                "The enumerator failed to process the successful checkpoint "
-                        + "before times out.");
-        assertEquals(100L, (long) getEnumerator().getSuccessfulCheckpoints().get(0));
 
-        // Fail reader 0.
         sourceCoordinator.subtaskFailed(0, null);
 
-        check(
-                () -> {
-                    // Reader 0 hase been unregistered.
-                    assertFalse(context.registeredReaders().containsKey(0));
-                    // The assigned splits are not reverted.
-                    assertEquals(4, getEnumerator().getUnassignedSplits().size());
-                    assertFalse(
-                            splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
-                    assertTrue(splitSplitAssignmentTracker.assignmentsByCheckpointId().isEmpty());
-                });
+        waitForCoordinatorToProcessActions();
+
+        assertEquals(100L, (long) getEnumerator().getSuccessfulCheckpoints().get(0));
+        assertFalse(context.registeredReaders().containsKey(0));
+        assertEquals(4, getEnumerator().getUnassignedSplits().size());
+        assertFalse(splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));
+        assertTrue(splitSplitAssignmentTracker.assignmentsByCheckpointId().isEmpty());
     }
 
     @Test
@@ -391,68 +330,44 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
     @Test
     public void testSerdeBackwardCompatibility() throws Exception {
-        // Preparation
-        sourceCoordinator.start();
-        sourceCoordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location_0"));
-
-        // Make sure the reader has been registered and the split has been assigned
-        check(
-                () -> {
-                    assertTrue(sourceCoordinator.getContext().registeredReaders().containsKey(0));
-                    assertEquals(
-                            "2 splits should have been assigned to reader 0",
-                            4,
-                            getEnumerator().getUnassignedSplits().size());
-                });
+        sourceReady();
+        addTestingSplitSet(6);
 
         // Build checkpoint data with serde version 0
-        final byte[] checkpointDataForV0Serde = createCheckpointDataWithSerdeV0(sourceCoordinator);
+        final TestingSplitEnumerator<MockSourceSplit> enumerator = getEnumerator();
+        final Set<MockSourceSplit> splits = new HashSet<>();
+        enumerator.runInEnumThreadAndSync(() -> splits.addAll(enumerator.snapshotState()));
+
+        final byte[] checkpointDataForV0Serde = createCheckpointDataWithSerdeV0(splits);
 
         // Restore from checkpoint data with serde version 0 to test backward compatibility
         SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
         restoredCoordinator.resetToCheckpoint(15213L, checkpointDataForV0Serde);
-        MockSplitEnumerator restoredEnumerator =
-                (MockSplitEnumerator) restoredCoordinator.getEnumerator();
+        TestingSplitEnumerator<?> restoredEnumerator =
+                (TestingSplitEnumerator<?>) restoredCoordinator.getEnumerator();
         SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
 
         // Check if enumerator is restored correctly
-        assertEquals(
-                "2 splits should have been assigned to reader 0",
-                4,
-                restoredEnumerator.getUnassignedSplits().size());
+        assertEquals(splits, restoredEnumerator.getUnassignedSplits());
         assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
-        assertEquals(
-                "Registered readers should not be recovered by restoring",
-                0,
-                restoredContext.registeredReaders().size());
+        assertEquals(0, restoredContext.registeredReaders().size());
     }
 
     // ------------------------------------------------------------------------
     //  test helpers
     // ------------------------------------------------------------------------
 
-    @SuppressWarnings("unchecked")
-    private byte[] createCheckpointDataWithSerdeV0(SourceCoordinator<?, ?> sourceCoordinator)
-            throws Exception {
-
-        final DataOutputSerializer serializer = new DataOutputSerializer(32);
-
-        serializer.writeInt(SourceCoordinatorSerdeUtils.VERSION_0);
+    private byte[] createCheckpointDataWithSerdeV0(Set<MockSourceSplit> splits) throws Exception {
 
         final MockSplitEnumeratorCheckpointSerializer enumChkptSerializer =
                 new MockSplitEnumeratorCheckpointSerializer();
+        final DataOutputSerializer serializer = new DataOutputSerializer(32);
 
+        serializer.writeInt(SourceCoordinatorSerdeUtils.VERSION_0);
         serializer.writeInt(enumChkptSerializer.getVersion());
 
-        final byte[] serializedEnumChkpt =
-                enumChkptSerializer.serialize(
-                        ((SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>)
-                                        sourceCoordinator)
-                                .getEnumerator()
-                                .snapshotState());
-
+        final byte[] serializedEnumChkpt = enumChkptSerializer.serialize(splits);
         serializer.writeInt(serializedEnumChkpt.length);
-
         serializer.write(serializedEnumChkpt);
 
         // Version 0 wrote number of reader, see FLINK-21452
