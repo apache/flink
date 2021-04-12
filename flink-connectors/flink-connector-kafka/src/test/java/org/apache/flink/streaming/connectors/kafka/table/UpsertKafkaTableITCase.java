@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -28,11 +27,19 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -41,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
@@ -52,13 +60,23 @@ import static org.junit.Assert.assertThat;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
-public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
+public class UpsertKafkaTableITCase {
+
+    public static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
+    public final Network network = Network.newNetwork();
+
+    @Rule
+    public final KafkaContainer kafka =
+            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+                    .withEmbeddedZookeeper()
+                    .withNetwork(network)
+                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
+
+    @ClassRule public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
-
-    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Parameterized.Parameter public String format;
 
@@ -66,6 +84,8 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     public static Object[] parameters() {
         return new Object[] {JSON_FORMAT, CSV_FORMAT, AVRO_FORMAT};
     }
+
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
@@ -129,7 +149,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = kafka.getBootstrapServers();
 
         // k_user_id and user_id have different data types to verify the correct mapping,
         // fields are reordered on purpose
@@ -227,7 +247,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = kafka.getBootstrapServers();
 
         // compared to the partial value test we cannot support both k_user_id and user_id in a full
         // value due to duplicate names after key prefix stripping,
@@ -315,7 +335,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void wordCountToUpsertKafka(String wordCountTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = kafka.getBootstrapServers();
 
         // ------------- test data ---------------
 
@@ -465,7 +485,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void writeChangelogToUpsertKafkaWithMetadata(String userTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = kafka.getBootstrapServers();
 
         // ------------- test data ---------------
 
@@ -804,5 +824,23 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
                         7);
 
         assertThat(result, deepEqualTo(expected, true));
+    }
+
+    private void createTestTopic(String topic, int numPartitions, int replicationFactor) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        try (AdminClient admin = AdminClient.create(properties)) {
+            admin.createTopics(
+                    Collections.singletonList(
+                            new NewTopic(topic, numPartitions, (short) replicationFactor)));
+        }
+    }
+
+    private void deleteTestTopic(String topic) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
+        try (AdminClient admin = AdminClient.create(properties)) {
+            admin.deleteTopics(Collections.singletonList(topic));
+        }
     }
 }
