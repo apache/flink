@@ -139,9 +139,11 @@ public class PushProjectIntoTableSourceScanRuleTest
                 "CREATE TABLE ItemTable (\n"
                         + "  `ID` INT,\n"
                         + "  `Timestamp` TIMESTAMP(3),\n"
-                        + "  `Result` ROW(\n"
-                        + "    `data_arr` ROW(`value` BIGINT) ARRAY,\n"
-                        + "      `data_map` MAP<STRING, ROW<`value` BIGINT>>),\n"
+                        + "  `Result` ROW<\n"
+                        + "    `data_arr` ROW<`value` BIGINT> ARRAY,\n"
+                        + "    `data_map` MAP<STRING, ROW<`value` BIGINT>>>,\n"
+                        + "  `outer_array` ARRAY<INT>,\n"
+                        + "  `outer_map` MAP<STRING, STRING>,\n"
                         + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
@@ -235,7 +237,10 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().verifyRelPlan(
                         "SELECT "
                                 + "`Result`.data_arr[ID].`value`, "
-                                + "`Result`.data_map['item'].`value`"
+                                + "`Result`.data_map['item'].`value`, "
+                                + "`outer_array`[1], "
+                                + "`outer_array`[ID], "
+                                + "`outer_map`['item'] "
                                 + "FROM ItemTable");
     }
 }
