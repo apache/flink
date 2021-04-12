@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -41,7 +42,6 @@ import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -67,6 +67,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
@@ -128,7 +130,9 @@ public final class DynamicSinkUtils {
             boolean isOverwrite,
             DynamicTableSink sink,
             ResolvedCatalogTable table) {
-        final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
+        final DataTypeFactory dataTypeFactory =
+                unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
+        final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder);
         final TableSchema schema = table.getSchema();
 
         List<SinkAbilitySpec> sinkAbilitySpecs = new ArrayList<>();
@@ -140,7 +144,8 @@ public final class DynamicSinkUtils {
 
         // 2. validate the query schema to the sink's table schema and apply cast if possible
         final RelNode query =
-                validateSchemaAndApplyImplicitCast(input, schema, sinkIdentifier, typeFactory);
+                validateSchemaAndApplyImplicitCast(
+                        input, schema, sinkIdentifier, dataTypeFactory, typeFactory);
         relBuilder.push(query);
 
         // 3. convert the sink's table schema to the consumed data type of the sink
@@ -171,12 +176,15 @@ public final class DynamicSinkUtils {
             RelNode query,
             TableSchema sinkSchema,
             @Nullable ObjectIdentifier sinkIdentifier,
+            DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory) {
         final RowType queryType = FlinkTypeFactory.toLogicalRowType(query.getRowType());
         final List<RowField> queryFields = queryType.getFields();
 
         final RowType sinkType =
-                (RowType) fixSinkDataType(sinkSchema.toPersistedRowDataType()).getLogicalType();
+                (RowType)
+                        fixSinkDataType(dataTypeFactory, sinkSchema.toPersistedRowDataType())
+                                .getLogicalType();
         final List<RowField> sinkFields = sinkType.getFields();
 
         if (queryFields.size() != sinkFields.size()) {
@@ -378,14 +386,15 @@ public final class DynamicSinkUtils {
                         tableName, cause, querySchema, sinkSchema));
     }
 
-    private static DataType fixSinkDataType(DataType sinkDataType) {
-        // we recognize legacy decimal is the same to default decimal
+    private static DataType fixSinkDataType(
+            DataTypeFactory dataTypeFactory, DataType sinkDataType) {
         // we ignore NULL constraint, the NULL constraint will be checked during runtime
         // see StreamExecSink and BatchExecSink
         return DataTypeUtils.transform(
+                dataTypeFactory,
                 sinkDataType,
-                TypeTransformations.legacyDecimalToDefaultDecimal(),
                 TypeTransformations.legacyRawToTypeInfoRaw(),
+                TypeTransformations.legacyToNonLegacy(),
                 TypeTransformations.toNullable());
     }
 

@@ -21,8 +21,8 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.transforms.DataTypeConversionClassTransformation;
-import org.apache.flink.table.types.inference.transforms.LegacyDecimalTypeTransformation;
 import org.apache.flink.table.types.inference.transforms.LegacyRawTypeTransformation;
+import org.apache.flink.table.types.inference.transforms.LegacyToNonLegacyTransformation;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.sql.Date;
@@ -59,18 +59,16 @@ public final class TypeTransformations {
     }
 
     /**
-     * Returns a type transformation that transforms legacy decimal data type to DECIMAL(38, 18).
-     */
-    public static TypeTransformation legacyDecimalToDefaultDecimal() {
-        return LegacyDecimalTypeTransformation.INSTANCE;
-    }
-
-    /**
      * Returns a type transformation that transforms LEGACY('RAW', ...) type to the RAW(..., ?)
      * type.
      */
     public static TypeTransformation legacyRawToTypeInfoRaw() {
         return LegacyRawTypeTransformation.INSTANCE;
+    }
+
+    /** Returns a type transformation that transforms LEGACY(...) type to a non-legacy type. */
+    public static TypeTransformation legacyToNonLegacy() {
+        return LegacyToNonLegacyTransformation.INSTANCE;
     }
 
     /**

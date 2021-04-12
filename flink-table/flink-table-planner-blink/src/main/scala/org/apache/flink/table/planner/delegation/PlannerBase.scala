@@ -175,12 +175,18 @@ abstract class PlannerBase(
     */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
+    val dataTypeFactory = catalogManager.getDataTypeFactory
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
         val sinkSchema = s.getSink.getTableSchema
         // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
+        val query = validateSchemaAndApplyImplicitCast(
+          input,
+          sinkSchema,
+          null,
+          dataTypeFactory,
+          getTypeFactory)
         LogicalLegacySink.create(
           query,
           s.getSink,
@@ -194,7 +200,12 @@ abstract class PlannerBase(
           SelectTableSinkSchemaConverter.changeDefaultConversionClass(
             TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema)))
         // validate query schema and sink schema, and apply cast if possible
-        val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, null, getTypeFactory)
+        val query = validateSchemaAndApplyImplicitCast(
+          input,
+          sinkSchema,
+          null,
+          dataTypeFactory,
+          getTypeFactory)
         val sink = createSelectTableSink(sinkSchema)
         s.setSelectResultProvider(sink.getSelectResultProvider)
         LogicalLegacySink.create(
@@ -220,6 +231,7 @@ abstract class PlannerBase(
               input,
               TableSchemaUtils.getPhysicalSchema(table.getSchema),
               catalogSink.getTableIdentifier,
+              dataTypeFactory,
               getTypeFactory)
             LogicalLegacySink.create(
               query,
@@ -259,6 +271,7 @@ abstract class PlannerBase(
           input,
           sinkPhysicalSchema,
           null,
+          dataTypeFactory,
           getTypeFactory)
         val tableSink = new DataStreamTableSink(
           FlinkTypeFactory.toTableSchema(query.getRowType),
