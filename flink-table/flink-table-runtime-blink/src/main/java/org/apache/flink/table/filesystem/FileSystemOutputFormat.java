@@ -27,7 +27,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -93,7 +92,10 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {
-            new File(tmpPath.getPath()).delete();
+            try {
+                fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
+            } catch (IOException ignore) {
+            }
         }
     }
 
