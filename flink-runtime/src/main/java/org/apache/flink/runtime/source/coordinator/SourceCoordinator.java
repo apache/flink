@@ -186,6 +186,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             subtaskId,
                             operatorName);
                     context.unregisterSourceReader(subtaskId);
+                    context.subtaskNotReady(subtaskId);
                 },
                 "handling subtask %d failure",
                 subtaskId);
@@ -212,6 +213,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                 "handling subtask %d recovery to checkpoint %d",
                 subtaskId,
                 checkpointId);
+    }
+
+    @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        assert subtask == gateway.getSubtask();
+
+        runInEventLoop(
+                () -> context.subtaskReady(gateway),
+                "making event gateway to subtask %d available",
+                subtask);
     }
 
     @Override
