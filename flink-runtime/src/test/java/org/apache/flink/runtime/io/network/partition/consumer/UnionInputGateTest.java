@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
+
+import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
@@ -124,6 +127,26 @@ public class UnionInputGateTest extends InputGateTestBase {
     }
 
     @Test
+    public void testAvailability() throws IOException, InterruptedException {
+        final SingleInputGate inputGate1 = createInputGate(1);
+        TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
+        inputGate1.setInputChannels(inputChannel1);
+
+        final SingleInputGate inputGate2 = createInputGate(1);
+        TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0, false, true);
+        inputGate2.setInputChannels(inputChannel2);
+
+        UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
+
+        inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(1));
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(2));
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertEquals(1, inputGate.getNext().get().getBuffer().getSize());
+        assertTrue(inputGate.getAvailableFuture().isDone());
+    }
+
+    @Test
     public void testIsAvailableAfterFinished() throws Exception {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
@@ -186,5 +209,23 @@ public class UnionInputGateTest extends InputGateTestBase {
         assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
         // Check that updated input channel is visible via UnionInputGate
         assertThat(unionInputGate.getChannel(1), Matchers.is(inputChannel2));
+    }
+
+    @Test
+    public void testEmptyPull() throws IOException, InterruptedException {
+        final SingleInputGate inputGate1 = createInputGate(1);
+        TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
+        inputGate1.setInputChannels(inputChannel1);
+
+        final SingleInputGate inputGate2 = createInputGate(1);
+        TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0, false, true);
+        inputGate2.setInputChannels(inputChannel2);
+
+        UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
+
+        inputChannel1.notifyChannelNonEmpty();
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertFalse(inputGate.pollNext().isPresent());
+        assertFalse(inputGate.getAvailableFuture().isDone());
     }
 }
