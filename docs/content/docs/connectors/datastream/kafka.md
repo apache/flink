@@ -217,7 +217,7 @@ stored in the checkpoint.
 The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
 To use fault tolerant Kafka Consumers, checkpointing of the topology needs to be enabled in the [job]({{< ref "docs/deployment/config" >}}#execution-checkpointing-interval).
 
-If checkpointing is disabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
+If checkpointing is disabled, the Kafka consumer will periodically commit the offsets to Zookeeper or broker.
 
 ### Kafka Consumers Topic and Partition Discovery
 
