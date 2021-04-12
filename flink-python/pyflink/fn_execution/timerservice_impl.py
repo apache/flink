@@ -19,7 +19,7 @@
 import time
 from enum import Enum
 
-from typing import List, Tuple
+from typing import Tuple, Set, List
 
 from pyflink.datastream import TimerService
 from pyflink.datastream.timerservice import InternalTimer, K, N, InternalTimerService
@@ -42,6 +42,16 @@ class InternalTimerImpl(InternalTimer[K, N]):
     def get_namespace(self) -> N:
         return self._namespace
 
+    def __hash__(self):
+        result = int(self._timestamp ^ (self._timestamp >> 32))
+        result = 31 * result + hash(tuple(self._key))
+        result = 31 * result + hash(self._namespace)
+        return result
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._timestamp == other._timestamp \
+            and self._key == other._key and self._namespace == other._namespace
+
 
 class TimerOperandType(Enum):
     REGISTER_EVENT_TIMER = 0
@@ -59,6 +69,7 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
         self._keyed_state_backend = keyed_state_backend
         self._current_watermark = None
         self.timers = []  # type: List[Tuple[TimerOperandType, InternalTimer]]
+        self._exist_timers = set()  # type: Set[Tuple[TimerOperandType, InternalTimer]]
 
     def current_processing_time(self):
         return int(time.time() * 1000)
@@ -71,23 +82,32 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
 
     def register_processing_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
-        self.timers.append(
-            (TimerOperandType.REGISTER_PROC_TIMER, InternalTimerImpl(t, current_key, namespace)))
+        timer = (TimerOperandType.REGISTER_PROC_TIMER, InternalTimerImpl(t, current_key, namespace))
+        if timer not in self._exist_timers:
+            self._exist_timers.add(timer)
+            self.timers.append(timer)
 
     def register_event_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
-        self.timers.append(
-            (TimerOperandType.REGISTER_EVENT_TIMER, InternalTimerImpl(t, current_key, namespace)))
+        timer = (TimerOperandType.REGISTER_EVENT_TIMER,
+                 InternalTimerImpl(t, current_key, namespace))
+        if timer not in self._exist_timers:
+            self._exist_timers.add(timer)
+            self.timers.append(timer)
 
     def delete_processing_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
-        self.timers.append(
-            (TimerOperandType.DELETE_PROC_TIMER, InternalTimerImpl(t, current_key, namespace)))
+        timer = (TimerOperandType.DELETE_PROC_TIMER, InternalTimerImpl(t, current_key, namespace))
+        if timer not in self._exist_timers:
+            self._exist_timers.add(timer)
+            self.timers.append(timer)
 
     def delete_event_time_timer(self, namespace: N, t: int):
         current_key = self._keyed_state_backend.get_current_key()
-        self.timers.append(
-            (TimerOperandType.DELETE_EVENT_TIMER, InternalTimerImpl(t, current_key, namespace)))
+        timer = (TimerOperandType.DELETE_EVENT_TIMER, InternalTimerImpl(t, current_key, namespace))
+        if timer not in self._exist_timers:
+            self._exist_timers.add(timer)
+            self.timers.append(timer)
 
 
 class TimerServiceImpl(TimerService):
