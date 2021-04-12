@@ -53,10 +53,10 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
 
         boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
-        // temporary table is considered generic
+        // we don't support temporary hive tables yet
         if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
-                    "Hive table should be resolved by HiveDynamicTableFactory.");
+                    "Legacy TableSource for Hive is deprecated. Hive table source should be created by HiveDynamicTableFactory.");
         } else {
             return TableFactoryUtil.findAndCreateTableSource(context);
         }
@@ -69,10 +69,10 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
 
         boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
-        // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+        // we don't support temporary hive tables yet
         if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
-                    "Hive table should be resolved by HiveDynamicTableFactory.");
+                    "Legacy TableSink for Hive is deprecated. Hive table sink should be created by HiveDynamicTableFactory.");
         } else {
             return TableFactoryUtil.findAndCreateTableSink(context);
         }

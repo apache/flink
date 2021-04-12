@@ -594,7 +594,7 @@ public class HiveCatalog extends AbstractCatalog {
                             tablePath, newCatalogTable, hiveTable, hiveConf);
         }
 
-        disallowChangeIsGeneric(isHiveTable, isHiveTable(hiveTable.getParameters()));
+        disallowChangeIsHiveTable(isHiveTable, isHiveTable(hiveTable.getParameters()));
         if (isHiveTable) {
             hiveTable.getParameters().remove(CONNECTOR.key());
         }
@@ -796,10 +796,7 @@ public class HiveCatalog extends AbstractCatalog {
         }
     }
 
-    /**
-     * Filter out Hive-created properties, and return Flink-created properties. Note that
-     * 'is_generic' is a special key and this method will leave it as-is.
-     */
+    /** Filter out Hive-created properties, and return Flink-created properties. */
     private static Map<String, String> retrieveFlinkProperties(
             Map<String, String> hiveTableParams) {
         return hiveTableParams.entrySet().stream()
@@ -846,7 +843,7 @@ public class HiveCatalog extends AbstractCatalog {
         Table hiveTable = getHiveTable(tablePath);
         ensurePartitionedTable(tablePath, hiveTable);
 
-        // partition inherits 'is_generic' from table
+        // partition doesn't have connector property, so check the table
         boolean isHiveTable = isHiveTable(hiveTable.getParameters());
 
         if (!isHiveTable) {
@@ -1685,10 +1682,9 @@ public class HiveCatalog extends AbstractCatalog {
         return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
     }
 
-    public static void disallowChangeIsGeneric(boolean oldIsGeneric, boolean newIsGeneric) {
+    public static void disallowChangeIsHiveTable(boolean oldIsHive, boolean newIsHive) {
         checkArgument(
-                oldIsGeneric == newIsGeneric,
-                "Changing whether a metadata object is generic is not allowed");
+                oldIsHive == newIsHive, "Changing whether a table is Hive table is not allowed");
     }
 
     private void alterTableViaProperties(

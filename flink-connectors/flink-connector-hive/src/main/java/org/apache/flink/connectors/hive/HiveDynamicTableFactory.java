@@ -66,7 +66,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     public DynamicTableSink createDynamicTableSink(Context context) {
         boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
 
-        // temporary table is considered generic
+        // we don't support temporary hive tables yet
         if (isHiveTable && !context.isTemporary()) {
             Integer configuredParallelism =
                     Configuration.fromMap(context.getCatalogTable().getOptions())
@@ -92,7 +92,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
     public DynamicTableSource createDynamicTableSource(Context context) {
         boolean isHiveTable = HiveCatalog.isHiveTable(context.getCatalogTable().getOptions());
 
-        // temporary table is considered generic
+        // we don't support temporary hive tables yet
         if (isHiveTable && !context.isTemporary()) {
             CatalogTable catalogTable = Preconditions.checkNotNull(context.getCatalogTable());
 
