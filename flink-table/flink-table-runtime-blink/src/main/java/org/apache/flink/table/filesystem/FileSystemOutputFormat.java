@@ -92,19 +92,12 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
                             fsFactory, msFactory, overwrite, tmpPath, partitionColumns.length);
             committer.commitUpToCheckpoint(CHECKPOINT_ID);
         } catch (Exception e) {
-            exception = new TableException("Exception in finalizeGlobal", e);
-        }
-
-        // delete the temporary directory
-        try {
-            fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
-        } catch (Exception e) {
-            exception = ExceptionUtils.firstOrSuppressed(e, exception);
-        }
-
-        // rethrow the exception if it is not null
-        if (exception != null) {
-            ExceptionUtils.rethrow(exception);
+            throw new TableException("Exception in finalizeGlobal", e);
+        } finally {
+            try {
+                fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
+            } catch (IOException ignore) {
+            }
         }
     }
 

@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -32,6 +35,7 @@ import java.net.InetAddress;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Unit test for {@link NettyShuffleEnvironmentConfiguration}. */
 public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
@@ -75,5 +79,26 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
         assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
         assertEquals(networkConfig.networkBuffersPerChannel(), 10);
         assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+    }
+
+    /** Verifies the correlation of sort-merge blocking shuffle config options. */
+    @Test
+    public void testSortMergeShuffleConfigOptionsCorrelation() {
+        Formatter formatter = new HtmlFormatter();
+        ConfigOption<Integer> configOption =
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM;
+        String description = formatter.format(configOption.description());
+
+        String configKey =
+                getConfigKey(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
+        assertTrue(description.contains(configKey));
+        configKey = getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+        assertTrue(description.contains(configKey));
+        configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
+        assertTrue(description.contains(configKey));
+    }
+
+    private static String getConfigKey(ConfigOption<?> configOption) {
+        return "'" + configOption.key() + "'";
     }
 }

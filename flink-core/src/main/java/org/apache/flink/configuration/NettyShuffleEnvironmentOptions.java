@@ -71,19 +71,18 @@ public class NettyShuffleEnvironmentOptions {
      * mode.
      *
      * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
-     * more effective for IO bounded scenario when data compression ratio is high. Currently,
-     * shuffle data compression is an experimental feature and the config option can be changed in
-     * the future.
+     * more effective for IO bounded scenario when data compression ratio is high.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.blocking-shuffle.compression.enabled")
                     .defaultValue(false)
                     .withDescription(
-                            "Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle"
-                                    + " mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is"
-                                    + " more effective for IO bounded scenario when data compression ratio is high. Currently, shuffle data "
-                                    + "compression is an experimental feature and the config option can be changed in the future.");
+                            "Boolean flag indicating whether the shuffle data will be compressed "
+                                    + "for blocking shuffle mode. Note that data is compressed per "
+                                    + "buffer and compression can incur extra CPU overhead, so it "
+                                    + "is more effective for IO bounded scenario when compression "
+                                    + "ratio is high.");
 
     /** The codec to be used when compressing shuffle data. */
     @Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
@@ -192,10 +191,15 @@ public class NettyShuffleEnvironmentOptions {
                     .defaultValue(64)
                     .withDescription(
                             "Minimum number of network buffers required per sort-merge blocking "
-                                    + "result partition. For large scale batch jobs, it is suggested to increase this"
-                                    + " config value to improve compression ratio and reduce small network packets. "
-                                    + "Note: to increase this config value, you may also need to increase the size of "
-                                    + "total network memory to avoid \"insufficient number of network buffers\" error.");
+                                    + "result partition. For production usage, it is suggested to "
+                                    + "increase this config value to at least 2048 (64M memory if "
+                                    + "the default 32K memory segment size is used) to improve the "
+                                    + "data compression ratio and reduce the small network packets."
+                                    + " Usually, several hundreds of megabytes memory is enough for"
+                                    + " large scale batch jobs. Note: you may also need to increase"
+                                    + " the size of total network memory to avoid the 'insufficient"
+                                    + " number of network buffers' error if you are increasing this"
+                                    + " config value.");
 
     /**
      * Parallelism threshold to switch between sort-merge based blocking shuffle and the default
@@ -207,12 +211,22 @@ public class NettyShuffleEnvironmentOptions {
                     .intType()
                     .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
-                            "Parallelism threshold to switch between sort-merge blocking shuffle "
-                                    + "and the default hash-based blocking shuffle, which means for small parallelism,"
-                                    + " hash-based blocking shuffle will be used and for large parallelism, sort-merge"
-                                    + " blocking shuffle will be used. Note: sort-merge blocking shuffle uses unmanaged"
-                                    + " direct memory for shuffle data writing and reading so just increase the size of"
-                                    + " direct memory if direct memory OOM error occurs.");
+                            String.format(
+                                    "Parallelism threshold to switch between sort-merge blocking "
+                                            + "shuffle and the default hash-based blocking shuffle,"
+                                            + " which means for batch jobs of small parallelism, "
+                                            + "the hash-based blocking shuffle will be used and for"
+                                            + " batch jobs of large parallelism, the sort-merge one"
+                                            + " will be used. Note: For production usage, if sort-"
+                                            + "merge blocking shuffle is enabled, you may also need"
+                                            + " to enable data compression by setting '%s' to true "
+                                            + "and tune '%s' and '%s' for better performance.",
+                                    BLOCKING_SHUFFLE_COMPRESSION_ENABLED.key(),
+                                    NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
+                                    // raw string key is used here to avoid interdependence, a test
+                                    // is implemented to guard that when the target key is modified,
+                                    // this raw value must be changed correspondingly
+                                    "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
 
     /** Number of max buffers can be used for each output subparition. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
