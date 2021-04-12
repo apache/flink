@@ -29,7 +29,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.api.internal.CollectResultProvider;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -76,8 +76,8 @@ public class BatchSelectTableSink implements BatchTableSink<Row> {
                 .setParallelism(1);
     }
 
-    public SelectResultProvider getSelectResultProvider() {
-        return new SelectResultProvider() {
+    public CollectResultProvider getSelectResultProvider() {
+        return new CollectResultProvider() {
             private JobClient jobClient;
 
             @Override

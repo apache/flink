@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -32,15 +33,15 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Helper {@link CatalogTable} for representing a table that is backed by external {@link
- * DataStream} API.
+ * Helper {@link CatalogTable} for representing a table that is backed by some inline connector
+ * (i.e. {@link DataStream} or {@link TableResult#collect()}).
  */
 @Internal
-final class ExternalCatalogTable implements CatalogTable {
+final class InlineCatalogTable implements CatalogTable {
 
     private final ResolvedSchema schema;
 
-    ExternalCatalogTable(ResolvedSchema schema) {
+    InlineCatalogTable(ResolvedSchema schema) {
         this.schema = schema;
     }
 
@@ -52,18 +53,18 @@ final class ExternalCatalogTable implements CatalogTable {
     @Override
     public Map<String, String> getOptions() {
         throw new TableException(
-                "A catalog table that is backed by a DataStream cannot be expressed with "
-                        + "options and can thus also not be persisted.");
+                "A catalog table that is backed by a DataStream or used for TableResult.collect() "
+                        + "cannot be expressed with options and can thus also not be persisted.");
     }
 
     @Override
     public String getComment() {
-        return "Data Stream API";
+        return "Inline catalog table";
     }
 
     @Override
     public CatalogBaseTable copy() {
-        return new ExternalCatalogTable(schema);
+        return new InlineCatalogTable(schema);
     }
 
     @Override
@@ -89,7 +90,8 @@ final class ExternalCatalogTable implements CatalogTable {
     @Override
     public CatalogTable copy(Map<String, String> options) {
         throw new TableException(
-                "A catalog table that is backed by a DataStream cannot be expressed with "
-                        + "options and can thus also not be enriched with hints.");
+                "A catalog table that is backed by a DataStream or used for TableResult.collect() "
+                        + "cannot be expressed with options and can thus also not be enriched "
+                        + "with hints.");
     }
 }

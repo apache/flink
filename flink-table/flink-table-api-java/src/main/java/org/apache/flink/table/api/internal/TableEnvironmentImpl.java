@@ -87,6 +87,7 @@ import org.apache.flink.table.module.ModuleEntry;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -94,7 +95,6 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
@@ -777,14 +777,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResult executeQueryOperation(QueryOperation operation) {
-        SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
+        final UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        "Unregistered_Collect_Sink_" + CollectModifyOperation.getUniqueId());
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        CollectModifyOperation sinkOperation =
+                new CollectModifyOperation(objectIdentifier, operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
         String jobName = getJobName("collect");
         Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
-            SelectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+            CollectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
             resultProvider.setJobClient(jobClient);
             return TableResultImpl.builder()
                     .jobClient(jobClient)

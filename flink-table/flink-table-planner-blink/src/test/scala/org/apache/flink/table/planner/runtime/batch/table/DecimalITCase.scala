@@ -27,7 +27,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Assert, Test}
+import org.junit.Test
 
 import java.math.{BigDecimal => JBigDecimal}
 
@@ -52,7 +52,7 @@ class DecimalITCase extends BatchTestBase {
     // check result schema
     val resultTable = tableTransfer(t)
     val ts2 = resultTable.getResolvedSchema.getColumnDataTypes.asScala
-    Assert.assertEquals(expectedColTypes.length, ts2.length)
+    assertEquals(expectedColTypes.length, ts2.length)
 
     expectedColTypes.zip(ts2).foreach {
       case (t1, t2) => assertEquals(t1, t2)
