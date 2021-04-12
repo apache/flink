@@ -58,7 +58,7 @@ public final class PythonSharedResources implements AutoCloseable {
         return environment;
     }
 
-    void addPythonEnvironmentManager(PythonEnvironmentManager environmentManager) {
+    synchronized void addPythonEnvironmentManager(PythonEnvironmentManager environmentManager) {
         environmentManagers.add(environmentManager);
     }
 
