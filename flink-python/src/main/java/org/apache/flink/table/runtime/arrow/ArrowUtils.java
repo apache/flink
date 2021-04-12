@@ -23,7 +23,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.internal.BatchTableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvImpl;
@@ -35,7 +34,6 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.planner.connectors.SelectTableSinkSchemaConverter;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
@@ -657,7 +655,9 @@ public final class ArrowUtils {
         checkArrowUsable();
         BufferAllocator allocator =
                 getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
-        RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
+        RowType rowType =
+                (RowType) table.getResolvedSchema().toSourceRowDataType().getLogicalType();
+        DataType defaultRowDataType = TypeConversions.fromLogicalToDataType(rowType);
         VectorSchemaRoot root =
                 VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -685,19 +685,9 @@ public final class ArrowUtils {
 
                         @Override
                         public RowData next() {
-                            // The SelectTableSink of blink planner will convert the table schema
-                            // and we
-                            // need to keep the table schema used here be consistent with the
-                            // converted table schema
-                            TableSchema convertedTableSchema =
-                                    SelectTableSinkSchemaConverter
-                                            .convertTimeAttributeToRegularTimestamp(
-                                                    SelectTableSinkSchemaConverter
-                                                            .changeDefaultConversionClass(
-                                                                    table.getSchema()));
                             DataFormatConverters.DataFormatConverter converter =
                                     DataFormatConverters.getConverterForDataType(
-                                            convertedTableSchema.toRowDataType());
+                                            defaultRowDataType);
                             return (RowData) converter.toInternal(appendOnlyResults.next());
                         }
                     };

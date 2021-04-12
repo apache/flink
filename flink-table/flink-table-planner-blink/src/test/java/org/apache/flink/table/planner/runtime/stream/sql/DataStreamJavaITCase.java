@@ -21,7 +21,11 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -35,6 +39,8 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -47,12 +53,15 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import java.time.DayOfWeek;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -184,11 +193,46 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
         tableEnv.createTemporaryView("t", table);
 
-        final TableResult result = tableEnv.executeSql("SELECT p.d, p.b FROM t");
+        final TableResult result = tableEnv.executeSql("SELECT p, p.d, p.b FROM t");
 
-        testResult(result, Row.of(42.0, null), Row.of(null, null));
+        testResult(
+                result,
+                Row.of(new ImmutablePojo(42.0, null), 42.0, null),
+                Row.of(null, null, null));
 
         testResult(tableEnv.toDataStream(table, ComplexPojo.class), pojos);
+    }
+
+    @Test
+    public void testFromAndToDataStreamWithRaw() throws Exception {
+        final List<Tuple2<DayOfWeek, ZoneOffset>> rawRecords =
+                Arrays.asList(
+                        Tuple2.of(DayOfWeek.MONDAY, ZoneOffset.UTC),
+                        Tuple2.of(DayOfWeek.FRIDAY, ZoneOffset.ofHours(5)));
+
+        final DataStream<Tuple2<DayOfWeek, ZoneOffset>> dataStream = env.fromCollection(rawRecords);
+
+        // verify incoming type information
+        assertThat(dataStream.getType(), instanceOf(TupleTypeInfo.class));
+        final TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) dataStream.getType();
+        assertThat(tupleInfo.getFieldTypes()[0], instanceOf(EnumTypeInfo.class));
+        assertThat(tupleInfo.getFieldTypes()[1], instanceOf(GenericTypeInfo.class));
+
+        final Table table = tableEnv.fromDataStream(dataStream);
+
+        // verify schema conversion
+        final List<DataType> columnDataTypes = table.getResolvedSchema().getColumnDataTypes();
+        assertThat(columnDataTypes.get(0).getLogicalType(), instanceOf(RawType.class));
+        assertThat(columnDataTypes.get(1).getLogicalType(), instanceOf(RawType.class));
+
+        // test reverse operation
+        testResult(
+                table.execute(),
+                Row.of(DayOfWeek.MONDAY, ZoneOffset.UTC),
+                Row.of(DayOfWeek.FRIDAY, ZoneOffset.ofHours(5)));
+        testResult(
+                tableEnv.toDataStream(table, DataTypes.of(dataStream.getType())),
+                rawRecords.toArray(new Tuple2[0]));
     }
 
     @Test

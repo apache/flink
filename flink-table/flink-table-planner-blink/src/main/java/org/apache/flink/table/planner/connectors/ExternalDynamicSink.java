@@ -39,7 +39,7 @@ final class ExternalDynamicSink implements DynamicTableSink {
 
     private final DataType physicalDataType;
 
-    public ExternalDynamicSink(ChangelogMode changelogMode, DataType physicalDataType) {
+    ExternalDynamicSink(ChangelogMode changelogMode, DataType physicalDataType) {
         this.changelogMode = changelogMode;
         this.physicalDataType = physicalDataType;
     }
