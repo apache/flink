@@ -73,6 +73,22 @@ show tables;
 1 row in set
 !ok
 
+# test SHOW CREATE TABLE
+show create table orders;
+CREATE TABLE `default_catalog`.`default_database`.`orders` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
 # ==========================================================================
 # test alter table
 # ==========================================================================
@@ -115,6 +131,22 @@ desc orders2;
 |   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
+!ok
+
+# test SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'kafka'
+)
+
 !ok
 
 # ==========================================================================
@@ -163,6 +195,18 @@ show tables;
 |       tbl1 |
 +------------+
 1 row in set
+!ok
+
+# SHOW CREATE TABLE for temporary table
+show create table tbl1;
+CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`tbl1` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT
+) WITH (
+  'connector' = 'datagen'
+)
+
 !ok
 
 drop temporary table tbl1;
