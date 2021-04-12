@@ -214,6 +214,24 @@ Calc(select=[MAP(a, c) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOrWithIsNullPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 10), IS NULL($0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c], where=[(a IS NULL OR SEARCH(a, Sarg[1L:BIGINT, 10L:BIGINT]:BIGINT))])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNotIn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE b NOT IN (1, 3, 4, 5, 6) OR c = 'xx']]>
@@ -267,6 +285,41 @@ Calc(select=[a, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectAndFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b + 1 FROM MyTable WHERE b > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, (b + 1) AS EXPR$1], where=[(b > 2)])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrWithIsNullInIf">
+    <Resource name="sql">
+      <![CDATA[SELECT IF(c = '' OR c IS NULL, 'a', 'b') FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[IF(OR(=($2, _UTF-16LE''), IS NULL($2)), _UTF-16LE'a', _UTF-16LE'b')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[IF(((c = _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") OR c IS NULL), _UTF-16LE'a', _UTF-16LE'b') AS EXPR$0])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPojoType">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable4]]>
@@ -296,24 +349,6 @@ LogicalProject(EXPR$0=[MAP($1, 30, 10, $0)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectAndFilter">
-    <Resource name="sql">
-      <![CDATA[SELECT a, b + 1 FROM MyTable WHERE b > 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
-+- LogicalFilter(condition=[>($1, 2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, (b + 1) AS EXPR$1], where=[(b > 2)])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
