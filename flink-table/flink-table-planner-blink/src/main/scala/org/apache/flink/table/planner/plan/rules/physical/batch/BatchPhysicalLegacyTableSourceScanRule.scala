@@ -60,6 +60,7 @@ class BatchPhysicalLegacyTableSourceScanRule
     new BatchPhysicalLegacyTableSourceScan(
       rel.getCluster,
       newTrait,
+      scan.getHints,
       scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
     )
   }

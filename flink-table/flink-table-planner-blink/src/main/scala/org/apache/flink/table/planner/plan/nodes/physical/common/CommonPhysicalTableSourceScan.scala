@@ -20,11 +20,15 @@ package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.hint.RelHint
+
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -34,8 +38,9 @@ import scala.collection.JavaConverters._
 abstract class CommonPhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     relOptTable: TableSourceTable)
-  extends TableScan(cluster, traitSet, relOptTable) {
+  extends TableScan(cluster, traitSet, hints, relOptTable) {
 
   protected val tableSourceTable: TableSourceTable = relOptTable.unwrap(classOf[TableSourceTable])
 
@@ -50,5 +55,6 @@ abstract class CommonPhysicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw).item("fields", getRowType.getFieldNames.asScala.mkString(", "))
+      .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
   }
 }

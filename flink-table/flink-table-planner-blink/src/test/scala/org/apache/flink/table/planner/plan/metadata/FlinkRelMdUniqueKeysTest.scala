@@ -25,10 +25,13 @@ import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.prepare.CalciteCatalogReader
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
+
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -52,6 +55,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     val tableSourceScan = new StreamPhysicalTableSourceScan(
       cluster,
       streamPhysicalTraits,
+      Collections.emptyList[RelHint](),
       table)
     assertEquals(uniqueKeys(Array(0, 2)), mq.getUniqueKeys(tableSourceScan).toSet)
   }
@@ -66,6 +70,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     val tableSourceScan = new StreamPhysicalTableSourceScan(
       cluster,
       streamPhysicalTraits,
+      Collections.emptyList[RelHint](),
       table)
     assertNull(mq.getUniqueKeys(tableSourceScan))
   }

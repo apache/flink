@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import java.util
@@ -39,14 +40,15 @@ import java.util
 class StreamPhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     tableSourceTable: TableSourceTable)
-  extends CommonPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
+  extends CommonPhysicalTableSourceScan(cluster, traitSet, hints, tableSourceTable)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
+    new StreamPhysicalTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

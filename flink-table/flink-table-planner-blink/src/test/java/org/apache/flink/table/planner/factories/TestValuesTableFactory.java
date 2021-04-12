@@ -284,6 +284,11 @@ public final class TestValuesTableFactory
                     .booleanType()
                     .defaultValue(false)
                     .withDeprecatedKeys("Option to determine whether to discard the late event.");
+    private static final ConfigOption<Integer> SOURCE_NUM_ELEMENT_TO_SKIP =
+            ConfigOptions.key("source.num-element-to-skip")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDeprecatedKeys("Option to define the number of elements to skip.");
 
     /**
      * Parse partition list from Options with the format as
@@ -319,6 +324,7 @@ public final class TestValuesTableFactory
         boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
         boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
+        int numElementToSkip = helper.getOptions().get(SOURCE_NUM_ELEMENT_TO_SKIP);
 
         Optional<List<String>> filterableFields =
                 helper.getOptions().getOptional(FILTERABLE_FIELDS);
@@ -360,6 +366,7 @@ public final class TestValuesTableFactory
                             null,
                             Collections.emptyList(),
                             filterableFieldsSet,
+                            numElementToSkip,
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
@@ -376,6 +383,7 @@ public final class TestValuesTableFactory
                             null,
                             Collections.emptyList(),
                             filterableFieldsSet,
+                            numElementToSkip,
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
@@ -395,6 +403,7 @@ public final class TestValuesTableFactory
                         null,
                         Collections.emptyList(),
                         filterableFieldsSet,
+                        numElementToSkip,
                         Long.MAX_VALUE,
                         partitions,
                         readableMetadata,
@@ -495,7 +504,8 @@ public final class TestValuesTableFactory
                         SINK_CHANGELOG_MODE_ENFORCED,
                         WRITABLE_METADATA,
                         ENABLE_WATERMARK_PUSH_DOWN,
-                        SINK_DROP_LATE_EVENT));
+                        SINK_DROP_LATE_EVENT,
+                        SOURCE_NUM_ELEMENT_TO_SKIP));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -644,6 +654,7 @@ public final class TestValuesTableFactory
         protected List<ResolvedExpression> filterPredicates;
         protected final Set<String> filterableFields;
         protected long limit;
+        protected int numElementToSkip;
         protected List<Map<String, String>> allPartitions;
         protected final Map<String, DataType> readableMetadata;
         protected @Nullable int[] projectedMetadataFields;
@@ -659,6 +670,7 @@ public final class TestValuesTableFactory
                 @Nullable int[][] projectedPhysicalFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
@@ -673,6 +685,7 @@ public final class TestValuesTableFactory
             this.projectedPhysicalFields = projectedPhysicalFields;
             this.filterPredicates = filterPredicates;
             this.filterableFields = filterableFields;
+            this.numElementToSkip = numElementToSkip;
             this.limit = limit;
             this.allPartitions = allPartitions;
             this.readableMetadata = readableMetadata;
@@ -790,6 +803,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    numElementToSkip,
                     limit,
                     allPartitions,
                     readableMetadata,
@@ -807,6 +821,7 @@ public final class TestValuesTableFactory
                     allPartitions.isEmpty()
                             ? Collections.singletonList(Collections.emptyMap())
                             : allPartitions;
+            int numRetained = 0;
             for (Map<String, String> partition : keys) {
                 for (Row row : data.get(partition)) {
                     if (result.size() >= limit) {
@@ -819,8 +834,11 @@ public final class TestValuesTableFactory
                         final Row projectedRow = projectRow(row);
                         final RowData rowData = (RowData) converter.toInternal(projectedRow);
                         if (rowData != null) {
-                            rowData.setRowKind(row.getKind());
-                            result.add(rowData);
+                            if (numRetained >= numElementToSkip) {
+                                rowData.setRowKind(row.getKind());
+                                result.add(rowData);
+                            }
+                            numRetained++;
                         }
                     }
                 }
@@ -928,6 +946,7 @@ public final class TestValuesTableFactory
                 @Nullable int[][] projectedPhysicalFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
@@ -943,6 +962,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    numElementToSkip,
                     limit,
                     allPartitions,
                     readableMetadata,
@@ -994,6 +1014,7 @@ public final class TestValuesTableFactory
                             projectedPhysicalFields,
                             filterPredicates,
                             filterableFields,
+                            numElementToSkip,
                             limit,
                             allPartitions,
                             readableMetadata,
@@ -1028,6 +1049,7 @@ public final class TestValuesTableFactory
                 int[][] projectedFields,
                 List<ResolvedExpression> filterPredicates,
                 Set<String> filterableFields,
+                int numElementToSkip,
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
@@ -1043,6 +1065,7 @@ public final class TestValuesTableFactory
                     projectedFields,
                     filterPredicates,
                     filterableFields,
+                    numElementToSkip,
                     limit,
                     allPartitions,
                     readableMetadata,
@@ -1080,7 +1103,17 @@ public final class TestValuesTableFactory
                 allPartitions.forEach(
                         key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
             }
-            rows.forEach(
+
+            List<Row> data = new ArrayList<>(rows);
+            if (numElementToSkip > 0) {
+                if (numElementToSkip >= data.size()) {
+                    data = Collections.EMPTY_LIST;
+                } else {
+                    data = data.subList(numElementToSkip, data.size());
+                }
+            }
+
+            data.forEach(
                     record -> {
                         Row key =
                                 Row.of(
@@ -1118,6 +1151,7 @@ public final class TestValuesTableFactory
                     projectedPhysicalFields,
                     filterPredicates,
                     filterableFields,
+                    numElementToSkip,
                     limit,
                     allPartitions,
                     readableMetadata,

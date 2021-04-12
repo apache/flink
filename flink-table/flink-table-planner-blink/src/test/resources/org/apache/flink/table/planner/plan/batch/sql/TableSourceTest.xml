@@ -120,6 +120,33 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTableHintWithDigestReuseForLogicalTableScan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=0}]]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Union(all=[true], union=[a, b, c])
+   :- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=0}]]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSimpleProjectWithProctime">
     <Resource name="sql">
       <![CDATA[SELECT a, c, PROCTIME() FROM ProjectableTable]]>
@@ -134,6 +161,52 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
       <![CDATA[
 Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
 +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableHintWithSameOptions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])(reuse_id=[1])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableHintWithDifferentOptions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=1}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=2}]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=1}]]])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=2}]]])
 ]]>
     </Resource>
   </TestCase>
