@@ -23,16 +23,15 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-/**
- * Tests for {@link RowTypeUtils}.
- */
+/** Tests for {@link RowTypeUtils}. */
 public class RowTypeUtilsTest {
 
     @Test
     public void testGetUniqueName() {
         Assert.assertEquals(
                 Arrays.asList("Dave", "Evan"),
-                RowTypeUtils.getUniqueName(Arrays.asList("Dave", "Evan"), Arrays.asList("Alice", "Bob")));
+                RowTypeUtils.getUniqueName(
+                        Arrays.asList("Dave", "Evan"), Arrays.asList("Alice", "Bob")));
         Assert.assertEquals(
                 Arrays.asList("Bob_0", "Bob_1", "Dave", "Alice_0"),
                 RowTypeUtils.getUniqueName(
