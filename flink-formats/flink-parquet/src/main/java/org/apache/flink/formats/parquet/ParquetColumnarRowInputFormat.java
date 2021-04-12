@@ -95,6 +95,15 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
     }
 
     @Override
+    protected int numBatchesToCirculate(org.apache.flink.configuration.Configuration config) {
+        // In a VectorizedColumnBatch, the dictionary will be lazied deserialized.
+        // If there are multiple batches at the same time, there may be thread safety problems,
+        // because the deserialization of the dictionary depends on some internal structures.
+        // We need set numBatchesToCirculate to 1.
+        return 1;
+    }
+
+    @Override
     protected ParquetReaderBatch<RowData> createReaderBatch(
             WritableColumnVector[] writableVectors,
             VectorizedColumnBatch columnarBatch,
