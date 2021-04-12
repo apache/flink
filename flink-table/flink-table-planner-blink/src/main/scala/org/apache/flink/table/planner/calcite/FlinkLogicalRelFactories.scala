@@ -218,10 +218,12 @@ object FlinkLogicalRelFactories {
         case s: LogicalTableScan if FlinkLogicalLegacyTableSourceScan.isTableSourceScan(s) =>
           FlinkLogicalLegacyTableSourceScan.create(
             cluster,
+            hints,
             s.getTable.asInstanceOf[FlinkPreparingTableBase])
         case s: LogicalTableScan if FlinkLogicalDataStreamTableScan.isDataStreamTableScan(s) =>
           FlinkLogicalDataStreamTableScan.create(
             cluster,
+            hints,
             s.getTable.asInstanceOf[FlinkPreparingTableBase])
       }
     }

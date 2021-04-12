@@ -103,8 +103,9 @@ public final class DynamicSinkUtils {
         return convertSinkToRel(
                 relBuilder,
                 input,
+                Collections.emptyMap(), // dynamicOptions
                 collectModifyOperation.getTableIdentifier(),
-                Collections.emptyMap(),
+                Collections.emptyMap(), // staticPartitions
                 false,
                 tableSink,
                 catalogTable);

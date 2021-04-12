@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
@@ -211,5 +212,50 @@ class LegacyTableSourceTest extends TableTestBase {
          |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testTableHint(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable1 (
+         |  name STRING,
+         |  a bigint,
+         |  b int,
+         |  c double
+         |) with (
+         |  'connector.type' = 'TestFilterableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` BIGINT,
+         |  `b` INT,
+         |  `c` DOUBLE
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='31') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='32') */
+        |""".stripMargin)
+
+    util.verifyExecPlan(stmtSet)
   }
 }

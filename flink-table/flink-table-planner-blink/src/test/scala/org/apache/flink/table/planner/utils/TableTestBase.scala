@@ -1649,8 +1649,17 @@ object TableTestUtil {
     str
   }
 
-  def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
-    readFromResource(path).stripSuffix("\n")
+  def readFromFile(path: String): Seq[String] = {
+    val file = new File(path)
+    if (file.isDirectory) {
+      file.listFiles().foldLeft(Seq.empty[String]) {
+        (lines, p) => lines ++ readFromFile(p.getAbsolutePath)
+      }
+    } else if (file.isHidden) {
+      Seq.empty[String]
+    } else {
+      Files.readAllLines(Paths.get(file.toURI)).toSeq
+    }
   }
 
   @throws[IOException]
