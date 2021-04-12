@@ -39,7 +39,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -55,6 +54,8 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -146,10 +147,13 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -180,7 +184,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final ModuleManager moduleManager;
     private final OperationTreeBuilder operationTreeBuilder;
     private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
-    private final String printIndent = "  ";
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -1133,17 +1136,33 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } else if (operation instanceof ShowCatalogsOperation) {
             return buildShowResult("catalog name", listCatalogs());
         } else if (operation instanceof ShowCreateTableOperation) {
-			ShowCreateTableOperation showCreateTableOperation = (ShowCreateTableOperation) operation;
-			Optional<CatalogManager.TableLookupResult> result =
-				catalogManager.getTable(showCreateTableOperation.getSqlIdentifier());
-			if (result.isPresent()) {
-				return buildShowCreateTableResult(result.get().getTable(), ((ShowCreateTableOperation) operation).getSqlIdentifier());
-			} else {
-				throw new ValidationException(String.format(
-					"Table with identifier '%s' does not exist.",
-					showCreateTableOperation.getSqlIdentifier().asSummaryString()));
-			}
-		} else if (operation instanceof ShowCurrentCatalogOperation) {
+            ShowCreateTableOperation showCreateTableOperation =
+                    (ShowCreateTableOperation) operation;
+            Optional<CatalogManager.TableLookupResult> result =
+                    catalogManager.getTable(showCreateTableOperation.getTableIdentifier());
+            if (result.isPresent()) {
+                return TableResultImpl.builder()
+                        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                        .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
+                        .data(
+                                Collections.singletonList(
+                                        Row.of(
+                                                buildShowCreateTableRow(
+                                                        result.get().getResolvedTable(),
+                                                        showCreateTableOperation
+                                                                .getTableIdentifier(),
+                                                        result.get().isTemporary()))))
+                        .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
+                        .build();
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
+                                showCreateTableOperation
+                                        .getTableIdentifier()
+                                        .asSerializableString()));
+            }
+        } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
                     "current catalog name", new String[] {catalogManager.getCurrentCatalog()});
         } else if (operation instanceof ShowDatabasesOperation) {
@@ -1316,74 +1335,111 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
     }
 
-    private TableResult buildShowCreateTableResult(CatalogBaseTable table, ObjectIdentifier sqlIdentifier) {
-		StringBuilder sb = new StringBuilder("CREATE TABLE ");
-		TableSchema schema = table.getSchema();
-		String comment = table.getComment();
-		Map<String, String> options = table.getOptions();
+    private String buildShowCreateTableRow(
+            ResolvedCatalogBaseTable<?> table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary) {
+        final String printIndent = "  ";
+        CatalogBaseTable.TableKind kind = table.getTableKind();
+        if (kind == CatalogBaseTable.TableKind.VIEW) {
+            throw new TableException(
+                    String.format(
+                            "SHOW CREATE TABLE does not support showing CREATE VIEW statement with identifier %s.",
+                            tableIdentifier.asSerializableString()));
+        }
+        StringBuilder sb =
+                new StringBuilder(
+                        String.format(
+                                "CREATE %sTABLE %s (\n",
+                                isTemporary ? "TEMPORARY " : "",
+                                tableIdentifier.asSerializableString()));
+        ResolvedSchema schema = table.getResolvedSchema();
+        // append columns
+        sb.append(
+                schema.getColumns().stream()
+                        .map(column -> String.format("%s%s", printIndent, getColumnString(column)))
+                        .collect(Collectors.joining(",\n")));
+        // append watermark spec
+        if (!schema.getWatermarkSpecs().isEmpty()) {
+            sb.append(",\n");
+            sb.append(
+                    schema.getWatermarkSpecs().stream()
+                            .map(
+                                    watermarkSpec ->
+                                            String.format(
+                                                    "%sWATERMARK FOR %s AS %s",
+                                                    printIndent,
+                                                    EncodingUtils.escapeIdentifier(
+                                                            watermarkSpec.getRowtimeAttribute()),
+                                                    watermarkSpec
+                                                            .getWatermarkExpression()
+                                                            .asSerializableString()))
+                            .collect(Collectors.joining("\n")));
+        }
+        // append constraint
+        if (schema.getPrimaryKey().isPresent()) {
+            sb.append(",\n");
+            sb.append(String.format("%s%s", printIndent, schema.getPrimaryKey().get()));
+        }
+        sb.append("\n) ");
+        // append comment
+        String comment = table.getComment();
+        if (StringUtils.isNotEmpty(comment)) {
+            sb.append(String.format("COMMENT '%s'\n", comment));
+        }
+        // append partitions
+        ResolvedCatalogTable catalogTable = (ResolvedCatalogTable) table;
+        if (catalogTable.isPartitioned()) {
+            sb.append("PARTITIONED BY (")
+                    .append(
+                            catalogTable.getPartitionKeys().stream()
+                                    .map(EncodingUtils::escapeIdentifier)
+                                    .collect(Collectors.joining(", ")))
+                    .append(")\n");
+        }
+        // append `with` properties
+        Map<String, String> options = table.getOptions();
+        sb.append("WITH (\n")
+                .append(
+                        options.entrySet().stream()
+                                .map(
+                                        entry ->
+                                                String.format(
+                                                        "%s'%s' = '%s'",
+                                                        printIndent,
+                                                        entry.getKey(),
+                                                        entry.getValue()))
+                                .collect(Collectors.joining(",\n")))
+                .append("\n)\n");
+        return sb.toString();
+    }
 
-		sb.append(String.format("`%s` (\n", sqlIdentifier.getObjectName()));
-		// append columns
-		sb.append(String.join(",\n",
-			schema
-				.getTableColumns()
-				.stream()
-				.map(col -> {
-					if (col.getExpr().isPresent()) {
-						return String.format("%s`%s` AS %s", printIndent, col.getName(), col.getExpr().get());
-					} else {
-						return String.format("%s`%s` %s", printIndent, col.getName(), col.getType());
-					}
-				}).collect(Collectors.toList())));
-
-		// append watermark spec
-		if (!schema.getWatermarkSpecs().isEmpty()) {
-			sb.append(",\n") // add delimiter for last line
-				.append(String.join(",\n", schema.getWatermarkSpecs().stream().map(
-					sepc -> String.format("%sWATERMARK FOR `%s` AS %s", printIndent, sepc.getRowtimeAttribute(), sepc.getWatermarkExpr())
-				).collect(Collectors.toList())));
-		}
-		// append constraint
-		if (schema.getPrimaryKey().isPresent()) {
-			UniqueConstraint constraint = schema.getPrimaryKey().get();
-			sb.append(",\n") // add delimiter for last line
-				.append(String.format("%s%s", printIndent, constraint.asCanonicalString()));
-		}
-		sb.append("\n) ");
-		// append comment
-		if (comment != null) {
-			sb.append(String.format("COMMENT '%s'\n", comment));
-		}
-		// append partitions
-		if (table instanceof CatalogTable) {
-			CatalogTable catalogTable = (CatalogTable) table;
-			if (catalogTable.isPartitioned()) {
-				sb.append("PARTITIONED BY (")
-					.append(String.join(", ",
-						catalogTable
-							.getPartitionKeys()
-							.stream()
-							.map(key -> String.format("`%s`", key))
-							.collect(Collectors.toList())))
-					.append(")\n");
-			}
-		}
-		// append `with` properties
-		sb.append("WITH (\n")
-			.append(String.join(",\n",
-				options
-					.entrySet()
-					.stream()
-					.map(entry -> String.format("%s'%s' = '%s'", printIndent, entry.getKey(), entry.getValue()))
-					.collect(Collectors.toList())))
-			.append("\n)\n");
-
-		Object[][] rows = new Object[][]{new Object[]{sb.toString()}};
-		return buildResult(
-			new String[]{"create table"},
-			new DataType[]{DataTypes.STRING()},
-			rows);
-	}
+    private String getColumnString(Column column) {
+        final StringBuilder sb = new StringBuilder();
+        sb.append(EncodingUtils.escapeIdentifier(column.getName()));
+        sb.append(" ");
+        // skip data type for computed column
+        if (column instanceof Column.ComputedColumn) {
+            sb.append(
+                    column.explainExtras()
+                            .orElseThrow(
+                                    () ->
+                                            new TableException(
+                                                    String.format(
+                                                            "Column expression can not be null for computed column '%s'",
+                                                            column.getName()))));
+        } else {
+            sb.append(column.getDataType().getLogicalType().asSerializableString());
+            column.explainExtras()
+                    .ifPresent(
+                            e -> {
+                                sb.append(" ");
+                                sb.append(e);
+                            });
+        }
+        // TODO: Print the column comment until FLINK-18958 is fixed
+        return sb.toString();
+    }
 
     private TableResult buildShowFullModulesResult(ModuleEntry[] moduleEntries) {
         Object[][] rows =

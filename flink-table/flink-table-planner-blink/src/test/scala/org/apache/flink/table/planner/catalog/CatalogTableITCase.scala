@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -39,7 +39,6 @@ import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
 import java.util
-
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
@@ -987,26 +986,87 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testCreateTableAndShowCreateTable(): Unit = {
-    val createDDL =
-    """ |CREATE TABLE `TBL1` (
-        |  `A` BIGINT NOT NULL,
-        |  `H` STRING,
-        |  `G` AS 2 * (`A` + 1),
-        |  `B` STRING NOT NULL,
-        |  `TS` TIMESTAMP(3),
-        |  `PROC` AS PROCTIME(),
-        |  WATERMARK FOR `TS` AS `TS` - INTERVAL '5' SECOND,
-        |  CONSTRAINT test_constraint PRIMARY KEY (`A`, `B`) NOT ENFORCED
-        |) COMMENT 'test show create table statement'
-        |PARTITIONED BY (`B`, `H`)
-        |WITH (
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  a bigint not null,
+        |  h string,
+        |  g as 2*(a+1),
+        |  b string not null,
+        |  c bigint metadata virtual,
+        |  e row<name string, age int, flag boolean>,
+        |  f as myfunc(a),
+        |  ts1 timestamp(3),
+        |  ts2 timestamp_ltz(3) metadata from 'timestamp',
+        |  `__source__` varchar(255),
+        |  proc as proctime(),
+        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
+        |  constraint test_constraint primary key (a, b) not enforced
+        |) comment 'test show create table statement'
+        |partitioned by (b,h)
+        |with (
         |  'connector' = 'kafka',
         |  'kafka.topic' = 'log.test'
         |)
         |""".stripMargin
-    tableEnv.executeSql(createDDL)
-    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next();
-    assertEquals(createDDL, row.getField(0))
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+          |  `a` BIGINT NOT NULL,
+          |  `h` VARCHAR(2147483647),
+          |  `g` AS 2 * (`a` + 1),
+          |  `b` VARCHAR(2147483647) NOT NULL,
+          |  `c` BIGINT METADATA VIRTUAL,
+          |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
+          |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
+          |  `ts1` TIMESTAMP(3),
+          |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
+          |  `__source__` VARCHAR(255),
+          |  `proc` AS PROCTIME(),
+          |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
+          |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
+          |) COMMENT 'test show create table statement'
+          |PARTITIONED BY (`b`, `h`)
+          |WITH (
+          |  'connector' = 'kafka',
+          |  'kafka.topic' = 'log.test'
+          |)
+          |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage(
+      "Could not execute SHOW CREATE TABLE. " +
+        "Table with identifier `default_catalog`.`default_database`.`tmp` does not exist.")
+    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
+  }
+
+  @Test
+  def testCreateViewAndShowCreateTable(): Unit = {
+    val createTableDDL =
+      """ |create table `source` (
+          |  `id` bigint not null,
+          | `group` string not null,
+          | `score` double
+          |) with (
+          |  'connector' = 'source-only'
+          |)
+          |""".stripMargin
+    val createViewDDL =
+      """ |create view `tmp` as
+          |select `group`, avg(`score`) as avg_score
+          |from `source`
+          |group by `group`
+          |""".stripMargin
+    tableEnv.executeSql(createTableDDL)
+    tableEnv.executeSql(createViewDDL)
+    expectedEx.expect(classOf[TableException])
+    expectedEx.expectMessage(
+      "SHOW CREATE TABLE does not support showing CREATE VIEW statement with " +
+        "identifier `default_catalog`.`default_database`.`tmp`.")
+    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
   }
 
   @Test

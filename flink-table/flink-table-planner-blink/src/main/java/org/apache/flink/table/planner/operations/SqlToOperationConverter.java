@@ -259,8 +259,8 @@ public class SqlToOperationConverter {
         } else if (validated instanceof SqlAlterFunction) {
             return Optional.of(converter.convertAlterFunction((SqlAlterFunction) validated));
         } else if (validated instanceof SqlShowCreateTable) {
-			return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
-		} else if (validated instanceof SqlShowFunctions) {
+            return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
+        } else if (validated instanceof SqlShowFunctions) {
             return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
         } else if (validated instanceof SqlShowPartitions) {
             return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
@@ -786,11 +786,12 @@ public class SqlToOperationConverter {
     }
 
     /** Convert SHOW CREATE TABLE statement. */
-	private Operation convertShowCreateTable(SqlShowCreateTable sqlShowCreateTable) {
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlShowCreateTable.getFullTableName());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		return new ShowCreateTableOperation(identifier);
-	}
+    private Operation convertShowCreateTable(SqlShowCreateTable sqlShowCreateTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlShowCreateTable.getFullTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateTableOperation(identifier);
+    }
 
     /** Convert SHOW FUNCTIONS statement. */
     private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
