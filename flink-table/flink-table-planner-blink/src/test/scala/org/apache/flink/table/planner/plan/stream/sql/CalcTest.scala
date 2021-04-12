@@ -161,4 +161,13 @@ class CalcTest extends TableTestBase {
       "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
   }
 
+  @Test
+  def testOrWithIsNullPredicate(): Unit = {
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL")
+  }
+
+  @Test
+  def testOrWithIsNullInIf(): Unit = {
+    util.verifyExecPlan("SELECT IF(c = '' OR c IS NULL, 'a', 'b') FROM MyTable")
+  }
 }
