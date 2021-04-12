@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
+import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils._
 
 import org.junit.{Before, Test}
@@ -89,6 +91,17 @@ class TableSourceTest extends TableTestBase {
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl4)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
   }
 
   @Test
@@ -143,5 +156,73 @@ class TableSourceTest extends TableTestBase {
          |FROM NestedItemTable
          |""".stripMargin
     )
+  }
+
+  @Test
+  def testTableHint(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+        |""".stripMargin)
+
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testTableHintWithLogicalTableScanReuse(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink
+        |select a,b,c from MyTable /*+ OPTIONS('source.num-element-to-skip'='0') */
+        |union all
+        |select a,b,c from MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+        |""".stripMargin)
+
+    util.verifyExecPlan(stmtSet)
   }
 }

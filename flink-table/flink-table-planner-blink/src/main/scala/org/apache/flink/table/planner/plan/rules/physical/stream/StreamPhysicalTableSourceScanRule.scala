@@ -69,6 +69,7 @@ class StreamPhysicalTableSourceScanRule
     val newScan = new StreamPhysicalTableSourceScan(
       rel.getCluster,
       traitSet,
+      scan.getHints,
       table)
 
     if (isUpsertSource(table.catalogTable, table.tableSource) ||

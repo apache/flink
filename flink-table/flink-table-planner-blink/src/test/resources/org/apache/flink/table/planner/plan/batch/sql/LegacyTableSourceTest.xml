@@ -257,6 +257,22 @@ HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+LegacyTableSourceScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, c)]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTimeLiteralExpressionPushDown">
     <Resource name="sql">
       <![CDATA[
@@ -280,19 +296,27 @@ Calc(select=[id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleProject">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c FROM ProjectableTable]]>
-    </Resource>
+  <TestCase name="testTableHint">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, b, c)]]])
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$1], b=[$2], c=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [filterPushedDown=[false], filter=[]], dynamic options: {source.num-element-to-skip=31}]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=31}]]])
+
+LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- LogicalProject(a=[$1], b=[$2], c=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [filterPushedDown=[false], filter=[]], dynamic options: {source.num-element-to-skip=32}]], hints=[[[OPTIONS inheritPath:[] options:{source.num-element-to-skip=32}]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LegacyTableSourceScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, c)]]], fields=[a, c])
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [filterPushedDown=[false], filter=[]], dynamic options: {source.num-element-to-skip=31}]], fields=[name, a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=31}]]])
+
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [filterPushedDown=[false], filter=[]], dynamic options: {source.num-element-to-skip=32}]], fields=[name, a, b, c], hints=[[[OPTIONS options:{source.num-element-to-skip=32}]]])
 ]]>
     </Resource>
   </TestCase>

@@ -31,7 +31,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode}
 
 import java.util
-import java.util.Collections
 import java.util.function.Supplier
 
 /**
@@ -41,12 +40,13 @@ import java.util.function.Supplier
 class FlinkLogicalDataStreamTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     table: RelOptTable)
-  extends TableScan(cluster, traitSet, Collections.emptyList[RelHint](), table)
+  extends TableScan(cluster, traitSet, hints, table)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalDataStreamTableScan(cluster, traitSet, table)
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, getHints, table)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -72,7 +72,7 @@ class FlinkLogicalDataStreamTableScanConverter
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
-    FlinkLogicalDataStreamTableScan.create(rel.getCluster, scan.getTable)
+    FlinkLogicalDataStreamTableScan.create(rel.getCluster, scan.getHints, scan.getTable)
   }
 }
 
@@ -84,7 +84,10 @@ object FlinkLogicalDataStreamTableScan {
     dataStreamTable != null
   }
 
-  def create(cluster: RelOptCluster, relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
+  def create(
+      cluster: RelOptCluster,
+      hints: util.List[RelHint],
+      relOptTable: RelOptTable): FlinkLogicalDataStreamTableScan = {
     val dataStreamTable = relOptTable.unwrap(classOf[DataStreamTable[_]])
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
@@ -96,6 +99,6 @@ object FlinkLogicalDataStreamTableScan {
           }
         }
       }).simplify()
-    new FlinkLogicalDataStreamTableScan(cluster, traitSet, dataStreamTable)
+    new FlinkLogicalDataStreamTableScan(cluster, traitSet, hints, dataStreamTable)
   }
 }

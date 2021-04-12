@@ -108,7 +108,8 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
         TableSourceTable tableSourceTable = pushdownResultWithScan._2;
 
         FlinkLogicalTableSourceScan newScan =
-                FlinkLogicalTableSourceScan.create(scan.getCluster(), tableSourceTable);
+                FlinkLogicalTableSourceScan.create(
+                        scan.getCluster(), scan.getHints(), tableSourceTable);
 
         // build new calc program
         RexProgramBuilder programBuilder =

@@ -56,6 +56,7 @@ import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
@@ -71,6 +72,7 @@ import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -2358,11 +2360,14 @@ class FlinkRelMdHandlerTestBase {
         val scan = relBuilder.scan(tableNames).build()
         scan.copy(traitSet, scan.getInputs)
       case FlinkConventions.LOGICAL =>
-        new FlinkLogicalDataStreamTableScan(cluster, traitSet, table)
+        new FlinkLogicalDataStreamTableScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table)
       case FlinkConventions.BATCH_PHYSICAL =>
-        new BatchPhysicalBoundedStreamScan(cluster, traitSet, table, table.getRowType)
+        new BatchPhysicalBoundedStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
       case FlinkConventions.STREAM_PHYSICAL =>
-        new StreamPhysicalDataStreamScan(cluster, traitSet, table, table.getRowType)
+        new StreamPhysicalDataStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
       case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
     }
     scan.asInstanceOf[T]
