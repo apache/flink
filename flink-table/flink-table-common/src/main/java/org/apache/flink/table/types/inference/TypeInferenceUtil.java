@@ -96,12 +96,12 @@ public final class TypeInferenceUtil {
      * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
      * default values (*) where (*) is future work.
      */
-    public static AdaptedCallContext adaptArguments(
+    public static CallContext adaptArguments(
             TypeInference typeInference, CallContext callContext, @Nullable DataType outputType) {
         return adaptArguments(typeInference, callContext, outputType, true);
     }
 
-    private static AdaptedCallContext adaptArguments(
+    private static CallContext adaptArguments(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
@@ -129,6 +129,10 @@ public final class TypeInferenceUtil {
             final DataType expectedType = expectedTypes.get(pos);
             final DataType actualType = actualTypes.get(pos);
             if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
+                if (!throwOnInferInputFailure) {
+                    // abort the adaption, e.g. if a NULL is passed for a NOT NULL argument
+                    return callContext;
+                }
                 throw new ValidationException(
                         String.format(
                                 "Invalid argument type at position %d. Data type %s expected but %s passed.",
@@ -252,9 +256,8 @@ public final class TypeInferenceUtil {
                     new UnknownCallContext(typeFactory, name, functionDefinition, argumentCount);
 
             // We might not be able to infer the input types at this moment, if the surrounding
-            // function
-            // does not provide an explicit input type strategy.
-            final AdaptedCallContext adaptedContext =
+            // function does not provide an explicit input type strategy.
+            final CallContext adaptedContext =
                     adaptArguments(typeInference, callContext, null, false);
             return typeInference
                     .getInputTypeStrategy()
@@ -315,7 +318,7 @@ public final class TypeInferenceUtil {
             throw createInvalidInputException(typeInference, callContext, e);
         }
 
-        final AdaptedCallContext adaptedCallContext;
+        final CallContext adaptedCallContext;
         try {
             // use information of surrounding call to determine output type of this call
             final DataType outputType;

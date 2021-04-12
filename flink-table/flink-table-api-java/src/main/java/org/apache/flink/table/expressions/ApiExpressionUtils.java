@@ -33,6 +33,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -260,14 +262,14 @@ public final class ApiExpressionUtils {
     }
 
     public static UnresolvedCallExpression unresolvedCall(
-            FunctionIdentifier functionIdentifier,
+            @Nullable FunctionIdentifier functionIdentifier,
             FunctionDefinition functionDefinition,
             Expression... args) {
         return unresolvedCall(functionIdentifier, functionDefinition, Arrays.asList(args));
     }
 
     public static UnresolvedCallExpression unresolvedCall(
-            FunctionIdentifier functionIdentifier,
+            @Nullable FunctionIdentifier functionIdentifier,
             FunctionDefinition functionDefinition,
             List<Expression> args) {
         return new UnresolvedCallExpression(
