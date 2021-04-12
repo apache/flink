@@ -66,7 +66,6 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests {@link DemultiplexingRecordDeserializer}. */
 public class DemultiplexingRecordDeserializerTest {
-    public static final int SEGMENT_SIZE = 4096;
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
