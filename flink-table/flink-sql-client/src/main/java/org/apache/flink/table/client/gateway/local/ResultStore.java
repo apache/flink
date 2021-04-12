@@ -58,12 +58,12 @@ public class ResultStore {
                     "Results of batch queries can only be served in table or tableau mode.");
         }
 
+        Integer maxRows = config.get(EXECUTION_MAX_TABLE_RESULT_ROWS);
         switch (config.get(EXECUTION_RESULT_MODE)) {
             case CHANGELOG:
             case TABLEAU:
-                return new ChangelogCollectResult(tableResult);
+                return new ChangelogCollectResult(tableResult, maxRows);
             case TABLE:
-                Integer maxRows = config.get(EXECUTION_MAX_TABLE_RESULT_ROWS);
                 if (config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING)) {
                     return new MaterializedCollectStreamResult(tableResult, maxRows);
                 } else {

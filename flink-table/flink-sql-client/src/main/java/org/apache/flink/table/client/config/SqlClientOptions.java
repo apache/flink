@@ -32,8 +32,10 @@ public class SqlClientOptions {
                     .intType()
                     .defaultValue(1000_000)
                     .withDescription(
-                            "The number of rows to cache when in the table mode. If the number of rows exceeds the "
-                                    + "specified value, it retries the row in the FIFO style.");
+                            "The number of rows to cache in the table/changelog/tableau mode. "
+                                    + "When the number of rows exceeds the specified value, different modes has different strategies. "
+                                    + "It retires the rows in the FIFO style in the 'table' mode. "
+                                    + "It continue fetching rows from the remote until the terminal print the result and clear the buffer in 'changelog' and 'tableau' mode.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<ResultMode> EXECUTION_RESULT_MODE =

@@ -40,11 +40,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.utils.PrintUtils.MAX_COLUMN_WIDTH;
+import static org.apache.flink.table.utils.PrintUtils.rowToString;
+
 /** Print result in tableau mode. */
 public class CliTableauResultView implements AutoCloseable {
-
-    private static final int DEFAULT_COLUMN_WIDTH = 20;
-    private static final int BATCH_CACHE_DATA_SIZE = 5000;
 
     private final Terminal terminal;
     private final Executor sqlExecutor;
@@ -142,18 +142,12 @@ public class CliTableauResultView implements AutoCloseable {
             colWidths =
                     PrintUtils.columnWidthsByType(
                             columns,
-                            DEFAULT_COLUMN_WIDTH,
+                            MAX_COLUMN_WIDTH,
                             PrintUtils.NULL_COLUMN,
                             PrintUtils.ROW_KIND_COLUMN);
-            isEndOfStream = getEndOfStreamWhenRetrieveRows(change);
         } else {
-            // Retrieve part of data to prevent OOM
-            while (change.size() < BATCH_CACHE_DATA_SIZE) {
-                isEndOfStream = getEndOfStreamWhenRetrieveRows(change);
-                if (isEndOfStream) {
-                    break;
-                }
-            }
+            // retrieve part of data to calculate column width
+            isEndOfStream = getEndOfStreamWhenRetrieveRows(change);
             fieldNames = columns.stream().map(Column::getName).toArray(String[]::new);
             colWidths =
                     PrintUtils.columnWidthsByContent(
@@ -161,7 +155,7 @@ public class CliTableauResultView implements AutoCloseable {
                             change.stream()
                                     .map(PrintUtils::rowToString)
                                     .collect(Collectors.toList()),
-                            PrintUtils.MAX_COLUMN_WIDTH);
+                            MAX_COLUMN_WIDTH);
         }
 
         String borderline = PrintUtils.genBorderLine(colWidths);
@@ -172,20 +166,18 @@ public class CliTableauResultView implements AutoCloseable {
         terminal.writer().println(borderline);
         terminal.flush();
 
-        do {
+        while (!isEndOfStream) {
             displayRows(change, colWidths, isStreamingMode);
             receivedRowCount.addAndGet(change.size());
             change.clear();
 
-            if (isEndOfStream) {
-                if (receivedRowCount.get() > 0) {
-                    terminal.writer().println(borderline);
-                }
-                break;
-            } else {
-                isEndOfStream = getEndOfStreamWhenRetrieveRows(change);
-            }
-        } while (true);
+            isEndOfStream = getEndOfStreamWhenRetrieveRows(change);
+        }
+
+        if (receivedRowCount.get() > 0) {
+            terminal.writer().println(borderline);
+            terminal.writer().flush();
+        }
     }
 
     /**
@@ -203,8 +195,8 @@ public class CliTableauResultView implements AutoCloseable {
                         // prevent busy loop
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
-                        // get ctrl+c from terminal and fallback
-                        return true;
+                        // get ctrl+c from terminal
+                        Thread.currentThread().interrupt();
                     }
                     break;
                 case EOS:
@@ -220,8 +212,7 @@ public class CliTableauResultView implements AutoCloseable {
 
     private void displayRows(List<Row> changes, int[] colWidths, boolean isStreamingMode) {
         for (Row change : changes) {
-            final String[] row =
-                    PrintUtils.rowToString(change, PrintUtils.NULL_COLUMN, isStreamingMode);
+            final String[] row = rowToString(change, PrintUtils.NULL_COLUMN, isStreamingMode);
             PrintUtils.printSingleRow(colWidths, row, terminal.writer());
         }
     }

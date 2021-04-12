@@ -40,7 +40,8 @@ public class ChangelogCollectResultTest {
 
     @Test
     public void testRetrieveChanges() throws Exception {
-        int totalCount = ChangelogCollectResult.CHANGE_RECORD_BUFFER_SIZE * 2;
+        int bufferSize = 5_000;
+        int totalCount = bufferSize * 2;
         CloseableIterator<Row> data =
                 CloseableIterator.adapterForIterator(
                         IntStream.range(0, totalCount).mapToObj(Row::of).iterator());
@@ -49,7 +50,8 @@ public class ChangelogCollectResultTest {
                         new TestTableResult(
                                 ResultKind.SUCCESS_WITH_CONTENT,
                                 ResolvedSchema.of(Column.physical("id", DataTypes.INT())),
-                                data));
+                                data),
+                        bufferSize);
 
         int count = 0;
         boolean running = true;

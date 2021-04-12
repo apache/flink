@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
@@ -30,12 +29,13 @@ import java.util.List;
 public class ChangelogCollectResult extends CollectResultBase implements ChangelogResult {
 
     private final List<Row> changeRecordBuffer;
-    @VisibleForTesting protected static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
+    private final Integer bufferSize;
 
-    public ChangelogCollectResult(TableResult tableResult) {
+    public ChangelogCollectResult(TableResult tableResult, Integer maxRows) {
         super(tableResult);
         // prepare for changelog
         changeRecordBuffer = new ArrayList<>();
+        bufferSize = maxRows;
     }
 
     @Override
@@ -77,7 +77,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
     protected void processRecord(Row row) {
         synchronized (resultLock) {
             // wait if the buffer is full
-            if (changeRecordBuffer.size() >= CHANGE_RECORD_BUFFER_SIZE) {
+            if (changeRecordBuffer.size() >= bufferSize) {
                 try {
                     resultLock.wait();
                 } catch (InterruptedException e) {
