@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.YamlConfigUtils;
+import org.apache.flink.table.client.gateway.ClassLoaderUtilities;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -38,9 +39,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -58,8 +64,10 @@ public class SessionContext {
     private final Configuration sessionConfiguration;
 
     private final SessionState sessionState;
-    private final URLClassLoader classLoader;
+    private URLClassLoader classLoader;
     private ExecutionContext executionContext;
+    // store add jar url
+    private Set<URL> jarResourcesSet = new HashSet<>();
 
     private SessionContext(
             DefaultContext defaultContext,
@@ -94,6 +102,10 @@ public class SessionContext {
 
     public Map<String, String> getConfigMap() {
         return sessionConfiguration.toMap();
+    }
+
+    public Set<URL> getJarResourcesSet() {
+        return this.jarResourcesSet;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -242,6 +254,26 @@ public class SessionContext {
                 classLoader,
                 sessionState,
                 executionContext);
+    }
+
+    public void addJars(List<URL> urls) {
+        List<URL> addUrls = new ArrayList<>();
+        urls.forEach(
+                url -> {
+                    if (!jarResourcesSet.contains(url)) {
+                        addUrls.add(url);
+                    }
+                });
+        if (addUrls.size() == 0) {
+            return;
+        }
+        this.jarResourcesSet.addAll(addUrls);
+        this.classLoader =
+                (URLClassLoader) ClassLoaderUtilities.addToClassPath(this.classLoader, addUrls);
+        // Renew the ExecutionContext to update classloader.
+        this.executionContext =
+                new ExecutionContext(
+                        this.sessionConfiguration, this.classLoader, this.sessionState);
     }
 
     // --------------------------------------------------------------------------------------------

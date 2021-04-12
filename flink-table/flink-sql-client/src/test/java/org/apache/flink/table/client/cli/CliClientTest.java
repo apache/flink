@@ -62,6 +62,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -520,6 +521,11 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+            // nothing to do
+        }
+
+        @Override
+        public void addJars(String sessionId, List<URL> jarUrls) {
             // nothing to do
         }
     }

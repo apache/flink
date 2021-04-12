@@ -37,6 +37,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +219,11 @@ public class CliResultViewTest {
         @Override
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             cancellationCounter.countDown();
+        }
+
+        @Override
+        public void addJars(String sessionId, List<URL> jarUrls) {
+            // nothing to do
         }
     }
 

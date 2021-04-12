@@ -20,14 +20,21 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Test;
 
+import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
@@ -175,6 +182,29 @@ public class SessionContextTest {
 
         sessionContext.reset("bb");
         assertNull(getConfigurationMap(sessionContext).get("bb"));
+    }
+
+    @Test
+    public void testAddJars() throws Exception {
+        SessionContext sessionContext = createSessionContext();
+        String path = "foo.jar";
+        URL url = Path.fromLocalFile(new File(path).getAbsoluteFile()).toUri().toURL();
+        sessionContext.addJars(Lists.newArrayList(url));
+
+        Set<URL> jarSet = sessionContext.getJarResourcesSet();
+        assertEquals(true, jarSet.contains(url));
+
+        sessionContext
+                .getExecutionContext()
+                .wrapClassLoader(
+                        () -> {
+                            URLClassLoader classLoader =
+                                    (URLClassLoader) Thread.currentThread().getContextClassLoader();
+                            boolean contain =
+                                    Lists.newArrayList(classLoader.getURLs()).contains(url);
+                            assertEquals(true, contain);
+                            return null;
+                        });
     }
 
     // --------------------------------------------------------------------------------------------

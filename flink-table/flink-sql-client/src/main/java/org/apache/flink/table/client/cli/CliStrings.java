@@ -225,6 +225,8 @@ public final class CliStrings {
 
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
 
+    public static final String MESSAGE_ADD_JAR_BAD_PATH = "Bad PATH %s";
+
     // --------------------------------------------------------------------------------------------
 
     public static final String RESULT_TITLE = "SQL Query Result";
