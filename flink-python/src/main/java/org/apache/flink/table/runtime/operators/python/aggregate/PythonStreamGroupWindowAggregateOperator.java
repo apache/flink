@@ -32,6 +32,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.UpdatableRowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
@@ -100,6 +101,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
      */
     @VisibleForTesting final long allowedLateness;
 
+    /** The shift timeZone of the window. */
+    @VisibleForTesting final ZoneId shiftTimeZone;
+
     /** The Infos of the Window. */
     private FlinkFnApi.GroupWindow.WindowProperty[] namedProperties;
 
@@ -124,9 +128,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     /** Session Window gap. */
     private long gap;
 
-    /** The shift timeZone of the window. */
-    protected final ZoneId shiftTimeZone;
-
     /** For serializing the window in checkpoints. */
     @VisibleForTesting transient TypeSerializer<W> windowSerializer;
 
@@ -142,6 +143,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     private transient UpdatableRowData reuseRowData;
 
     private transient UpdatableRowData reuseTimerRowData;
+
+    private transient RowDataSerializer keySerializer;
 
     public PythonStreamGroupWindowAggregateOperator(
             Configuration config,
@@ -194,6 +197,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         reuseTimerData = new UpdatableRowData(GenericRowData.of(0, null, 0), 3);
         reuseTimerRowData.setField(4, reuseTimerData);
         keyLength = getKeyType().getFieldCount();
+        keySerializer = (RowDataSerializer) getKeySerializer();
         super.open();
     }
 
@@ -206,7 +210,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         baos.reset();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
         byte[] rawUdfResult = resultTuple.f0;
@@ -241,8 +244,9 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
             byte[] encodedNamespace = timerData.getBinary(3);
             bais.setBuffer(encodedNamespace, 0, encodedNamespace.length);
             window = windowSerializer.deserialize(baisWrapper);
+            BinaryRowData rowKey = keySerializer.toBinaryRow(key).copy();
             synchronized (getKeyedStateBackend()) {
-                setCurrentKey(((RowDataSerializer) getKeySerializer()).toBinaryRow(key));
+                setCurrentKey(rowKey);
 
                 if (timerOperandType == REGISTER_EVENT_TIMER) {
                     internalTimerService.registerEventTimeTimer(
@@ -262,10 +266,6 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 }
             }
         }
-    }
-
-    protected long getShiftEpochMills(long utcTimestampMills) {
-        return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
     }
 
     @Override
@@ -346,6 +346,11 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
         emitTriggerTimerData(timer, REGISTER_PROCESSING_TIMER);
+    }
+
+    @VisibleForTesting
+    long getShiftEpochMills(long utcTimestampMills) {
+        return TimeWindowUtil.toEpochMills(utcTimestampMills, shiftTimeZone);
     }
 
     private void buildWindow(LogicalWindow window, PlannerNamedWindowProperty[] namedProperties) {
