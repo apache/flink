@@ -647,7 +647,7 @@ public class Task
             // the registration must also strictly be undone
             // ----------------------------------------------------------------
 
-            LOG.info("Registering task at network: {}.", this);
+            LOG.debug("Registering task at network: {}.", this);
 
             setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
