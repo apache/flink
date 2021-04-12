@@ -23,6 +23,7 @@ import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
@@ -37,15 +38,16 @@ final class LogicalLegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    hints: util.List[RelHint],
     sink: TableSink[_],
     sinkName: String,
     val catalogTable: CatalogTable,
     val staticPartitions: Map[String, String])
-  extends LegacySink(cluster, traitSet, input, sink, sinkName) {
+  extends LegacySink(cluster, traitSet, input, hints, sink, sinkName) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new LogicalLegacySink(
-      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
+      cluster, traitSet, inputs.head, hints, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -53,12 +55,21 @@ final class LogicalLegacySink(
 object LogicalLegacySink {
 
   def create(input: RelNode,
+      hints: util.List[RelHint],
+      sink: TableSink[_],
+      sinkName: String,
+      catalogTable: CatalogTable,
+      staticPartitions: Map[String, String]): LogicalLegacySink = {
+    val traits = input.getCluster.traitSetOf(Convention.NONE)
+    new LogicalLegacySink(
+      input.getCluster, traits, input, hints, sink, sinkName, catalogTable, staticPartitions)
+  }
+
+  def create(input: RelNode,
       sink: TableSink[_],
       sinkName: String,
       catalogTable: CatalogTable = null,
       staticPartitions: Map[String, String] = Map()): LogicalLegacySink = {
-    val traits = input.getCluster.traitSetOf(Convention.NONE)
-    new LogicalLegacySink(
-      input.getCluster, traits, input, sink, sinkName, catalogTable, staticPartitions)
+    create(input, util.Collections.emptyList(), sink, sinkName, catalogTable, staticPartitions)
   }
 }

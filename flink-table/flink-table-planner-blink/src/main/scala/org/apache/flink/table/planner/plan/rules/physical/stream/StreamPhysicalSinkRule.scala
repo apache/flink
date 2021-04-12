@@ -42,23 +42,23 @@ class StreamPhysicalSinkRule extends ConverterRule(
     "StreamPhysicalSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
-    val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
+    val sink = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    var requiredTraitSet = sink.getInput.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val abilitySpecs: mutable.ArrayBuffer[SinkAbilitySpec] =
-      mutable.ArrayBuffer(sinkNode.abilitySpecs: _*)
-    if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
-      sinkNode.tableSink match {
+      mutable.ArrayBuffer(sink.abilitySpecs: _*)
+    if (sink.catalogTable != null && sink.catalogTable.isPartitioned) {
+      sink.tableSink match {
         case partitionSink: SupportsPartitioning =>
-          if (sinkNode.staticPartitions.nonEmpty) {
-            val partitioningSpec = new PartitioningSpec(sinkNode.staticPartitions)
+          if (sink.staticPartitions.nonEmpty) {
+            val partitioningSpec = new PartitioningSpec(sink.staticPartitions)
             partitioningSpec.apply(partitionSink)
             abilitySpecs += partitioningSpec
           }
 
-          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
-              .filter(!sinkNode.staticPartitions.contains(_))
-          val fieldNames = sinkNode.catalogTable
+          val dynamicPartFields = sink.catalogTable.getPartitionKeys
+              .filter(!sink.staticPartitions.contains(_))
+          val fieldNames = sink.catalogTable
             .getSchema
             .toPhysicalRowDataType
             .getLogicalType.asInstanceOf[RowType]
@@ -68,7 +68,7 @@ class StreamPhysicalSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(fieldNames.indexOf(_))
 
-            val shuffleEnable = sinkNode
+            val shuffleEnable = sink
                 .catalogTable
                 .getOptions
                 .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
@@ -84,21 +84,22 @@ class StreamPhysicalSinkRule extends ConverterRule(
             }
           }
         case _ => throw new TableException(
-          s"'${sinkNode.tableIdentifier.asSummaryString()}' is a partitioned table, " +
-            s"but the underlying [${sinkNode.tableSink.asSummaryString()}] DynamicTableSink " +
+          s"'${sink.tableIdentifier.asSummaryString()}' is a partitioned table, " +
+            s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
             s"doesn't implement SupportsPartitioning interface.")
       }
     }
 
-    val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
+    val newInput = RelOptRule.convert(sink.getInput, requiredTraitSet)
 
     new StreamPhysicalSink(
       rel.getCluster,
       newTrait,
       newInput,
-      sinkNode.tableIdentifier,
-      sinkNode.catalogTable,
-      sinkNode.tableSink,
+      sink.hints,
+      sink.tableIdentifier,
+      sink.catalogTable,
+      sink.tableSink,
       abilitySpecs.toArray
     )
   }

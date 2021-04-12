@@ -63,6 +63,8 @@ import java.lang.{Long => JLong}
 import java.util
 import java.util.TimeZone
 
+import org.apache.calcite.rel.hint.RelHint
+
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -216,8 +218,13 @@ abstract class PlannerBase(
               catalogSink.getTableIdentifier,
               dataTypeFactory,
               getTypeFactory)
+            val hints = new util.ArrayList[RelHint]
+            if (!dynamicOptions.isEmpty) {
+              hints.add(RelHint.builder("OPTIONS").hintOptions(dynamicOptions).build)
+            }
             LogicalLegacySink.create(
               query,
+              hints,
               sink,
               identifier.toString,
               table,
