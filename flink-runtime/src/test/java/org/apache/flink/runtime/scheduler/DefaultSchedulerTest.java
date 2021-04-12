@@ -1327,7 +1327,7 @@ public class DefaultSchedulerTest extends TestLogger {
     private void transitionToRunning(DefaultScheduler scheduler, ExecutionAttemptID attemptId) {
         Preconditions.checkState(
                 scheduler.updateTaskExecutionState(
-                        new TaskExecutionState(attemptId, ExecutionState.RECOVERING)));
+                        new TaskExecutionState(attemptId, ExecutionState.INITIALIZING)));
         Preconditions.checkState(
                 scheduler.updateTaskExecutionState(
                         new TaskExecutionState(attemptId, ExecutionState.RUNNING)));

@@ -137,7 +137,7 @@ public class TaskTest extends TestLogger {
         assertNull(task.getFailureCause());
         assertNull(task.getInvokable());
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.FINISHED, task, null);
     }
@@ -307,7 +307,7 @@ public class TaskTest extends TestLogger {
         assertNotNull(task.getFailureCause().getMessage());
         assertThat(task.getFailureCause().getMessage(), containsString(RESTORE_EXCEPTION_MSG));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception(RESTORE_EXCEPTION_MSG));
     }
@@ -329,7 +329,7 @@ public class TaskTest extends TestLogger {
         assertNotNull(task.getFailureCause().getMessage());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -352,7 +352,7 @@ public class TaskTest extends TestLogger {
         final Throwable cause = task.getFailureCause();
         assertTrue(cause instanceof IOException);
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new IOException("test"));
@@ -384,7 +384,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertNull(task.getFailureCause());
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
     }
 
@@ -414,7 +414,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertNull(task.getFailureCause());
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
     }
@@ -442,7 +442,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertThat(task.getFailureCause().getMessage(), containsString(RESTORE_EXCEPTION_MSG));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception(RESTORE_EXCEPTION_MSG));
     }
@@ -470,7 +470,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -494,7 +494,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -528,7 +528,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertNull(task.getFailureCause());
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
     }
@@ -560,7 +560,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("external"));
 
-        taskManagerActions.validateListenerMessage(ExecutionState.RECOVERING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("external"));
@@ -638,7 +638,7 @@ public class TaskTest extends TestLogger {
             expected.put(state, ExecutionState.FAILED);
         }
 
-        expected.put(ExecutionState.RECOVERING, initialTaskState);
+        expected.put(ExecutionState.INITIALIZING, initialTaskState);
         expected.put(ExecutionState.RUNNING, initialTaskState);
         expected.put(ExecutionState.SCHEDULED, initialTaskState);
         expected.put(ExecutionState.DEPLOYING, initialTaskState);
