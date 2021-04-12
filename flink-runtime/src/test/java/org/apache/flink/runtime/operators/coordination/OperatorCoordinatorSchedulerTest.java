@@ -224,14 +224,21 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void taskExceptionWhenTasksNotRunning() throws Exception {
+    public void taskGatewayNotSetBeforeTasksRunning() throws Exception {
         final DefaultScheduler scheduler = createAndStartScheduler();
-        final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
 
-        final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
-        executor.triggerAll(); // process event sending
+        assertNull(gateway);
+    }
 
-        assertThat(result, futureFailedWith(TaskNotRunningException.class));
+    @Test
+    public void taskGatewayAvailableWhenTasksRunning() throws Exception {
+        final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
+
+        assertNotNull(gateway);
     }
 
     @Test
@@ -239,8 +246,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler =
                 createSchedulerAndDeployTasks(new FailingTaskExecutorOperatorEventGateway());
 
-        final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
-        final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
+
+        final CompletableFuture<?> result = gateway.sendEvent(new TestOperatorEvent());
         executor.triggerAll(); // process event sending
 
         assertThat(result, futureFailedWith(TestException.class));
@@ -704,6 +713,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         assertEquals(
                 ExecutionState.RUNNING,
                 SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+
+        // trigger actions depending on the switch to running, like the notifications
+        // that the task is reads and the task gateway setup
+        executor.triggerAll();
     }
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
