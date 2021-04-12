@@ -68,7 +68,7 @@ public final class WatermarkSpec {
 
     public String asSummaryString() {
         return "WATERMARK FOR "
-                + String.join(".", EncodingUtils.escapeIdentifier(rowtimeAttribute))
+                + EncodingUtils.escapeIdentifier(rowtimeAttribute)
                 + ": "
                 + watermarkExpression.getOutputDataType()
                 + " AS "

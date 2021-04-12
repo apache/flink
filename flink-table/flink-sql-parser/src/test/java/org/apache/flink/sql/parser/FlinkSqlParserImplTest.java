@@ -192,10 +192,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-	public void testShowCreateTable() {
-		sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
-		sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
-	}
+    public void testShowCreateTable() {
+        sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
+        sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
+    }
 
     @Test
     public void testDescribeTable() {

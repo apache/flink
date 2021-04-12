@@ -425,7 +425,7 @@ SqlShowTables SqlShowTables() :
 /**
 * Parse a "Show Create Table" query command.
 */
-SqlShowCreateTable  SqlShowCreateTable() :
+SqlShowCreateTable SqlShowCreateTable() :
 {
     SqlIdentifier tableName;
     SqlParserPos pos;

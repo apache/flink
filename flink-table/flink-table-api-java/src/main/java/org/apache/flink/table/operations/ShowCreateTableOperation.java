@@ -20,23 +20,21 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Operation to describe a SHOW CREATE TABLE statement.
- * */
-public class ShowCreateTableOperation implements ShowOperation{
+/** Operation to describe a SHOW CREATE TABLE statement. */
+public class ShowCreateTableOperation implements ShowOperation {
 
-	private final ObjectIdentifier sqlIdentifier;
+    private final ObjectIdentifier tableIdentifier;
 
-	public ShowCreateTableOperation(ObjectIdentifier sqlIdentifier) {
-		this.sqlIdentifier = sqlIdentifier;
-	}
+    public ShowCreateTableOperation(ObjectIdentifier sqlIdentifier) {
+        this.tableIdentifier = sqlIdentifier;
+    }
 
-	public ObjectIdentifier getSqlIdentifier() {
-		return sqlIdentifier;
-	}
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
 
-	@Override
-	public String asSummaryString() {
-		return String.format("SHOW CREATE TABLE %s", sqlIdentifier.asSummaryString());
-	}
+    @Override
+    public String asSummaryString() {
+        return String.format("SHOW CREATE TABLE %s", tableIdentifier.asSummaryString());
+    }
 }

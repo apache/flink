@@ -253,22 +253,6 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
-* Parse a "Show Create Table" query command.
-*/
-SqlShowCreateTable  SqlShowCreateTable() :
-{
-    SqlIdentifier tableName;
-    SqlParserPos pos;
-}
-{
-    <SHOW> <CREATE> <TABLE> { pos = getPos();}
-    tableName = CompoundIdentifier()
-    {
-        return new SqlShowCreateTable(pos, tableName);
-    }
-}
-
-/**
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :

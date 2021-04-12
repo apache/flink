@@ -34,6 +34,7 @@ import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -419,6 +420,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof EndStatementSetOperation) {
             // END
             callEndStatementSet();
+        } else if (operation instanceof ShowCreateTableOperation) {
+            // SHOW CREATE TABLE
+            callShowCreateTable((ShowCreateTableOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -532,6 +536,14 @@ public class CliClient implements AutoCloseable {
     }
 
     public void callExplain(ExplainOperation operation) {
+        printRawContent(operation);
+    }
+
+    public void callShowCreateTable(ShowCreateTableOperation operation) {
+        printRawContent(operation);
+    }
+
+    public void printRawContent(Operation operation) {
         TableResult tableResult = executor.executeOperation(sessionId, operation);
         // show raw content instead of tableau style
         final String explanation =
