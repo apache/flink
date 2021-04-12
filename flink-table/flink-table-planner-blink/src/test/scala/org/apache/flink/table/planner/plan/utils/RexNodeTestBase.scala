@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import java.math.BigDecimal
@@ -45,7 +47,7 @@ abstract class RexNodeTestBase {
     .map(typeFactory.createFieldTypeFromLogicalType)
     .asJava
 
-  var rexBuilder: RexBuilder = new RexBuilder(typeFactory)
+  var rexBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
 
   val program: RexProgram = buildSimpleRexProgram()
 
@@ -53,9 +55,9 @@ abstract class RexNodeTestBase {
     program.expandLocalRef(program.getCondition)
   }
 
-  protected def buildExprs(): JList[RexNode] = {
+  protected def buildExprs(): (JList[RexNode], RelDataType) = {
     val exprs = program.getProjectList.map(expr => program.expandLocalRef(expr))
-    (exprs :+ buildConditionExpr()).asJava
+    ((exprs :+ buildConditionExpr()).asJava, program.getInputRowType)
   }
 
   // select amount, amount * price as total where amount * price < 100 and id > 6
@@ -85,6 +87,129 @@ abstract class RexNodeTestBase {
 
   protected def makeTypes(fieldTypes: SqlTypeName*): java.util.List[RelDataType] = {
     fieldTypes.toList.map(typeFactory.createSqlType).asJava
+  }
+
+  protected def buildExprsWithDeepNesting(): (JList[RexNode], RelDataType) = {
+
+    // person input
+    val passportRow = inputOf(typeFactory)
+      .field("id", VARCHAR)
+      .field("status", VARCHAR)
+      .build
+
+    val personRow = inputOf(typeFactory)
+      .field("name", VARCHAR)
+      .field("age", INTEGER)
+      .nestedField("passport", passportRow)
+      .build
+
+    // payment input
+    val paymentRow = inputOf(typeFactory)
+      .field("id", BIGINT)
+      .field("amount", INTEGER)
+      .build
+
+    // deep field input
+    val deepRowType = inputOf(typeFactory)
+      .field("entry", VARCHAR)
+      .build
+
+    val entryRowType = inputOf(typeFactory)
+      .nestedField("inside", deepRowType)
+      .build
+
+    val deeperRowType = inputOf(typeFactory)
+      .nestedField("entry", entryRowType)
+      .build
+
+    val withRowType = inputOf(typeFactory)
+      .nestedField("deep", deepRowType)
+      .nestedField("deeper", deeperRowType)
+      .build
+
+    val fieldRowType = inputOf(typeFactory)
+      .nestedField("with", withRowType)
+      .build
+
+    val rowType = typeFactory.createStructType(
+      Seq(
+      personRow, paymentRow, fieldRowType),
+      Seq(
+        "persons", "payments", "field"
+      )
+    )
+
+    // inputRowType
+    //
+    // [ persons:  [ name: VARCHAR, age:  INT, passport: [id: VARCHAR, status: VARCHAR ] ],
+    //   payments: [ id: BIGINT, amount: INT ],
+    //   field:    [ with: [ deep: [ entry: VARCHAR ],
+    //                       deeper: [ entry: [ inside: [entry: VARCHAR ] ] ]
+    //             ] ]
+    // ]
+
+    val t0 = rexBuilder.makeInputRef(personRow, 0)
+    val t1 = rexBuilder.makeInputRef(paymentRow, 1)
+    val t2 = rexBuilder.makeInputRef(fieldRowType, 2)
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(10L))
+
+    // person
+    val person$pass = rexBuilder.makeFieldAccess(t0, "passport", false)
+    val person$pass$stat = rexBuilder.makeFieldAccess(person$pass, "status", false)
+
+    // payment
+    val pay$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
+    val multiplyAmount = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, pay$amount, t3)
+
+    // field
+    val field$with = rexBuilder.makeFieldAccess(t2, "with", false)
+    val field$with$deep = rexBuilder.makeFieldAccess(field$with, "deep", false)
+    val field$with$deeper = rexBuilder.makeFieldAccess(field$with, "deeper", false)
+    val field$with$deep$entry = rexBuilder.makeFieldAccess(field$with$deep, "entry", false)
+    val field$with$deeper$entry = rexBuilder.makeFieldAccess(field$with$deeper, "entry", false)
+    val field$with$deeper$entry$inside = rexBuilder
+      .makeFieldAccess(field$with$deeper$entry, "inside", false)
+    val field$with$deeper$entry$inside$entry = rexBuilder
+      .makeFieldAccess(field$with$deeper$entry$inside, "entry", false)
+
+    // Program
+    // (
+    //   payments.amount * 10),
+    //   persons.passport.status,
+    //   field.with.deep.entry
+    //   field.with.deeper.entry.inside.entry
+    //   field.with.deeper.entry
+    //   persons
+    // )
+    (List(multiplyAmount, person$pass$stat, field$with$deep$entry,
+      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0).asJava,
+      rowType)
+  }
+
+  protected def buildExprsWithNesting(): (JList[RexNode], RelDataType) = {
+    val personRow = inputOf(typeFactory)
+      .field("name", INTEGER)
+      .field("age", VARCHAR)
+      .build
+
+    val paymentRow = inputOf(typeFactory)
+      .field("id", BIGINT)
+      .field("amount", INTEGER)
+      .build
+
+    val rowType = typeFactory.createStructType(
+      Seq(personRow, paymentRow),
+      Seq("person", "payment"))
+
+    val types = List(personRow, paymentRow).asJava
+
+    val t0 = rexBuilder.makeInputRef(types.get(0), 0)
+    val t1 = rexBuilder.makeInputRef(types.get(1), 1)
+    val t2 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+
+    val payment$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
+
+    (List(payment$amount, t0, t2).asJava, rowType)
   }
 
 }

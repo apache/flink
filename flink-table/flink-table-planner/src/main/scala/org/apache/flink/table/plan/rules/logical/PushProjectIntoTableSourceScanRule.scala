@@ -18,12 +18,22 @@
 
 package org.apache.flink.table.plan.rules.logical
 
+import org.apache.flink.table.api.{TableException, TableSchema}
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
+import org.apache.flink.table.sources.TableSourceUtil.getRowtimeAttributeDescriptor
+import org.apache.flink.table.sources._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.utils.TypeMappingUtils
+
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
-import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.sources._
+
+import java.util.function.{Function => JFunction}
+
+import scala.collection.JavaConverters._
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalCalc],
@@ -43,7 +53,30 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val source = scan.tableSource
 
     val accessedLogicalFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
-    val accessedPhysicalFields = TableSourceUtil.getPhysicalIndexes(source, accessedLogicalFields)
+
+    val nameMapping: JFunction[String, String] = source match {
+      case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+        new JFunction[String, String] {
+          override def apply(t: String): String = mapping.getFieldMapping.get(t)
+        }
+      case _ => JFunction.identity()
+    }
+
+    val accessedIndices = TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+      source,
+      accessedLogicalFields.map(scan.tableSchema.getTableColumn(_).get()).toList.asJava,
+      source.isInstanceOf[StreamTableSource[_]],
+      nameMapping
+    )
+    val physicalFields = expandTimeAttributes(
+      source,
+      if (LogicalTypeChecks.isCompositeType(source.getProducedDataType.getLogicalType)) {
+        TableSchema.fromResolvedSchema(
+          DataTypeUtils.expandCompositeTypeToSchema(source.getProducedDataType))
+      } else {
+        null
+      },
+      accessedIndices)
 
     // only continue if fields are projected or reordered.
     // eager reordering can remove a calc operator.
@@ -53,10 +86,10 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       val (newTableSource, isProjectSuccess) = source match {
         case nested: NestedFieldsProjectableTableSource[_] =>
           val nestedFields = RexProgramExtractor
-            .extractRefNestedInputFields(calc.getProgram, accessedPhysicalFields)
-          (nested.projectNestedFields(accessedPhysicalFields, nestedFields), true)
+            .extractRefNestedInputFields(calc.getProgram, physicalFields)
+          (nested.projectNestedFields(physicalFields, nestedFields), true)
         case projecting: ProjectableTableSource[_] =>
-          (projecting.projectFields(accessedPhysicalFields), true)
+          (projecting.projectFields(physicalFields), true)
         case nonProjecting: TableSource[_] =>
           // projection cannot be pushed to TableSource
           (nonProjecting, false)
@@ -77,7 +110,11 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       }
 
       // Apply the projection during the input conversion of the scan.
-      val newScan = scan.copy(scan.getTraitSet, newTableSource, Some(accessedLogicalFields))
+      val newScan = scan.copy(
+        scan.getTraitSet,
+        scan.tableSchema,
+        newTableSource,
+        Some(accessedLogicalFields))
       val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
         calc.getProgram,
         newScan.getRowType,
@@ -92,6 +129,55 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
         call.transformTo(newCalc)
       }
     }
+  }
+
+  private def expandTimeAttributes(
+      tableSource: TableSource[_],
+      physicalSchema: TableSchema,
+      physicalIndices: Array[Int]): Array[Int] = {
+
+      physicalIndices
+      // resolve time indicator markers to physical indexes
+      .flatMap {
+        case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+          // proctime field do not access a physical field
+          Seq()
+        case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
+          // rowtime field is computed.
+          // get names of fields which are accessed by the expression to compute the rowtime field.
+          val rowtimeAttributeDescriptor = getRowtimeAttributeDescriptor(tableSource, None)
+          val accessedFields = if (rowtimeAttributeDescriptor.isDefined) {
+            rowtimeAttributeDescriptor.get.getTimestampExtractor.getArgumentFields
+          } else {
+            throw new TableException("Computed field mapping includes a rowtime marker but the " +
+              "TableSource does not provide a RowtimeAttributeDescriptor. " +
+              "This is a bug and should be reported.")
+          }
+          // resolve field names to physical fields
+          accessedFields.map(name => {
+            if (physicalSchema != null) {
+              mapToCompositeType(tableSource, physicalSchema, name)
+            } else {
+              0
+            }
+          })
+        case idx =>
+          Seq(idx)
+      }
+  }
+
+  private def mapToCompositeType(
+      tableSource: TableSource[_],
+      physicalSchema: TableSchema,
+      name: String)
+    : Int = {
+    val fieldName = tableSource match {
+      case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+        mapping.getFieldMapping.get(name)
+      case _ =>
+        name
+    }
+    physicalSchema.getFieldNames.indexWhere(_.equals(fieldName)) // logical accessed field
   }
 }
 

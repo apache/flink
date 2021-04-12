@@ -22,9 +22,10 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc1, TableFunc2, TableTestBase}
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Test
@@ -44,7 +45,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val sDs = mock(classOf[DataStream[Row]])
     when(sDs.javaStream).thenReturn(jDs)
 
-    val jTab = javaUtil.tableEnv.fromDataStream(jDs, "a, b, c")
+    val jTab = javaUtil.tableEnv.fromDataStream(jDs, $("a"), $("b"), $("c"))
     val sTab = scalaUtil.tableEnv.fromDataStream(sDs, 'a, 'b, 'c)
 
     // test cross join
@@ -52,27 +53,28 @@ class CorrelateStringExpressionTest extends TableTestBase {
     javaUtil.addFunction("func1", func1)
     scalaUtil.addFunction("func1", func1)
 
-    var scalaTable = sTab.joinLateral(func1('c) as 's).select('c, 's)
-    var javaTable = jTab.joinLateral("func1(c).as(s)").select("c, s")
+    var scalaTable = sTab.joinLateral(call("func1", 'c) as 's).select('c, 's)
+    var javaTable = jTab.joinLateral(call("func1", $("c")).as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test left outer join
-    scalaTable = sTab.leftOuterJoinLateral(func1('c) as 's).select('c, 's)
-    javaTable = jTab.leftOuterJoinLateral("as(func1(c), s)").select("c, s")
+    scalaTable = sTab.leftOuterJoinLateral(call("func1", 'c) as 's).select('c, 's)
+    javaTable = jTab.leftOuterJoinLateral(call("func1", $("c")).as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test overloading
-    scalaTable = sTab.joinLateral(func1('c, "$") as 's).select('c, 's)
-    javaTable = jTab.joinLateral("func1(c, '$') as (s)").select("c, s")
+    scalaTable = sTab.joinLateral(call("func1", 'c, "$") as 's).select('c, 's)
+    javaTable = jTab.joinLateral(call("func1", $("c"), "$").as("s")).select($("c"), $("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test custom result type
     val func2 = new TableFunc2
     javaUtil.addFunction("func2", func2)
     scalaUtil.addFunction("func2", func2)
-    scalaTable = sTab.joinLateral(func2('c) as ('name, 'len)).select('c, 'name, 'len)
-    javaTable = jTab.joinLateral(
-      "func2(c).as(name, len)").select("c, name, len")
+    scalaTable = sTab.joinLateral(call("func2", 'c) as ('name, 'len)).select('c, 'name, 'len)
+    javaTable = jTab
+      .joinLateral(call("func2", $("c")).as("name", "len"))
+      .select($("c"), $("name"), $("len"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test hierarchy generic type
@@ -80,24 +82,25 @@ class CorrelateStringExpressionTest extends TableTestBase {
     javaUtil.addFunction("hierarchy", hierarchy)
     scalaUtil.addFunction("hierarchy", hierarchy)
     scalaTable = sTab.joinLateral(
-      hierarchy('c) as ('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
-    javaTable = jTab.joinLateral("AS(hierarchy(c), name, adult, len)")
-      .select("c, name, len, adult")
+      call("hierarchy", 'c) as ('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
+    javaTable = jTab
+      .joinLateral(call("hierarchy", $("c")).as("name", "adult", "len"))
+      .select($("c"), $("name"), $("len"), $("adult"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test pojo type
     val pojo = new PojoTableFunc
     javaUtil.addFunction("pojo", pojo)
     scalaUtil.addFunction("pojo", pojo)
-    scalaTable = sTab.joinLateral(pojo('c)).select('c, 'name, 'age)
-    javaTable = jTab.joinLateral("pojo(c)").select("c, name, age")
+    scalaTable = sTab.joinLateral(call("pojo", 'c)).select('c, 'name, 'age)
+    javaTable = jTab.joinLateral(call("pojo", $("c"))).select($("c"), $("name"), $("age"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
     scalaTable = sTab.joinLateral(
-      func2('c) as ('name, 'len)).select('c, 'name, 'len).filter('len > 2)
-    javaTable = jTab.joinLateral("func2(c) as (name, len)")
-      .select("c, name, len").filter("len > 2")
+      call("func2", 'c) as ('name, 'len)).select('c, 'name, 'len).filter('len > 2)
+    javaTable = jTab.joinLateral(call("func2", $("c")).as("name", "len"))
+      .select($("c"), $("name"), $("len")).filter($("len").isGreater(Int.box(2)))
     verifyTableEquals(scalaTable, javaTable)
   }
 
@@ -112,49 +115,61 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val sDs = mock(classOf[DataStream[Row]])
     when(sDs.javaStream).thenReturn(jDs)
 
-    val jTab = javaUtil.tableEnv.fromDataStream(jDs, "a, b, c")
+    val jTab = javaUtil.tableEnv.fromDataStream(jDs, $("a"), $("b"), $("c"))
     val sTab = scalaUtil.tableEnv.fromDataStream(sDs, 'a, 'b, 'c)
 
     // test flatMap
     val func1 = new TableFunc1
     scalaUtil.addFunction("func1", func1)
     javaUtil.addFunction("func1", func1)
-    var scalaTable = sTab.flatMap(func1('c)).as('s).select('s)
-    var javaTable = jTab.flatMap("func1(c)").as("s").select("s")
+    var scalaTable = sTab.flatMap(call("func1", 'c)).as("s").select('s)
+    var javaTable = jTab.flatMap(call("func1", $("c"))).as("s").select($("s"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test custom result type
     val func2 = new TableFunc2
     scalaUtil.addFunction("func2", func2)
     javaUtil.addFunction("func2", func2)
-    scalaTable = sTab.flatMap(func2('c)).as('name, 'len).select('name, 'len)
-    javaTable = jTab.flatMap("func2(c)").as("name, len").select("name, len")
+    scalaTable = sTab.flatMap(call("func2", 'c)).as("name", "len").select('name, 'len)
+    javaTable = jTab.flatMap(call("func2", $("c"))).as("name, len").select($("name"), $("len"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test hierarchy generic type
     val hierarchy = new HierarchyTableFunction
     scalaUtil.addFunction("hierarchy", hierarchy)
     javaUtil.addFunction("hierarchy", hierarchy)
-    scalaTable = sTab.flatMap(hierarchy('c)).as('name, 'adult, 'len).select('name, 'len, 'adult)
-    javaTable = jTab.flatMap("hierarchy(c)").as("name, adult, len").select("name, len, adult")
+    scalaTable = sTab.flatMap(call("hierarchy", 'c))
+      .as("name", "adult", "len")
+      .select('name, 'len, 'adult)
+    javaTable = jTab
+      .flatMap(call("hierarchy", $("c")))
+      .as("name", "adult", "len")
+      .select($("name"), $("len"), $("adult"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test pojo type
     val pojo = new PojoTableFunc
     scalaUtil.addFunction("pojo", pojo)
     javaUtil.addFunction("pojo", pojo)
-    scalaTable = sTab.flatMap(pojo('c)).select('name, 'age)
-    javaTable = jTab.flatMap("pojo(c)").select("name, age")
+    scalaTable = sTab.flatMap(call("pojo", 'c)).select('name, 'age)
+    javaTable = jTab.flatMap(call("pojo", $("c"))).select($("name"), $("age"))
     verifyTableEquals(scalaTable, javaTable)
 
     // test with filter
-    scalaTable = sTab.flatMap(func2('c)).as('name, 'len).select('name, 'len).filter('len > 2)
-    javaTable = jTab.flatMap("func2(c)").as("name, len").select("name, len").filter("len > 2")
+    scalaTable = sTab.flatMap(call("func2", 'c))
+      .as("name", "len")
+      .select('name, 'len)
+      .filter('len > 2)
+    javaTable = jTab
+      .flatMap(call("func2", $("c")))
+      .as("name", "len")
+      .select($("name"), $("len"))
+      .filter($("len").isGreater(Int.box(2)))
     verifyTableEquals(scalaTable, javaTable)
 
     // test with scalar function
-    scalaTable = sTab.flatMap(func1('c.substring(2))).as('s).select('s)
-    javaTable = jTab.flatMap("func1(substring(c, 2))").as("s").select("s")
+    scalaTable = sTab.flatMap(call("func1", 'c.substring(2))).as("s").select('s)
+    javaTable = jTab.flatMap(call("func1", $("c").substring(Int.box(2)))).as("s").select($("s"))
     verifyTableEquals(scalaTable, javaTable)
   }
 }

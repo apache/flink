@@ -28,6 +28,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.java.tuple.{Tuple2 => FlinkTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.Utils
+import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
 import org.apache.flink.mesos.scheduler.messages._
 import org.apache.flink.mesos.util.MesosResourceAllocation
@@ -166,7 +167,9 @@ class LaunchCoordinator(
       goto(Suspended) using data.copy(newLeases = Nil)
 
     case Event(offers: ResourceOffers, data: GatherData) =>
-      val leases = offers.offers().asScala.map(new Offer(_))
+      val mesosRmNetworkResourceName = MesosTaskManagerParameters.MESOS_RM_NETWORK_RESOURCE_NAME
+      val networkResourceName = config.getString(mesosRmNetworkResourceName)
+      val leases = offers.offers().asScala.map(new Offer(_, networkResourceName))
       if(LOG.isInfoEnabled) {
         val (cpus, gpus, mem, disk, network) = leases.foldLeft((0.0,0.0,0.0, 0.0, 0.0)) {
           (z,o) => (z._1 + o.cpuCores(), z._2 + o.gpus(), z._3 + o.memoryMB(),
@@ -174,6 +177,7 @@ class LaunchCoordinator(
         }
         LOG.info(s"Received offer(s) of $mem MB, $cpus cpus, $gpus gpus, " +
           s"$disk disk MB, $network Mbps")
+
         for(l <- leases) {
           val reservations = l.getResources.asScala.map(_.getRole).toSet
           LOG.info(

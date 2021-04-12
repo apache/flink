@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.`trait`
 
 import org.apache.calcite.plan.RelTrait
-import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
+import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.util.mapping.Mappings
 
 import scala.collection.JavaConversions._
@@ -55,14 +55,6 @@ object TraitUtil {
       }
       RelCollations.of(newFieldCollations: _*)
     }
-  }
-
-  /**
-    * Checks if a [[RelNode]] is in [[AccMode.AccRetract]] mode.
-    */
-  def isAccRetract(rel: RelNode): Boolean = {
-    val accModeTrait = rel.getTraitSet.getTrait(AccModeTraitDef.INSTANCE)
-    null != accModeTrait && accModeTrait.getAccMode == AccMode.AccRetract
   }
 
 }

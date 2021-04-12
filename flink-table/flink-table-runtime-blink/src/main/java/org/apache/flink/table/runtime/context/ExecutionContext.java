@@ -19,25 +19,21 @@
 package org.apache.flink.table.runtime.context;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
- * A ExecutionContext contains information about the context in which functions are executed and
- * the APIs to create state.
+ * A ExecutionContext contains information about the context in which functions are executed and the
+ * APIs to create state.
  */
 public interface ExecutionContext {
 
-	// TODO add create state method.
+    // TODO add create state method.
 
-	/**
-	 * @return key of the current processed element.
-	 */
-	BaseRow currentKey();
+    /** @return key of the current processed element. */
+    RowData currentKey();
 
-	/**
-	 * Sets current key.
-	 */
-	void setCurrentKey(BaseRow key);
+    /** Sets current key. */
+    void setCurrentKey(RowData key);
 
-	RuntimeContext getRuntimeContext();
+    RuntimeContext getRuntimeContext();
 }

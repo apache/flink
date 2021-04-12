@@ -20,20 +20,25 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink, TestingRetractSink, TestingRetractTableSink}
+import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
 class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
@@ -264,9 +269,8 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val sink = new TestingRetractTableSink().configure(
       Array("a", "b", "v"),
       Array(Types.INT, Types.LONG, Types.STRING))
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
 
     val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

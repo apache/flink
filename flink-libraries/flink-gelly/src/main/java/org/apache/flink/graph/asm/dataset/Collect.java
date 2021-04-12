@@ -32,75 +32,71 @@ import java.util.List;
  *
  * @param <T> element type
  */
-public class Collect<T>
-extends DataSetAnalyticBase<T, List<T>> {
+public class Collect<T> extends DataSetAnalyticBase<T, List<T>> {
 
-	private static final String COLLECT = "collect";
+    private static final String COLLECT = "collect";
 
-	private CollectHelper<T> collectHelper;
+    private CollectHelper<T> collectHelper;
 
-	private TypeSerializer<T> serializer;
+    private TypeSerializer<T> serializer;
 
-	@Override
-	public Collect<T> run(DataSet<T> input)
-			throws Exception {
-		super.run(input);
+    @Override
+    public Collect<T> run(DataSet<T> input) throws Exception {
+        super.run(input);
 
-		serializer = input.getType().createSerializer(env.getConfig());
+        serializer = input.getType().createSerializer(env.getConfig());
 
-		collectHelper = new CollectHelper<>(serializer);
+        collectHelper = new CollectHelper<>(serializer);
 
-		input
-			.output(collectHelper)
-				.name("Collect");
+        input.output(collectHelper).name("Collect");
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	public List<T> getResult() {
-		ArrayList<byte[]> accResult = collectHelper.getAccumulator(env, COLLECT);
-		if (accResult != null) {
-			try {
-				return SerializedListAccumulator.deserializeList(accResult, serializer);
-			} catch (ClassNotFoundException e) {
-				throw new RuntimeException("Cannot find type class of collected data type", e);
-			} catch (IOException e) {
-				throw new RuntimeException("Serialization error while deserializing collected data", e);
-			}
-		} else {
-			throw new RuntimeException("Unable to retrieve the DataSet");
-		}
-	}
+    @Override
+    public List<T> getResult() {
+        ArrayList<byte[]> accResult = collectHelper.getAccumulator(env, COLLECT);
+        if (accResult != null) {
+            try {
+                return SerializedListAccumulator.deserializeList(accResult, serializer);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Cannot find type class of collected data type", e);
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Serialization error while deserializing collected data", e);
+            }
+        } else {
+            throw new RuntimeException("Unable to retrieve the DataSet");
+        }
+    }
 
-	/**
-	 * Helper class to collect elements into a serialized list.
-	 *
-	 * @param <U> element type
-	 */
-	private static class CollectHelper<U>
-	extends AnalyticHelper<U> {
-		private SerializedListAccumulator<U> accumulator;
+    /**
+     * Helper class to collect elements into a serialized list.
+     *
+     * @param <U> element type
+     */
+    private static class CollectHelper<U> extends AnalyticHelper<U> {
+        private SerializedListAccumulator<U> accumulator;
 
-		private final TypeSerializer<U> serializer;
+        private final TypeSerializer<U> serializer;
 
-		public CollectHelper(TypeSerializer<U> serializer) {
-			this.serializer = serializer;
-		}
+        public CollectHelper(TypeSerializer<U> serializer) {
+            this.serializer = serializer;
+        }
 
-		@Override
-		public void open(int taskNumber, int numTasks)  {
-			this.accumulator = new SerializedListAccumulator<>();
-		}
+        @Override
+        public void open(int taskNumber, int numTasks) {
+            this.accumulator = new SerializedListAccumulator<>();
+        }
 
-		@Override
-		public void writeRecord(U record) throws IOException {
-			accumulator.add(record, serializer);
-		}
+        @Override
+        public void writeRecord(U record) throws IOException {
+            accumulator.add(record, serializer);
+        }
 
-		@Override
-		public void close() throws IOException {
-			addAccumulator(COLLECT, accumulator);
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            addAccumulator(COLLECT, accumulator);
+        }
+    }
 }

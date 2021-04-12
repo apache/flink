@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -51,7 +51,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -66,7 +66,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num = 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -85,7 +85,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num <= 3
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -104,7 +104,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num <= 3
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -119,7 +119,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num <= 2
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -135,7 +135,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
       |WHERE  rank_num <= 2
     """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -151,7 +151,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
       |WHERE  rank_num <= 2
     """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -166,7 +166,7 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE  rank_num <= 2 AND a > 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -186,6 +186,6 @@ class CalcRankTransposeRuleTest extends TableTestBase {
         |WHERE rank_num <= 3
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 }

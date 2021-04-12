@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
+import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
+
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.avatica.util.DateTimeUtils.dateStringToUnixDate
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 object DateTimeTestUtil {
 
@@ -46,7 +47,11 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      SqlDateTimeUtils.toSqlTimestamp(s).toLocalDateTime
+      SqlDateTimeUtils.toTimestampData(s).toLocalDateTime
     }
+  }
+
+  def toEpochMills(s: String, zone: ZoneId): Long = {
+    LocalDateTime.parse(s).atZone(zone).toInstant.toEpochMilli
   }
 }

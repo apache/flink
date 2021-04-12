@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 
@@ -25,50 +26,60 @@ import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Configuration for the {@link AkkaRpcService}.
- */
+/** Configuration for the {@link AkkaRpcService}. */
 public class AkkaRpcServiceConfiguration {
 
-	@Nonnull
-	private final Configuration configuration;
+    @Nonnull private final Configuration configuration;
 
-	@Nonnull
-	private final Time timeout;
+    @Nonnull private final Time timeout;
 
-	private final long maximumFramesize;
+    private final long maximumFramesize;
 
-	public AkkaRpcServiceConfiguration(@Nonnull Configuration configuration, @Nonnull Time timeout, long maximumFramesize) {
-		checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
-		this.configuration = configuration;
-		this.timeout = timeout;
-		this.maximumFramesize = maximumFramesize;
-	}
+    private final boolean captureAskCallStack;
 
-	@Nonnull
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    public AkkaRpcServiceConfiguration(
+            @Nonnull Configuration configuration,
+            @Nonnull Time timeout,
+            long maximumFramesize,
+            boolean captureAskCallStack) {
 
-	@Nonnull
-	public Time getTimeout() {
-		return timeout;
-	}
+        checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
+        this.configuration = configuration;
+        this.timeout = timeout;
+        this.maximumFramesize = maximumFramesize;
+        this.captureAskCallStack = captureAskCallStack;
+    }
 
-	public long getMaximumFramesize() {
-		return maximumFramesize;
-	}
+    @Nonnull
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
-		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
+    @Nonnull
+    public Time getTimeout() {
+        return timeout;
+    }
 
-		final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
+    public long getMaximumFramesize() {
+        return maximumFramesize;
+    }
 
-		return new AkkaRpcServiceConfiguration(configuration, timeout, maximumFramesize);
-	}
+    public boolean captureAskCallStack() {
+        return captureAskCallStack;
+    }
 
-	public static AkkaRpcServiceConfiguration defaultConfiguration() {
-		return fromConfiguration(new Configuration());
-	}
+    public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
+        final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
+        final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
+
+        final boolean captureAskCallStacks = configuration.get(AkkaOptions.CAPTURE_ASK_CALLSTACK);
+
+        return new AkkaRpcServiceConfiguration(
+                configuration, timeout, maximumFramesize, captureAskCallStacks);
+    }
+
+    public static AkkaRpcServiceConfiguration defaultConfiguration() {
+        return fromConfiguration(new Configuration());
+    }
 }

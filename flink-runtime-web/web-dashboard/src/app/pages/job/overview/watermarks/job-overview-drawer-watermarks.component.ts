@@ -42,7 +42,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id, data.vertex!.parallelism))
+        flatMap(data => this.metricsService.getWatermarks(data.job.jid, data.vertex!.id))
       )
       .subscribe(
         data => {
@@ -50,7 +50,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           for (const key in data.watermarks) {
             list.push({
-              subTaskIndex: +key + 1,
+              subTaskIndex: +key,
               watermark: data.watermarks[key]
             });
           }

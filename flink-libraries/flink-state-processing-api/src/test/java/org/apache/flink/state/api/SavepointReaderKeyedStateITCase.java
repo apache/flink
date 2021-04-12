@@ -18,249 +18,151 @@
 
 package org.apache.flink.state.api;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
-/**
- * IT case for reading state.
- */
-public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
-	private static final String uid = "stateful-operator";
+/** IT case for reading state. */
+public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
+        extends SavepointTestBase {
+    private static final String uid = "stateful-operator";
 
-	private static ValueStateDescriptor<Integer> valueState = new ValueStateDescriptor<>("value", Types.INT);
+    private static ValueStateDescriptor<Integer> valueState =
+            new ValueStateDescriptor<>("value", Types.INT);
 
-	@Test
-	public void testKeyedInputFormat() throws Exception {
-		runKeyedState(new MemoryStateBackend());
-		// Reset the cluster so we can change the
-		// state backend in the StreamEnvironment.
-		// If we don't do this the tests will fail.
-		miniClusterResource.after();
-		miniClusterResource.before();
-		runKeyedState(new RocksDBStateBackend((StateBackend) new MemoryStateBackend()));
-	}
+    private static final List<Pojo> elements =
+            Arrays.asList(Pojo.of(1, 1), Pojo.of(2, 2), Pojo.of(3, 3));
 
-	private void runKeyedState(StateBackend backend) throws Exception {
-		StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		streamEnv.setStateBackend(backend);
-		streamEnv.setParallelism(4);
+    protected abstract B getStateBackend();
 
-		streamEnv
-			.addSource(new SavepointSource())
-			.rebalance()
-			.keyBy(id -> id.key)
-			.process(new KeyedStatefulOperator())
-			.uid(uid)
-			.addSink(new DiscardingSink<>());
+    @Test
+    public void testUserKeyedStateReader() throws Exception {
+        String savepointPath =
+                takeSavepoint(
+                        elements,
+                        source -> {
+                            StreamExecutionEnvironment env =
+                                    StreamExecutionEnvironment.getExecutionEnvironment();
+                            env.setStateBackend(getStateBackend());
+                            env.setParallelism(4);
 
-		JobGraph jobGraph = streamEnv.getStreamGraph().getJobGraph();
+                            env.addSource(source)
+                                    .rebalance()
+                                    .keyBy(id -> id.key)
+                                    .process(new KeyedStatefulOperator())
+                                    .uid(uid)
+                                    .addSink(new DiscardingSink<>());
 
-		String path = takeSavepoint(jobGraph);
+                            return env;
+                        });
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, path, backend);
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		List<Pojo> results = savepoint
-			.readKeyedState(uid, new Reader())
-			.collect();
+        List<Pojo> results = savepoint.readKeyedState(uid, new Reader()).collect();
 
-		Set<Pojo> expected = SavepointSource.getElements();
+        Set<Pojo> expected = new HashSet<>(elements);
 
-		Assert.assertEquals("Unexpected results from keyed state", expected, new HashSet<>(results));
-	}
+        Assert.assertEquals(
+                "Unexpected results from keyed state", expected, new HashSet<>(results));
+    }
 
-	private String takeSavepoint(JobGraph jobGraph) throws Exception {
-		SavepointSource.initializeForTest();
+    private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
 
-		ClusterClient<?> client = miniClusterResource.getClusterClient();
+        private transient ValueState<Integer> state;
 
-		JobID jobId = jobGraph.getJobID();
+        @Override
+        public void open(Configuration parameters) {
+            state = getRuntimeContext().getState(valueState);
+        }
 
-		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+        @Override
+        public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
+            state.update(value.state);
 
-		String dirPath = getTempDirPath(new AbstractID().toHexString());
+            value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
+            value.processingTimeTimer.forEach(
+                    timer -> ctx.timerService().registerProcessingTimeTimer(timer));
+        }
+    }
 
-		try {
-			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
+    private static class Reader extends KeyedStateReaderFunction<Integer, Pojo> {
 
-			boolean finished = false;
-			while (deadline.hasTimeLeft()) {
-				if (SavepointSource.isFinished()) {
-					finished = true;
+        private transient ValueState<Integer> state;
 
-					break;
-				}
-			}
+        @Override
+        public void open(Configuration parameters) {
+            state = getRuntimeContext().getState(valueState);
+        }
 
-			if (!finished) {
-				Assert.fail("Failed to initialize state within deadline");
-			}
+        @Override
+        public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
+            Pojo pojo = new Pojo();
+            pojo.key = key;
+            pojo.state = state.value();
+            pojo.eventTimeTimer = ctx.registeredEventTimeTimers();
+            pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
 
-			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath);
-			return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-		} finally {
-			client.cancel(jobId).get();
-		}
-	}
+            out.collect(pojo);
+        }
+    }
 
-	private static class SavepointSource implements SourceFunction<Pojo> {
-		private static volatile boolean finished;
+    /** A simple pojo type. */
+    public static class Pojo {
+        public static Pojo of(Integer key, Integer state) {
+            Pojo wrapper = new Pojo();
+            wrapper.key = key;
+            wrapper.state = state;
+            wrapper.eventTimeTimer = Collections.singleton(Long.MAX_VALUE - 1);
+            wrapper.processingTimeTimer = Collections.singleton(Long.MAX_VALUE - 2);
 
-		private volatile boolean running = true;
+            return wrapper;
+        }
 
-		private static final Pojo[] elements = {
-			Pojo.of(1, 1),
-			Pojo.of(2, 2),
-			Pojo.of(3, 3)};
+        Integer key;
 
-		@Override
-		public void run(SourceContext<Pojo> ctx) {
-			synchronized (ctx.getCheckpointLock()) {
-				for (Pojo element : elements) {
-					ctx.collect(element);
-				}
+        Integer state;
 
-				finished = true;
-			}
+        Set<Long> eventTimeTimer;
 
-			while (running) {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					// ignore
-				}
-			}
-		}
+        Set<Long> processingTimeTimer;
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            } else if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Pojo pojo = (Pojo) o;
+            return Objects.equals(key, pojo.key)
+                    && Objects.equals(state, pojo.state)
+                    && Objects.equals(eventTimeTimer, pojo.eventTimeTimer)
+                    && Objects.equals(processingTimeTimer, pojo.processingTimeTimer);
+        }
 
-		private static void initializeForTest() {
-			finished = false;
-		}
-
-		private static boolean isFinished() {
-			return finished;
-		}
-
-		private static Set<Pojo> getElements() {
-			return new HashSet<>(Arrays.asList(elements));
-		}
-	}
-
-	private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
-
-		private transient ValueState<Integer> state;
-
-		@Override
-		public void open(Configuration parameters) {
-			state = getRuntimeContext().getState(valueState);
-		}
-
-		@Override
-		public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
-			state.update(value.state);
-
-			value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
-			value.processingTimeTimer.forEach(timer -> ctx.timerService().registerProcessingTimeTimer(timer));
-		}
-	}
-
-	private static class Reader extends KeyedStateReaderFunction<Integer, Pojo> {
-
-		private transient ValueState<Integer> state;
-
-		@Override
-		public void open(Configuration parameters) {
-			state = getRuntimeContext().getState(valueState);
-		}
-
-		@Override
-		public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
-			Pojo pojo = new Pojo();
-			pojo.key = key;
-			pojo.state = state.value();
-			pojo.eventTimeTimer = ctx.registeredEventTimeTimers();
-			pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
-
-			out.collect(pojo);
-		}
-	}
-
-	/**
-	 * A simple pojo type.
-	 */
-	public static class Pojo {
-		public static Pojo of(Integer key, Integer state) {
-			Pojo wrapper = new Pojo();
-			wrapper.key = key;
-			wrapper.state = state;
-			wrapper.eventTimeTimer = Collections.singleton(Long.MAX_VALUE - 1);
-			wrapper.processingTimeTimer = Collections.singleton(Long.MAX_VALUE - 2);
-
-			return wrapper;
-		}
-
-		Integer key;
-
-		Integer state;
-
-		Set<Long> eventTimeTimer;
-
-		Set<Long> processingTimeTimer;
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			} else if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			Pojo pojo = (Pojo) o;
-			return Objects.equals(key, pojo.key) &&
-				Objects.equals(state, pojo.state) &&
-				Objects.equals(eventTimeTimer, pojo.eventTimeTimer) &&
-				Objects.equals(processingTimeTimer, pojo.processingTimeTimer);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(key, state, eventTimeTimer, processingTimeTimer);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(key, state, eventTimeTimer, processingTimeTimer);
+        }
+    }
 }

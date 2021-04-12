@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.runtime.generated.Projection
-import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType}
+import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
 
 import org.junit.{Assert, Test}
 
@@ -42,8 +44,8 @@ class ProjectionCodeGeneratorTest {
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
       Array(1, 0)
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, BinaryRow]]
-    val row: BinaryRow = projection.apply(GenericRow.of(ji(5), jl(8)))
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+    val row: BinaryRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
   }
@@ -56,9 +58,9 @@ class ProjectionCodeGeneratorTest {
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
       Array(1, 0),
-      outClass = classOf[GenericRow]
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, GenericRow]]
-    val row: GenericRow = projection.apply(GenericRow.of(ji(5), jl(8)))
+      outClass = classOf[GenericRowData]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
+    val row: GenericRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
     Assert.assertEquals(5, row.getInt(1))
     Assert.assertEquals(8, row.getLong(0))
   }
@@ -72,9 +74,9 @@ class ProjectionCodeGeneratorTest {
       rowType,
       rowType,
       (0 until 100).toArray
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, BinaryRow]]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
     val rnd = new Random()
-    val input = GenericRow.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
+    val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
       Assert.assertEquals(input.getInt(i), row.getInt(i))
@@ -90,14 +92,44 @@ class ProjectionCodeGeneratorTest {
       rowType,
       rowType,
       (0 until 100).toArray,
-      outClass = classOf[GenericRow]
-    ).newInstance(classLoader).asInstanceOf[Projection[BaseRow, GenericRow]]
+      outClass = classOf[GenericRowData]
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, GenericRowData]]
     val rnd = new Random()
-    val input = GenericRow.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
+    val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
       Assert.assertEquals(input.getInt(i), row.getInt(i))
     }
+  }
+
+  @Test
+  def testProjectionBinaryRowWithVariableLengthData(): Unit = {
+    val projection = ProjectionCodeGenerator.generateProjection(
+      new CodeGeneratorContext(new TableConfig),
+      "name",
+      RowType.of(
+        new DecimalType(38, 0),
+        new DecimalType(38, 0),
+        new TimestampType(9)),
+      RowType.of(
+        new DecimalType(38, 0),
+        new TimestampType(9),
+        new DecimalType(38, 0)),
+      Array(1, 2, 0)
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+
+    val decimal = DecimalData.fromBigDecimal(java.math.BigDecimal.valueOf(123), 38, 0)
+    val timestamp = TimestampData.fromEpochMillis(123)
+
+    val expected: BinaryRowData = new BinaryRowData(3)
+    val writer: BinaryRowWriter = new BinaryRowWriter(expected)
+    writer.writeDecimal(0, decimal, 38)
+    writer.writeTimestamp(1, timestamp, 9)
+    writer.writeDecimal(2, decimal, 38)
+    writer.complete()
+
+    val actual: BinaryRowData = projection.apply(GenericRowData.of(decimal, decimal, timestamp))
+    Assert.assertEquals(expected, actual)
   }
 
   def ji(i: Int): Integer = {

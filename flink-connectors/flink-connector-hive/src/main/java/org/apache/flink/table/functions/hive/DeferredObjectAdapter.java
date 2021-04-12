@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -26,29 +27,27 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
-/**
- * Adapter from Java Object to Hive DeferredObject.
- */
+/** Adapter from Java Object to Hive DeferredObject. */
 @Internal
 public class DeferredObjectAdapter implements GenericUDF.DeferredObject {
 
-	private Object object;
-	private HiveObjectConversion conversion;
+    private Object object;
+    private HiveObjectConversion conversion;
 
-	public DeferredObjectAdapter(ObjectInspector inspector, LogicalType logicalType) {
-		conversion = HiveInspectors.getConversion(inspector, logicalType);
-	}
+    public DeferredObjectAdapter(
+            ObjectInspector inspector, LogicalType logicalType, HiveShim hiveShim) {
+        conversion = HiveInspectors.getConversion(inspector, logicalType, hiveShim);
+    }
 
-	public void set(Object ob) {
-		this.object = ob;
-	}
+    public void set(Object ob) {
+        this.object = ob;
+    }
 
-	@Override
-	public void prepare(int version) {
-	}
+    @Override
+    public void prepare(int version) {}
 
-	@Override
-	public Object get() {
-		return conversion.toHiveObject(object);
-	}
+    @Override
+    public Object get() {
+        return conversion.toHiveObject(object);
+    }
 }

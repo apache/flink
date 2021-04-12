@@ -34,6 +34,7 @@ function run_ha_test() {
     local BACKEND=$2
     local ASYNC=$3
     local INCREM=$4
+    local ZOOKEEPER_VERSION=$5
 
     local JM_KILLS=3
     local CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
@@ -46,10 +47,11 @@ function run_ha_test() {
     # jm killing loop
     set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
     set_config_key "env.java.opts" "-ea"
+    setup_flink_shaded_zookeeper ${ZOOKEEPER_VERSION}
     start_local_zk
     start_cluster
 
-    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
+    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM} and zk=${ZOOKEEPER_VERSION}."
 
     # submit a job in detached mode and let it run
     local JOB_ID=$($FLINK_DIR/bin/flink run -d -p ${PARALLELISM} \
@@ -96,5 +98,6 @@ function run_ha_test() {
 STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
+ZOOKEEPER_VERSION=${4:-3.4}
 
-run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}
+run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}

@@ -24,78 +24,76 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-/**
- * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}.
- */
+/** A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. */
 @Internal
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
-		implements OneInputStreamOperator<IN, Object> {
+        implements OneInputStreamOperator<IN, Object> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient SimpleContext sinkContext;
+    private transient SimpleContext sinkContext;
 
-	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
-	private long currentWatermark = Long.MIN_VALUE;
+    /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+    private long currentWatermark = Long.MIN_VALUE;
 
-	public StreamSink(SinkFunction<IN> sinkFunction) {
-		super(sinkFunction);
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
+    public StreamSink(SinkFunction<IN> sinkFunction) {
+        super(sinkFunction);
+        chainingStrategy = ChainingStrategy.ALWAYS;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		this.sinkContext = new SimpleContext<>(getProcessingTimeService());
-	}
+        this.sinkContext = new SimpleContext<>(getProcessingTimeService());
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		sinkContext.element = element;
-		userFunction.invoke(element.getValue(), sinkContext);
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        sinkContext.element = element;
+        userFunction.invoke(element.getValue(), sinkContext);
+    }
 
-	@Override
-	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
-		// all operators are tracking latencies
-		this.latencyStats.reportLatency(marker);
+    @Override
+    protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
+        // all operators are tracking latencies
+        this.latencyStats.reportLatency(marker);
 
-		// sinks don't forward latency markers
-	}
+        // sinks don't forward latency markers
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		this.currentWatermark = mark.getTimestamp();
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        this.currentWatermark = mark.getTimestamp();
+    }
 
-	private class SimpleContext<IN> implements SinkFunction.Context<IN> {
+    private class SimpleContext<IN> implements SinkFunction.Context {
 
-		private StreamRecord<IN> element;
+        private StreamRecord<IN> element;
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		public SimpleContext(ProcessingTimeService processingTimeService) {
-			this.processingTimeService = processingTimeService;
-		}
+        public SimpleContext(ProcessingTimeService processingTimeService) {
+            this.processingTimeService = processingTimeService;
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
+        @Override
+        public long currentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
+        @Override
+        public long currentWatermark() {
+            return currentWatermark;
+        }
 
-		@Override
-		public Long timestamp() {
-			if (element.hasTimestamp()) {
-				return element.getTimestamp();
-			}
-			return null;
-		}
-	}
+        @Override
+        public Long timestamp() {
+            if (element.hasTimestamp()) {
+                return element.getTimestamp();
+            }
+            return null;
+        }
+    }
 }

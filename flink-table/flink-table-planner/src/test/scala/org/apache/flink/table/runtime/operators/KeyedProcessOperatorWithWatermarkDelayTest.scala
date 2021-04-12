@@ -38,7 +38,7 @@ class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
     val operator = new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
       new EmptyProcessFunction, 100)
     val testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, String](
-      operator, new IdentityKeySelector, BasicTypeInfo.INT_TYPE_INFO)
+      operator, new IdentityKeySelector[Integer], BasicTypeInfo.INT_TYPE_INFO)
 
     testHarness.setup()
     testHarness.open()

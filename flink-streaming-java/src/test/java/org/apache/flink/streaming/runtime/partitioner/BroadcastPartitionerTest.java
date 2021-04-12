@@ -24,26 +24,24 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link BroadcastPartitioner}.
- */
+/** Tests for {@link BroadcastPartitioner}. */
 public class BroadcastPartitionerTest extends StreamPartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		StreamPartitioner<Tuple> partitioner = new BroadcastPartitioner<>();
-		assertTrue(partitioner.isBroadcast());
-		return partitioner;
-	}
+    @Override
+    public StreamPartitioner<Tuple> createPartitioner() {
+        StreamPartitioner<Tuple> partitioner = new BroadcastPartitioner<>();
+        assertTrue(partitioner.isBroadcast());
+        return partitioner;
+    }
 
-	@Test
-	public void testSelectChannels() {
-		try {
-			streamPartitioner.selectChannel(serializationDelegate);
-		} catch (UnsupportedOperationException ex) {
-			return;
-		}
+    @Test
+    public void testSelectChannels() {
+        try {
+            streamPartitioner.selectChannel(serializationDelegate);
+        } catch (UnsupportedOperationException ex) {
+            return;
+        }
 
-		fail("Broadcast selector does not support select channels.");
-	}
+        fail("Broadcast selector does not support select channels.");
+    }
 }

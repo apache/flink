@@ -19,8 +19,9 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptSchema}
+import org.apache.calcite.rel.{BiRel, RelNode, SingleRel}
 import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
@@ -32,7 +33,7 @@ import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFun
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.logical.rel.LogicalTemporalTableJoin
 import org.apache.flink.table.plan.util.RexDefaultVisitor
-import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
 
@@ -47,7 +48,8 @@ class LogicalCorrelateToTemporalTableJoinRule
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
       case f : FieldReferenceExpression
-          if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+          if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) ||
+            hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
         f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
@@ -88,7 +90,7 @@ class LogicalCorrelateToTemporalTableJoinRule
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val relBuilder = FlinkRelBuilder.of(cluster, leftNode.getTable)
+        val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema(leftNode))
         val rightNode: RelNode = relBuilder.tableOperation(underlyingHistoryTable).build()
 
         val rightTimeIndicatorExpression = createRightExpression(
@@ -138,6 +140,16 @@ class LogicalCorrelateToTemporalTableJoinRule
     val rightDataTypeField = rightNode.getRowType.getField(field, false, false)
     rexBuilder.makeInputRef(
       rightDataTypeField.getType, rightReferencesOffset + rightDataTypeField.getIndex)
+  }
+
+  /**
+    * Gets [[RelOptSchema]] from the leaf [[RelNode]] which holds a non-null [[RelOptSchema]].
+    */
+  private def getRelOptSchema(relNode: RelNode): RelOptSchema = relNode match {
+    case hep: HepRelVertex => getRelOptSchema(hep.getCurrentRel)
+    case single: SingleRel => getRelOptSchema(single.getInput)
+    case bi: BiRel => getRelOptSchema(bi.getLeft)
+    case _ => relNode.getTable.getRelOptSchema
   }
 }
 

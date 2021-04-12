@@ -19,11 +19,15 @@
 
 package org.apache.flink.runtime.scheduler;
 
-/**
- * Interface for {@link ExecutionSlotAllocator} factories.
- */
+/** Interface for {@link ExecutionSlotAllocator} factories. */
+@FunctionalInterface
 public interface ExecutionSlotAllocatorFactory {
 
-	ExecutionSlotAllocator createInstance(InputsLocationsRetriever inputsLocationsRetriever);
-
+    /**
+     * Instantiates the {@link ExecutionSlotAllocator}.
+     *
+     * @param context for slot allocation
+     * @return The instantiated slot allocator
+     */
+    ExecutionSlotAllocator createInstance(ExecutionSlotAllocationContext context);
 }

@@ -18,20 +18,21 @@
 
 package org.apache.flink.table.planner.expressions.utils
 
-import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
+
 import org.apache.commons.lang3.StringUtils
 import org.junit.Assert
+
 import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime}
 import java.util.Random
-
-import org.apache.flink.table.dataformat.SqlTimestamp
 
 import scala.annotation.varargs
 import scala.collection.mutable
@@ -118,7 +119,7 @@ object Func8 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func9 extends ScalarFunction {
-  def eval(a: Int, b: Int, c: SqlTimestamp): String = {
+  def eval(a: Int, b: Int, c: TimestampData): String = {
     val ts = if (c == null) null else c.getMillisecond
     s"$a and $b and $ts"
   }
@@ -126,7 +127,7 @@ object Func9 extends ScalarFunction {
 
 @SerialVersionUID(1L)
 object Func10 extends ScalarFunction {
-  def eval(c: SqlTimestamp): Timestamp = {
+  def eval(c: TimestampData): Timestamp = {
     if (c == null) {
       null
     } else {
@@ -154,20 +155,6 @@ object Func12 extends ScalarFunction {
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
     TimeIntervalTypeInfo.INTERVAL_MILLIS
   }
-}
-
-@SerialVersionUID(1L)
-object Func13 extends ScalarFunction {
-  def eval(c: SqlTimestamp): LocalDateTime = {
-    if (c == null) {
-      null
-    } else {
-      c.toLocalDateTime
-    }
-  }
-
-  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
-    LocalTimeTypeInfo.LOCAL_DATE_TIME
 }
 
 @SerialVersionUID(1L)
@@ -224,6 +211,9 @@ class RichFunc1 extends ScalarFunction {
 
   override def open(context: FunctionContext): Unit = {
     added = context.getJobParameter("int.value", "0").toInt
+    if (context.getJobParameter("fail-for-cached-file", "false").toBoolean) {
+      context.getCachedFile("FAIL")
+    }
   }
 
   def eval(index: Int): Int = {
@@ -417,6 +407,71 @@ object Func24 extends ScalarFunction {
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     Types.ROW(Types.STRING, Types.INT, Types.LONG, Types.STRING)
 }
+
+@SerialVersionUID(1L)
+object Func26 extends ScalarFunction {
+  def eval(c: TimestampData): LocalDateTime = {
+    if (c == null) {
+      null
+    } else {
+      c.toLocalDateTime
+    }
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    LocalTimeTypeInfo.LOCAL_DATE_TIME
+}
+
+@SerialVersionUID(1L)
+object Func27 extends ScalarFunction {
+  def eval(c: TimestampData): Instant = {
+    if (c == null) {
+      null
+    } else {
+      c.toInstant
+    }
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.INSTANT_TYPE_INFO
+}
+
+@SerialVersionUID(1L)
+object Func28 extends ScalarFunction {
+  def eval(c: Long): Instant = {
+    Instant.ofEpochMilli(c)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.INSTANT_TYPE_INFO
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(BasicTypeInfo.INSTANT_TYPE_INFO)
+}
+
+@SerialVersionUID(1L)
+object Func29 extends ScalarFunction {
+  def eval(c: Long): Long = {
+    c
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.INSTANT_TYPE_INFO
+}
+
+@SerialVersionUID(1L)
+object Func30 extends ScalarFunction {
+  def eval(c: java.lang.Long): Instant = {
+    Instant.ofEpochMilli(c)
+  }
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.INSTANT_TYPE_INFO
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(BasicTypeInfo.INSTANT_TYPE_INFO)
+}
+
 
 /**
   * A scalar function that always returns TRUE if opened correctly.

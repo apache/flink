@@ -103,8 +103,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("LOG10(10)", "1.0")
     testSqlApi("LOG2(8)", "3.0")
     testSqlApi("LOG(E())", "1.0")
-    testSqlApi("LOG(3,27)", "3.0")
-    testSqlApi("EXP(1)", "2.718281828459045")
+    testSqlApi("LOG(3,27)", "3.0000000000000004")
+    testSqlApi("EXP(1)", "2.7182818284590455")
     testSqlApi("CEIL(2.5)", "3")
     testSqlApi("CEILING(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
@@ -127,7 +127,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("E()", "2.718281828459045")
     testSqlApi("BIN(12)", "1100")
     testSqlApi("truncate(42.345)", "42")
-    testSqlApi("truncate(cast(42.345 as decimal(2, 3)), 2)", "42.34")
+    testSqlApi("truncate(cast(42.345 as decimal(4, 2)), 2)", "42.34")
   }
 
   @Test

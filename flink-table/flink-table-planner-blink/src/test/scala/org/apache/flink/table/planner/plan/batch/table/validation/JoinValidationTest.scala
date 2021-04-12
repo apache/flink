@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.CollectionBatchExecTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -96,7 +95,7 @@ class JoinValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvs(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv1, "a, b, c")
@@ -108,13 +107,13 @@ class JoinValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testJoinTablesFromDifferentEnvsJava() {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    val settings = EnvironmentSettings.newInstance().inBatchMode().build()
     val tEnv1 = TableEnvironmentImpl.create(settings)
     val tEnv2 = TableEnvironmentImpl.create(settings)
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv1, "a, b, c")
     val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv2, "d, e, f, g, c")
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.join(ds2).where("a === d").select("g.count")
+    ds1.join(ds2).where($"a" === $"d").select($"g".count)
   }
 
   @Test(expected = classOf[TableException])
@@ -124,6 +123,6 @@ class JoinValidationTest extends TableTestBase {
     val right = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
     val pyFunc = new PythonScalarFunction("pyFunc")
     val result = left.leftOuterJoin(right, 'a === 'd && pyFunc('a, 'd) === 'a + 'd)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

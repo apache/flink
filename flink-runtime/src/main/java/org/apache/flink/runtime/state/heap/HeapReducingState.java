@@ -37,107 +37,107 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-class HeapReducingState<K, N, V>
-	extends AbstractHeapMergingState<K, N, V, V, V>
-	implements InternalReducingState<K, N, V> {
+class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
+        implements InternalReducingState<K, N, V> {
 
-	private final ReduceTransformation<V> reduceTransformation;
+    private final ReduceTransformation<V> reduceTransformation;
 
-	/**
-	 * Creates a new key/value state for the given hash map of key/value pairs.
-	 *
-	 * @param stateTable The state table for which this state is associated to.
-	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the state.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param defaultValue The default value for the state.
-	 * @param reduceFunction The reduce function used for reducing state.
-	 */
-	private HeapReducingState(
-		StateTable<K, N, V> stateTable,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<V> valueSerializer,
-		TypeSerializer<N> namespaceSerializer,
-		V defaultValue,
-		ReduceFunction<V> reduceFunction) {
+    /**
+     * Creates a new key/value state for the given hash map of key/value pairs.
+     *
+     * @param stateTable The state table for which this state is associated to.
+     * @param keySerializer The serializer for the keys.
+     * @param valueSerializer The serializer for the state.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param defaultValue The default value for the state.
+     * @param reduceFunction The reduce function used for reducing state.
+     */
+    private HeapReducingState(
+            StateTable<K, N, V> stateTable,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<V> valueSerializer,
+            TypeSerializer<N> namespaceSerializer,
+            V defaultValue,
+            ReduceFunction<V> reduceFunction) {
 
-		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
-		this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
-	}
+        super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+        this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return keySerializer;
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return namespaceSerializer;
+    }
 
-	@Override
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
+    @Override
+    public TypeSerializer<V> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	// ------------------------------------------------------------------------
-	//  state access
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  state access
+    // ------------------------------------------------------------------------
 
-	@Override
-	public V get() {
-		return getInternal();
-	}
+    @Override
+    public V get() {
+        return getInternal();
+    }
 
-	@Override
-	public void add(V value) throws IOException {
+    @Override
+    public void add(V value) throws IOException {
 
-		if (value == null) {
-			clear();
-			return;
-		}
+        if (value == null) {
+            clear();
+            return;
+        }
 
-		try {
-			stateTable.transform(currentNamespace, value, reduceTransformation);
-		} catch (Exception e) {
-			throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-		}
-	}
+        try {
+            stateTable.transform(currentNamespace, value, reduceTransformation);
+        } catch (Exception e) {
+            throw new IOException("Exception while applying ReduceFunction in reducing state", e);
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  state merging
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  state merging
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected V mergeState(V a, V b) throws Exception {
-		return reduceTransformation.apply(a, b);
-	}
+    @Override
+    protected V mergeState(V a, V b) throws Exception {
+        return reduceTransformation.apply(a, b);
+    }
 
-	static final class ReduceTransformation<V> implements StateTransformationFunction<V, V> {
+    static final class ReduceTransformation<V> implements StateTransformationFunction<V, V> {
 
-		private final ReduceFunction<V> reduceFunction;
+        private final ReduceFunction<V> reduceFunction;
 
-		ReduceTransformation(ReduceFunction<V> reduceFunction) {
-			this.reduceFunction = Preconditions.checkNotNull(reduceFunction);
-		}
+        ReduceTransformation(ReduceFunction<V> reduceFunction) {
+            this.reduceFunction = Preconditions.checkNotNull(reduceFunction);
+        }
 
-		@Override
-		public V apply(V previousState, V value) throws Exception {
-			return previousState != null ? reduceFunction.reduce(previousState, value) : value;
-		}
-	}
+        @Override
+        public V apply(V previousState, V value) throws Exception {
+            return previousState != null ? reduceFunction.reduce(previousState, value) : value;
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		StateTable<K, N, SV> stateTable,
-		TypeSerializer<K> keySerializer) {
-		return (IS) new HeapReducingState<>(
-			stateTable,
-			keySerializer,
-			stateTable.getStateSerializer(),
-			stateTable.getNamespaceSerializer(),
-			stateDesc.getDefaultValue(),
-			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
-	}
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS create(
+            StateDescriptor<S, SV> stateDesc,
+            StateTable<K, N, SV> stateTable,
+            TypeSerializer<K> keySerializer) {
+        return (IS)
+                new HeapReducingState<>(
+                        stateTable,
+                        keySerializer,
+                        stateTable.getStateSerializer(),
+                        stateTable.getNamespaceSerializer(),
+                        stateDesc.getDefaultValue(),
+                        ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
+    }
 }

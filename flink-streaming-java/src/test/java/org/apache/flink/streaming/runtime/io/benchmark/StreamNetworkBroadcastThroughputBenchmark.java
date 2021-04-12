@@ -21,32 +21,32 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * Network throughput benchmarks executed by the external
- * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
+ * Network throughput benchmarks executed by the external <a
+ * href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class StreamNetworkBroadcastThroughputBenchmark extends StreamNetworkThroughputBenchmark {
 
-	/**
-	 * Same as {@link StreamNetworkThroughputBenchmark#setUp(int, int, int, boolean, int, int)}
-	 * but also setups broadcast mode.
-	 */
-	@Override
-	public void setUp(
-			int recordWriters,
-			int channels,
-			int flushTimeout,
-			boolean localMode,
-			int senderBufferPoolSize,
-			int receiverBufferPoolSize) throws Exception {
-		setUp(
-			recordWriters,
-			channels,
-			flushTimeout,
-			true,
-			localMode,
-			senderBufferPoolSize,
-			receiverBufferPoolSize,
-			new Configuration()
-		);
-	}
+    /**
+     * Same as {@link StreamNetworkThroughputBenchmark#setUp(int, int, int, boolean, int, int)} but
+     * also setups broadcast mode.
+     */
+    @Override
+    public void setUp(
+            int recordWriters,
+            int channels,
+            int flushTimeout,
+            boolean localMode,
+            int senderBufferPoolSize,
+            int receiverBufferPoolSize)
+            throws Exception {
+        setUp(
+                recordWriters,
+                channels,
+                flushTimeout,
+                true,
+                localMode,
+                senderBufferPoolSize,
+                receiverBufferPoolSize,
+                new Configuration());
+    }
 }

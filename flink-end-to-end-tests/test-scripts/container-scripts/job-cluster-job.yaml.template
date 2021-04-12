@@ -32,9 +32,12 @@ spec:
       - name: flink-job-cluster
         image: ${FLINK_IMAGE_NAME}
         imagePullPolicy: Never
-        args: ["job-cluster", "--job-classname", "${FLINK_JOB}", "-Djobmanager.rpc.address=flink-job-cluster",
+        args: ["standalone-job", "--job-classname", "${FLINK_JOB}", "-Djobmanager.rpc.address=flink-job-cluster",
                "-Dparallelism.default=${FLINK_JOB_PARALLELISM}", "-Dblob.server.port=6124", "-Dqueryable-state.server.ports=6125",
                ${FLINK_JOB_ARGUMENTS}]
+        volumeMounts:
+        - name: job-artifacts-volume
+          mountPath: /opt/flink/usrlib
         ports:
         - containerPort: 6123
           name: rpc
@@ -44,3 +47,7 @@ spec:
           name: query
         - containerPort: 8081
           name: ui
+      volumes:
+      - name: job-artifacts-volume
+        hostPath:
+          path: ${USER_LIB}

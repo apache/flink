@@ -22,35 +22,34 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.ExceptionUtils;
 
 /**
- * Similar to a {@link Runnable}, this interface is used to capture a block of code
- * to be executed. In contrast to {@code Runnable}, this interface allows throwing
- * checked exceptions.
+ * Similar to a {@link Runnable}, this interface is used to capture a block of code to be executed.
+ * In contrast to {@code Runnable}, this interface allows throwing checked exceptions.
  */
 @PublicEvolving
 @FunctionalInterface
 public interface ThrowingRunnable<E extends Throwable> {
 
-	/**
-	 * The work method.
-	 *
-	 * @throws E Exceptions may be thrown.
-	 */
-	void run() throws E;
+    /**
+     * The work method.
+     *
+     * @throws E Exceptions may be thrown.
+     */
+    void run() throws E;
 
-	/**
-	 * Converts a {@link ThrowingRunnable} into a {@link Runnable} which throws all checked exceptions
-	 * as unchecked.
-	 *
-	 * @param throwingRunnable to convert into a {@link Runnable}
-	 * @return {@link Runnable} which throws all checked exceptions as unchecked.
-	 */
-	static Runnable unchecked(ThrowingRunnable<?> throwingRunnable) {
-		return () -> {
-			try {
-				throwingRunnable.run();
-			} catch (Throwable t) {
-				ExceptionUtils.rethrow(t);
-			}
-		};
-	}
+    /**
+     * Converts a {@link ThrowingRunnable} into a {@link Runnable} which throws all checked
+     * exceptions as unchecked.
+     *
+     * @param throwingRunnable to convert into a {@link Runnable}
+     * @return {@link Runnable} which throws all checked exceptions as unchecked.
+     */
+    static Runnable unchecked(ThrowingRunnable<?> throwingRunnable) {
+        return () -> {
+            try {
+                throwingRunnable.run();
+            } catch (Throwable t) {
+                ExceptionUtils.rethrow(t);
+            }
+        };
+    }
 }

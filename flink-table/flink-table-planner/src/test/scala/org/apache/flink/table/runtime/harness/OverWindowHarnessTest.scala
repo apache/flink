@@ -25,17 +25,16 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.types.Row
 import org.junit.Test
 
 class OverWindowHarnessTest extends HarnessTestBase{
 
-  protected var queryConfig: StreamQueryConfig =
-    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
+  protected var config = new TestTableConfig
+  config.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
@@ -46,7 +45,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         2,
         minMaxAggregationStateType,
         minMaxCRowType,
-        queryConfig))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -147,7 +147,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         4000,
         minMaxAggregationStateType,
         minMaxCRowType,
-        queryConfig))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -273,7 +274,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
       new ProcTimeUnboundedOver[String](
         genMinMaxAggFunction,
         minMaxAggregationStateType,
-        queryConfig))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -360,6 +362,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testRowTimeBoundedRangeOver(): Unit = {
+    config.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new RowTimeBoundedRangeOver[String](
@@ -368,7 +371,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         4000,
         0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -510,6 +514,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
   @Test
   def testRowTimeBoundedRowsOver(): Unit = {
+    config.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new RowTimeBoundedRowsOver[String](
@@ -518,7 +523,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         3,
         0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -658,6 +664,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     */
   @Test
   def testRowTimeUnboundedRangeOver(): Unit = {
+    config.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new RowTimeUnboundedRangeOver[String](
@@ -665,7 +672,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(
@@ -794,6 +802,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
   @Test
   def testRowTimeUnboundedRowsOver(): Unit = {
+    config.setIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))
 
     val processFunction = new KeyedProcessOperator[String, CRow, CRow](
       new RowTimeUnboundedRowsOver[String](
@@ -801,7 +810,8 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
+        config.getMinIdleStateRetentionTime,
+        config.getMaxIdleStateRetentionTime))
 
     val testHarness =
       createHarnessTester(

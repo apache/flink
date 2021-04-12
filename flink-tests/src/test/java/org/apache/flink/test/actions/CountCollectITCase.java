@@ -33,63 +33,63 @@ import java.util.HashMap;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests the methods that bring elements back to the client driver program.
- */
+/** Tests the methods that bring elements back to the client driver program. */
 @RunWith(Parameterized.class)
 public class CountCollectITCase extends MultipleProgramsTestBase {
 
-	public CountCollectITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public CountCollectITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testSimple() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testSimple() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		Integer[] input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        Integer[] input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-		DataSet<Integer> data = env.fromElements(input);
+        DataSet<Integer> data = env.fromElements(input);
 
-		// count
-		long numEntries = data.count();
-		assertEquals(10, numEntries);
+        // count
+        long numEntries = data.count();
+        assertEquals(10, numEntries);
 
-		// collect
-		ArrayList<Integer> list = (ArrayList<Integer>) data.collect();
-		assertArrayEquals(input, list.toArray());
-	}
+        // collect
+        ArrayList<Integer> list = (ArrayList<Integer>) data.collect();
+        assertArrayEquals(input, list.toArray());
+    }
 
-	@Test
-	public void testAdvanced() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableObjectReuse();
+    @Test
+    public void testAdvanced() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().disableObjectReuse();
 
-		DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-		DataSet<Integer> data2 = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        DataSet<Integer> data2 = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-		DataSet<Tuple2<Integer, Integer>> data3 = data.cross(data2);
+        DataSet<Tuple2<Integer, Integer>> data3 = data.cross(data2);
 
-		// count
-		long numEntries = data3.count();
-		assertEquals(100, numEntries);
+        // count
+        long numEntries = data3.count();
+        assertEquals(100, numEntries);
 
-		// collect
-		ArrayList<Tuple2<Integer, Integer>> list = (ArrayList<Tuple2<Integer, Integer>>) data3.collect();
+        // collect
+        ArrayList<Tuple2<Integer, Integer>> list =
+                (ArrayList<Tuple2<Integer, Integer>>) data3.collect();
 
-		// set expected entries in a hash map to true
-		HashMap<Tuple2<Integer, Integer>, Boolean> expected = new HashMap<Tuple2<Integer, Integer>, Boolean>();
-		for (int i = 1; i <= 10; i++) {
-			for (int j = 1; j <= 10; j++) {
-				expected.put(new Tuple2<Integer, Integer>(i, j), true);
-			}
-		}
+        // set expected entries in a hash map to true
+        HashMap<Tuple2<Integer, Integer>, Boolean> expected =
+                new HashMap<Tuple2<Integer, Integer>, Boolean>();
+        for (int i = 1; i <= 10; i++) {
+            for (int j = 1; j <= 10; j++) {
+                expected.put(new Tuple2<Integer, Integer>(i, j), true);
+            }
+        }
 
-		// check if all entries are contained in the hash map
-		for (int i = 0; i < 100; i++) {
-			Tuple2<Integer, Integer> element = list.get(i);
-			assertEquals(expected.get(element), true);
-			expected.remove(element);
-		}
-	}
+        // check if all entries are contained in the hash map
+        for (int i = 0; i < 100; i++) {
+            Tuple2<Integer, Integer> element = list.get(i);
+            assertEquals(expected.get(element), true);
+            expected.remove(element);
+        }
+    }
 }

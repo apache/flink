@@ -21,31 +21,32 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.api.common.functions.Function;
 
 /**
- * A wrapper for {@link GeneratedFunction} which wraps a class instead of generated code in it.
- * It is only used for easy testing.
+ * A wrapper for {@link GeneratedFunction} which wraps a class instead of generated code in it. It
+ * is only used for easy testing.
  */
 public class GeneratedFunctionWrapper<F extends Function> extends GeneratedFunction<F> {
 
-	private static final long serialVersionUID = 3964204655565783705L;
-	private final Class<F> clazz;
+    private static final long serialVersionUID = 3964204655565783705L;
+    private final Class<F> clazz;
 
-	public GeneratedFunctionWrapper(F function) {
-		super(function.getClass().getSimpleName(), "N/A", new Object[0]);
-		//noinspection unchecked
-		this.clazz = (Class<F>) function.getClass();
-	}
+    public GeneratedFunctionWrapper(F function) {
+        super(function.getClass().getSimpleName(), "N/A", new Object[0]);
+        //noinspection unchecked
+        this.clazz = (Class<F>) function.getClass();
+    }
 
-	@Override
-	public F newInstance(ClassLoader classLoader) {
-		try {
-			return clazz.newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException("Could not instantiate class " + clazz.getCanonicalName(), e);
-		}
-	}
+    @Override
+    public F newInstance(ClassLoader classLoader) {
+        try {
+            return clazz.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not instantiate class " + clazz.getCanonicalName(), e);
+        }
+    }
 
-	@Override
-	public Class<F> compile(ClassLoader classLoader) {
-		return clazz;
-	}
+    @Override
+    public Class<F> compile(ClassLoader classLoader) {
+        return clazz;
+    }
 }

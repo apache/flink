@@ -18,390 +18,222 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
-import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.api.common.typeutils.base.ShortSerializer;
-import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataview.MapViewSerializer;
-import org.apache.flink.table.dataview.MapViewTypeInfo;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.typeutils.BinaryStringSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalSerializer;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
-import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
+import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-/**
- * built-in LastValue with retraction aggregate function.
- */
-public abstract class LastValueWithRetractAggFunction<T> extends AggregateFunction<T, GenericRow> {
+/** Built-in LAST_VALUE with retraction aggregate function. */
+@Internal
+public final class LastValueWithRetractAggFunction<T>
+        extends BuiltInAggregateFunction<
+                T, LastValueWithRetractAggFunction.LastValueWithRetractAccumulator<T>> {
 
-	@Override
-	public GenericRow createAccumulator() {
-		// The accumulator schema:
-		// lastValue: T
-		// lastOrder: Long
-		// valueToOrderMap: BinaryGeneric<MapView<T, List<Long>>>
-		// orderToValueMap: BinaryGeneric<MapView<Long, List<T>>>
-		GenericRow acc = new GenericRow(4);
-		acc.setField(0, null);
-		acc.setField(1, null);
-		acc.setField(2, new BinaryGeneric<>(
-				new MapView<>(getResultType(), new ListTypeInfo<>(Types.LONG))));
-		acc.setField(3, new BinaryGeneric<>(
-				new MapView<>(Types.LONG, new ListTypeInfo<>(getResultType()))));
-		return acc;
-	}
+    private transient DataType valueDataType;
 
-	public void accumulate(GenericRow acc, Object value) throws Exception {
-		if (value != null) {
-			T v = (T) value;
-			Long order = System.currentTimeMillis();
-			MapView<T, List<Long>> valueToOrderMapView = getValueToOrderMapViewFromAcc(acc);
-			List<Long> orderList = valueToOrderMapView.get(v);
-			if (orderList == null) {
-				orderList = new ArrayList<>();
-			}
-			orderList.add(order);
-			valueToOrderMapView.put(v, orderList);
-			accumulate(acc, value, order);
-		}
-	}
+    public LastValueWithRetractAggFunction(LogicalType valueType) {
+        this.valueDataType = toInternalDataType(valueType);
+    }
 
-	public void accumulate(GenericRow acc, Object value, Long order) throws Exception {
-		if (value != null) {
-			T v = (T) value;
-			Long prevOrder = (Long) acc.getField(1);
-			if (prevOrder == null || prevOrder <= order) {
-				acc.setField(0, v); // acc.lastValue = v
-				acc.setLong(1, order); // acc.lastOrder = order
-			}
+    // --------------------------------------------------------------------------------------------
+    // Planning
+    // --------------------------------------------------------------------------------------------
 
-			MapView<Long, List<T>> orderToValueMapView = getOrderToValueMapViewFromAcc(acc);
-			List<T> valueList = orderToValueMapView.get(order);
-			if (valueList == null) {
-				valueList = new ArrayList<>();
-			}
-			valueList.add(v);
-			orderToValueMapView.put(order, valueList);
-		}
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(valueDataType);
+    }
 
-	public void retract(GenericRow acc, Object value) throws Exception {
-		if (value != null) {
-			T v = (T) value;
-			MapView<T, List<Long>> valueToOrderMapView = getValueToOrderMapViewFromAcc(acc);
-			List<Long> orderList = valueToOrderMapView.get(v);
-			if (orderList != null && orderList.size() > 0) {
-				Long order = orderList.get(0);
-				orderList.remove(0);
-				if (orderList.isEmpty()) {
-					valueToOrderMapView.remove(v);
-				} else {
-					valueToOrderMapView.put(v, orderList);
-				}
-				retract(acc, value, order);
-			}
-		}
-	}
+    @Override
+    public DataType getAccumulatorDataType() {
+        return DataTypes.STRUCTURED(
+                LastValueWithRetractAccumulator.class,
+                DataTypes.FIELD("lastValue", valueDataType.nullable()),
+                DataTypes.FIELD("lastOrder", DataTypes.BIGINT()),
+                DataTypes.FIELD(
+                        "valueToOrderMap",
+                        MapView.newMapViewDataType(
+                                valueDataType.notNull(),
+                                DataTypes.ARRAY(DataTypes.BIGINT()).bridgedTo(List.class))),
+                DataTypes.FIELD(
+                        "orderToValueMap",
+                        MapView.newMapViewDataType(
+                                DataTypes.BIGINT(),
+                                DataTypes.ARRAY(valueDataType.notNull()).bridgedTo(List.class))));
+    }
 
-	public void retract(GenericRow acc, Object value, Long order) throws Exception {
-		if (value != null) {
-			T v = (T) value;
-			MapView<Long, List<T>> orderToValueMapView = getOrderToValueMapViewFromAcc(acc);
-			List<T> valueList = orderToValueMapView.get(order);
-			if (valueList == null) {
-				return;
-			}
-			int index = valueList.indexOf(v);
-			if (index >= 0) {
-				valueList.remove(index);
-				if (valueList.isEmpty()) {
-					orderToValueMapView.remove(order);
-				} else {
-					orderToValueMapView.put(order, valueList);
-				}
-			}
-			if (v.equals(acc.getField(0))) { // v == acc.firstValue
-				Long startKey = (Long) acc.getField(1);
-				Iterator<Long> iter = orderToValueMapView.keys().iterator();
-				// find the maximal order which is less than or equal to `startKey`
-				Long nextKey = Long.MIN_VALUE;
-				while (iter.hasNext()) {
-					Long key = iter.next();
-					if (key <= startKey && key > nextKey) {
-						nextKey = key;
-					}
-				}
+    @Override
+    public DataType getOutputDataType() {
+        return valueDataType;
+    }
 
-				if (nextKey != Long.MIN_VALUE) {
-					List<T> values = orderToValueMapView.get(nextKey);
-					acc.setField(0, values.get(values.size() - 1));
-					acc.setField(1, nextKey);
-				} else {
-					acc.setField(0, null);
-					acc.setField(1, null);
-				}
-			}
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Runtime
+    // --------------------------------------------------------------------------------------------
 
-	public void resetAccumulator(GenericRow acc) {
-		acc.setField(0, null);
-		acc.setField(1, null);
-		MapView<T, List<Long>> valueToOrderMapView = getValueToOrderMapViewFromAcc(acc);
-		valueToOrderMapView.clear();
-		MapView<Long, List<T>> orderToValueMapView = getOrderToValueMapViewFromAcc(acc);
-		orderToValueMapView.clear();
-	}
+    /** Accumulator for LAST_VALUE with retraction. */
+    public static class LastValueWithRetractAccumulator<T> {
+        public T lastValue = null;
+        public Long lastOrder = null;
+        public MapView<T, List<Long>> valueToOrderMap = new MapView<>();
+        public MapView<Long, List<T>> orderToValueMap = new MapView<>();
 
-	@Override
-	public T getValue(GenericRow acc) {
-		return (T) acc.getField(0);
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof LastValueWithRetractAccumulator)) {
+                return false;
+            }
+            LastValueWithRetractAccumulator<?> that = (LastValueWithRetractAccumulator<?>) o;
+            return Objects.equals(lastValue, that.lastValue)
+                    && Objects.equals(lastOrder, that.lastOrder)
+                    && valueToOrderMap.equals(that.valueToOrderMap)
+                    && orderToValueMap.equals(that.orderToValueMap);
+        }
 
-	protected abstract TypeSerializer<T> createValueSerializer();
+        @Override
+        public int hashCode() {
+            return Objects.hash(lastValue, lastOrder, valueToOrderMap, orderToValueMap);
+        }
+    }
 
-	@Override
-	public TypeInformation<GenericRow> getAccumulatorType() {
-		LogicalType[] fieldTypes = new LogicalType[] {
-				fromTypeInfoToLogicalType(getResultType()),
-				new BigIntType(),
-				new TypeInformationRawType<>(new MapViewTypeInfo<>(getResultType(), new ListTypeInfo<>(Types.LONG), false, false)),
-				new TypeInformationRawType<>(new MapViewTypeInfo<>(Types.LONG, new ListTypeInfo<>(getResultType()), false, false))
-		};
+    @Override
+    public LastValueWithRetractAccumulator<T> createAccumulator() {
+        return new LastValueWithRetractAccumulator<>();
+    }
 
-		String[] fieldNames = new String[] {
-				"lastValue",
-				"lastOrder",
-				"valueToOrderMapView",
-				"orderToValueMapView"
-		};
+    @SuppressWarnings("unchecked")
+    public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
+        if (value != null) {
+            T v = (T) value;
+            Long order = System.currentTimeMillis();
+            List<Long> orderList = acc.valueToOrderMap.get(v);
+            if (orderList == null) {
+                orderList = new ArrayList<>();
+            }
+            orderList.add(order);
+            acc.valueToOrderMap.put(v, orderList);
+            accumulate(acc, value, order);
+        }
+    }
 
-		return (TypeInformation) new BaseRowTypeInfo(fieldTypes, fieldNames);
-	}
+    @SuppressWarnings("unchecked")
+    public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value, Long order)
+            throws Exception {
+        if (value != null) {
+            T v = (T) value;
+            Long prevOrder = acc.lastOrder;
+            if (prevOrder == null || prevOrder <= order) {
+                acc.lastValue = v;
+                acc.lastOrder = order;
+            }
 
-	@SuppressWarnings("unchecked")
-	private MapView<T, List<Long>> getValueToOrderMapViewFromAcc(GenericRow acc) {
-		BinaryGeneric<MapView<T, List<Long>>> binaryGeneric =
-				(BinaryGeneric<MapView<T, List<Long>>>) acc.getField(2);
-		return BinaryGeneric.getJavaObjectFromBinaryGeneric(binaryGeneric, getValueToOrderMapViewSerializer());
-	}
+            List<T> valueList = acc.orderToValueMap.get(order);
+            if (valueList == null) {
+                valueList = new ArrayList<>();
+            }
+            valueList.add(v);
+            acc.orderToValueMap.put(order, valueList);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	private MapView<Long, List<T>> getOrderToValueMapViewFromAcc(GenericRow acc) {
-		BinaryGeneric<MapView<Long, List<T>>> binaryGeneric =
-				(BinaryGeneric<MapView<Long, List<T>>>) acc.getField(3);
-		return BinaryGeneric.getJavaObjectFromBinaryGeneric(binaryGeneric, getOrderToValueMapViewSerializer());
-	}
+    public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value)
+            throws Exception {
+        if (value != null) {
+            accumulate(acc, (Object) ((BinaryStringData) value).copy());
+        }
+    }
 
-	// MapView<T, List<Long>>
-	private MapViewSerializer<T, List<Long>> getValueToOrderMapViewSerializer() {
-		return new MapViewSerializer<>(
-				new MapSerializer<>(
-						createValueSerializer(),
-						new ListSerializer<>(LongSerializer.INSTANCE)));
-	}
+    public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value, Long order)
+            throws Exception {
+        if (value != null) {
+            accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
+        }
+    }
 
-	// MapView<Long, List<T>>
-	private MapViewSerializer<Long, List<T>> getOrderToValueMapViewSerializer() {
-		return new MapViewSerializer<>(
-				new MapSerializer<>(
-						LongSerializer.INSTANCE,
-						new ListSerializer<>(createValueSerializer())));
-	}
+    @SuppressWarnings("unchecked")
+    public void retract(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
+        if (value != null) {
+            T v = (T) value;
+            List<Long> orderList = acc.valueToOrderMap.get(v);
+            if (orderList != null && orderList.size() > 0) {
+                Long order = orderList.get(0);
+                orderList.remove(0);
+                if (orderList.isEmpty()) {
+                    acc.valueToOrderMap.remove(v);
+                } else {
+                    acc.valueToOrderMap.put(v, orderList);
+                }
+                retract(acc, value, order);
+            }
+        }
+    }
 
-	/**
-	 * Built-in Byte LastValue with retract aggregate function.
-	 */
-	public static class ByteLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Byte> {
+    @SuppressWarnings("unchecked")
+    public void retract(LastValueWithRetractAccumulator<T> acc, Object value, Long order)
+            throws Exception {
+        if (value != null) {
+            T v = (T) value;
+            List<T> valueList = acc.orderToValueMap.get(order);
+            if (valueList == null) {
+                return;
+            }
+            int index = valueList.indexOf(v);
+            if (index >= 0) {
+                valueList.remove(index);
+                if (valueList.isEmpty()) {
+                    acc.orderToValueMap.remove(order);
+                } else {
+                    acc.orderToValueMap.put(order, valueList);
+                }
+            }
+            if (v.equals(acc.lastValue)) {
+                Long startKey = acc.lastOrder;
+                Iterator<Long> iter = acc.orderToValueMap.keys().iterator();
+                // find the maximal order which is less than or equal to `startKey`
+                Long nextKey = Long.MIN_VALUE;
+                while (iter.hasNext()) {
+                    Long key = iter.next();
+                    if (key <= startKey && key > nextKey) {
+                        nextKey = key;
+                    }
+                }
 
-		@Override
-		public TypeInformation<Byte> getResultType() {
-			return Types.BYTE;
-		}
+                if (nextKey != Long.MIN_VALUE) {
+                    List<T> values = acc.orderToValueMap.get(nextKey);
+                    acc.lastValue = values.get(values.size() - 1);
+                    acc.lastOrder = nextKey;
+                } else {
+                    acc.lastValue = null;
+                    acc.lastOrder = null;
+                }
+            }
+        }
+    }
 
-		@Override
-		protected TypeSerializer<Byte> createValueSerializer() {
-			return ByteSerializer.INSTANCE;
-		}
-	}
+    public void resetAccumulator(LastValueWithRetractAccumulator<T> acc) {
+        acc.lastValue = null;
+        acc.lastOrder = null;
+        acc.valueToOrderMap.clear();
+        acc.orderToValueMap.clear();
+    }
 
-	/**
-	 * Built-in Short LastValue with retract aggregate function.
-	 */
-	public static class ShortLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Short> {
-
-		@Override
-		public TypeInformation<Short> getResultType() {
-			return Types.SHORT;
-		}
-
-		@Override
-		protected TypeSerializer<Short> createValueSerializer() {
-			return ShortSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Int LastValue with retract aggregate function.
-	 */
-	public static class IntLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Integer> {
-
-		@Override
-		public TypeInformation<Integer> getResultType() {
-			return Types.INT;
-		}
-
-		@Override
-		protected TypeSerializer<Integer> createValueSerializer() {
-			return IntSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Long LastValue with retract aggregate function.
-	 */
-	public static class LongLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Long> {
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-
-		@Override
-		protected TypeSerializer<Long> createValueSerializer() {
-			return LongSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Float LastValue with retract aggregate function.
-	 */
-	public static class FloatLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Float> {
-
-		@Override
-		public TypeInformation<Float> getResultType() {
-			return Types.FLOAT;
-		}
-
-		@Override
-		protected TypeSerializer<Float> createValueSerializer() {
-			return FloatSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Double LastValue with retract aggregate function.
-	 */
-	public static class DoubleLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Double> {
-
-		@Override
-		public TypeInformation<Double> getResultType() {
-			return Types.DOUBLE;
-		}
-
-		@Override
-		protected TypeSerializer<Double> createValueSerializer() {
-			return DoubleSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Boolean LastValue with retract aggregate function.
-	 */
-	public static class BooleanLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Boolean> {
-
-		@Override
-		public TypeInformation<Boolean> getResultType() {
-			return Types.BOOLEAN;
-		}
-
-		@Override
-		protected TypeSerializer<Boolean> createValueSerializer() {
-			return BooleanSerializer.INSTANCE;
-		}
-	}
-
-	/**
-	 * Built-in Decimal LastValue with retract aggregate function.
-	 */
-	public static class DecimalLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<Decimal> {
-
-		private DecimalTypeInfo decimalTypeInfo;
-
-		public DecimalLastValueWithRetractAggFunction(DecimalTypeInfo decimalTypeInfo) {
-			this.decimalTypeInfo = decimalTypeInfo;
-		}
-
-		public void accumulate(GenericRow acc, Decimal value) throws Exception {
-			super.accumulate(acc, value);
-		}
-
-		public void accumulate(GenericRow acc, Decimal value, Long order) throws Exception {
-			super.accumulate(acc, value, order);
-		}
-
-		@Override
-		public TypeInformation<Decimal> getResultType() {
-			return decimalTypeInfo;
-		}
-
-		@Override
-		protected TypeSerializer<Decimal> createValueSerializer() {
-			return new DecimalSerializer(decimalTypeInfo.precision(), decimalTypeInfo.scale());
-		}
-	}
-
-	/**
-	 * Built-in String LastValue with retract aggregate function.
-	 */
-	public static class StringLastValueWithRetractAggFunction extends LastValueWithRetractAggFunction<BinaryString> {
-
-		@Override
-		public TypeInformation<BinaryString> getResultType() {
-			return BinaryStringTypeInfo.INSTANCE;
-		}
-
-		public void accumulate(GenericRow acc, BinaryString value) throws Exception {
-			if (value != null) {
-				super.accumulate(acc, value.copy());
-			}
-		}
-
-		public void accumulate(GenericRow acc, BinaryString value, Long order) throws Exception {
-			// just ignore nulls values and orders
-			if (value != null) {
-				super.accumulate(acc, value.copy(), order);
-			}
-		}
-
-		@Override
-		protected TypeSerializer<BinaryString> createValueSerializer() {
-			return BinaryStringSerializer.INSTANCE;
-		}
-	}
+    @Override
+    public T getValue(LastValueWithRetractAccumulator<T> acc) {
+        return acc.lastValue;
+    }
 }

@@ -18,74 +18,72 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
-/**
- * An utility to generate reusable padding results for outer joins.
- */
+/** An utility to generate reusable padding results for outer joins. */
 public class OuterJoinPaddingUtil implements Serializable {
 
-	private static final long serialVersionUID = -2295909099427806938L;
+    private static final long serialVersionUID = -2295909099427806938L;
 
-	private final int leftArity;
-	private final int rightArity;
-	private transient JoinedRow joinedRow = new JoinedRow();
-	private transient GenericRow leftNullPaddingRow;
-	private transient GenericRow rightNullPaddingRow;
+    private final int leftArity;
+    private final int rightArity;
+    private transient JoinedRowData joinedRow = new JoinedRowData();
+    private transient GenericRowData leftNullPaddingRow;
+    private transient GenericRowData rightNullPaddingRow;
 
-	public OuterJoinPaddingUtil(int leftArity, int rightArity) {
-		this.leftArity = leftArity;
-		this.rightArity = rightArity;
-		initLeftNullPaddingRow();
-		initRightNullPaddingRow();
-	}
+    public OuterJoinPaddingUtil(int leftArity, int rightArity) {
+        this.leftArity = leftArity;
+        this.rightArity = rightArity;
+        initLeftNullPaddingRow();
+        initRightNullPaddingRow();
+    }
 
-	private void initLeftNullPaddingRow() {
-		//Initialize the two reusable padding results
-		leftNullPaddingRow = new GenericRow(leftArity);
-		for (int idx = 0; idx < leftArity; idx++) {
-			leftNullPaddingRow.setNullAt(idx);
-		}
-	}
+    private void initLeftNullPaddingRow() {
+        // Initialize the two reusable padding results
+        leftNullPaddingRow = new GenericRowData(leftArity);
+        for (int idx = 0; idx < leftArity; idx++) {
+            leftNullPaddingRow.setField(idx, null);
+        }
+    }
 
-	private void initRightNullPaddingRow() {
-		rightNullPaddingRow = new GenericRow(rightArity);
-		for (int idx = 0; idx < rightArity; idx++) {
-			rightNullPaddingRow.setNullAt(idx);
-		}
-	}
+    private void initRightNullPaddingRow() {
+        rightNullPaddingRow = new GenericRowData(rightArity);
+        for (int idx = 0; idx < rightArity; idx++) {
+            rightNullPaddingRow.setField(idx, null);
+        }
+    }
 
-	/**
-	 * Returns a padding result with the given right row.
-	 *
-	 * @param rightRow the right row to pad
-	 * @return the reusable null padding result
-	 */
-	public final BaseRow padRight(BaseRow rightRow) {
-		return joinedRow.replace(leftNullPaddingRow, rightRow);
-	}
+    /**
+     * Returns a padding result with the given right row.
+     *
+     * @param rightRow the right row to pad
+     * @return the reusable null padding result
+     */
+    public final RowData padRight(RowData rightRow) {
+        return joinedRow.replace(leftNullPaddingRow, rightRow);
+    }
 
-	/**
-	 * Returns a padding result with the given left row.
-	 *
-	 * @param leftRow the left row to pad
-	 * @return the reusable null padding result
-	 */
-	public final BaseRow padLeft(BaseRow leftRow) {
-		return joinedRow.replace(leftRow, rightNullPaddingRow);
-	}
+    /**
+     * Returns a padding result with the given left row.
+     *
+     * @param leftRow the left row to pad
+     * @return the reusable null padding result
+     */
+    public final RowData padLeft(RowData leftRow) {
+        return joinedRow.replace(leftRow, rightNullPaddingRow);
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
 
-		joinedRow = new JoinedRow();
-		initLeftNullPaddingRow();
-		initRightNullPaddingRow();
-	}
+        joinedRow = new JoinedRowData();
+        initLeftNullPaddingRow();
+        initRightNullPaddingRow();
+    }
 }

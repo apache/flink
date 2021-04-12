@@ -21,8 +21,7 @@ package org.apache.flink.table.planner.plan.stream.table.validation
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
 import org.junit.Test
 
@@ -31,10 +30,8 @@ class TableAggregateValidationTest extends TableTestBase {
   @Test
   def testInvalidParameterNumber(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.Long, java.lang.Integer, java.lang.String) \n" +
-      "Expected: (int), (java.sql.Timestamp, java.sql.Timestamp), " +
-      "(long, int), (long, java.sql.Timestamp)")
+    expectedException.expectMessage(
+      "Invalid function call:\nEmptyTableAggFunc(BIGINT, INT, STRING)")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
@@ -43,17 +40,15 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('c)
       // must fail. func does not take 3 parameters
-      .flatAggregate(func('a, 'b, 'c))
+      .flatAggregate(call(func, 'a, 'b, 'c))
       .select('_1, '_2, '_3)
   }
 
   @Test
   def testInvalidParameterType(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.Long, java.lang.String) \n" +
-      "Expected: (int), (java.sql.Timestamp, java.sql.Timestamp), " +
-      "(long, int), (long, java.sql.Timestamp)")
+    expectedException.expectMessage(
+      "Invalid function call:\nEmptyTableAggFunc(BIGINT, STRING)")
 
     val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
@@ -62,7 +57,7 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('c)
       // must fail. func take 2 parameters of type Long and Timestamp or Long Int
-      .flatAggregate(func('a, 'c))
+      .flatAggregate(call(func, 'a, 'c))
       .select('_1, '_2, '_3)
   }
 
@@ -77,7 +72,7 @@ class TableAggregateValidationTest extends TableTestBase {
     val func = new EmptyTableAggFunc
     table
       .groupBy('b)
-      .flatAggregate(func('a, 'b) as ('x, 'y))
+      .flatAggregate(call(func, 'a, 'b) as ('x, 'y))
       .select('x.start, 'y)
   }
 
@@ -93,7 +88,7 @@ class TableAggregateValidationTest extends TableTestBase {
     val func = new EmptyTableAggFunc
     table
       .groupBy('b)
-      .flatAggregate(func('a, 'b) as ('x, 'y))
+      .flatAggregate(call(func, 'a, 'b) as ('x, 'y))
       .select('x.count)
   }
 
@@ -118,8 +113,7 @@ class TableAggregateValidationTest extends TableTestBase {
   def testInvalidAliasWithWrongNumber(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("List of column aliases must have same degree as " +
-      "table; the returned table of function " +
-      "'org.apache.flink.table.planner.utils.EmptyTableAggFunc' has 2 columns, " +
+      "table; the returned table of function 'EmptyTableAggFunc' has 2 columns, " +
       "whereas alias list has 3 columns")
 
     val util = streamTestUtil()
@@ -129,7 +123,7 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('b)
       // must fail. alias with wrong number of fields
-      .flatAggregate(func('a, 'b) as ('a, 'b, 'c))
+      .flatAggregate(call(func, 'a, 'b) as ('a, 'b, 'c))
       .select('*)
   }
 
@@ -145,7 +139,7 @@ class TableAggregateValidationTest extends TableTestBase {
     table
       .groupBy('b)
       // must fail. alias with name conflict
-      .flatAggregate(func('a, 'b) as ('a, 'b))
+      .flatAggregate(call(func, 'a, 'b) as ('a, 'b))
       .select('*)
   }
 }

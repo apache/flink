@@ -25,16 +25,19 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BinaryRowUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.BinaryRowDataUtil;
+import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter;
 import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.KeyValueIterator;
+import org.apache.flink.table.runtime.util.collections.binary.BytesHashMap;
+import org.apache.flink.table.runtime.util.collections.binary.BytesMap;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -43,217 +46,219 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.EOFException;
 
-/**
- * Test for Hash aggregation of (select f0, sum(f1) from T).
- */
-public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow> {
+/** Test for Hash aggregation of (select f0, sum(f1) from T). */
+public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
+        implements OneInputStreamOperator<RowData, RowData> {
 
-	private final long memorySize;
-	private final LogicalType[] keyTypes = new LogicalType[] {new IntType()};
-	private final LogicalType[] aggBufferTypes = new LogicalType[] {new IntType(), new BigIntType()};
+    private final long memorySize;
+    private final LogicalType[] keyTypes = new LogicalType[] {new IntType()};
+    private final LogicalType[] aggBufferTypes =
+            new LogicalType[] {new IntType(), new BigIntType()};
 
-	private transient BinaryRow currentKey;
-	private transient BinaryRowWriter currentKeyWriter;
+    private transient BinaryRowData currentKey;
+    private transient BinaryRowWriter currentKeyWriter;
 
-	private transient BufferedKVExternalSorter sorter;
-	private transient BytesHashMap aggregateMap;
+    private transient BufferedKVExternalSorter sorter;
+    private transient BytesHashMap aggregateMap;
 
-	private transient BinaryRow emptyAggBuffer;
+    private transient BinaryRowData emptyAggBuffer;
 
-	public SumHashAggTestOperator(long memorySize) throws Exception {
-		this.memorySize = memorySize;
-	}
+    public SumHashAggTestOperator(long memorySize) throws Exception {
+        this.memorySize = memorySize;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		aggregateMap = new BytesHashMap(
-				getOwner(), getMemoryManager(), memorySize,
-				keyTypes, aggBufferTypes);
+    @Override
+    public void open() throws Exception {
+        super.open();
+        aggregateMap =
+                new BytesHashMap(
+                        getOwner(), getMemoryManager(), memorySize, keyTypes, aggBufferTypes);
 
-		currentKey = new BinaryRow(1);
-		currentKeyWriter = new BinaryRowWriter(currentKey);
-		emptyAggBuffer = new BinaryRow(1);
+        currentKey = new BinaryRowData(1);
+        currentKeyWriter = new BinaryRowWriter(currentKey);
+        emptyAggBuffer = new BinaryRowData(1);
 
-		// for null value
-		BinaryRowWriter emptyAggBufferWriter = new BinaryRowWriter(emptyAggBuffer);
-		emptyAggBufferWriter.reset();
-		emptyAggBufferWriter.setNullAt(0);
-		emptyAggBufferWriter.complete();
-	}
+        // for null value
+        BinaryRowWriter emptyAggBufferWriter = new BinaryRowWriter(emptyAggBuffer);
+        emptyAggBufferWriter.reset();
+        emptyAggBufferWriter.setNullAt(0);
+        emptyAggBufferWriter.complete();
+    }
 
-	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow in1 = element.getValue();
+    @Override
+    public void processElement(StreamRecord<RowData> element) throws Exception {
+        RowData in1 = element.getValue();
 
-		// project key from input
-		currentKeyWriter.reset();
-		if (in1.isNullAt(0)) {
-			currentKeyWriter.setNullAt(0);
-		} else {
-			currentKeyWriter.writeInt(0, in1.getInt(0));
-		}
-		currentKeyWriter.complete();
+        // project key from input
+        currentKeyWriter.reset();
+        if (in1.isNullAt(0)) {
+            currentKeyWriter.setNullAt(0);
+        } else {
+            currentKeyWriter.writeInt(0, in1.getInt(0));
+        }
+        currentKeyWriter.complete();
 
-		// look up output buffer using current group key
-		BytesHashMap.LookupInfo lookupInfo = aggregateMap.lookup(currentKey);
-		BinaryRow currentAggBuffer = lookupInfo.getValue();
+        // look up output buffer using current group key
+        BytesMap.LookupInfo<BinaryRowData, BinaryRowData> lookupInfo =
+                aggregateMap.lookup(currentKey);
+        BinaryRowData currentAggBuffer = lookupInfo.getValue();
 
-		if (!lookupInfo.isFound()) {
+        if (!lookupInfo.isFound()) {
 
-			// append empty agg buffer into aggregate map for current group key
-			try {
-				currentAggBuffer = aggregateMap.append(lookupInfo, emptyAggBuffer);
-			} catch (EOFException exp) {
-				// hash map out of memory, spill to external sorter
-				if (sorter == null) {
-					sorter = new BufferedKVExternalSorter(
-							getIOManager(),
-							new BinaryRowSerializer(keyTypes.length),
-							new BinaryRowSerializer(aggBufferTypes.length),
-							new IntNormalizedKeyComputer(), new IntRecordComparator(),
-							getMemoryManager().getPageSize(),
-							getConf());
-				}
-				// sort and spill
-				sorter.sortAndSpill(
-						aggregateMap.getRecordAreaMemorySegments(),
-						aggregateMap.getNumElements(),
-						new BytesHashMapSpillMemorySegmentPool(aggregateMap.getBucketAreaMemorySegments()));
+            // append empty agg buffer into aggregate map for current group key
+            try {
+                currentAggBuffer = aggregateMap.append(lookupInfo, emptyAggBuffer);
+            } catch (EOFException exp) {
+                // hash map out of memory, spill to external sorter
+                if (sorter == null) {
+                    sorter =
+                            new BufferedKVExternalSorter(
+                                    getIOManager(),
+                                    new BinaryRowDataSerializer(keyTypes.length),
+                                    new BinaryRowDataSerializer(aggBufferTypes.length),
+                                    new IntNormalizedKeyComputer(),
+                                    new IntRecordComparator(),
+                                    getMemoryManager().getPageSize(),
+                                    getConf());
+                }
+                // sort and spill
+                sorter.sortAndSpill(
+                        aggregateMap.getRecordAreaMemorySegments(),
+                        aggregateMap.getNumElements(),
+                        new BytesHashMapSpillMemorySegmentPool(
+                                aggregateMap.getBucketAreaMemorySegments()));
 
-				// retry append
-				// reset aggregate map retry append
-				aggregateMap.reset();
-				lookupInfo = aggregateMap.lookup(currentKey);
-				try {
-					currentAggBuffer = aggregateMap.append(lookupInfo, emptyAggBuffer);
-				} catch (EOFException e) {
-					throw new OutOfMemoryError("BytesHashMap Out of Memory.");
-				}
-			}
-		}
+                // retry append
+                // reset aggregate map retry append
+                aggregateMap.reset();
+                lookupInfo = aggregateMap.lookup(currentKey);
+                try {
+                    currentAggBuffer = aggregateMap.append(lookupInfo, emptyAggBuffer);
+                } catch (EOFException e) {
+                    throw new OutOfMemoryError("BytesHashMap Out of Memory.");
+                }
+            }
+        }
 
-		if (!in1.isNullAt(1)) {
-			long sumInput = in1.getLong(1);
-			if (currentAggBuffer.isNullAt(0)) {
-				currentAggBuffer.setLong(0, sumInput);
-			} else {
-				currentAggBuffer.setLong(0, sumInput + currentAggBuffer.getLong(0));
-			}
-		}
-	}
+        if (!in1.isNullAt(1)) {
+            long sumInput = in1.getLong(1);
+            if (currentAggBuffer.isNullAt(0)) {
+                currentAggBuffer.setLong(0, sumInput);
+            } else {
+                currentAggBuffer.setLong(0, sumInput + currentAggBuffer.getLong(0));
+            }
+        }
+    }
 
-	public void endInput() throws Exception {
+    public void endInput() throws Exception {
 
-		StreamRecord<BaseRow> outElement = new StreamRecord<>(null);
-		JoinedRow hashAggOutput = new JoinedRow();
-		GenericRow aggValueOutput = new GenericRow(1);
+        StreamRecord<RowData> outElement = new StreamRecord<>(null);
+        JoinedRowData hashAggOutput = new JoinedRowData();
+        GenericRowData aggValueOutput = new GenericRowData(1);
 
-		if (sorter == null) {
-			// no spilling, output by iterating aggregate map.
-			MutableObjectIterator<BytesHashMap.Entry> iter = aggregateMap.getEntryIterator();
+        if (sorter == null) {
+            // no spilling, output by iterating aggregate map.
+            KeyValueIterator<BinaryRowData, BinaryRowData> iter = aggregateMap.getEntryIterator();
 
-			BinaryRow reuseAggMapKey = new BinaryRow(1);
-			BinaryRow reuseAggBuffer = new BinaryRow(1);
-			BytesHashMap.Entry reuseAggMapEntry = new BytesHashMap.Entry(reuseAggMapKey, reuseAggBuffer);
+            while (iter.advanceNext()) {
+                // set result and output
+                aggValueOutput.setField(
+                        0, iter.getValue().isNullAt(0) ? null : iter.getValue().getLong(0));
+                hashAggOutput.replace(iter.getKey(), aggValueOutput);
+                getOutput().collect(outElement.replace(hashAggOutput));
+            }
+        } else {
+            // spill last part of input' aggregation output buffer
+            sorter.sortAndSpill(
+                    aggregateMap.getRecordAreaMemorySegments(),
+                    aggregateMap.getNumElements(),
+                    new BytesHashMapSpillMemorySegmentPool(
+                            aggregateMap.getBucketAreaMemorySegments()));
 
-			while (iter.next(reuseAggMapEntry) != null) {
-				// set result and output
-				aggValueOutput.setField(0, reuseAggBuffer.isNullAt(0) ? null : reuseAggBuffer.getLong(0));
-				hashAggOutput.replace(reuseAggMapKey, aggValueOutput);
-				getOutput().collect(outElement.replace(hashAggOutput));
-			}
-		} else {
-			// spill last part of input' aggregation output buffer
-			sorter.sortAndSpill(
-					aggregateMap.getRecordAreaMemorySegments(),
-					aggregateMap.getNumElements(),
-					new BytesHashMapSpillMemorySegmentPool(aggregateMap.getBucketAreaMemorySegments()));
+            // only release non-data memory in advance.
+            aggregateMap.free(true);
 
-			// only release non-data memory in advance.
-			aggregateMap.free(true);
+            // fall back to sort based aggregation
+            BinaryRowData lastKey = null;
+            JoinedRowData fallbackInput = new JoinedRowData();
+            boolean aggSumIsNull = false;
+            long aggSum = -1;
 
-			// fall back to sort based aggregation
-			BinaryRow lastKey = null;
-			JoinedRow fallbackInput = new JoinedRow();
-			boolean aggSumIsNull = false;
-			long aggSum = -1;
+            // free hash map memory, but not release back to memory manager
+            MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> iterator =
+                    sorter.getKVIterator();
+            Tuple2<BinaryRowData, BinaryRowData> kv;
+            while ((kv = iterator.next()) != null) {
+                BinaryRowData key = kv.f0;
+                BinaryRowData value = kv.f1;
+                // prepare input
+                fallbackInput.replace(key, value);
+                if (lastKey == null) {
+                    // found first key group
+                    lastKey = key.copy();
+                    aggSumIsNull = true;
+                    aggSum = -1L;
+                } else if (key.getSizeInBytes() != lastKey.getSizeInBytes()
+                        || !(BinaryRowDataUtil.byteArrayEquals(
+                                key.getSegments()[0].getArray(),
+                                lastKey.getSegments()[0].getArray(),
+                                key.getSizeInBytes()))) {
 
-			// free hash map memory, but not release back to memory manager
-			MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> iterator = sorter.getKVIterator();
-			Tuple2<BinaryRow, BinaryRow> kv;
-			while ((kv = iterator.next()) != null) {
-				BinaryRow key = kv.f0;
-				BinaryRow value = kv.f1;
-				// prepare input
-				fallbackInput.replace(key, value);
-				if (lastKey == null) {
-					// found first key group
-					lastKey = key.copy();
-					aggSumIsNull = true;
-					aggSum = -1L;
-				} else if (key.getSizeInBytes() != lastKey.getSizeInBytes() ||
-						!(BinaryRowUtil.byteArrayEquals(
-								key.getSegments()[0].getArray(),
-								lastKey.getSegments()[0].getArray(),
-								key.getSizeInBytes()))) {
+                    // output current group aggregate result
+                    aggValueOutput.setField(0, aggSumIsNull ? null : aggSum);
+                    hashAggOutput.replace(lastKey, aggValueOutput);
+                    getOutput().collect(outElement.replace(hashAggOutput));
 
-					// output current group aggregate result
-					aggValueOutput.setField(0, aggSumIsNull ? null : aggSum);
-					hashAggOutput.replace(lastKey, aggValueOutput);
-					getOutput().collect(outElement.replace(hashAggOutput));
+                    // found new group
+                    lastKey = key.copy();
+                    aggSumIsNull = true;
+                    aggSum = -1L;
+                }
 
-					// found new group
-					lastKey = key.copy();
-					aggSumIsNull = true;
-					aggSum = -1L;
-				}
+                if (!fallbackInput.isNullAt(1)) {
+                    long sumInput = fallbackInput.getLong(1);
+                    if (aggSumIsNull) {
+                        aggSum = sumInput;
+                    } else {
+                        aggSum = aggSum + sumInput;
+                    }
+                    aggSumIsNull = false;
+                }
+            }
 
-				if (!fallbackInput.isNullAt(1)) {
-					long sumInput = fallbackInput.getLong(1);
-					if (aggSumIsNull) {
-						aggSum = sumInput;
-					} else {
-						aggSum = aggSum + sumInput;
-					}
-					aggSumIsNull = false;
-				}
-			}
+            // output last key group aggregate result
+            aggValueOutput.setField(0, aggSumIsNull ? null : aggSum);
+            hashAggOutput.replace(lastKey, aggValueOutput);
+            getOutput().collect(outElement.replace(hashAggOutput));
+        }
+    }
 
-			// output last key group aggregate result
-			aggValueOutput.setField(0, aggSumIsNull ? null : aggSum);
-			hashAggOutput.replace(lastKey, aggValueOutput);
-			getOutput().collect(outElement.replace(hashAggOutput));
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        aggregateMap.free();
+        if (sorter != null) {
+            sorter.close();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		aggregateMap.free();
-		if (sorter != null) {
-			sorter.close();
-		}
-	}
+    Object getOwner() {
+        return getContainingTask();
+    }
 
-	Object getOwner() {
-		return getContainingTask();
-	}
+    Collector<StreamRecord<RowData>> getOutput() {
+        return output;
+    }
 
-	Collector<StreamRecord<BaseRow>> getOutput() {
-		return output;
-	}
+    MemoryManager getMemoryManager() {
+        return getContainingTask().getEnvironment().getMemoryManager();
+    }
 
-	MemoryManager getMemoryManager() {
-		return getContainingTask().getEnvironment().getMemoryManager();
-	}
+    Configuration getConf() {
+        return getContainingTask().getJobConfiguration();
+    }
 
-	Configuration getConf() {
-		return getContainingTask().getJobConfiguration();
-	}
-
-	public IOManager getIOManager() {
-		return getContainingTask().getEnvironment().getIOManager();
-	}
+    public IOManager getIOManager() {
+        return getContainingTask().getEnvironment().getIOManager();
+    }
 }

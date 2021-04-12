@@ -27,14 +27,24 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
@@ -49,95 +59,123 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_QUOTE_CH
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
-/**
- * Factory base for creating configured instances of {@link CsvTableSource}.
- */
+/** Factory base for creating configured instances of {@link CsvTableSource}. */
 @Internal
 public abstract class CsvTableSourceFactoryBase implements TableFactory {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE);
-		context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE);
-		context.put(CONNECTOR_PROPERTY_VERSION, "1");
-		context.put(FORMAT_PROPERTY_VERSION, "1");
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE);
+        context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE);
+        context.put(CONNECTOR_PROPERTY_VERSION, "1");
+        context.put(FORMAT_PROPERTY_VERSION, "1");
+        return context;
+    }
 
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
-		// connector
-		properties.add(CONNECTOR_PATH);
-		// format
-		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
-		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
-		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
-		properties.add(FORMAT_FIELD_DELIMITER);
-		properties.add(FORMAT_LINE_DELIMITER);
-		properties.add(FORMAT_QUOTE_CHARACTER);
-		properties.add(FORMAT_COMMENT_PREFIX);
-		properties.add(FORMAT_IGNORE_FIRST_LINE);
-		properties.add(FORMAT_IGNORE_PARSE_ERRORS);
-		properties.add(CONNECTOR_PATH);
-		// schema
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
-		return properties;
-	}
+    public List<String> supportedProperties() {
+        List<String> properties = new ArrayList<>();
+        // connector
+        properties.add(CONNECTOR_PATH);
+        // format
+        properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TYPE);
+        properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.DATA_TYPE);
+        properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.NAME);
+        properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
+        properties.add(FORMAT_FIELD_DELIMITER);
+        properties.add(FORMAT_LINE_DELIMITER);
+        properties.add(FORMAT_QUOTE_CHARACTER);
+        properties.add(FORMAT_COMMENT_PREFIX);
+        properties.add(FORMAT_IGNORE_FIRST_LINE);
+        properties.add(FORMAT_IGNORE_PARSE_ERRORS);
+        properties.add(CONNECTOR_PATH);
+        // schema
+        properties.add(SCHEMA + ".#." + DescriptorProperties.TYPE);
+        properties.add(SCHEMA + ".#." + DescriptorProperties.DATA_TYPE);
+        properties.add(SCHEMA + ".#." + DescriptorProperties.NAME);
+        properties.add(SCHEMA + ".#." + DescriptorProperties.EXPR);
+        // watermark
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
+        // table constraint
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
+        // comment
+        properties.add(COMMENT);
 
-	protected CsvTableSource createTableSource(
-			Boolean isStreaming,
-			Map<String, String> properties) {
+        return properties;
+    }
 
-		DescriptorProperties params = new DescriptorProperties();
-		params.putProperties(properties);
+    protected CsvTableSource createTableSource(
+            Boolean isStreaming, Map<String, String> properties) {
 
-		// validate
-		new FileSystemValidator().validate(params);
-		new OldCsvValidator().validate(params);
-		new SchemaValidator(isStreaming, false, false).validate(params);
+        DescriptorProperties params = new DescriptorProperties();
+        params.putProperties(properties);
 
-		// build
-		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
+        // validate
+        new FileSystemValidator().validate(params);
+        new OldCsvValidator().validate(params);
+        new SchemaValidator(isStreaming, false, false).validate(params);
 
-		TableSchema tableSchema = params.getTableSchema(SCHEMA);
-		boolean isDerived = params
-			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
-			.orElse(false);
+        // build
+        CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
-		if (!isDerived) {
-			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
-			// the CsvTableSource needs some rework first
-			// for now the schema must be equal to the encoding
-			if (!formatSchema.equals(tableSchema)) {
-				throw new TableException(
-					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
-			}
-		}
+        TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA));
 
-		params.getOptionalString(CONNECTOR_PATH).ifPresent(csvTableSourceBuilder::path);
-		params.getOptionalString(FORMAT_FIELD_DELIMITER).ifPresent(csvTableSourceBuilder::fieldDelimiter);
-		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
+        // if a schema is defined, no matter derive schema is set or not, will use the defined
+        // schema
+        final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
+        if (hasSchema) {
+            TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
+            // the CsvTableSource needs some rework first
+            // for now the schema must be equal to the encoding
+            // Ignore conversion classes in DataType
+            if (!getFieldLogicalTypes(formatSchema).equals(getFieldLogicalTypes(tableSchema))) {
+                throw new TableException(
+                        String.format(
+                                "Encodings that differ from the schema are not supported yet for"
+                                        + " CsvTableSource, format schema is '%s', but table schema is '%s'.",
+                                formatSchema, tableSchema));
+            }
+        }
 
-		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
-		}
-		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
-		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);
-		params.getOptionalBoolean(FORMAT_IGNORE_FIRST_LINE).ifPresent(flag -> {
-			if (flag) {
-				csvTableSourceBuilder.ignoreFirstLine();
-			}
-		});
+        params.getOptionalString(CONNECTOR_PATH).ifPresent(csvTableSourceBuilder::path);
+        params.getOptionalString(FORMAT_FIELD_DELIMITER)
+                .ifPresent(csvTableSourceBuilder::fieldDelimiter);
+        params.getOptionalString(FORMAT_LINE_DELIMITER)
+                .ifPresent(csvTableSourceBuilder::lineDelimiter);
 
-		params.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).ifPresent(flag -> {
-			if (flag) {
-				csvTableSourceBuilder.ignoreParseErrors();
-			}
-		});
+        for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
+            csvTableSourceBuilder.field(
+                    tableSchema.getFieldNames()[i], tableSchema.getFieldDataTypes()[i]);
+        }
+        params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER)
+                .ifPresent(csvTableSourceBuilder::quoteCharacter);
+        params.getOptionalString(FORMAT_COMMENT_PREFIX)
+                .ifPresent(csvTableSourceBuilder::commentPrefix);
+        params.getOptionalBoolean(FORMAT_IGNORE_FIRST_LINE)
+                .ifPresent(
+                        flag -> {
+                            if (flag) {
+                                csvTableSourceBuilder.ignoreFirstLine();
+                            }
+                        });
 
-		return csvTableSourceBuilder.build();
-	}
+        params.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS)
+                .ifPresent(
+                        flag -> {
+                            if (flag) {
+                                csvTableSourceBuilder.ignoreParseErrors();
+                            }
+                        });
 
+        return csvTableSourceBuilder.build();
+    }
+
+    public static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+        return Arrays.stream(schema.getFieldDataTypes())
+                .map(DataType::getLogicalType)
+                .collect(Collectors.toList());
+    }
 }

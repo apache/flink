@@ -18,6 +18,10 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -25,67 +29,58 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Objects;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Represent a field definition for {@link PojoTypeInfo} type of objects.
- */
+/** Represent a field definition for {@link PojoTypeInfo} type of objects. */
 @Internal
 public class PojoField implements Serializable {
 
-	private static final long serialVersionUID = 1975295846436559363L;
+    private static final long serialVersionUID = 1975295846436559363L;
 
-	private transient Field field;
-	private final TypeInformation<?> type;
+    private transient Field field;
+    private final TypeInformation<?> type;
 
-	public PojoField(Field field, TypeInformation<?> type) {
-		this.field = checkNotNull(field);
-		this.type = checkNotNull(type);
-	}
+    public PojoField(Field field, TypeInformation<?> type) {
+        this.field = checkNotNull(field);
+        this.type = checkNotNull(type);
+    }
 
-	public Field getField() {
-		return field;
-	}
+    public Field getField() {
+        return field;
+    }
 
-	public TypeInformation<?> getTypeInformation() {
-		return type;
-	}
+    public TypeInformation<?> getTypeInformation() {
+        return type;
+    }
 
-	private void writeObject(ObjectOutputStream out)
-			throws IOException, ClassNotFoundException {
-		out.defaultWriteObject();
-		FieldSerializer.serializeField(field, out);
-	}
+    private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
+        out.defaultWriteObject();
+        FieldSerializer.serializeField(field, out);
+    }
 
-	private void readObject(ObjectInputStream in)
-			throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		field = FieldSerializer.deserializeField(in);
-	}
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        field = FieldSerializer.deserializeField(in);
+    }
 
-	@Override
-	public String toString() {
-		return "PojoField " + field.getDeclaringClass() + "." + field.getName() + " (" + type + ")";
-	}
+    @Override
+    public String toString() {
+        return "PojoField " + field.getDeclaringClass() + "." + field.getName() + " (" + type + ")";
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof PojoField) {
-			PojoField other = (PojoField) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof PojoField) {
+            PojoField other = (PojoField) obj;
 
-			return type.equals(other.type) &&
-				Objects.equals(field, other.field);
-		} else {
-			return false;
-		}
-	}
+            return type.equals(other.type) && Objects.equals(field, other.field);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(field, type);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(field, type);
+    }
 }

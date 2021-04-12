@@ -18,27 +18,28 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.NetUtils.isValidClientPort;
@@ -46,208 +47,338 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * These RPC utilities contain helper methods around RPC use, such as starting an RPC service,
- * or constructing RPC addresses.
+ * These RPC utilities contain helper methods around RPC use, such as starting an RPC service, or
+ * constructing RPC addresses.
  */
 public class AkkaRpcServiceUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
 
-	private static final String AKKA_TCP = "akka.tcp";
-	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
+    private static final String AKKA_TCP = "akka.tcp";
+    private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
-	private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
-		"akka {remote {netty.tcp {maximum-frame-size = %s}}}";
+    static final String SUPERVISOR_NAME = "rpc";
 
-	private static final String MAXIMUM_FRAME_SIZE_PATH =
-		"akka.remote.netty.tcp.maximum-frame-size";
+    private static final String SIMPLE_AKKA_CONFIG_TEMPLATE =
+            "akka {remote {netty.tcp {maximum-frame-size = %s}}}";
 
-	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
+    private static final String MAXIMUM_FRAME_SIZE_PATH =
+            "akka.remote.netty.tcp.maximum-frame-size";
 
-	// ------------------------------------------------------------------------
-	//  RPC instantiation
-	// ------------------------------------------------------------------------
+    private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
-	/**
-	 * Utility method to create RPC service from configuration and hostname, port.
-	 *
-	 * @param hostname   The hostname/address that describes the TaskManager's data location.
-	 * @param portRangeDefinition   The port range to start TaskManager on.
-	 * @param configuration                 The configuration for the TaskManager.
-	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
-	 * @throws IOException      Thrown, if the actor system can not bind to the address
-	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
-	 */
-	public static RpcService createRpcService(
-			String hostname,
-			String portRangeDefinition,
-			Configuration configuration) throws Exception {
-		final ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, hostname, portRangeDefinition, LOG);
-		return instantiateAkkaRpcService(configuration, actorSystem);
-	}
+    // ------------------------------------------------------------------------
+    //  RPC instantiation
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Utility method to create RPC service from configuration and hostname, port.
-	 *
-	 * @param hostname   The hostname/address that describes the TaskManager's data location.
-	 * @param port           If true, the TaskManager will not initiate the TCP network stack.
-	 * @param configuration                 The configuration for the TaskManager.
-	 * @return   The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
-	 * @throws IOException      Thrown, if the actor system can not bind to the address
-	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
-	 */
-	public static RpcService createRpcService(
-			String hostname,
-			int port,
-			Configuration configuration) throws Exception {
-		final ActorSystem actorSystem = BootstrapTools.startActorSystem(configuration, hostname, port, LOG);
-		return instantiateAkkaRpcService(configuration, actorSystem);
-	}
+    public static AkkaRpcService createRemoteRpcService(
+            Configuration configuration,
+            @Nullable String externalAddress,
+            String externalPortRange,
+            @Nullable String bindAddress,
+            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort)
+            throws Exception {
+        final AkkaRpcServiceBuilder akkaRpcServiceBuilder =
+                AkkaRpcServiceUtils.remoteServiceBuilder(
+                        configuration, externalAddress, externalPortRange);
 
-	/**
-	 * Utility method to create RPC service from configuration and hostname, port.
-	 *
-	 * @param hostname The hostname/address that describes the TaskManager's data location.
-	 * @param portRangeDefinition The port range to start TaskManager on.
-	 * @param configuration The configuration for the TaskManager.
-	 * @param actorSystemName The actor system name of the RpcService.
-	 * @param actorSystemExecutorConfiguration The configuration of the executor of the actor system.
-	 * @return The rpc service which is used to start and connect to the TaskManager RpcEndpoint .
-	 * @throws IOException Thrown, if the actor system can not bind to the address
-	 * @throws Exception Thrown is some other error occurs while creating akka actor system
-	 */
-	public static RpcService createRpcService(
-		String hostname,
-		String portRangeDefinition,
-		Configuration configuration,
-		String actorSystemName,
-		@Nonnull BootstrapTools.ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+        if (bindAddress != null) {
+            akkaRpcServiceBuilder.withBindAddress(bindAddress);
+        }
 
-		final ActorSystem actorSystem = BootstrapTools.startActorSystem(
-			configuration,
-			actorSystemName,
-			hostname,
-			portRangeDefinition,
-			LOG,
-			actorSystemExecutorConfiguration);
+        bindPort.ifPresent(akkaRpcServiceBuilder::withBindPort);
 
-		return instantiateAkkaRpcService(configuration, actorSystem);
-	}
+        return akkaRpcServiceBuilder.createAndStart();
+    }
 
-	@Nonnull
-	private static RpcService instantiateAkkaRpcService(Configuration configuration, ActorSystem actorSystem) {
-		return new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
-	}
+    public static AkkaRpcServiceBuilder remoteServiceBuilder(
+            Configuration configuration,
+            @Nullable String externalAddress,
+            String externalPortRange) {
+        return new AkkaRpcServiceBuilder(configuration, LOG, externalAddress, externalPortRange);
+    }
 
-	// ------------------------------------------------------------------------
-	//  RPC endpoint addressing
-	// ------------------------------------------------------------------------
+    @VisibleForTesting
+    public static AkkaRpcServiceBuilder remoteServiceBuilder(
+            Configuration configuration, @Nullable String externalAddress, int externalPort) {
+        return remoteServiceBuilder(configuration, externalAddress, String.valueOf(externalPort));
+    }
 
-	/**
-	 *
-	 * @param hostname The hostname or address where the target RPC service is listening.
-	 * @param port The port where the target RPC service is listening.
-	 * @param endpointName The name of the RPC endpoint.
-	 * @param addressResolution Whether to try address resolution of the given hostname or not.
-	 *                          This allows to fail fast in case that the hostname cannot be resolved.
-	 * @param config The configuration from which to deduce further settings.
-	 *
-	 * @return The RPC URL of the specified RPC endpoint.
-	 */
-	public static String getRpcUrl(
-		String hostname,
-		int port,
-		String endpointName,
-		HighAvailabilityServicesUtils.AddressResolution addressResolution,
-		Configuration config) throws UnknownHostException {
+    public static AkkaRpcServiceBuilder localServiceBuilder(Configuration configuration) {
+        return new AkkaRpcServiceBuilder(configuration, LOG);
+    }
 
-		checkNotNull(config, "config is null");
+    // ------------------------------------------------------------------------
+    //  RPC endpoint addressing
+    // ------------------------------------------------------------------------
 
-		final boolean sslEnabled = config.getBoolean(AkkaOptions.SSL_ENABLED) &&
-				SSLUtils.isInternalSSLEnabled(config);
+    /**
+     * @param hostname The hostname or address where the target RPC service is listening.
+     * @param port The port where the target RPC service is listening.
+     * @param endpointName The name of the RPC endpoint.
+     * @param addressResolution Whether to try address resolution of the given hostname or not. This
+     *     allows to fail fast in case that the hostname cannot be resolved.
+     * @param config The configuration from which to deduce further settings.
+     * @return The RPC URL of the specified RPC endpoint.
+     */
+    public static String getRpcUrl(
+            String hostname,
+            int port,
+            String endpointName,
+            HighAvailabilityServicesUtils.AddressResolution addressResolution,
+            Configuration config)
+            throws UnknownHostException {
 
-		return getRpcUrl(
-			hostname,
-			port,
-			endpointName,
-			addressResolution,
-			sslEnabled ? AkkaProtocol.SSL_TCP : AkkaProtocol.TCP);
-	}
+        checkNotNull(config, "config is null");
 
-	/**
-	 * @param hostname The hostname or address where the target RPC service is listening.
-	 * @param port The port where the target RPC service is listening.
-	 * @param endpointName The name of the RPC endpoint.
-	 * @param addressResolution Whether to try address resolution of the given hostname or not.
-	 *                          This allows to fail fast in case that the hostname cannot be resolved.
-	 * @param akkaProtocol True, if security/encryption is enabled, false otherwise.
-	 *
-	 * @return The RPC URL of the specified RPC endpoint.
-	 */
-	public static String getRpcUrl(
-			String hostname,
-			int port,
-			String endpointName,
-			HighAvailabilityServicesUtils.AddressResolution addressResolution,
-			AkkaProtocol akkaProtocol) throws UnknownHostException {
+        final boolean sslEnabled =
+                config.getBoolean(AkkaOptions.SSL_ENABLED) && SSLUtils.isInternalSSLEnabled(config);
 
-		checkNotNull(hostname, "hostname is null");
-		checkNotNull(endpointName, "endpointName is null");
-		checkArgument(isValidClientPort(port), "port must be in [1, 65535]");
+        return getRpcUrl(
+                hostname,
+                port,
+                endpointName,
+                addressResolution,
+                sslEnabled ? AkkaProtocol.SSL_TCP : AkkaProtocol.TCP);
+    }
 
-		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
+    /**
+     * @param hostname The hostname or address where the target RPC service is listening.
+     * @param port The port where the target RPC service is listening.
+     * @param endpointName The name of the RPC endpoint.
+     * @param addressResolution Whether to try address resolution of the given hostname or not. This
+     *     allows to fail fast in case that the hostname cannot be resolved.
+     * @param akkaProtocol True, if security/encryption is enabled, false otherwise.
+     * @return The RPC URL of the specified RPC endpoint.
+     */
+    public static String getRpcUrl(
+            String hostname,
+            int port,
+            String endpointName,
+            HighAvailabilityServicesUtils.AddressResolution addressResolution,
+            AkkaProtocol akkaProtocol)
+            throws UnknownHostException {
 
-		if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
-			// Fail fast if the hostname cannot be resolved
-			//noinspection ResultOfMethodCallIgnored
-			InetAddress.getByName(hostname);
-		}
+        checkNotNull(hostname, "hostname is null");
+        checkNotNull(endpointName, "endpointName is null");
+        checkArgument(isValidClientPort(port), "port must be in [1, 65535]");
 
-		final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
+        if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
+            // Fail fast if the hostname cannot be resolved
+            //noinspection ResultOfMethodCallIgnored
+            InetAddress.getByName(hostname);
+        }
 
-		return String.format("%s://flink@%s/user/%s", protocolPrefix, hostPort, endpointName);
-	}
+        final String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port);
 
-	/**
-	 * Whether to use TCP or encrypted TCP for Akka.
-	 */
-	public enum AkkaProtocol {
-		TCP,
-		SSL_TCP
-	}
+        return internalRpcUrl(
+                endpointName, Optional.of(new RemoteAddressInformation(hostPort, akkaProtocol)));
+    }
 
-	/**
-	 * Creates a random name of the form prefix_X, where X is an increasing number.
-	 *
-	 * @param prefix Prefix string to prepend to the monotonically increasing name offset number
-	 * @return A random name of the form prefix_X where X is an increasing number
-	 */
-	public static String createRandomName(String prefix) {
-		Preconditions.checkNotNull(prefix, "Prefix must not be null.");
+    public static String getLocalRpcUrl(String endpointName) {
+        return internalRpcUrl(endpointName, Optional.empty());
+    }
 
-		long nameOffset;
+    private static final class RemoteAddressInformation {
+        private final String hostnameAndPort;
+        private final AkkaProtocol akkaProtocol;
 
-		// obtain the next name offset by incrementing it atomically
-		do {
-			nameOffset = nextNameOffset.get();
-		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
+        private RemoteAddressInformation(String hostnameAndPort, AkkaProtocol akkaProtocol) {
+            this.hostnameAndPort = hostnameAndPort;
+            this.akkaProtocol = akkaProtocol;
+        }
 
-		return prefix + '_' + nameOffset;
-	}
+        private String getHostnameAndPort() {
+            return hostnameAndPort;
+        }
 
-	// ------------------------------------------------------------------------
-	//  RPC service configuration
-	// ------------------------------------------------------------------------
+        private AkkaProtocol getAkkaProtocol() {
+            return akkaProtocol;
+        }
+    }
 
-	public static long extractMaximumFramesize(Configuration configuration) {
-		String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
-		String akkaConfigStr = String.format(SIMPLE_AKKA_CONFIG_TEMPLATE, maxFrameSizeStr);
-		Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
-		return akkaConfig.getBytes(MAXIMUM_FRAME_SIZE_PATH);
-	}
+    private static String internalRpcUrl(
+            String endpointName, Optional<RemoteAddressInformation> remoteAddressInformation) {
+        final String protocolPrefix =
+                remoteAddressInformation
+                        .map(rai -> akkaProtocolToString(rai.getAkkaProtocol()))
+                        .orElse("akka");
+        final Optional<String> optionalHostnameAndPort =
+                remoteAddressInformation.map(RemoteAddressInformation::getHostnameAndPort);
 
-	// ------------------------------------------------------------------------
+        final StringBuilder url = new StringBuilder(String.format("%s://flink", protocolPrefix));
+        optionalHostnameAndPort.ifPresent(hostPort -> url.append("@").append(hostPort));
 
-	/** This class is not meant to be instantiated. */
-	private AkkaRpcServiceUtils() {}
+        url.append("/user/").append(SUPERVISOR_NAME).append("/").append(endpointName);
+
+        // protocolPrefix://flink[@hostname:port]/user/rpc/endpointName
+        return url.toString();
+    }
+
+    private static String akkaProtocolToString(AkkaProtocol akkaProtocol) {
+        return akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
+    }
+
+    /** Whether to use TCP or encrypted TCP for Akka. */
+    public enum AkkaProtocol {
+        TCP,
+        SSL_TCP
+    }
+
+    /**
+     * Creates a random name of the form prefix_X, where X is an increasing number.
+     *
+     * @param prefix Prefix string to prepend to the monotonically increasing name offset number
+     * @return A random name of the form prefix_X where X is an increasing number
+     */
+    public static String createRandomName(String prefix) {
+        Preconditions.checkNotNull(prefix, "Prefix must not be null.");
+
+        long nameOffset;
+
+        // obtain the next name offset by incrementing it atomically
+        do {
+            nameOffset = nextNameOffset.get();
+        } while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
+
+        return prefix + '_' + nameOffset;
+    }
+
+    /**
+     * Creates a wildcard name symmetric to {@link #createRandomName(String)}.
+     *
+     * @param prefix prefix of the wildcard name
+     * @return wildcard name starting with the prefix
+     */
+    public static String createWildcardName(String prefix) {
+        return prefix + "_*";
+    }
+
+    // ------------------------------------------------------------------------
+    //  RPC service configuration
+    // ------------------------------------------------------------------------
+
+    public static long extractMaximumFramesize(Configuration configuration) {
+        String maxFrameSizeStr = configuration.getString(AkkaOptions.FRAMESIZE);
+        String akkaConfigStr = String.format(SIMPLE_AKKA_CONFIG_TEMPLATE, maxFrameSizeStr);
+        Config akkaConfig = ConfigFactory.parseString(akkaConfigStr);
+        return akkaConfig.getBytes(MAXIMUM_FRAME_SIZE_PATH);
+    }
+
+    // ------------------------------------------------------------------------
+    //  RPC service builder
+    // ------------------------------------------------------------------------
+
+    /** Builder for {@link AkkaRpcService}. */
+    public static class AkkaRpcServiceBuilder {
+
+        private final Configuration configuration;
+        private final Logger logger;
+        @Nullable private final String externalAddress;
+        @Nullable private final String externalPortRange;
+
+        private String actorSystemName = AkkaUtils.getFlinkActorSystemName();
+
+        @Nullable
+        private BootstrapTools.ActorSystemExecutorConfiguration actorSystemExecutorConfiguration =
+                null;
+
+        @Nullable private Config customConfig = null;
+        private String bindAddress = NetUtils.getWildcardIPAddress();
+        @Nullable private Integer bindPort = null;
+
+        /** Builder for creating a remote RPC service. */
+        private AkkaRpcServiceBuilder(
+                final Configuration configuration,
+                final Logger logger,
+                @Nullable final String externalAddress,
+                final String externalPortRange) {
+            this.configuration = Preconditions.checkNotNull(configuration);
+            this.logger = Preconditions.checkNotNull(logger);
+            this.externalAddress =
+                    externalAddress == null
+                            ? InetAddress.getLoopbackAddress().getHostAddress()
+                            : externalAddress;
+            this.externalPortRange = Preconditions.checkNotNull(externalPortRange);
+        }
+
+        /** Builder for creating a local RPC service. */
+        private AkkaRpcServiceBuilder(final Configuration configuration, final Logger logger) {
+            this.configuration = Preconditions.checkNotNull(configuration);
+            this.logger = Preconditions.checkNotNull(logger);
+            this.externalAddress = null;
+            this.externalPortRange = null;
+        }
+
+        public AkkaRpcServiceBuilder withActorSystemName(final String actorSystemName) {
+            this.actorSystemName = Preconditions.checkNotNull(actorSystemName);
+            return this;
+        }
+
+        public AkkaRpcServiceBuilder withActorSystemExecutorConfiguration(
+                final BootstrapTools.ActorSystemExecutorConfiguration
+                        actorSystemExecutorConfiguration) {
+            this.actorSystemExecutorConfiguration = actorSystemExecutorConfiguration;
+            return this;
+        }
+
+        public AkkaRpcServiceBuilder withCustomConfig(final Config customConfig) {
+            this.customConfig = customConfig;
+            return this;
+        }
+
+        public AkkaRpcServiceBuilder withBindAddress(final String bindAddress) {
+            this.bindAddress = Preconditions.checkNotNull(bindAddress);
+            return this;
+        }
+
+        public AkkaRpcServiceBuilder withBindPort(int bindPort) {
+            Preconditions.checkArgument(
+                    NetUtils.isValidHostPort(bindPort), "Invalid port number: " + bindPort);
+            this.bindPort = bindPort;
+            return this;
+        }
+
+        public AkkaRpcService createAndStart() throws Exception {
+            if (actorSystemExecutorConfiguration == null) {
+                actorSystemExecutorConfiguration =
+                        BootstrapTools.ForkJoinExecutorConfiguration.fromConfiguration(
+                                configuration);
+            }
+
+            final ActorSystem actorSystem;
+
+            if (externalAddress == null) {
+                // create local actor system
+                actorSystem =
+                        BootstrapTools.startLocalActorSystem(
+                                configuration,
+                                actorSystemName,
+                                logger,
+                                actorSystemExecutorConfiguration,
+                                customConfig);
+            } else {
+                // create remote actor system
+                actorSystem =
+                        BootstrapTools.startRemoteActorSystem(
+                                configuration,
+                                actorSystemName,
+                                externalAddress,
+                                externalPortRange,
+                                bindAddress,
+                                Optional.ofNullable(bindPort),
+                                logger,
+                                actorSystemExecutorConfiguration,
+                                customConfig);
+            }
+
+            return new AkkaRpcService(
+                    actorSystem, AkkaRpcServiceConfiguration.fromConfiguration(configuration));
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** This class is not meant to be instantiated. */
+    private AkkaRpcServiceUtils() {}
 }

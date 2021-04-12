@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -36,8 +36,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import java.sql.Timestamp
+import java.time.{Instant, ZoneId}
 import java.util.TimeZone
 
 import scala.collection.mutable
@@ -196,7 +196,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testEventsAreProperlyOrdered(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = Seq(
@@ -254,7 +253,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testMatchRecognizeAppliedToWindowedGrouping(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -315,7 +313,6 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
@@ -368,6 +365,71 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   }
 
   @Test
+  def testWindowedGroupingAppliedToMatchRecognizeOnLtzRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val data: Seq[Row] = Seq(
+      //first window
+      rowOf("ACME", Instant.ofEpochSecond(1), 1, 1),
+      rowOf("ACME", Instant.ofEpochSecond(2), 2, 2),
+      //second window
+      rowOf("ACME", Instant.ofEpochSecond(3), 1, 4),
+      rowOf("ACME", Instant.ofEpochSecond(4), 1, 3)
+    )
+
+    tEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE Ticker (
+         | `symbol` STRING,
+         | `ts_ltz` TIMESTAMP_LTZ(3),
+         | `price` INT,
+         | `tax` INT,
+         | WATERMARK FOR `ts_ltz` AS `ts_ltz` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$dataId'
+         |)
+         |""".stripMargin)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  symbol,
+         |  SUM(price) as price,
+         |  TUMBLE_ROWTIME(matchRowtime, interval '3' second) as rowTime,
+         |  TUMBLE_START(matchRowtime, interval '3' second) as startTime
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY ts_ltz
+         |  MEASURES
+         |    A.price as price,
+         |    A.tax as tax,
+         |    MATCH_ROWTIME() as matchRowtime
+         |  ONE ROW PER MATCH
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.price > 0
+         |) AS T
+         |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "ACME,3,1970-01-01T08:00:02.999,1970-01-01T08:00",
+      "ACME,2,1970-01-01T08:00:05.999,1970-01-01T08:00:03")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testLogicalOffsets(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -413,6 +475,51 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("6,7,8,33,33")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testPartitionByWithParallelSource(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val data = new mutable.MutableList[(String, Long, Int, Int)]
+    data.+=(("ACME", 1L, 19, 1))
+    data.+=(("ACME", 2L, 17, 2))
+    data.+=(("ACME", 3L, 13, 3))
+    data.+=(("ACME", 4L, 20, 4))
+
+    val t = env.fromCollection(data)
+      .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
+      .setParallelism(env.getParallelism)
+      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY rowtime
+         |  MEASURES
+         |    DOWN.tax AS bottom_tax,
+         |    UP.tax AS end_tax
+         |  ONE ROW PER MATCH
+         |  AFTER MATCH SKIP PAST LAST ROW
+         |  PATTERN (DOWN UP)
+         |  DEFINE
+         |    DOWN AS DOWN.price = 13,
+         |    UP AS UP.price = 20
+         |) AS T
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("ACME,3,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -550,7 +657,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val t = env.fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
     tEnv.registerTable("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
       s"""

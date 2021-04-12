@@ -18,35 +18,42 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
+import java.util.{LinkedList => JLinkedList, Map => JMap}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.io.RichOutputFormat
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.scala.BatchTableEnvironment
-import org.apache.flink.table.api.{DataTypes, SqlDialect, TableSchema}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
+import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.sinks.{BatchTableSink, PartitionableTableSink, TableSink}
 import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
 
-import java.util.{LinkedList => JLinkedList, List => JList, Map => JMap}
-import org.apache.flink.api.java
-
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
-class PartitionableSinkITCase {
+class PartitionableSinkITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var tEnv: BatchTableEnvironment = _
   private val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO)
@@ -61,7 +68,6 @@ class PartitionableSinkITCase {
   def before(): Unit = {
     batchExec.setParallelism(1)
     tEnv = BatchTableEnvironment.create(batchExec)
-    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerTableSource("nonSortTable", testData.toList)
     registerTableSource("sortTable", testData1.toList)
     PartitionableSinkITCase.init()
@@ -73,7 +79,8 @@ class PartitionableSinkITCase {
       .field("b", DataTypes.BIGINT())
       .field("c", DataTypes.STRING())
       .build()
-    tEnv.registerTableSource(name, new CollectionTableSource(data, 100, tableSchema))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, new CollectionTableSource(data, 100, tableSchema))
   }
 
   @Test
@@ -119,7 +126,7 @@ class PartitionableSinkITCase {
       rowType: RowTypeInfo = type3,
       partitionColumns: Array[String] = Array[String]("a")): TestSink = {
     val testSink = new TestSink(rowType, partitionColumns)
-    tEnv.registerTableSink(tableName, testSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, testSink)
     testSink
   }
 
@@ -154,7 +161,7 @@ class PartitionableSinkITCase {
       staticPartitions
     }
 
-    override def emitDataSet(dataSet: DataSet[Row]): Unit = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.map(new MapFunction[Row, String] {
         override def map(value: Row): String = value.toString
       }).output(new CollectionOutputFormat)

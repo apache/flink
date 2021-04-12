@@ -18,128 +18,180 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.runtime.state.StateObject;
+
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
-/**
- * Result of {@link StreamOperator#snapshotState}.
- */
+import static org.apache.flink.runtime.state.StateUtil.discardStateFuture;
+
+/** Result of {@link StreamOperator#snapshotState}. */
 public class OperatorSnapshotFutures {
 
-	@Nonnull
-	private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture;
+    @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture;
 
-	@Nonnull
-	private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture;
+    @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture;
 
-	@Nonnull
-	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture;
+    @Nonnull private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture;
 
-	@Nonnull
-	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture;
+    @Nonnull private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture;
 
-	public OperatorSnapshotFutures() {
-		this(
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()));
-	}
+    @Nonnull
+    private Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+            inputChannelStateFuture;
 
-	public OperatorSnapshotFutures(
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
-		this.keyedStateManagedFuture = keyedStateManagedFuture;
-		this.keyedStateRawFuture = keyedStateRawFuture;
-		this.operatorStateManagedFuture = operatorStateManagedFuture;
-		this.operatorStateRawFuture = operatorStateRawFuture;
-	}
+    @Nonnull
+    private Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+            resultSubpartitionStateFuture;
 
-	@Nonnull
-	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateManagedFuture() {
-		return keyedStateManagedFuture;
-	}
+    public OperatorSnapshotFutures() {
+        this(
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()));
+    }
 
-	public void setKeyedStateManagedFuture(
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture) {
-		this.keyedStateManagedFuture = keyedStateManagedFuture;
-	}
+    public OperatorSnapshotFutures(
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
+            @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
+            @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture,
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+                            inputChannelStateFuture,
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+                            resultSubpartitionStateFuture) {
+        this.keyedStateManagedFuture = keyedStateManagedFuture;
+        this.keyedStateRawFuture = keyedStateRawFuture;
+        this.operatorStateManagedFuture = operatorStateManagedFuture;
+        this.operatorStateRawFuture = operatorStateRawFuture;
+        this.inputChannelStateFuture = inputChannelStateFuture;
+        this.resultSubpartitionStateFuture = resultSubpartitionStateFuture;
+    }
 
-	@Nonnull
-	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateRawFuture() {
-		return keyedStateRawFuture;
-	}
+    @Nonnull
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateManagedFuture() {
+        return keyedStateManagedFuture;
+    }
 
-	public void setKeyedStateRawFuture(
-		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture) {
-		this.keyedStateRawFuture = keyedStateRawFuture;
-	}
+    public void setKeyedStateManagedFuture(
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture) {
+        this.keyedStateManagedFuture = keyedStateManagedFuture;
+    }
 
-	@Nonnull
-	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateManagedFuture() {
-		return operatorStateManagedFuture;
-	}
+    @Nonnull
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateRawFuture() {
+        return keyedStateRawFuture;
+    }
 
-	public void setOperatorStateManagedFuture(
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture) {
-		this.operatorStateManagedFuture = operatorStateManagedFuture;
-	}
+    public void setKeyedStateRawFuture(
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture) {
+        this.keyedStateRawFuture = keyedStateRawFuture;
+    }
 
-	@Nonnull
-	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateRawFuture() {
-		return operatorStateRawFuture;
-	}
+    @Nonnull
+    public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateManagedFuture() {
+        return operatorStateManagedFuture;
+    }
 
-	public void setOperatorStateRawFuture(
-		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
-		this.operatorStateRawFuture = operatorStateRawFuture;
-	}
+    public void setOperatorStateManagedFuture(
+            @Nonnull
+                    RunnableFuture<SnapshotResult<OperatorStateHandle>>
+                            operatorStateManagedFuture) {
+        this.operatorStateManagedFuture = operatorStateManagedFuture;
+    }
 
-	public void cancel() throws Exception {
-		Exception exception = null;
+    @Nonnull
+    public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateRawFuture() {
+        return operatorStateRawFuture;
+    }
 
-		try {
-			StateUtil.discardStateFuture(getKeyedStateManagedFuture());
-		} catch (Exception e) {
-			exception = new Exception("Could not properly cancel managed keyed state future.", e);
-		}
+    public void setOperatorStateRawFuture(
+            @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
+        this.operatorStateRawFuture = operatorStateRawFuture;
+    }
 
-		try {
-			StateUtil.discardStateFuture(getOperatorStateManagedFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel managed operator state future.", e),
-				exception);
-		}
+    @Nonnull
+    public Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+            getInputChannelStateFuture() {
+        return inputChannelStateFuture;
+    }
 
-		try {
-			StateUtil.discardStateFuture(getKeyedStateRawFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel raw keyed state future.", e),
-				exception);
-		}
+    public void setInputChannelStateFuture(
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+                            inputChannelStateFuture) {
+        this.inputChannelStateFuture = inputChannelStateFuture;
+    }
 
-		try {
-			StateUtil.discardStateFuture(getOperatorStateRawFuture());
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel raw operator state future.", e),
-				exception);
-		}
+    @Nonnull
+    public Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+            getResultSubpartitionStateFuture() {
+        return resultSubpartitionStateFuture;
+    }
 
-		if (exception != null) {
-			throw exception;
-		}
-	}
+    public void setResultSubpartitionStateFuture(
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+                            resultSubpartitionStateFuture) {
+        this.resultSubpartitionStateFuture = resultSubpartitionStateFuture;
+    }
+
+    /** @return discarded state size (if available). */
+    public long cancel() throws Exception {
+        List<Tuple2<Future<? extends StateObject>, String>> pairs = new ArrayList<>();
+        pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));
+        pairs.add(new Tuple2<>(getKeyedStateRawFuture(), "managed operator"));
+        pairs.add(new Tuple2<>(getOperatorStateManagedFuture(), "raw keyed"));
+        pairs.add(new Tuple2<>(getOperatorStateRawFuture(), "raw operator"));
+        pairs.add(new Tuple2<>(getInputChannelStateFuture(), "input channel"));
+        pairs.add(new Tuple2<>(getResultSubpartitionStateFuture(), "result subpartition"));
+        final long[] stateSize = new long[1]; // single-element array to access from lambda
+        try (Closer closer = Closer.create()) {
+            for (Tuple2<Future<? extends StateObject>, String> pair : pairs) {
+                closer.register(
+                        () -> {
+                            try {
+                                stateSize[0] += discardStateFuture(pair.f0);
+                            } catch (Exception e) {
+                                throw new RuntimeException(
+                                        String.format(
+                                                "Could not properly cancel %s state future",
+                                                pair.f1),
+                                        e);
+                            }
+                        });
+            }
+        }
+        return stateSize[0];
+    }
+
+    public Future<?>[] getAllFutures() {
+        return new Future<?>[] {
+            keyedStateManagedFuture,
+            keyedStateRawFuture,
+            operatorStateManagedFuture,
+            operatorStateRawFuture,
+            inputChannelStateFuture,
+            resultSubpartitionStateFuture
+        };
+    }
 }

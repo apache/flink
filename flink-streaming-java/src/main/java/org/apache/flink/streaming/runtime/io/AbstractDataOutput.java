@@ -24,28 +24,23 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base class for all data outputs. It implements the unified way of emitting stream status
- * for both network and source outputs.
+ * Base class for all data outputs. It implements the unified way of emitting stream status for both
+ * network and source outputs.
  *
  * @param <T> The output type
  */
 @Internal
 public abstract class AbstractDataOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
 
-	/** The maintainer toggles the current stream status. */
-	protected final StreamStatusMaintainer streamStatusMaintainer;
+    /** The maintainer toggles the current stream status. */
+    protected final StreamStatusMaintainer streamStatusMaintainer;
 
-	protected final Object lock;
+    public AbstractDataOutput(StreamStatusMaintainer streamStatusMaintainer) {
+        this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
+    }
 
-	public AbstractDataOutput(StreamStatusMaintainer streamStatusMaintainer, Object lock) {
-		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
-		this.lock = checkNotNull(lock);
-	}
-
-	@Override
-	public void emitStreamStatus(StreamStatus streamStatus) {
-		synchronized (lock) {
-			streamStatusMaintainer.toggleStreamStatus(streamStatus);
-		}
-	}
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        streamStatusMaintainer.toggleStreamStatus(streamStatus);
+    }
 }

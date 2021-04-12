@@ -27,22 +27,20 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link YarnStopJobTerminationHeaders}.
- */
+/** Tests for {@link YarnStopJobTerminationHeaders}. */
 public class YarnStopJobTerminationHeadersTest extends TestLogger {
 
-	// instance under test
-	private static final YarnStopJobTerminationHeaders instance = YarnStopJobTerminationHeaders.getInstance();
+    // instance under test
+    private static final YarnStopJobTerminationHeaders instance =
+            YarnStopJobTerminationHeaders.getInstance();
 
-	@Test
-	public void testMethod() {
-		assertThat(instance.getHttpMethod(), is(HttpMethodWrapper.GET));
-	}
+    @Test
+    public void testMethod() {
+        assertThat(instance.getHttpMethod(), is(HttpMethodWrapper.GET));
+    }
 
-	@Test
-	public void testURL() {
-		assertThat(instance.getTargetRestEndpointURL(), endsWith("yarn-stop"));
-	}
-
+    @Test
+    public void testURL() {
+        assertThat(instance.getTargetRestEndpointURL(), endsWith("yarn-stop"));
+    }
 }

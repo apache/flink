@@ -19,46 +19,42 @@
 package org.apache.flink.core.testutils;
 
 /**
- * Latch for synchronizing parts of code in tests. In contrast to
- * {@link OneShotLatch} this will reset the state once {@link #await()} returns.
+ * Latch for synchronizing parts of code in tests. In contrast to {@link OneShotLatch} this will
+ * reset the state once {@link #await()} returns.
  *
- * <p>A part of the code that should only run after other code calls {@link #await()}. The call
- * will only return once the other part is finished and calls {@link #trigger()}.
+ * <p>A part of the code that should only run after other code calls {@link #await()}. The call will
+ * only return once the other part is finished and calls {@link #trigger()}.
  */
 public final class MultiShotLatch {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private volatile boolean triggered;
+    private volatile boolean triggered;
 
-	/**
-	 * Fires the latch. Code that is blocked on {@link #await()} will now return.
-	 */
-	public void trigger() {
-		synchronized (lock) {
-			triggered = true;
-			lock.notifyAll();
-		}
-	}
+    /** Fires the latch. Code that is blocked on {@link #await()} will now return. */
+    public void trigger() {
+        synchronized (lock) {
+            triggered = true;
+            lock.notifyAll();
+        }
+    }
 
-	/**
-	 * Waits until {@link #trigger()} is called.
-	 */
-	public void await() throws InterruptedException {
-		synchronized (lock) {
-			while (!triggered) {
-				lock.wait();
-			}
-			triggered = false;
-		}
-	}
+    /** Waits until {@link #trigger()} is called. */
+    public void await() throws InterruptedException {
+        synchronized (lock) {
+            while (!triggered) {
+                lock.wait();
+            }
+            triggered = false;
+        }
+    }
 
-	/**
-	 * Checks if the latch was triggered.
-	 *
-	 * @return True, if the latch was triggered, false if not.
-	 */
-	public boolean isTriggered() {
-		return triggered;
-	}
+    /**
+     * Checks if the latch was triggered.
+     *
+     * @return True, if the latch was triggered, false if not.
+     */
+    public boolean isTriggered() {
+        return triggered;
+    }
 }

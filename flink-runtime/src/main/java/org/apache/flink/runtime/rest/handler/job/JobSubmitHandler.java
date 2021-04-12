@@ -52,143 +52,180 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
-/**
- * This handler can be used to submit jobs to a Flink cluster.
- */
-public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
+/** This handler can be used to submit jobs to a Flink cluster. */
+public final class JobSubmitHandler
+        extends AbstractRestHandler<
+                DispatcherGateway,
+                JobSubmitRequestBody,
+                JobSubmitResponseBody,
+                EmptyMessageParameters> {
 
-	private static final String FILE_TYPE_JOB_GRAPH = "JobGraph";
-	private static final String FILE_TYPE_JAR = "Jar";
-	private static final String FILE_TYPE_ARTIFACT = "Artifact";
+    private static final String FILE_TYPE_JOB_GRAPH = "JobGraph";
+    private static final String FILE_TYPE_JAR = "Jar";
+    private static final String FILE_TYPE_ARTIFACT = "Artifact";
 
-	private final Executor executor;
-	private final Configuration configuration;
+    private final Executor executor;
+    private final Configuration configuration;
 
-	public JobSubmitHandler(
-			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> headers,
-			Executor executor,
-			Configuration configuration) {
-		super(leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
-		this.executor = executor;
-		this.configuration = configuration;
-	}
+    public JobSubmitHandler(
+            GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> headers,
+            Executor executor,
+            Configuration configuration) {
+        super(leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
+        this.executor = executor;
+        this.configuration = configuration;
+    }
 
-	@Override
-	protected CompletableFuture<JobSubmitResponseBody> handleRequest(@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-		final Collection<File> uploadedFiles = request.getUploadedFiles();
-		final Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
-			File::getName,
-			Path::fromLocalFile
-		));
+    @Override
+    protected CompletableFuture<JobSubmitResponseBody> handleRequest(
+            @Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+            @Nonnull DispatcherGateway gateway)
+            throws RestHandlerException {
+        final Collection<File> uploadedFiles = request.getUploadedFiles();
+        final Map<String, Path> nameToFile =
+                uploadedFiles.stream()
+                        .collect(Collectors.toMap(File::getName, Path::fromLocalFile));
 
-		if (uploadedFiles.size() != nameToFile.size()) {
-			throw new RestHandlerException(
-				String.format("The number of uploaded files was %s than the expected count. Expected: %s Actual %s",
-					uploadedFiles.size() < nameToFile.size() ? "lower" : "higher",
-					nameToFile.size(),
-					uploadedFiles.size()),
-				HttpResponseStatus.BAD_REQUEST
-			);
-		}
+        if (uploadedFiles.size() != nameToFile.size()) {
+            throw new RestHandlerException(
+                    String.format(
+                            "The number of uploaded files was %s than the expected count. Expected: %s Actual %s",
+                            uploadedFiles.size() < nameToFile.size() ? "lower" : "higher",
+                            nameToFile.size(),
+                            uploadedFiles.size()),
+                    HttpResponseStatus.BAD_REQUEST);
+        }
 
-		final JobSubmitRequestBody requestBody = request.getRequestBody();
+        final JobSubmitRequestBody requestBody = request.getRequestBody();
 
-		if (requestBody.jobGraphFileName == null) {
-			throw new RestHandlerException(
-				String.format("The %s field must not be omitted or be null.",
-					JobSubmitRequestBody.FIELD_NAME_JOB_GRAPH),
-				HttpResponseStatus.BAD_REQUEST);
-		}
+        if (requestBody.jobGraphFileName == null) {
+            throw new RestHandlerException(
+                    String.format(
+                            "The %s field must not be omitted or be null.",
+                            JobSubmitRequestBody.FIELD_NAME_JOB_GRAPH),
+                    HttpResponseStatus.BAD_REQUEST);
+        }
 
-		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
+        CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
-		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
+        Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
-		Collection<Tuple2<String, Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
+        Collection<Tuple2<String, Path>> artifacts =
+                getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
-		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
+        CompletableFuture<JobGraph> finalizedJobGraphFuture =
+                uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
 
-		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
+        CompletableFuture<Acknowledge> jobSubmissionFuture =
+                finalizedJobGraphFuture.thenCompose(
+                        jobGraph -> gateway.submitJob(jobGraph, timeout));
 
-		return jobSubmissionFuture.thenCombine(jobGraphFuture,
-			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
-	}
+        return jobSubmissionFuture.thenCombine(
+                jobGraphFuture,
+                (ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+    }
 
-	private CompletableFuture<JobGraph> loadJobGraph(JobSubmitRequestBody requestBody, Map<String, Path> nameToFile) throws MissingFileException {
-		final Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
+    private CompletableFuture<JobGraph> loadJobGraph(
+            JobSubmitRequestBody requestBody, Map<String, Path> nameToFile)
+            throws MissingFileException {
+        final Path jobGraphFile =
+                getPathAndAssertUpload(
+                        requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
 
-		return CompletableFuture.supplyAsync(() -> {
-			JobGraph jobGraph;
-			try (ObjectInputStream objectIn = new ObjectInputStream(jobGraphFile.getFileSystem().open(jobGraphFile))) {
-				jobGraph = (JobGraph) objectIn.readObject();
-			} catch (Exception e) {
-				throw new CompletionException(new RestHandlerException(
-					"Failed to deserialize JobGraph.",
-					HttpResponseStatus.BAD_REQUEST,
-					e));
-			}
-			return jobGraph;
-		}, executor);
-	}
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    JobGraph jobGraph;
+                    try (ObjectInputStream objectIn =
+                            new ObjectInputStream(
+                                    jobGraphFile.getFileSystem().open(jobGraphFile))) {
+                        jobGraph = (JobGraph) objectIn.readObject();
+                    } catch (Exception e) {
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        "Failed to deserialize JobGraph.",
+                                        HttpResponseStatus.BAD_REQUEST,
+                                        e));
+                    }
+                    return jobGraph;
+                },
+                executor);
+    }
 
-	private static Collection<Path> getJarFilesToUpload(Collection<String> jarFileNames, Map<String, Path> nameToFileMap) throws MissingFileException {
-		Collection<Path> jarFiles = new ArrayList<>(jarFileNames.size());
-		for (String jarFileName : jarFileNames) {
-			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFileMap);
-			jarFiles.add(new Path(jarFile.toString()));
-		}
-		return jarFiles;
-	}
+    private static Collection<Path> getJarFilesToUpload(
+            Collection<String> jarFileNames, Map<String, Path> nameToFileMap)
+            throws MissingFileException {
+        Collection<Path> jarFiles = new ArrayList<>(jarFileNames.size());
+        for (String jarFileName : jarFileNames) {
+            Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFileMap);
+            jarFiles.add(new Path(jarFile.toString()));
+        }
+        return jarFiles;
+    }
 
-	private static Collection<Tuple2<String, Path>> getArtifactFilesToUpload(
-			Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries,
-			Map<String, Path> nameToFileMap) throws MissingFileException {
-		Collection<Tuple2<String, Path>> artifacts = new ArrayList<>(artifactEntries.size());
-		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : artifactEntries) {
-			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
-			artifacts.add(Tuple2.of(artifactFileName.entryName, new Path(artifactFile.toString())));
-		}
-		return artifacts;
-	}
+    private static Collection<Tuple2<String, Path>> getArtifactFilesToUpload(
+            Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries,
+            Map<String, Path> nameToFileMap)
+            throws MissingFileException {
+        Collection<Tuple2<String, Path>> artifacts = new ArrayList<>(artifactEntries.size());
+        for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : artifactEntries) {
+            Path artifactFile =
+                    getPathAndAssertUpload(
+                            artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
+            artifacts.add(Tuple2.of(artifactFileName.entryName, new Path(artifactFile.toString())));
+        }
+        return artifacts;
+    }
 
-	private CompletableFuture<JobGraph> uploadJobGraphFiles(
-			DispatcherGateway gateway,
-			CompletableFuture<JobGraph> jobGraphFuture,
-			Collection<Path> jarFiles,
-			Collection<Tuple2<String, Path>> artifacts,
-			Configuration configuration) {
-		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
+    private CompletableFuture<JobGraph> uploadJobGraphFiles(
+            DispatcherGateway gateway,
+            CompletableFuture<JobGraph> jobGraphFuture,
+            Collection<Path> jarFiles,
+            Collection<Tuple2<String, Path>> artifacts,
+            Configuration configuration) {
+        CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
-		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
-			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
-			try {
-				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, configuration));
-			} catch (FlinkException e) {
-				throw new CompletionException(new RestHandlerException(
-					"Could not upload job files.",
-					HttpResponseStatus.INTERNAL_SERVER_ERROR,
-					e));
-			}
-			return jobGraph;
-		});
-	}
+        return jobGraphFuture.thenCombine(
+                blobServerPortFuture,
+                (JobGraph jobGraph, Integer blobServerPort) -> {
+                    final InetSocketAddress address =
+                            new InetSocketAddress(gateway.getHostname(), blobServerPort);
+                    try {
+                        ClientUtils.uploadJobGraphFiles(
+                                jobGraph,
+                                jarFiles,
+                                artifacts,
+                                () -> new BlobClient(address, configuration));
+                    } catch (FlinkException e) {
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        "Could not upload job files.",
+                                        HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                        e));
+                    }
+                    return jobGraph;
+                });
+    }
 
-	private static Path getPathAndAssertUpload(String fileName, String type, Map<String, Path> uploadedFiles) throws MissingFileException {
-		final Path file = uploadedFiles.get(fileName);
-		if (file == null) {
-			throw new MissingFileException(type, fileName);
-		}
-		return file;
-	}
+    private static Path getPathAndAssertUpload(
+            String fileName, String type, Map<String, Path> uploadedFiles)
+            throws MissingFileException {
+        final Path file = uploadedFiles.get(fileName);
+        if (file == null) {
+            throw new MissingFileException(type, fileName);
+        }
+        return file;
+    }
 
-	private static final class MissingFileException extends RestHandlerException {
+    private static final class MissingFileException extends RestHandlerException {
 
-		private static final long serialVersionUID = -7954810495610194965L;
+        private static final long serialVersionUID = -7954810495610194965L;
 
-		MissingFileException(String type, String fileName) {
-			super(type + " file " + fileName + " could not be found on the server.", HttpResponseStatus.BAD_REQUEST);
-		}
-	}
+        MissingFileException(String type, String fileName) {
+            super(
+                    type + " file " + fileName + " could not be found on the server.",
+                    HttpResponseStatus.BAD_REQUEST);
+        }
+    }
 }

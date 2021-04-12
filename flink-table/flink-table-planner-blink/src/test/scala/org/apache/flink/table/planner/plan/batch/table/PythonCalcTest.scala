@@ -19,9 +19,10 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.{Before, Test}
 
 class PythonCalcTest extends TableTestBase {
@@ -36,6 +37,6 @@ class PythonCalcTest extends TableTestBase {
   @Test
   def testPythonFunctionMixedWithJavaFunction(): Unit = {
     val sqlQuery = "SELECT pyFunc1(a, b), c + 1 FROM MyTable"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

@@ -22,76 +22,124 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
+import org.apache.flink.table.types.inference.TypeInference;
 
 /**
- * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
- * or multiple scalar values to a new scalar value.
+ * Base class for a user-defined scalar function. A user-defined scalar function maps zero, one, or
+ * multiple scalar values to a new scalar value.
  *
  * <p>The behavior of a {@link ScalarFunction} can be defined by implementing a custom evaluation
  * method. An evaluation method must be declared publicly and named <code>eval</code>. Evaluation
  * methods can also be overloaded by implementing multiple methods named <code>eval</code>.
  *
- * <p>User-defined functions must have a default constructor and must be instantiable during runtime.
+ * <p>By default, input and output data types are automatically extracted using reflection. If the
+ * reflective information is not sufficient, it can be supported and enriched with {@link
+ * DataTypeHint} and {@link FunctionHint} annotations.
  *
- * <p>By default the result type of an evaluation method is determined by Flink's type extraction
- * facilities. This is sufficient for basic types or simple POJOs but might be wrong for more
- * complex, custom, or composite types. In these cases {@link TypeInformation} of the result type
- * can be manually defined by overriding {@link ScalarFunction#getResultType}.
+ * <p>The following examples show how to specify a scalar function:
  *
- * <p>Internally, the Table/SQL API code generation works with primitive values as much as possible.
- * If a user-defined scalar function should not introduce much overhead during runtime, it is
- * recommended to declare parameters and result types as primitive types instead of their boxed
- * classes. <code>DATE/TIME</code> is equal to <code>int</code>, <code>TIMESTAMP</code> is equal
- * to <code>long</code>.
+ * <pre>{@code
+ * // a function that accepts two INT arguments and computes a sum
+ * class SumFunction extends ScalarFunction {
+ *   public Integer eval(Integer a, Integer b) {
+ *     return a + b;
+ *   }
+ * }
+ *
+ * // a function that accepts either INT NOT NULL or BOOLEAN NOT NULL and computes a STRING
+ * class StringifyFunction extends ScalarFunction {
+ *   public String eval(int i) {
+ *     return String.valueOf(i);
+ *   }
+ *   public String eval(boolean b) {
+ *     return String.valueOf(b);
+ *   }
+ * }
+ *
+ * // a function that accepts either INT or BOOLEAN and computes a STRING using function hints
+ * @FunctionHint(input = [@DataTypeHint("INT")])
+ * @FunctionHint(input = [@DataTypeHint("BOOLEAN")])
+ * class StringifyFunction extends ScalarFunction {
+ *   public String eval(Object o) {
+ *     return o.toString();
+ *   }
+ * }
+ *
+ * // a function that accepts any data type as argument and computes a STRING
+ * class StringifyFunction extends ScalarFunction {
+ *   public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o) {
+ *     return o.toString();
+ *   }
+ * }
+ *
+ * // a function that accepts an arbitrary number of BIGINT values and computes a DECIMAL(10, 4)
+ * class SumFunction extends ScalarFunction {
+ *   public @DataTypeHint("DECIMAL(10, 4)") BigDecimal eval(Long... values) {
+ *     // ...
+ *   }
+ * }
+ * }</pre>
+ *
+ * <p>For storing a user-defined function in a catalog, the class must have a default constructor
+ * and must be instantiable during runtime.
  */
 @PublicEvolving
 public abstract class ScalarFunction extends UserDefinedFunction {
 
-	/**
-	 * Returns the result type of the evaluation method with a given signature.
-	 *
-	 * <p>This method needs to be overridden in case Flink's type extraction facilities are not
-	 * sufficient to extract the {@link TypeInformation} based on the return type of the evaluation
-	 * method. Flink's type extraction facilities can handle basic types or
-	 * simple POJOs but might be wrong for more complex, custom, or composite types.
-	 *
-	 * @param signature signature of the method the return type needs to be determined
-	 * @return {@link TypeInformation} of result type or <code>null</code> if Flink should
-	 *         determine the type
-	 */
-	public TypeInformation<?> getResultType(Class<?>[] signature) {
-		return null;
-	}
+    /**
+     * Returns the result type of the evaluation method with a given signature.
+     *
+     * @deprecated This method uses the old type system and is based on the old reflective
+     *     extraction logic. The method will be removed in future versions and is only called when
+     *     using the deprecated {@code TableEnvironment.registerFunction(...)} method. The new
+     *     reflective extraction logic (possibly enriched with {@link DataTypeHint} and {@link
+     *     FunctionHint}) should be powerful enough to cover most use cases. For advanced users, it
+     *     is possible to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
+     */
+    @Deprecated
+    public TypeInformation<?> getResultType(Class<?>[] signature) {
+        return null;
+    }
 
-	/**
-	 * Returns {@link TypeInformation} about the operands of the evaluation method with a given
-	 * signature.
-	 *
-	 * <p>In order to perform operand type inference in SQL (especially when <code>NULL</code> is
-	 * used) it might be necessary to determine the parameter {@link TypeInformation} of an
-	 * evaluation method. By default Flink's type extraction facilities are used for this but might
-	 * be wrong for more complex, custom, or composite types.
-	 *
-	 * @param signature signature of the method the operand types need to be determined
-	 * @return {@link TypeInformation} of operand types
-	 */
-	public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
-		final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
-		for (int i = 0; i < signature.length; i++) {
-			try {
-				types[i] = TypeExtractor.getForClass(signature[i]);
-			} catch (InvalidTypesException e) {
-				throw new ValidationException(
-					"Parameter types of scalar function " + this.getClass().getCanonicalName() +
-					" cannot be automatically determined. Please provide type information manually.");
-			}
-		}
-		return types;
-	}
+    /**
+     * Returns {@link TypeInformation} about the operands of the evaluation method with a given
+     * signature.
+     *
+     * @deprecated This method uses the old type system and is based on the old reflective
+     *     extraction logic. The method will be removed in future versions and is only called when
+     *     using the deprecated {@code TableEnvironment.registerFunction(...)} method. The new
+     *     reflective extraction logic (possibly enriched with {@link DataTypeHint} and {@link
+     *     FunctionHint}) should be powerful enough to cover most use cases. For advanced users, it
+     *     is possible to override {@link UserDefinedFunction#getTypeInference(DataTypeFactory)}.
+     */
+    @Deprecated
+    public TypeInformation<?>[] getParameterTypes(Class<?>[] signature) {
+        final TypeInformation<?>[] types = new TypeInformation<?>[signature.length];
+        for (int i = 0; i < signature.length; i++) {
+            try {
+                types[i] = TypeExtractor.getForClass(signature[i]);
+            } catch (InvalidTypesException e) {
+                throw new ValidationException(
+                        "Parameter types of scalar function "
+                                + this.getClass().getCanonicalName()
+                                + " cannot be automatically determined. Please provide type information manually.");
+            }
+        }
+        return types;
+    }
 
-	@Override
-	public final FunctionKind getKind() {
-		return FunctionKind.SCALAR;
-	}
+    @Override
+    public final FunctionKind getKind() {
+        return FunctionKind.SCALAR;
+    }
+
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInferenceExtractor.forScalarFunction(typeFactory, getClass());
+    }
 }

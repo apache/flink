@@ -315,5 +315,42 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertNull(mq.getRelModifiedMonotonicity(logicalAntiJoinOnUniqueKeys))
   }
 
+  @Test
+  def testGetRelMonotonicityOnDeduplicate(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array(NOT_MONOTONIC, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamProcTimeDeduplicateFirstRow))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(NOT_MONOTONIC, CONSTANT, CONSTANT)),
+      mq.getRelModifiedMonotonicity(streamProcTimeDeduplicateLastRow))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(
+        NOT_MONOTONIC, CONSTANT, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamRowTimeDeduplicateFirstRow))
+
+    assertEquals(
+      new RelModifiedMonotonicity(Array(
+        NOT_MONOTONIC, CONSTANT, CONSTANT)),
+      mq.getRelModifiedMonotonicity(streamRowTimeDeduplicateLastRow))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnChangelogNormalize(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array(
+        CONSTANT, CONSTANT, NOT_MONOTONIC, NOT_MONOTONIC,
+        NOT_MONOTONIC, NOT_MONOTONIC, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(streamChangelogNormalize))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnDropUpdateBefore(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array.fill(7)(CONSTANT)),
+      mq.getRelModifiedMonotonicity(streamDropUpdateBefore))
+  }
+
 }
 

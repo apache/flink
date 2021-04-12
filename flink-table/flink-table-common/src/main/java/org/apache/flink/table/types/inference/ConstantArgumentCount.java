@@ -27,74 +27,79 @@ import java.util.Optional;
 /**
  * Helper class for {@link ArgumentCount} with constant boundaries.
  *
- * <p>Note: All boundaries of this class are inclusive.
+ * <p>Note: All boundaries of this class are inclusive. All indices are 0-based.
  */
 @Internal
 public final class ConstantArgumentCount implements ArgumentCount {
 
-	private static final int OPEN_INTERVAL = -1;
+    private static final int OPEN_INTERVAL = -1;
 
-	private final int minCount;
+    private final int minCount;
 
-	private final int maxCount;
+    private final int maxCount;
 
-	private ConstantArgumentCount(int minCount, int maxCount) {
-		this.minCount = minCount;
-		this.maxCount = maxCount;
-	}
+    private ConstantArgumentCount(int minCount, int maxCount) {
+        this.minCount = minCount;
+        this.maxCount = maxCount;
+    }
 
-	public static ArgumentCount of(int count) {
-		Preconditions.checkArgument(count >= 0);
-		return new ConstantArgumentCount(count, count);
-	}
+    public static ConstantArgumentCount of(int count) {
+        Preconditions.checkArgument(count >= 0);
+        return new ConstantArgumentCount(count, count);
+    }
 
-	public static ArgumentCount between(int minCount, int maxCount) {
-		Preconditions.checkArgument(minCount <= maxCount);
-		Preconditions.checkArgument(minCount >= 0);
-		return new ConstantArgumentCount(minCount, maxCount);
-	}
+    public static ConstantArgumentCount between(int minCount, int maxCount) {
+        Preconditions.checkArgument(minCount <= maxCount);
+        Preconditions.checkArgument(minCount >= 0);
+        return new ConstantArgumentCount(minCount, maxCount);
+    }
 
-	public static ArgumentCount from(int minCount) {
-		Preconditions.checkArgument(minCount >= 0);
-		return new ConstantArgumentCount(minCount, OPEN_INTERVAL);
-	}
+    public static ConstantArgumentCount from(int minCount) {
+        Preconditions.checkArgument(minCount >= 0);
+        return new ConstantArgumentCount(minCount, OPEN_INTERVAL);
+    }
 
-	public static ArgumentCount any() {
-		return new ConstantArgumentCount(0, OPEN_INTERVAL);
-	}
+    public static ConstantArgumentCount to(int maxCount) {
+        Preconditions.checkArgument(maxCount >= 0);
+        return new ConstantArgumentCount(0, maxCount);
+    }
 
-	@Override
-	public boolean isValidCount(int count) {
-		return count >= minCount && (maxCount == OPEN_INTERVAL || count <= maxCount);
-	}
+    public static ConstantArgumentCount any() {
+        return new ConstantArgumentCount(0, OPEN_INTERVAL);
+    }
 
-	@Override
-	public Optional<Integer> getMinCount() {
-		return Optional.of(minCount);
-	}
+    @Override
+    public boolean isValidCount(int count) {
+        return count >= minCount && (maxCount == OPEN_INTERVAL || count <= maxCount);
+    }
 
-	@Override
-	public Optional<Integer> getMaxCount() {
-		if (maxCount == OPEN_INTERVAL) {
-			return Optional.empty();
-		}
-		return Optional.of(maxCount);
-	}
+    @Override
+    public Optional<Integer> getMinCount() {
+        return Optional.of(minCount);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ConstantArgumentCount that = (ConstantArgumentCount) o;
-		return minCount == that.minCount && maxCount == that.maxCount;
-	}
+    @Override
+    public Optional<Integer> getMaxCount() {
+        if (maxCount == OPEN_INTERVAL) {
+            return Optional.empty();
+        }
+        return Optional.of(maxCount);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(minCount, maxCount);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ConstantArgumentCount that = (ConstantArgumentCount) o;
+        return minCount == that.minCount && maxCount == that.maxCount;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(minCount, maxCount);
+    }
 }

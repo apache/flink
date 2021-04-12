@@ -18,8 +18,5 @@
 
 package org.apache.flink.tests.util.categories;
 
-/**
- * Marker interface for tests that should be run in the fourth build on Travis.
- */
-public interface TravisGroup4 {
-}
+/** Marker interface for tests that should be run in the fourth build on Travis. */
+public interface TravisGroup4 {}

@@ -25,25 +25,25 @@ import java.util.Collections;
 
 /** Test suite for {@link TtlListState} with elements of fixed byte length in serialized form. */
 class TtlFixedLenElemListStateTestContext extends TtlListStateTestContextBase<Integer> {
-	TtlFixedLenElemListStateTestContext() {
-		super(IntSerializer.INSTANCE);
-	}
+    TtlFixedLenElemListStateTestContext() {
+        super(IntSerializer.INSTANCE);
+    }
 
-	@Override
-	void initTestValues() {
-		emptyValue = Collections.emptyList();
+    @Override
+    void initTestValues() {
+        emptyValue = Collections.emptyList();
 
-		updateEmpty = Arrays.asList(5, 7, 10);
-		updateUnexpired = Arrays.asList(8, 9, 11);
-		updateExpired = Arrays.asList(1, 4);
+        updateEmpty = Arrays.asList(5, 7, 10);
+        updateUnexpired = Arrays.asList(8, 9, 11);
+        updateExpired = Arrays.asList(1, 4);
 
-		getUpdateEmpty = updateEmpty;
-		getUnexpired = updateUnexpired;
-		getUpdateExpired = updateExpired;
-	}
+        getUpdateEmpty = updateEmpty;
+        getUnexpired = updateUnexpired;
+        getUpdateExpired = updateExpired;
+    }
 
-	@Override
-	Integer generateRandomElement(int i) {
-		return RANDOM.nextInt(100);
-	}
+    @Override
+    Integer generateRandomElement(int i) {
+        return RANDOM.nextInt(100);
+    }
 }

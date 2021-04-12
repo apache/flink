@@ -50,42 +50,7 @@ class OnWindowedStream[T, K, W <: Window](stream: WindowedStream[T, K, W]) {
     * @return The data stream that is the result of applying the reduce function to the window.
     */
   @PublicEvolving
-  def reduceWith(function: (T, T) => T) =
+  def reduceWith(function: (T, T) => T): DataStream[T] =
     stream.reduce(function)
-
-  /**
-    * Applies the given fold function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the reduce function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * @param function The fold function.
-    * @return The data stream that is the result of applying the fold function to the window.
-    */
-  @PublicEvolving
-  def foldWith[R: TypeInformation](initialValue: R)(function: (R, T) => R) =
-    stream.fold(initialValue)(function)
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is incrementally aggregated using the given fold function.
-    *
-    * @param initialValue The initial value of the fold
-    * @param foldFunction The fold function that is used for incremental aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    */
-  @PublicEvolving
-  def applyWith[ACC: TypeInformation, R: TypeInformation](
-      initialValue: ACC)(
-      foldFunction: (ACC, T) => ACC,
-      windowFunction: (K, W, Stream[ACC]) => TraversableOnce[R])
-    : DataStream[R] =
-    stream.fold(initialValue, foldFunction, {
-      (key: K, window: W, items: Iterable[ACC], out: Collector[R]) =>
-        windowFunction(key, window, items.toStream).foreach(out.collect)
-    })
 
 }

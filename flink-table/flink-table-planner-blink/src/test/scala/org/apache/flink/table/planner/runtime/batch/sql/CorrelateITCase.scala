@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.dataformat.BinaryString
+import org.apache.flink.table.data.StringData
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func18, RichFunc2}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyPojoFunc}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, RichTableFunc1, TableFunc0, TableFunc1, TableFunc2, TableFunc3, VarArgsFunc0}
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo
+import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
@@ -362,8 +362,8 @@ class GenericTableFunc[T](t: TypeInformation[T]) extends TableFunction[T] {
 
 @SerialVersionUID(1L)
 class BinaryStringTableFunc extends TableFunction[Row] {
-  def eval(s: BinaryString, cons: BinaryString): Unit = collect(Row.of(s, cons))
+  def eval(s: StringData, cons: StringData): Unit = collect(Row.of(s, cons))
   override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(BinaryStringTypeInfo.INSTANCE, BinaryStringTypeInfo.INSTANCE)
+    new RowTypeInfo(StringDataTypeInfo.INSTANCE, StringDataTypeInfo.INSTANCE)
   }
 }

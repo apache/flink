@@ -19,25 +19,21 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 
 /**
- * Base class for unit tests that run multiple tests and want to reuse the same
- * Flink cluster. This saves a significant amount of time, since the startup and
- * shutdown of the Flink clusters (including actor systems, etc) usually dominates
- * the execution of the actual tests.
+ * Base class for unit tests that run multiple tests and want to reuse the same Flink cluster. This
+ * saves a significant amount of time, since the startup and shutdown of the Flink clusters
+ * (including actor systems, etc) usually dominates the execution of the actual tests.
  *
- * <p>To write a unit test against this test base, simply extend it and add
- * one or more regular test methods and retrieve the StreamExecutionEnvironment from
- * the context:
+ * <p>To write a unit test against this test base, simply extend it and add one or more regular test
+ * methods and retrieve the StreamExecutionEnvironment from the context:
  *
  * <pre>
  *   {@literal @}Test
@@ -56,47 +52,45 @@ import java.io.IOException;
  *
  * </pre>
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public abstract class AbstractTestBase extends TestBaseUtils {
 
-	private static final int DEFAULT_PARALLELISM = 4;
+    private static final int DEFAULT_PARALLELISM = 4;
 
-	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-			.build());
+    @ClassRule
+    public static MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .build());
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+    // --------------------------------------------------------------------------------------------
+    //  Temporary File Utilities
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	//  Temporary File Utilities
-	// --------------------------------------------------------------------------------------------
+    public String getTempDirPath(String dirName) throws IOException {
+        File f = createAndRegisterTempFile(dirName);
+        return f.toURI().toString();
+    }
 
-	public String getTempDirPath(String dirName) throws IOException {
-		File f = createAndRegisterTempFile(dirName);
-		return f.toURI().toString();
-	}
+    public String getTempFilePath(String fileName) throws IOException {
+        File f = createAndRegisterTempFile(fileName);
+        return f.toURI().toString();
+    }
 
-	public String getTempFilePath(String fileName) throws IOException {
-		File f = createAndRegisterTempFile(fileName);
-		return f.toURI().toString();
-	}
+    public String createTempFile(String fileName, String contents) throws IOException {
+        File f = createAndRegisterTempFile(fileName);
+        if (!f.getParentFile().exists()) {
+            f.getParentFile().mkdirs();
+        }
+        f.createNewFile();
+        FileUtils.writeFileUtf8(f, contents);
+        return f.toURI().toString();
+    }
 
-	public String createTempFile(String fileName, String contents) throws IOException {
-		File f = createAndRegisterTempFile(fileName);
-		if (!f.getParentFile().exists()) {
-			f.getParentFile().mkdirs();
-		}
-		f.createNewFile();
-		FileUtils.writeFileUtf8(f, contents);
-		return f.toURI().toString();
-	}
-
-	public File createAndRegisterTempFile(String fileName) throws IOException {
-		return new File(TEMPORARY_FOLDER.newFolder(), fileName);
-	}
+    public File createAndRegisterTempFile(String fileName) throws IOException {
+        return new File(TEMPORARY_FOLDER.newFolder(), fileName);
+    }
 }

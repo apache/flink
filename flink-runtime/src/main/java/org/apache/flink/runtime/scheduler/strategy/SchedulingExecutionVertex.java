@@ -18,29 +18,32 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Vertex;
 
-/**
- * Scheduling representation of {@link ExecutionVertex}.
- */
-public interface SchedulingExecutionVertex<V extends SchedulingExecutionVertex<V, R>, R extends SchedulingResultPartition<V, R>>
-	extends Vertex<ExecutionVertexID, IntermediateResultPartitionID, V, R> {
+import java.util.List;
 
-	/**
-	 * Gets the state of the execution vertex.
-	 *
-	 * @return state of the execution vertex
-	 */
-	ExecutionState getState();
+/** Scheduling representation of {@link ExecutionVertex}. */
+public interface SchedulingExecutionVertex
+        extends Vertex<
+                ExecutionVertexID,
+                IntermediateResultPartitionID,
+                SchedulingExecutionVertex,
+                SchedulingResultPartition> {
 
-	/**
-	 * Get {@link InputDependencyConstraint}.
-	 *
-	 * @return input dependency constraint
-	 */
-	InputDependencyConstraint getInputDependencyConstraint();
+    /**
+     * Gets the state of the execution vertex.
+     *
+     * @return state of the execution vertex
+     */
+    ExecutionState getState();
+
+    /**
+     * Gets the {@link ConsumedPartitionGroup}s.
+     *
+     * @return list of {@link ConsumedPartitionGroup}s
+     */
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

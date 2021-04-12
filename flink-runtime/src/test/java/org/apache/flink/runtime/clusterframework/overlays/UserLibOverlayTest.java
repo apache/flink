@@ -29,30 +29,31 @@ import java.io.File;
 
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 
-/**
- * Test {@link UserLibOverlay}.
- */
+/** Test {@link UserLibOverlay}. */
 public class UserLibOverlayTest extends ContainerOverlayTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigure() throws Exception {
-		final File userLibFolder = tempFolder.newFolder(DEFAULT_FLINK_USR_LIB_DIR);
+    @Test
+    public void testConfigure() throws Exception {
+        final File userLibFolder = tempFolder.newFolder(DEFAULT_FLINK_USR_LIB_DIR);
 
-		final Path[] files = createPaths(
-			tempFolder.getRoot(),
-			"usrlib/job_a.jar",
-			"usrlib/lib/dep1.jar",
-			"usrlib/lib/dep2.jar");
+        final Path[] files =
+                createPaths(
+                        tempFolder.getRoot(),
+                        "usrlib/job_a.jar",
+                        "usrlib/lib/dep1.jar",
+                        "usrlib/lib/dep2.jar");
 
-		final ContainerSpecification containerSpecification = new ContainerSpecification();
-		final UserLibOverlay overlay = UserLibOverlay.newBuilder().setUsrLibDirectory(userLibFolder).build();
-		overlay.configure(containerSpecification);
+        final ContainerSpecification containerSpecification = new ContainerSpecification();
+        final UserLibOverlay overlay =
+                UserLibOverlay.newBuilder().setUsrLibDirectory(userLibFolder).build();
+        overlay.configure(containerSpecification);
 
-		for (Path file : files) {
-			checkArtifact(containerSpecification, new Path(FlinkDistributionOverlay.TARGET_ROOT, file.toString()));
-		}
-	}
+        for (Path file : files) {
+            checkArtifact(
+                    containerSpecification,
+                    new Path(FlinkDistributionOverlay.TARGET_ROOT, file.toString()));
+        }
+    }
 }

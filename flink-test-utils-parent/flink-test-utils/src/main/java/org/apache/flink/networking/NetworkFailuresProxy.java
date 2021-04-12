@@ -38,87 +38,88 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * This class acts as a network proxy - listening on local port and forwarding all of the network to the remote
- * host/port. It allows to simulate a network failures in the communication.
+ * This class acts as a network proxy - listening on local port and forwarding all of the network to
+ * the remote host/port. It allows to simulate a network failures in the communication.
  */
 public class NetworkFailuresProxy implements AutoCloseable {
-	private static final Logger LOG = LoggerFactory.getLogger(NetworkFailuresProxy.class);
-	private static final String NETWORK_FAILURE_HANDLER_NAME = "network_failure_handler";
+    private static final Logger LOG = LoggerFactory.getLogger(NetworkFailuresProxy.class);
+    private static final String NETWORK_FAILURE_HANDLER_NAME = "network_failure_handler";
 
-	private final Executor executor = Executors.newCachedThreadPool();
-	private final ServerBootstrap serverBootstrap;
-	private final Channel channel;
-	private final AtomicBoolean blocked = new AtomicBoolean();
-	// collection of networkFailureHandlers so that we can call {@link NetworkFailureHandler.closeConnections} on them.
-	private final Set<NetworkFailureHandler> networkFailureHandlers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Executor executor = Executors.newCachedThreadPool();
+    private final ServerBootstrap serverBootstrap;
+    private final Channel channel;
+    private final AtomicBoolean blocked = new AtomicBoolean();
+    // collection of networkFailureHandlers so that we can call {@link
+    // NetworkFailureHandler.closeConnections} on them.
+    private final Set<NetworkFailureHandler> networkFailureHandlers =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-	public NetworkFailuresProxy(int localPort, String remoteHost, int remotePort) {
-		// Configure the bootstrap.
-		serverBootstrap = new ServerBootstrap(
-			new NioServerSocketChannelFactory(executor, executor));
+    public NetworkFailuresProxy(int localPort, String remoteHost, int remotePort) {
+        // Configure the bootstrap.
+        serverBootstrap =
+                new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor));
 
-		// Set up the event pipeline factory.
-		ClientSocketChannelFactory channelFactory = new NioClientSocketChannelFactory(executor, executor);
-		serverBootstrap.setOption("child.tcpNoDelay", true);
-		serverBootstrap.setOption("child.keepAlive", true);
-		serverBootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-			public ChannelPipeline getPipeline() throws Exception {
-				ChannelPipeline pipeline = Channels.pipeline();
+        // Set up the event pipeline factory.
+        ClientSocketChannelFactory channelFactory =
+                new NioClientSocketChannelFactory(executor, executor);
+        serverBootstrap.setOption("child.tcpNoDelay", true);
+        serverBootstrap.setOption("child.keepAlive", true);
+        serverBootstrap.setPipelineFactory(
+                new ChannelPipelineFactory() {
+                    public ChannelPipeline getPipeline() throws Exception {
+                        ChannelPipeline pipeline = Channels.pipeline();
 
-				// synchronized for a race between blocking and creating new handlers
-				synchronized (networkFailureHandlers) {
-					NetworkFailureHandler failureHandler = new NetworkFailureHandler(
-						blocked,
-						networkFailureHandler -> networkFailureHandlers.remove(networkFailureHandler),
-						channelFactory,
-						remoteHost,
-						remotePort);
-					networkFailureHandlers.add(failureHandler);
-					pipeline.addLast(NETWORK_FAILURE_HANDLER_NAME, failureHandler);
-				}
-				return pipeline;
-			}
-		});
-		channel = serverBootstrap.bind(new InetSocketAddress(localPort));
+                        // synchronized for a race between blocking and creating new handlers
+                        synchronized (networkFailureHandlers) {
+                            NetworkFailureHandler failureHandler =
+                                    new NetworkFailureHandler(
+                                            blocked,
+                                            networkFailureHandler ->
+                                                    networkFailureHandlers.remove(
+                                                            networkFailureHandler),
+                                            channelFactory,
+                                            remoteHost,
+                                            remotePort);
+                            networkFailureHandlers.add(failureHandler);
+                            pipeline.addLast(NETWORK_FAILURE_HANDLER_NAME, failureHandler);
+                        }
+                        return pipeline;
+                    }
+                });
+        channel = serverBootstrap.bind(new InetSocketAddress(localPort));
 
-		LOG.info("Proxying [*:{}] to [{}:{}]", getLocalPort(), remoteHost, remotePort);
-	}
+        LOG.info("Proxying [*:{}] to [{}:{}]", getLocalPort(), remoteHost, remotePort);
+    }
 
-	/**
-	 * @return local port on which {@link NetworkFailuresProxy} is listening.
-	 */
-	public int getLocalPort() {
-		return ((InetSocketAddress) channel.getLocalAddress()).getPort();
-	}
+    /** @return local port on which {@link NetworkFailuresProxy} is listening. */
+    public int getLocalPort() {
+        return ((InetSocketAddress) channel.getLocalAddress()).getPort();
+    }
 
-	/**
-	 * Blocks all ongoing traffic, closes all ongoing and closes any new incoming connections.
-	 */
-	public void blockTraffic() {
-		setTrafficBlocked(true);
-	}
+    /** Blocks all ongoing traffic, closes all ongoing and closes any new incoming connections. */
+    public void blockTraffic() {
+        setTrafficBlocked(true);
+    }
 
-	/**
-	 * Resumes normal communication.
-	 */
-	public void unblockTraffic() {
-		setTrafficBlocked(false);
-	}
+    /** Resumes normal communication. */
+    public void unblockTraffic() {
+        setTrafficBlocked(false);
+    }
 
-	@Override
-	public void close() throws Exception {
-		channel.close();
-	}
+    @Override
+    public void close() throws Exception {
+        channel.close();
+    }
 
-	private void setTrafficBlocked(boolean blocked) {
-		this.blocked.set(blocked);
-		if (blocked) {
-			// synchronized for a race between blocking and creating new handlers
-			synchronized (networkFailureHandlers) {
-				for (NetworkFailureHandler failureHandler : networkFailureHandlers) {
-					failureHandler.closeConnections();
-				}
-			}
-		}
-	}
+    private void setTrafficBlocked(boolean blocked) {
+        this.blocked.set(blocked);
+        if (blocked) {
+            // synchronized for a race between blocking and creating new handlers
+            synchronized (networkFailureHandlers) {
+                for (NetworkFailureHandler failureHandler : networkFailureHandlers) {
+                    failureHandler.closeConnections();
+                }
+            }
+        }
+    }
 }

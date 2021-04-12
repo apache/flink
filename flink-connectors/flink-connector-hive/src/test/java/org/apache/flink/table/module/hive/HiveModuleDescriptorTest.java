@@ -27,28 +27,29 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Tests for {@link HiveModuleDescriptor}.
- */
+/** Tests for {@link HiveModuleDescriptor}. */
 public class HiveModuleDescriptorTest extends DescriptorTestBase {
 
-	@Override
-	protected List<Descriptor> descriptors() {
-		final Descriptor descriptor = new HiveModuleDescriptor();
+    private final String hiveVersion = "2.3.4";
 
-		return Arrays.asList(descriptor);
-	}
+    @Override
+    protected List<Descriptor> descriptors() {
+        final Descriptor descriptor = new HiveModuleDescriptor(hiveVersion);
 
-	@Override
-	protected List<Map<String, String>> properties() {
-		final Map<String, String> props1 = new HashMap<>();
-		props1.put("type", "hive");
+        return Arrays.asList(descriptor);
+    }
 
-		return Arrays.asList(props1);
-	}
+    @Override
+    protected List<Map<String, String>> properties() {
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put("type", "hive");
+        props1.put("hive-version", hiveVersion);
 
-	@Override
-	protected DescriptorValidator validator() {
-		return new HiveModuleDescriptorValidator();
-	}
+        return Arrays.asList(props1);
+    }
+
+    @Override
+    protected DescriptorValidator validator() {
+        return new HiveModuleDescriptorValidator();
+    }
 }

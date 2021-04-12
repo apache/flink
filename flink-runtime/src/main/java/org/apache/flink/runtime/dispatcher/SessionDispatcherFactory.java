@@ -23,24 +23,26 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
 
-/**
- * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
- */
+/** {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}. */
 public enum SessionDispatcherFactory implements DispatcherFactory {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public StandaloneDispatcher createDispatcher(
-			RpcService rpcService,
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
-		// create the default dispatcher
-		return new StandaloneDispatcher(
-			rpcService,
-			getEndpointId(),
-			fencingToken,
-			recoveredJobs,
-			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
-	}
+    @Override
+    public StandaloneDispatcher createDispatcher(
+            RpcService rpcService,
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            DispatcherBootstrapFactory dispatcherBootstrapFactory,
+            PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore)
+            throws Exception {
+        // create the default dispatcher
+        return new StandaloneDispatcher(
+                rpcService,
+                fencingToken,
+                recoveredJobs,
+                dispatcherBootstrapFactory,
+                DispatcherServices.from(
+                        partialDispatcherServicesWithJobGraphStore,
+                        DefaultJobManagerRunnerFactory.INSTANCE));
+    }
 }

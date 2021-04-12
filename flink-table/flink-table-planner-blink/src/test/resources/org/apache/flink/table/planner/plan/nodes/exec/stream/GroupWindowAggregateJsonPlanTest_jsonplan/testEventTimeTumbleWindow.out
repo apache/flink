@@ -1,0 +1,619 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`rowtime` - INTERVAL '1' SECOND",
+        "schema.4.expr" : "PROCTIME()",
+        "schema.0.data-type" : "INT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.4.name" : "proctime",
+        "schema.1.data-type" : "BIGINT",
+        "schema.3.data-type" : "TIMESTAMP(3)",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "rowtime",
+        "connector" : "values",
+        "schema.watermark.0.rowtime" : "rowtime",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.3.expr" : "TO_TIMESTAMP(`c`)",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
+        "schema.0.name" : "a"
+      }
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "TO_TIMESTAMP",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : {
+          "typeName" : "VARCHAR",
+          "nullable" : true,
+          "precision" : 2147483647
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "condition" : null,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Calc(select=[b, TO_TIMESTAMP(c) AS rowtime, a, c])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "watermarkExpr" : {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "-",
+        "kind" : "MINUS",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : {
+          "typeName" : "TIMESTAMP",
+          "nullable" : true,
+          "precision" : 3
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : 1000,
+        "type" : {
+          "typeName" : "INTERVAL_SECOND",
+          "nullable" : false,
+          "precision" : 2,
+          "scale" : 6
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    },
+    "rowtimeFieldIndex" : 1,
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "EXPR$3",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "EXPR$4",
+      "aggFunction" : {
+        "name" : "SUM",
+        "kind" : "SUM",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "name" : "EXPR$5",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 3 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "EXPR$6",
+      "aggFunction" : {
+        "name" : "concat_distinct_agg",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION",
+        "functionKind" : "AGGREGATE",
+        "instance" : "rO0ABXNyAF9vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucGxhbi51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkQ29uY2F0RGlzdGluY3RBZ2dGdW5jdGlvbtrVmfNk5uTFAgAAeHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uINSM3KFoG4kCAAB4cgA8b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuSW1wZXJhdGl2ZUFnZ3JlZ2F0ZUZ1bmN0aW9u8leA9q_NbKcCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvblloCwi7Qw8WAgAAeHA",
+        "bridging" : true
+      },
+      "argList" : [ 3 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "window" : {
+      "kind" : "TUMBLING",
+      "alias" : {
+        "name" : "w$",
+        "type" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      },
+      "timeField" : {
+        "fieldName" : "rowtime",
+        "fieldIndex" : 1,
+        "inputIndex" : 0,
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      },
+      "isTimeWindow" : true,
+      "size" : "PT5S"
+    },
+    "namedWindowProperties" : [ {
+      "name" : "w$start",
+      "property" : {
+        "kind" : "WindowStart",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "w$end",
+      "property" : {
+        "kind" : "WindowEnd",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "w$rowtime",
+      "property" : {
+        "kind" : "Rowtime",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "w$proctime",
+      "property" : {
+        "kind" : "Proctime",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    } ],
+    "needRetraction" : false,
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      }, {
+        "w$start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "w$end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "w$rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "w$proctime" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$3, SUM(a) AS EXPR$4, COUNT(DISTINCT c) AS EXPR$5, concat_distinct_agg(c) AS EXPR$6, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 6,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "condition" : null,
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Calc(select=[b, w$start AS window_start, w$end AS window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "schema.5.name" : "distinct_cnt",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "window_end",
+        "schema.1.name" : "window_start",
+        "schema.6.data-type" : "VARCHAR(2147483647)",
+        "schema.4.name" : "sum_a",
+        "schema.1.data-type" : "TIMESTAMP(3)",
+        "schema.3.data-type" : "BIGINT",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "schema.3.name" : "cnt",
+        "connector" : "values",
+        "schema.6.name" : "concat_distinct",
+        "schema.5.data-type" : "BIGINT",
+        "schema.4.data-type" : "INT",
+        "schema.0.name" : "b"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "EXPR$3" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$4" : "INT"
+      }, {
+        "EXPR$5" : "BIGINT NOT NULL"
+      }, {
+        "EXPR$6" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, EXPR$6])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

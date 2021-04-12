@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
@@ -26,12 +27,17 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
+import java.time.{LocalDate, LocalDateTime}
+import org.apache.flink.table.util.Logging
+
 import _root_.scala.collection.JavaConverters._
 
 /**
   * Visitor implementation for converting [[Expression]]s to [[PlannerExpression]]s.
   */
-class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
+class PlannerExpressionConverter private
+  extends ApiExpressionVisitor[PlannerExpression]
+  with Logging {
 
   override def visit(call: CallExpression): PlannerExpression = {
     translateCall(call.getFunctionDefinition, call.getChildren.asScala)
@@ -39,6 +45,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {
     translateCall(unresolvedCall.getFunctionDefinition, unresolvedCall.getChildren.asScala)
+  }
+
+  override def visit(other: ResolvedExpression): PlannerExpression = {
+    throw new TableException("Unsupported resolved expression:" + other)
   }
 
   private def translateCall(
@@ -81,6 +91,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     val args = children.map(_.accept(this))
 
     func match {
+      // explicit legacy
       case sfd: ScalarFunctionDefinition =>
         val call = PlannerScalarFunctionCall(
           sfd.getScalarFunction,
@@ -89,6 +100,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         call.validateInput()
         call
 
+      // explicit legacy
       case tfd: TableFunctionDefinition =>
         PlannerTableFunctionCall(
           tfd.toString,
@@ -96,6 +108,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           args,
           tfd.getResultType)
 
+      // explicit legacy
       case afd: AggregateFunctionDefinition =>
         AggFunctionCall(
           afd.getAggregateFunction,
@@ -103,12 +116,62 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           afd.getAccumulatorTypeInfo,
           args)
 
+      // explicit legacy
       case tafd: TableAggregateFunctionDefinition =>
         AggFunctionCall(
           tafd.getTableAggregateFunction,
           tafd.getResultTypeInfo,
           tafd.getAccumulatorTypeInfo,
           args)
+
+      // best-effort support for new type inference
+      case sf: ScalarFunction =>
+        LOG.warn(
+          "The new type inference for functions is only supported in the Blink planner. " +
+           "Falling back to legacy type inference for function '{}'.", sf.getClass)
+        val call = PlannerScalarFunctionCall(
+          sf,
+          args)
+        // it configures underlying state
+        call.validateInput()
+        call
+
+      // best-effort support for new type inference
+      case tf: TableFunction[_] =>
+        LOG.warn(
+          "The new type inference for functions is only supported in the Blink planner. " +
+           "Falling back to legacy type inference for function '{}'.", tf.getClass)
+        PlannerTableFunctionCall(
+          tf.toString,
+          tf,
+          args,
+          UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tf))
+
+      // best-effort support for new type inference
+      case af: AggregateFunction[_, _] =>
+        LOG.warn(
+          "The new type inference for functions is only supported in the Blink planner. " +
+           "Falling back to legacy type inference for function '{}'.", af.getClass)
+        AggFunctionCall(
+          af,
+          UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(af),
+          UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(af),
+          args)
+
+      // best-effort support for new type inference
+      case taf: TableAggregateFunction[_, _] =>
+        LOG.warn(
+          "The new type inference for functions is only supported in the Blink planner. " +
+           "Falling back to legacy type inference for function '{}'.", taf.getClass)
+        AggFunctionCall(
+          taf,
+          UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(taf),
+          UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(taf),
+          args)
+
+      case _ : UserDefinedFunction =>
+        throw new ValidationException(
+          "The new type inference for functions is only supported in the Blink planner.")
 
       case fd: FunctionDefinition =>
         fd match {
@@ -133,12 +196,12 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             expr
 
           case AND =>
-            assert(args.size == 2)
-            And(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(And)
 
           case OR =>
-            assert(args.size == 2)
-            Or(args.head, args.last)
+            assert(args.size >= 2)
+            args.reduceLeft(Or)
 
           case NOT =>
             assert(args.size == 1)
@@ -272,6 +335,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Lower(args.head)
 
+          case LOWERCASE =>
+            assert(args.size == 1)
+            Lower(args.head)
+
           case SIMILAR =>
             assert(args.size == 2)
             Similar(args.head, args.last)
@@ -305,6 +372,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             Trim(trimMode, args(2), args(3))
 
           case UPPER =>
+            assert(args.size == 1)
+            Upper(args.head)
+
+          case UPPERCASE =>
             assert(args.size == 1)
             Upper(args.head)
 
@@ -400,7 +471,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             if (args.size == 1) {
               Ceil(args.head)
             } else {
-              TemporalCeil(args.head, args.last)
+              TemporalCeil(args.last, args.head)
             }
 
           case EXP =>
@@ -412,7 +483,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             if (args.size == 1) {
               Floor(args.head)
             } else {
-              TemporalFloor(args.head, args.last)
+              TemporalFloor(args.last, args.head)
             }
 
           case LOG10 =>
@@ -427,7 +498,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Ln(args.head)
 
-          case LOG =>
+          case BuiltInFunctionDefinitions.LOG =>
             assert(args.size == 1 || args.size == 2)
             if (args.size == 1) {
               Log(args.head)
@@ -583,10 +654,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
               args(2),
               args.last)
 
-          case DATE_TIME_PLUS =>
-            assert(args.size == 2)
-            Plus(args.head, args.last)
-
           case DATE_FORMAT =>
             assert(args.size == 2)
             DateFormat(args.head, args.last)
@@ -698,9 +765,24 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     if (literal.isNull) {
       Null(typeInfo)
     } else {
-      Literal(
-        literal.getValueAs(typeInfo.getTypeClass).get(),
-        typeInfo)
+      typeInfo match {
+        case LocalTimeTypeInfo.LOCAL_DATE =>
+          Literal(
+            java.sql.Date.valueOf(literal.getValueAs(classOf[LocalDate]).get()),
+            SqlTimeTypeInfo.DATE)
+        case LocalTimeTypeInfo.LOCAL_DATE_TIME =>
+          Literal(
+            java.sql.Timestamp.valueOf(literal.getValueAs(classOf[LocalDateTime]).get()),
+            SqlTimeTypeInfo.TIMESTAMP)
+        case LocalTimeTypeInfo.LOCAL_TIME =>
+          Literal(
+            java.sql.Time.valueOf(literal.getValueAs(classOf[java.time.LocalTime]).get()),
+            SqlTimeTypeInfo.TIME)
+        case _ =>
+          Literal(
+            literal.getValueAs(typeInfo.getTypeClass).get(),
+            typeInfo)
+      }
     }
   }
 
@@ -763,6 +845,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   override def visit(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
+
+  override def visit(sqlCall: SqlCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + sqlCall)
 
   override def visitNonApiExpression(other: Expression): PlannerExpression = {
     other match {

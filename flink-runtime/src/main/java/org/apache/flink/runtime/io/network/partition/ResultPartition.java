@@ -18,18 +18,21 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +43,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkElementIndex;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -50,312 +51,268 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>This class is the runtime part of a logical {@link IntermediateResultPartition}. Essentially,
  * a result partition is a collection of {@link Buffer} instances. The buffers are organized in one
- * or more {@link ResultSubpartition} instances, which further partition the data depending on the
- * number of consuming tasks and the data {@link DistributionPattern}.
+ * or more {@link ResultSubpartition} instances or in a joint structure which further partition the
+ * data depending on the number of consuming tasks and the data {@link DistributionPattern}.
  *
  * <p>Tasks, which consume a result partition have to request one of its subpartitions. The request
- * happens either remotely (see {@link RemoteInputChannel}) or locally (see {@link LocalInputChannel})
+ * happens either remotely (see {@link RemoteInputChannel}) or locally (see {@link
+ * LocalInputChannel})
  *
  * <h2>Life-cycle</h2>
  *
  * <p>The life-cycle of each result partition has three (possibly overlapping) phases:
+ *
  * <ol>
- * <li><strong>Produce</strong>: </li>
- * <li><strong>Consume</strong>: </li>
- * <li><strong>Release</strong>: </li>
+ *   <li><strong>Produce</strong>:
+ *   <li><strong>Consume</strong>:
+ *   <li><strong>Release</strong>:
  * </ol>
  *
  * <h2>Buffer management</h2>
  *
  * <h2>State management</h2>
  */
-public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
+public abstract class ResultPartition implements ResultPartitionWriter {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 
-	private final String owningTaskName;
+    private final String owningTaskName;
 
-	protected final ResultPartitionID partitionId;
+    private final int partitionIndex;
 
-	/** Type of this partition. Defines the concrete subpartition implementation to use. */
-	protected final ResultPartitionType partitionType;
+    protected final ResultPartitionID partitionId;
 
-	/** The subpartitions of this partition. At least one. */
-	protected final ResultSubpartition[] subpartitions;
+    /** Type of this partition. Defines the concrete subpartition implementation to use. */
+    protected final ResultPartitionType partitionType;
 
-	protected final ResultPartitionManager partitionManager;
+    protected final ResultPartitionManager partitionManager;
 
-	public final int numTargetKeyGroups;
+    protected final int numSubpartitions;
 
-	// - Runtime state --------------------------------------------------------
+    private final int numTargetKeyGroups;
 
-	private final AtomicBoolean isReleased = new AtomicBoolean();
+    // - Runtime state --------------------------------------------------------
 
-	private BufferPool bufferPool;
+    private final AtomicBoolean isReleased = new AtomicBoolean();
 
-	private boolean isFinished;
+    protected BufferPool bufferPool;
 
-	private volatile Throwable cause;
+    private boolean isFinished;
 
-	private final FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory;
+    private volatile Throwable cause;
 
-	public ResultPartition(
-		String owningTaskName,
-		ResultPartitionID partitionId,
-		ResultPartitionType partitionType,
-		ResultSubpartition[] subpartitions,
-		int numTargetKeyGroups,
-		ResultPartitionManager partitionManager,
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+    private final SupplierWithException<BufferPool, IOException> bufferPoolFactory;
 
-		this.owningTaskName = checkNotNull(owningTaskName);
-		this.partitionId = checkNotNull(partitionId);
-		this.partitionType = checkNotNull(partitionType);
-		this.subpartitions = checkNotNull(subpartitions);
-		this.numTargetKeyGroups = numTargetKeyGroups;
-		this.partitionManager = checkNotNull(partitionManager);
-		this.bufferPoolFactory = bufferPoolFactory;
-	}
+    /** Used to compress buffer to reduce IO. */
+    @Nullable protected final BufferCompressor bufferCompressor;
 
-	/**
-	 * Registers a buffer pool with this result partition.
-	 *
-	 * <p>There is one pool for each result partition, which is shared by all its sub partitions.
-	 *
-	 * <p>The pool is registered with the partition *after* it as been constructed in order to conform
-	 * to the life-cycle of task registrations in the {@link TaskExecutor}.
-	 */
-	@Override
-	public void setup() throws IOException {
-		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
+    protected Counter numBytesOut = new SimpleCounter();
 
-		BufferPool bufferPool = checkNotNull(bufferPoolFactory.apply(this));
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
-			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
+    protected Counter numBuffersOut = new SimpleCounter();
 
-		this.bufferPool = bufferPool;
-		partitionManager.registerResultPartition(this);
-	}
+    public ResultPartition(
+            String owningTaskName,
+            int partitionIndex,
+            ResultPartitionID partitionId,
+            ResultPartitionType partitionType,
+            int numSubpartitions,
+            int numTargetKeyGroups,
+            ResultPartitionManager partitionManager,
+            @Nullable BufferCompressor bufferCompressor,
+            SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
-	public String getOwningTaskName() {
-		return owningTaskName;
-	}
+        this.owningTaskName = checkNotNull(owningTaskName);
+        Preconditions.checkArgument(0 <= partitionIndex, "The partition index must be positive.");
+        this.partitionIndex = partitionIndex;
+        this.partitionId = checkNotNull(partitionId);
+        this.partitionType = checkNotNull(partitionType);
+        this.numSubpartitions = numSubpartitions;
+        this.numTargetKeyGroups = numTargetKeyGroups;
+        this.partitionManager = checkNotNull(partitionManager);
+        this.bufferCompressor = bufferCompressor;
+        this.bufferPoolFactory = bufferPoolFactory;
+    }
 
-	public ResultPartitionID getPartitionId() {
-		return partitionId;
-	}
+    /**
+     * Registers a buffer pool with this result partition.
+     *
+     * <p>There is one pool for each result partition, which is shared by all its sub partitions.
+     *
+     * <p>The pool is registered with the partition *after* it as been constructed in order to
+     * conform to the life-cycle of task registrations in the {@link TaskExecutor}.
+     */
+    @Override
+    public void setup() throws IOException {
+        checkState(
+                this.bufferPool == null,
+                "Bug in result partition setup logic: Already registered buffer pool.");
 
-	@Override
-	public int getNumberOfSubpartitions() {
-		return subpartitions.length;
-	}
+        this.bufferPool = checkNotNull(bufferPoolFactory.get());
+        partitionManager.registerResultPartition(this);
+    }
 
-	public BufferPool getBufferPool() {
-		return bufferPool;
-	}
+    public String getOwningTaskName() {
+        return owningTaskName;
+    }
 
-	public int getNumberOfQueuedBuffers() {
-		int totalBuffers = 0;
+    @Override
+    public ResultPartitionID getPartitionId() {
+        return partitionId;
+    }
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			totalBuffers += subpartition.unsynchronizedGetNumberOfQueuedBuffers();
-		}
+    public int getPartitionIndex() {
+        return partitionIndex;
+    }
 
-		return totalBuffers;
-	}
+    @Override
+    public int getNumberOfSubpartitions() {
+        return numSubpartitions;
+    }
 
-	/**
-	 * Returns the type of this result partition.
-	 *
-	 * @return result partition type
-	 */
-	public ResultPartitionType getPartitionType() {
-		return partitionType;
-	}
+    public BufferPool getBufferPool() {
+        return bufferPool;
+    }
 
-	// ------------------------------------------------------------------------
+    /** Returns the total number of queued buffers of all subpartitions. */
+    public abstract int getNumberOfQueuedBuffers();
 
-	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		checkInProduceState();
+    /** Returns the number of queued buffers of the given target subpartition. */
+    public abstract int getNumberOfQueuedBuffers(int targetSubpartition);
 
-		return bufferPool.requestBufferBuilderBlocking();
-	}
+    /**
+     * Returns the type of this result partition.
+     *
+     * @return result partition type
+     */
+    public ResultPartitionType getPartitionType() {
+        return partitionType;
+    }
 
-	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		checkNotNull(bufferConsumer);
+    // ------------------------------------------------------------------------
 
-		ResultSubpartition subpartition;
-		try {
-			checkInProduceState();
-			subpartition = subpartitions[subpartitionIndex];
-		}
-		catch (Exception ex) {
-			bufferConsumer.close();
-			throw ex;
-		}
+    /**
+     * Finishes the result partition.
+     *
+     * <p>After this operation, it is not possible to add further data to the result partition.
+     *
+     * <p>For BLOCKING results, this will trigger the deployment of consuming tasks.
+     */
+    @Override
+    public void finish() throws IOException {
+        checkInProduceState();
 
-		return subpartition.add(bufferConsumer);
-	}
+        isFinished = true;
+    }
 
-	@Override
-	public void flushAll() {
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.flush();
-		}
-	}
+    @Override
+    public boolean isFinished() {
+        return isFinished;
+    }
 
-	@Override
-	public void flush(int subpartitionIndex) {
-		subpartitions[subpartitionIndex].flush();
-	}
+    public void release() {
+        release(null);
+    }
 
-	/**
-	 * Finishes the result partition.
-	 *
-	 * <p>After this operation, it is not possible to add further data to the result partition.
-	 *
-	 * <p>For BLOCKING results, this will trigger the deployment of consuming tasks.
-	 */
-	@Override
-	public void finish() throws IOException {
-		checkInProduceState();
+    @Override
+    public void release(Throwable cause) {
+        if (isReleased.compareAndSet(false, true)) {
+            LOG.debug("{}: Releasing {}.", owningTaskName, this);
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.finish();
-		}
+            // Set the error cause
+            if (cause != null) {
+                this.cause = cause;
+            }
 
-		isFinished = true;
-	}
+            releaseInternal();
+        }
+    }
 
-	public void release() {
-		release(null);
-	}
+    /** Releases all produced data including both those stored in memory and persisted on disk. */
+    protected abstract void releaseInternal();
 
-	/**
-	 * Releases the result partition.
-	 */
-	public void release(Throwable cause) {
-		if (isReleased.compareAndSet(false, true)) {
-			LOG.debug("{}: Releasing {}.", owningTaskName, this);
+    @Override
+    public void close() {
+        if (bufferPool != null) {
+            bufferPool.lazyDestroy();
+        }
+    }
 
-			// Set the error cause
-			if (cause != null) {
-				this.cause = cause;
-			}
+    @Override
+    public void fail(@Nullable Throwable throwable) {
+        partitionManager.releasePartition(partitionId, throwable);
+    }
 
-			// Release all subpartitions
-			for (ResultSubpartition subpartition : subpartitions) {
-				try {
-					subpartition.release();
-				}
-				// Catch this in order to ensure that release is called on all subpartitions
-				catch (Throwable t) {
-					LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
-				}
-			}
-		}
-	}
+    public Throwable getFailureCause() {
+        return cause;
+    }
 
-	@Override
-	public void close() {
-		if (bufferPool != null) {
-			bufferPool.lazyDestroy();
-		}
-	}
+    @Override
+    public int getNumTargetKeyGroups() {
+        return numTargetKeyGroups;
+    }
 
-	@Override
-	public void fail(@Nullable Throwable throwable) {
-		partitionManager.releasePartition(partitionId, throwable);
-	}
+    @Override
+    public void setMetricGroup(TaskIOMetricGroup metrics) {
+        numBytesOut = metrics.getNumBytesOutCounter();
+        numBuffersOut = metrics.getNumBuffersOutCounter();
+    }
 
-	/**
-	 * Returns the requested subpartition.
-	 */
-	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
-		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
-		checkState(!isReleased.get(), "Partition released.");
+    /**
+     * Whether this partition is released.
+     *
+     * <p>A partition is released when each subpartition is either consumed and communication is
+     * closed by consumer or failed. A partition is also released if task is cancelled.
+     */
+    @Override
+    public boolean isReleased() {
+        return isReleased.get();
+    }
 
-		ResultSubpartitionView readView = subpartitions[index].createReadView(availabilityListener);
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return bufferPool.getAvailableFuture();
+    }
 
-		LOG.debug("Created {}", readView);
+    @Override
+    public String toString() {
+        return "ResultPartition "
+                + partitionId.toString()
+                + " ["
+                + partitionType
+                + ", "
+                + numSubpartitions
+                + " subpartitions]";
+    }
 
-		return readView;
-	}
+    // ------------------------------------------------------------------------
 
-	public Throwable getFailureCause() {
-		return cause;
-	}
+    /** Notification when a subpartition is released. */
+    void onConsumedSubpartition(int subpartitionIndex) {
 
-	@Override
-	public int getNumTargetKeyGroups() {
-		return numTargetKeyGroups;
-	}
+        if (isReleased.get()) {
+            return;
+        }
 
-	/**
-	 * Releases buffers held by this result partition.
-	 *
-	 * <p>This is a callback from the buffer pool, which is registered for result partitions, which
-	 * are back pressure-free.
-	 */
-	@Override
-	public void releaseMemory(int toRelease) throws IOException {
-		checkArgument(toRelease > 0);
+        LOG.debug(
+                "{}: Received release notification for subpartition {}.", this, subpartitionIndex);
+    }
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			toRelease -= subpartition.releaseMemory();
+    // ------------------------------------------------------------------------
 
-			// Only release as much memory as needed
-			if (toRelease <= 0) {
-				break;
-			}
-		}
-	}
+    protected void checkInProduceState() throws IllegalStateException {
+        checkState(!isFinished, "Partition already finished.");
+    }
 
-	/**
-	 * Whether this partition is released.
-	 *
-	 * <p>A partition is released when each subpartition is either consumed and communication is closed by consumer
-	 * or failed. A partition is also released if task is cancelled.
-	 */
-	public boolean isReleased() {
-		return isReleased.get();
-	}
+    @VisibleForTesting
+    public ResultPartitionManager getPartitionManager() {
+        return partitionManager;
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return bufferPool.getAvailableFuture();
-	}
-
-	@Override
-	public String toString() {
-		return "ResultPartition " + partitionId.toString() + " [" + partitionType + ", "
-				+ subpartitions.length + " subpartitions]";
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Notification when a subpartition is released.
-	 */
-	void onConsumedSubpartition(int subpartitionIndex) {
-
-		if (isReleased.get()) {
-			return;
-		}
-
-		LOG.debug("{}: Received release notification for subpartition {}.",
-				this, subpartitionIndex);
-	}
-
-	public ResultSubpartition[] getAllPartitions() {
-		return subpartitions;
-	}
-
-	// ------------------------------------------------------------------------
-
-	private void checkInProduceState() throws IllegalStateException {
-		checkState(!isFinished, "Partition already finished.");
-	}
+    /**
+     * Whether the buffer can be compressed or not. Note that event is not compressed because it is
+     * usually small and the size can become even larger after compression.
+     */
+    protected boolean canBeCompressed(Buffer buffer) {
+        return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+    }
 }

@@ -26,7 +26,6 @@ import {
   ViewChild
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LONG_MIN_VALUE } from 'config';
 import { forkJoin, Observable, of, Subject } from 'rxjs';
 import { catchError, filter, map, takeUntil } from 'rxjs/operators';
 import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
@@ -63,42 +62,40 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
     }
   }
 
+  mergeWithBackPressure(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
+      return forkJoin(
+        nodes.map(node => {
+          return this.metricService.getAggregatedMetrics(this.jobId, node.id, ["backPressuredTimeMsPerSecond", "busyTimeMsPerSecond"]).pipe(
+            map(result => {
+              return {
+                ...node,
+                backPressuredPercentage: Math.min(Math.round(result.backPressuredTimeMsPerSecond / 10), 100),
+                busyPercentage: Math.min(Math.round(result.busyTimeMsPerSecond / 10), 100),
+              };
+            })
+          );
+        })
+      ).pipe(catchError(() => of(nodes)));
+    }
+
   mergeWithWatermarks(nodes: NodesItemCorrectInterface[]): Observable<NodesItemCorrectInterface[]> {
     return forkJoin(
       nodes.map(node => {
-        const listOfMetricId = [];
-        let lowWatermark = NaN;
-        for (let i = 0; i < node.parallelism; i++) {
-          listOfMetricId.push(`${i}.currentInputWatermark`);
-        }
-        return this.metricService.getMetrics(this.jobId, node.id, listOfMetricId).pipe(
-          map(metrics => {
-            let minValue = NaN;
-            const watermarks: { [index: string]: number } = {};
-            for (const key in metrics.values) {
-              const value = metrics.values[key];
-              const subtaskIndex = key.replace('.currentInputWatermark', '');
-              watermarks[subtaskIndex] = value;
-              if (isNaN(minValue) || value < minValue) {
-                minValue = value;
-              }
-            }
-            if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
-              lowWatermark = minValue;
-            } else {
-              lowWatermark = NaN;
-            }
-            return { ...node, lowWatermark };
+        return this.metricService.getWatermarks(this.jobId, node.id).pipe(
+          map(result => {
+            return { ...node, lowWatermark: result.lowWatermark };
           })
         );
       })
     ).pipe(catchError(() => of(nodes)));
   }
 
-  refreshNodesWithWatermarks() {
-    this.mergeWithWatermarks(this.nodes).subscribe(nodes => {
-      nodes.forEach(node => {
-        this.dagreComponent.updateNode(node.id, node);
+  refreshNodesWithMetrics() {
+    this.mergeWithBackPressure(this.nodes).subscribe(nodes => {
+      this.mergeWithWatermarks(nodes).subscribe(nodes2 => {
+        nodes2.forEach(node => {
+          this.dagreComponent.updateNode(node.id, node);
+        });
       });
     });
   }
@@ -124,10 +121,10 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
           this.links = data.plan.links;
           this.jobId = data.plan.jid;
           this.dagreComponent.flush(this.nodes, this.links, true).then();
-          this.refreshNodesWithWatermarks();
+          this.refreshNodesWithMetrics();
         } else {
           this.nodes = data.plan.nodes;
-          this.refreshNodesWithWatermarks();
+          this.refreshNodesWithMetrics();
         }
         this.cdr.markForCheck();
       });

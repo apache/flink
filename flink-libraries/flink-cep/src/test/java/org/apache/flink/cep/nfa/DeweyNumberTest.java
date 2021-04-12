@@ -26,38 +26,36 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link DeweyNumber}.
- */
+/** Tests for {@link DeweyNumber}. */
 public class DeweyNumberTest extends TestLogger {
 
-	@Test
-	public void testDeweyNumberGeneration() {
-		DeweyNumber start = new DeweyNumber(1);
-		DeweyNumber increased = start.increase();
-		DeweyNumber increaseAddStage = increased.addStage();
-		DeweyNumber startAddStage = start.addStage();
-		DeweyNumber startAddStageIncreased = startAddStage.increase();
-		DeweyNumber startAddStageIncreasedAddStage = startAddStageIncreased.addStage();
+    @Test
+    public void testDeweyNumberGeneration() {
+        DeweyNumber start = new DeweyNumber(1);
+        DeweyNumber increased = start.increase();
+        DeweyNumber increaseAddStage = increased.addStage();
+        DeweyNumber startAddStage = start.addStage();
+        DeweyNumber startAddStageIncreased = startAddStage.increase();
+        DeweyNumber startAddStageIncreasedAddStage = startAddStageIncreased.addStage();
 
-		assertEquals(DeweyNumber.fromString("1"), start);
-		assertEquals(DeweyNumber.fromString("2"), increased);
-		assertEquals(DeweyNumber.fromString("2.0"), increaseAddStage);
-		assertEquals(DeweyNumber.fromString("1.0"), startAddStage);
-		assertEquals(DeweyNumber.fromString("1.1"), startAddStageIncreased);
-		assertEquals(DeweyNumber.fromString("1.1.0"), startAddStageIncreasedAddStage);
+        assertEquals(DeweyNumber.fromString("1"), start);
+        assertEquals(DeweyNumber.fromString("2"), increased);
+        assertEquals(DeweyNumber.fromString("2.0"), increaseAddStage);
+        assertEquals(DeweyNumber.fromString("1.0"), startAddStage);
+        assertEquals(DeweyNumber.fromString("1.1"), startAddStageIncreased);
+        assertEquals(DeweyNumber.fromString("1.1.0"), startAddStageIncreasedAddStage);
 
-		assertTrue(startAddStage.isCompatibleWith(start));
-		assertTrue(startAddStageIncreased.isCompatibleWith(startAddStage));
-		assertTrue(startAddStageIncreasedAddStage.isCompatibleWith(startAddStageIncreased));
-		assertFalse(startAddStageIncreasedAddStage.isCompatibleWith(startAddStage));
-		assertFalse(increaseAddStage.isCompatibleWith(startAddStage));
-		assertFalse(startAddStage.isCompatibleWith(increaseAddStage));
-		assertFalse(startAddStageIncreased.isCompatibleWith(startAddStageIncreasedAddStage));
-	}
+        assertTrue(startAddStage.isCompatibleWith(start));
+        assertTrue(startAddStageIncreased.isCompatibleWith(startAddStage));
+        assertTrue(startAddStageIncreasedAddStage.isCompatibleWith(startAddStageIncreased));
+        assertFalse(startAddStageIncreasedAddStage.isCompatibleWith(startAddStage));
+        assertFalse(increaseAddStage.isCompatibleWith(startAddStage));
+        assertFalse(startAddStage.isCompatibleWith(increaseAddStage));
+        assertFalse(startAddStageIncreased.isCompatibleWith(startAddStageIncreasedAddStage));
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testZeroSplitsDeweyNumber() {
-		DeweyNumber.fromString(".");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroSplitsDeweyNumber() {
+        DeweyNumber.fromString(".");
+    }
 }

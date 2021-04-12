@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3.common.utils.BackPressuringExecutor;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
@@ -33,93 +33,94 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
-/**
- * A factory for creating or recovering {@link RecoverableMultiPartUpload mulitpart uploads}.
- */
+/** A factory for creating or recovering {@link RecoverableMultiPartUpload mulitpart uploads}. */
 @Internal
 final class S3RecoverableMultipartUploadFactory {
 
-	private final org.apache.hadoop.fs.FileSystem fs;
+    private final org.apache.hadoop.fs.FileSystem fs;
 
-	private final S3AccessHelper s3AccessHelper;
+    private final S3AccessHelper s3AccessHelper;
 
-	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier;
+    private final FunctionWithException<File, RefCountedFileWithStream, IOException>
+            tmpFileSupplier;
 
-	private final int maxConcurrentUploadsPerStream;
+    private final int maxConcurrentUploadsPerStream;
 
-	private final Executor executor;
+    private final Executor executor;
 
-	S3RecoverableMultipartUploadFactory(
-			final FileSystem fs,
-			final S3AccessHelper s3AccessHelper,
-			final int maxConcurrentUploadsPerStream,
-			final Executor executor,
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileSupplier) {
+    S3RecoverableMultipartUploadFactory(
+            final FileSystem fs,
+            final S3AccessHelper s3AccessHelper,
+            final int maxConcurrentUploadsPerStream,
+            final Executor executor,
+            final FunctionWithException<File, RefCountedFileWithStream, IOException>
+                    tmpFileSupplier) {
 
-		this.fs = Preconditions.checkNotNull(fs);
-		this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
-		this.executor = executor;
-		this.s3AccessHelper = s3AccessHelper;
-		this.tmpFileSupplier = tmpFileSupplier;
-	}
+        this.fs = Preconditions.checkNotNull(fs);
+        this.maxConcurrentUploadsPerStream = maxConcurrentUploadsPerStream;
+        this.executor = executor;
+        this.s3AccessHelper = s3AccessHelper;
+        this.tmpFileSupplier = tmpFileSupplier;
+    }
 
-	RecoverableMultiPartUpload getNewRecoverableUpload(Path path) throws IOException {
+    RecoverableMultiPartUpload getNewRecoverableUpload(Path path) throws IOException {
 
-		return RecoverableMultiPartUploadImpl.newUpload(
-				s3AccessHelper,
-				limitedExecutor(),
-				pathToObjectName(path));
-	}
+        return RecoverableMultiPartUploadImpl.newUpload(
+                s3AccessHelper, limitedExecutor(), pathToObjectName(path));
+    }
 
-	RecoverableMultiPartUpload recoverRecoverableUpload(S3Recoverable recoverable) throws IOException {
-		final Optional<File> incompletePart = recoverInProgressPart(recoverable);
+    RecoverableMultiPartUpload recoverRecoverableUpload(S3Recoverable recoverable)
+            throws IOException {
+        final Optional<File> incompletePart = recoverInProgressPart(recoverable);
 
-		return RecoverableMultiPartUploadImpl.recoverUpload(
-				s3AccessHelper,
-				limitedExecutor(),
-				recoverable.uploadId(),
-				recoverable.getObjectName(),
-				recoverable.parts(),
-				recoverable.numBytesInParts(),
-				incompletePart);
-	}
+        return RecoverableMultiPartUploadImpl.recoverUpload(
+                s3AccessHelper,
+                limitedExecutor(),
+                recoverable.uploadId(),
+                recoverable.getObjectName(),
+                recoverable.parts(),
+                recoverable.numBytesInParts(),
+                incompletePart);
+    }
 
-	private Optional<File> recoverInProgressPart(S3Recoverable recoverable) throws IOException {
+    private Optional<File> recoverInProgressPart(S3Recoverable recoverable) throws IOException {
 
-		final String objectKey = recoverable.incompleteObjectName();
-		if (objectKey == null) {
-			return Optional.empty();
-		}
+        final String objectKey = recoverable.incompleteObjectName();
+        if (objectKey == null) {
+            return Optional.empty();
+        }
 
-		// download the file (simple way)
-		final RefCountedFile refCountedFile = tmpFileSupplier.apply(null);
-		final File file = refCountedFile.getFile();
-		final long numBytes = s3AccessHelper.getObject(objectKey, file);
+        // download the file (simple way)
+        final RefCountedFileWithStream refCountedFile = tmpFileSupplier.apply(null);
+        final File file = refCountedFile.getFile();
+        final long numBytes = s3AccessHelper.getObject(objectKey, file);
 
-		if (numBytes != recoverable.incompleteObjectLength()) {
-			throw new IOException(String.format("Error recovering writer: " +
-							"Downloading the last data chunk file gives incorrect length." +
-							"File length is %d bytes, RecoveryData indicates %d bytes",
-					numBytes, recoverable.incompleteObjectLength()));
-		}
+        if (numBytes != recoverable.incompleteObjectLength()) {
+            throw new IOException(
+                    String.format(
+                            "Error recovering writer: "
+                                    + "Downloading the last data chunk file gives incorrect length."
+                                    + "File length is %d bytes, RecoveryData indicates %d bytes",
+                            numBytes, recoverable.incompleteObjectLength()));
+        }
 
-		return Optional.of(file);
-	}
+        return Optional.of(file);
+    }
 
-	private String pathToObjectName(final Path path) {
-		org.apache.hadoop.fs.Path hadoopPath = HadoopFileSystem.toHadoopPath(path);
-		if (!hadoopPath.isAbsolute()) {
-			hadoopPath = new org.apache.hadoop.fs.Path(fs.getWorkingDirectory(), hadoopPath);
-		}
+    private String pathToObjectName(final Path path) {
+        org.apache.hadoop.fs.Path hadoopPath = HadoopFileSystem.toHadoopPath(path);
+        if (!hadoopPath.isAbsolute()) {
+            hadoopPath = new org.apache.hadoop.fs.Path(fs.getWorkingDirectory(), hadoopPath);
+        }
 
-		return hadoopPath.toUri().getScheme() != null && hadoopPath.toUri().getPath().isEmpty()
-				? ""
-				: hadoopPath.toUri().getPath().substring(1);
-	}
+        return hadoopPath.toUri().getScheme() != null && hadoopPath.toUri().getPath().isEmpty()
+                ? ""
+                : hadoopPath.toUri().getPath().substring(1);
+    }
 
-	private Executor limitedExecutor() {
-		return maxConcurrentUploadsPerStream <= 0 ?
-				executor :
-				new BackPressuringExecutor(executor, maxConcurrentUploadsPerStream);
-	}
+    private Executor limitedExecutor() {
+        return maxConcurrentUploadsPerStream <= 0
+                ? executor
+                : new BackPressuringExecutor(executor, maxConcurrentUploadsPerStream);
+    }
 }

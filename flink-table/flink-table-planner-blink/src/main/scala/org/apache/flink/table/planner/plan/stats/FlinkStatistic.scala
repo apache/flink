@@ -19,13 +19,12 @@
 package org.apache.flink.table.planner.plan.stats
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
-
+import org.apache.flink.table.planner.plan.`trait`.{RelModifiedMonotonicity, RelWindowProperties}
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
 
-import java.lang.Double
 import java.util
 
 import scala.collection.JavaConversions._
@@ -36,7 +35,8 @@ import scala.collection.JavaConversions._
 class FlinkStatistic(
     tableStats: TableStats,
     uniqueKeys: util.Set[_ <: util.Set[String]] = null,
-    relModifiedMonotonicity: RelModifiedMonotonicity = null)
+    relModifiedMonotonicity: RelModifiedMonotonicity = null,
+    relWindowProperties: RelWindowProperties = null)
   extends Statistic {
 
   require(tableStats != null, "tableStats should not be null")
@@ -76,11 +76,16 @@ class FlinkStatistic(
   def getRelModifiedMonotonicity: RelModifiedMonotonicity = relModifiedMonotonicity
 
   /**
+   * Returns the window properties of the table
+   */
+  def getRelWindowProperties: RelWindowProperties = relWindowProperties
+
+  /**
     * Returns the number of rows of the table.
     *
     * @return The number of rows of the table.
     */
-  override def getRowCount: Double = {
+  override def getRowCount: java.lang.Double = {
     if (tableStats != TableStats.UNKNOWN) {
       val rowCount = tableStats.getRowCount.toDouble
       // rowCount requires non-negative number
@@ -129,6 +134,9 @@ class FlinkStatistic(
     if (relModifiedMonotonicity != null) {
       builder.append(relModifiedMonotonicity.toString).append(", ")
     }
+    if (relWindowProperties != null) {
+      builder.append(relWindowProperties.toString).append(", ")
+    }
 
     if (builder.nonEmpty && builder.length() > 2) {
       // delete `, ` if build is not empty
@@ -136,6 +144,8 @@ class FlinkStatistic(
     }
     builder.toString()
   }
+
+  override def getKeys: util.List[ImmutableBitSet] = ImmutableList.of()
 }
 
 /**
@@ -151,6 +161,7 @@ object FlinkStatistic {
     private var tableStats: TableStats = TableStats.UNKNOWN
     private var uniqueKeys: util.Set[_ <: util.Set[String]] = _
     private var relModifiedMonotonicity: RelModifiedMonotonicity = _
+    private var windowProperties: RelWindowProperties = _
 
     def tableStats(tableStats: TableStats): Builder = {
       if (tableStats != null) {
@@ -171,6 +182,11 @@ object FlinkStatistic {
       this
     }
 
+    def relWindowProperties(windowProperties: RelWindowProperties): Builder = {
+      this.windowProperties = windowProperties
+      this
+    }
+
     def statistic(statistic: FlinkStatistic): Builder = {
       require(statistic != null, "input statistic cannot be null!")
       this.tableStats = statistic.getTableStats
@@ -182,7 +198,8 @@ object FlinkStatistic {
     def build(): FlinkStatistic = {
       if (tableStats == TableStats.UNKNOWN &&
         uniqueKeys == null &&
-        relModifiedMonotonicity == null) {
+        relModifiedMonotonicity == null &&
+        windowProperties == null) {
         UNKNOWN
       } else {
         new FlinkStatistic(tableStats, uniqueKeys, relModifiedMonotonicity)

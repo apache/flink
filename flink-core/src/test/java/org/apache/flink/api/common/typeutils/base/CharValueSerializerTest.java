@@ -18,39 +18,43 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.CharValue;
 
-/**
- * A test for the {@link CharValueSerializer}.
- */
+import java.util.Random;
+
+/** A test for the {@link CharValueSerializer}. */
 public class CharValueSerializerTest extends SerializerTestBase<CharValue> {
-	
-	@Override
-	protected TypeSerializer<CharValue> createSerializer() {
-		return new CharValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 2;
-	}
-	
-	@Override
-	protected Class<CharValue> getTypeClass() {
-		return CharValue.class;
-	}
-	
-	@Override
-	protected CharValue[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		int rndInt = rnd.nextInt((int) Character.MAX_VALUE);
-		
-		return new CharValue[] {new CharValue('a'), new CharValue('@'), new CharValue('ä'),
-								new CharValue('1'), new CharValue((char) rndInt),
-								new CharValue(Character.MAX_VALUE), new CharValue(Character.MIN_VALUE)};
-	}
+
+    @Override
+    protected TypeSerializer<CharValue> createSerializer() {
+        return new CharValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 2;
+    }
+
+    @Override
+    protected Class<CharValue> getTypeClass() {
+        return CharValue.class;
+    }
+
+    @Override
+    protected CharValue[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        int rndInt = rnd.nextInt((int) Character.MAX_VALUE);
+
+        return new CharValue[] {
+            new CharValue('a'),
+            new CharValue('@'),
+            new CharValue('ä'),
+            new CharValue('1'),
+            new CharValue((char) rndInt),
+            new CharValue(Character.MAX_VALUE),
+            new CharValue(Character.MIN_VALUE)
+        };
+    }
 }

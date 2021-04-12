@@ -24,84 +24,96 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link GraphMetrics}.
- */
+/** Tests for {@link GraphMetrics}. */
 @RunWith(Parameterized.class)
 public class GraphMetricsITCase extends DriverBaseITCase {
 
-	public GraphMetricsITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    public GraphMetricsITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	private String[] parameters(int scale, String order, String output) {
-		return new String[] {
-			"--algorithm", "GraphMetrics", "--order", order,
-			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", order,
-			"--output", output};
-	}
+    private String[] parameters(int scale, String order, String output) {
+        return new String[] {
+            "--algorithm",
+            "GraphMetrics",
+            "--order",
+            order,
+            "--input",
+            "RMatGraph",
+            "--scale",
+            Integer.toString(scale),
+            "--type",
+            idType,
+            "--simplify",
+            order,
+            "--output",
+            output
+        };
+    }
 
-	@Test
-	public void testLongDescription() throws Exception {
-		String expected = regexSubstring(new GraphMetrics().getLongDescription());
+    @Test
+    public void testLongDescription() throws Exception {
+        String expected = regexSubstring(new GraphMetrics().getLongDescription());
 
-		expectedOutputFromException(
-			new String[]{"--algorithm", "GraphMetrics"},
-			expected,
-			ProgramParametrizationException.class);
-	}
+        expectedOutputFromException(
+                new String[] {"--algorithm", "GraphMetrics"},
+                expected,
+                ProgramParametrizationException.class);
+    }
 
-	@Test
-	public void testWithDirectedRMatGraph() throws Exception {
-		String expected = "\n" +
-			"Vertex metrics:\n" +
-			"  vertex count: 117\n" +
-			"  edge count: 1,168\n" +
-			"  unidirectional edge count: 686\n" +
-			"  bidirectional edge count: 241\n" +
-			"  average degree: 9.983\n" +
-			"  density: 0.08605953\n" +
-			"  triplet count: 29,286\n" +
-			"  maximum degree: 91\n" +
-			"  maximum out degree: 77\n" +
-			"  maximum in degree: 68\n" +
-			"  maximum triplets: 4,095\n" +
-			"\n" +
-			"Edge metrics:\n" +
-			"  triangle triplet count: 4,575\n" +
-			"  rectangle triplet count: 11,756\n" +
-			"  maximum triangle triplets: 153\n" +
-			"  maximum rectangle triplets: 391\n";
+    @Test
+    public void testWithDirectedRMatGraph() throws Exception {
+        String expected =
+                "\n"
+                        + "Vertex metrics:\n"
+                        + "  vertex count: 117\n"
+                        + "  edge count: 1,168\n"
+                        + "  unidirectional edge count: 686\n"
+                        + "  bidirectional edge count: 241\n"
+                        + "  average degree: 9.983\n"
+                        + "  density: 0.08605953\n"
+                        + "  triplet count: 29,286\n"
+                        + "  maximum degree: 91\n"
+                        + "  maximum out degree: 77\n"
+                        + "  maximum in degree: 68\n"
+                        + "  maximum triplets: 4,095\n"
+                        + "\n"
+                        + "Edge metrics:\n"
+                        + "  triangle triplet count: 4,575\n"
+                        + "  rectangle triplet count: 11,756\n"
+                        + "  maximum triangle triplets: 153\n"
+                        + "  maximum rectangle triplets: 391\n";
 
-		expectedOutput(parameters(7, "directed", "hash"), expected);
-		expectedOutput(parameters(7, "directed", "print"), expected);
-	}
+        expectedOutput(parameters(7, "directed", "hash"), expected);
+        expectedOutput(parameters(7, "directed", "print"), expected);
+    }
 
-	@Test
-	public void testWithUndirectedRMatGraph() throws Exception {
-		String expected = "\n" +
-			"Vertex metrics:\n" +
-			"  vertex count: 117\n" +
-			"  edge count: 927\n" +
-			"  average degree: 15.846\n" +
-			"  density: 0.13660477\n" +
-			"  triplet count: 29,286\n" +
-			"  maximum degree: 91\n" +
-			"  maximum triplets: 4,095\n" +
-			"\n" +
-			"Edge metrics:\n" +
-			"  triangle triplet count: 4,575\n" +
-			"  rectangle triplet count: 11,756\n" +
-			"  maximum triangle triplets: 153\n" +
-			"  maximum rectangle triplets: 391\n";
+    @Test
+    public void testWithUndirectedRMatGraph() throws Exception {
+        String expected =
+                "\n"
+                        + "Vertex metrics:\n"
+                        + "  vertex count: 117\n"
+                        + "  edge count: 927\n"
+                        + "  average degree: 15.846\n"
+                        + "  density: 0.13660477\n"
+                        + "  triplet count: 29,286\n"
+                        + "  maximum degree: 91\n"
+                        + "  maximum triplets: 4,095\n"
+                        + "\n"
+                        + "Edge metrics:\n"
+                        + "  triangle triplet count: 4,575\n"
+                        + "  rectangle triplet count: 11,756\n"
+                        + "  maximum triangle triplets: 153\n"
+                        + "  maximum rectangle triplets: 391\n";
 
-		expectedOutput(parameters(7, "undirected", "hash"), expected);
-		expectedOutput(parameters(7, "undirected", "print"), expected);
-	}
+        expectedOutput(parameters(7, "undirected", "hash"), expected);
+        expectedOutput(parameters(7, "undirected", "print"), expected);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		TestUtils.verifyParallelism(parameters(8, "directed", "print"));
-		TestUtils.verifyParallelism(parameters(8, "undirected", "print"));
-	}
+    @Test
+    public void testParallelism() throws Exception {
+        TestUtils.verifyParallelism(parameters(8, "directed", "print"));
+        TestUtils.verifyParallelism(parameters(8, "undirected", "print"));
+    }
 }

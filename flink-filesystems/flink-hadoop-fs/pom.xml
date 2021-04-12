@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-hadoop-fs</artifactId>
-	<name>flink-hadoop-fs</name>
+	<name>Flink : FileSystems : Hadoop FS</name>
 
 	<packaging>jar</packaging>
 
@@ -43,11 +43,23 @@ under the License.
 		<!-- pulling in Hadoop by default -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
 			<optional>true</optional>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<optional>true</optional>
+		</dependency>
+		
 
 		<!-- for the behavior test suite -->
 		<dependency>
@@ -65,6 +77,12 @@ under the License.
 			<version>${hadoop.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
@@ -73,6 +91,14 @@ under the License.
 			<type>test-jar</type>
 			<version>${hadoop.version}</version><!--$NO-MVN-MAN-VER$-->
 			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
 				<exclusion>
 					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
 					<groupId>jdk.tools</groupId>

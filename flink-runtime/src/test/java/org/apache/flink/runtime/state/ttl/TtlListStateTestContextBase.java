@@ -32,50 +32,51 @@ import java.util.stream.StreamSupport;
 
 /** Base test suite for {@link TtlListState}. */
 abstract class TtlListStateTestContextBase<T>
-	extends TtlMergingStateTestContext<TtlListState<?, String, T>, List<T>, Iterable<T>> {
-	private final TypeSerializer<T> serializer;
+        extends TtlMergingStateTestContext<TtlListState<?, String, T>, List<T>, Iterable<T>> {
+    private final TypeSerializer<T> serializer;
 
-	TtlListStateTestContextBase(TypeSerializer<T> serializer) {
-		this.serializer = serializer;
-	}
+    TtlListStateTestContextBase(TypeSerializer<T> serializer) {
+        this.serializer = serializer;
+    }
 
-	@Override
-	public void update(List<T> value) throws Exception {
-		ttlState.addAll(value);
-	}
+    @Override
+    public void update(List<T> value) throws Exception {
+        ttlState.addAll(value);
+    }
 
-	@Override
-	public Iterable<T> get() throws Exception {
-		return StreamSupport.stream(ttlState.get().spliterator(), false).collect(Collectors.toList());
-	}
+    @Override
+    public Iterable<T> get() throws Exception {
+        return StreamSupport.stream(ttlState.get().spliterator(), false)
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.get() == null ? emptyValue : ttlState.original.get();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.get() == null ? emptyValue : ttlState.original.get();
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new ListStateDescriptor<>(getName(), serializer);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>) new ListStateDescriptor<>(getName(), serializer);
+    }
 
-	@Override
-	List<T> generateRandomUpdate() {
-		int size = RANDOM.nextInt(5);
-		return IntStream.range(0, size).mapToObj(this::generateRandomElement).collect(Collectors.toList());
-	}
+    @Override
+    List<T> generateRandomUpdate() {
+        int size = RANDOM.nextInt(5);
+        return IntStream.range(0, size)
+                .mapToObj(this::generateRandomElement)
+                .collect(Collectors.toList());
+    }
 
-	abstract T generateRandomElement(int i);
+    abstract T generateRandomElement(int i);
 
-	@Override
-	Iterable<T> getMergeResult(
-		List<Tuple2<String, List<T>>> unexpiredUpdatesToMerge,
-		List<Tuple2<String, List<T>>> finalUpdatesToMerge) {
-		List<T> result = new ArrayList<>();
-		finalUpdatesToMerge.forEach(t -> result.addAll(t.f1));
-		return result;
-	}
-
+    @Override
+    Iterable<T> getMergeResult(
+            List<Tuple2<String, List<T>>> unexpiredUpdatesToMerge,
+            List<Tuple2<String, List<T>>> finalUpdatesToMerge) {
+        List<T> result = new ArrayList<>();
+        finalUpdatesToMerge.forEach(t -> result.addAll(t.f1));
+        return result;
+    }
 }
-

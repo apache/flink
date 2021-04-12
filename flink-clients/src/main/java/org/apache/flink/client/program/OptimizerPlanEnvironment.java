@@ -18,101 +18,45 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 
 /**
- * An {@link ExecutionEnvironment} that never executes a job but only extracts the {@link
- * org.apache.flink.api.dag.Pipeline}.
+ * An {@link ExecutionEnvironment} that never executes a job but only extracts the {@link Pipeline}.
  */
 public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
-	private Pipeline pipeline;
+    private Pipeline pipeline;
 
-	// ------------------------------------------------------------------------
-	//  Execution Environment methods
-	// ------------------------------------------------------------------------
+    public Pipeline getPipeline() {
+        return pipeline;
+    }
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		this.pipeline = createProgramPlan();
+    public OptimizerPlanEnvironment(
+            Configuration configuration, ClassLoader userClassloader, int parallelism) {
+        super(configuration, userClassloader);
+        if (parallelism > 0) {
+            setParallelism(parallelism);
+        }
+    }
 
-		// do not go on with anything now!
-		throw new ProgramAbortException();
-	}
+    @Override
+    public JobClient executeAsync(String jobName) {
+        pipeline = createProgramPlan();
 
-	public Pipeline getPipeline(PackagedProgram prog) throws ProgramInvocationException {
+        // do not go on with anything now!
+        throw new ProgramAbortException();
+    }
 
-		// temporarily write syserr and sysout to a byte array.
-		PrintStream originalOut = System.out;
-		PrintStream originalErr = System.err;
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		System.setOut(new PrintStream(baos));
-		ByteArrayOutputStream baes = new ByteArrayOutputStream();
-		System.setErr(new PrintStream(baes));
+    public void setAsContext() {
+        ExecutionEnvironmentFactory factory = () -> this;
+        initializeContextEnvironment(factory);
+    }
 
-		setAsContext();
-		try {
-			prog.invokeInteractiveModeForExecution();
-		}
-		catch (ProgramInvocationException e) {
-			throw e;
-		}
-		catch (Throwable t) {
-			// the invocation gets aborted with the preview plan
-			if (pipeline != null) {
-				return pipeline;
-			} else {
-				throw new ProgramInvocationException("The program caused an error: ", t);
-			}
-		}
-		finally {
-			unsetAsContext();
-			System.setOut(originalOut);
-			System.setErr(originalErr);
-		}
-
-		String stdout = baos.toString();
-		String stderr = baes.toString();
-
-		throw new ProgramInvocationException(
-				"The program plan could not be fetched - the program aborted pre-maturely."
-						+ "\n\nSystem.err: " + (stderr.length() == 0 ? "(none)" : stderr)
-						+ "\n\nSystem.out: " + (stdout.length() == 0 ? "(none)" : stdout));
-	}
-	// ------------------------------------------------------------------------
-
-	private void setAsContext() {
-		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-
-			@Override
-			public ExecutionEnvironment createExecutionEnvironment() {
-				return OptimizerPlanEnvironment.this;
-			}
-		};
-		initializeContextEnvironment(factory);
-	}
-
-	private void unsetAsContext() {
-		resetContextEnvironment();
-	}
-
-	// ------------------------------------------------------------------------
-
-	public void setPipeline(Pipeline pipeline){
-		this.pipeline = pipeline;
-	}
-
-	/**
-	 * A special exception used to abort programs when the caller is only interested in the
-	 * program plan, rather than in the full execution.
-	 */
-	public static final class ProgramAbortException extends Error {
-		private static final long serialVersionUID = 1L;
-	}
+    public void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

@@ -26,29 +26,30 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
- * Base class for some tests related to the plugin mechanism. Provides access to some common test resources.
+ * Base class for some tests related to the plugin mechanism. Provides access to some common test
+ * resources.
  */
 abstract class PluginTestBase extends TestLogger {
 
-	/** Optional prefix to the jar folder if run from an IDE. */
-	private static final String OPT_PREFIX = "target/";
+    /** Optional prefix to the jar folder if run from an IDE. */
+    private static final String OPT_PREFIX = "target/";
 
-	static final String PLUGIN_A = "plugin-a-test-jar.jar";
-	static final String PLUGIN_B = "plugin-b-test-jar.jar";
-	static final ClassLoader PARENT_CLASS_LOADER = PluginTestBase.class.getClassLoader();
+    static final String PLUGIN_A = "plugin-a-test-jar.jar";
+    static final String PLUGIN_B = "plugin-b-test-jar.jar";
+    static final ClassLoader PARENT_CLASS_LOADER = PluginTestBase.class.getClassLoader();
 
-	URL createPluginJarURLFromString(String fileString) throws MalformedURLException {
-		File file = locateJarFile(fileString);
-		return file.toURI().toURL();
-	}
+    URL createPluginJarURLFromString(String fileString) throws MalformedURLException {
+        File file = locateJarFile(fileString);
+        return file.toURI().toURL();
+    }
 
-	static File locateJarFile(String fileString) {
-		File file = new File(fileString);
-		if (!file.exists()) {
-			file = new File(OPT_PREFIX + fileString);
-		}
-		Preconditions.checkState(file.exists(), "Unable to locate jar file for test: " + fileString);
-		return file;
-	}
-
+    static File locateJarFile(String fileString) {
+        File file = new File(fileString);
+        if (!file.exists()) {
+            file = new File(OPT_PREFIX + fileString);
+        }
+        Preconditions.checkState(
+                file.exists(), "Unable to locate jar file for test: " + fileString);
+        return file;
+    }
 }

@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
@@ -31,19 +30,19 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
   val util: TableTestUtil = streamTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
+  val orders: Table = util.addDataStream[(Long, String, Timestamp)](
     "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ordersProctime = util.addDataStream[(Long, String)](
+  val ordersProctime: Table = util.addDataStream[(Long, String)](
     "OrdersProctime", 'o_amount, 'o_currency, 'o_rowtime.proctime)
 
-  val ordersWithoutTimeAttribute = util.addDataStream[(Long, String, Timestamp)](
+  val ordersWithoutTimeAttribute: Table = util.addDataStream[(Long, String, Timestamp)](
     "OrdersWithoutTimeAttribute", 'o_amount, 'o_currency, 'o_rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
+  val ratesHistory: Table = util.addDataStream[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  val ratesHistoryWithoutTimeAttribute = util.addDataStream[(String, Int, Timestamp)](
+  val ratesHistoryWithoutTimeAttribute: Table = util.addDataStream[(String, Int, Timestamp)](
     "ratesHistoryWithoutTimeAttribute", 'currency, 'rate, 'rowtime)
 
   @Test
@@ -59,11 +58,9 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Cannot resolve field [foobar]")
 
-    ratesHistory.createTemporalTableFunction("rowtime", "foobar")
+    ratesHistory.createTemporalTableFunction($"rowtime", $"foobar")
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testNonTimeIndicatorOnRightSide(): Unit = {
     expectedException.expect(classOf[ValidationException])
@@ -74,7 +71,7 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = orders
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }
@@ -89,25 +86,23 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     val result = ordersWithoutTimeAttribute
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testMixedTimeIndicators(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Non rowtime timeAttribute [TIME ATTRIBUTE(PROCTIME)] passed as the argument " +
+      "Non rowtime timeAttribute [TIMESTAMP_LTZ(3) *PROCTIME*] passed as the argument " +
         "to TemporalTableFunction")
 
     val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
 
     val result = ordersProctime
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyExplain(result)
   }

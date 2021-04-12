@@ -50,6 +50,7 @@ export interface JobDetailInterface {
   'start-time': number;
   'end-time': number;
   duration: number;
+  maxParallelism: number;
   now: number;
   timestamps: TimestampsStatus;
   vertices: VerticesItemInterface[];
@@ -80,6 +81,7 @@ export interface VerticesItemInterface {
   id: string;
   name: string;
   parallelism: number;
+  maxParallelism: number;
   status: string;
   'start-time': number;
   'end-time': number;
@@ -102,6 +104,7 @@ interface TasksStatus {
   FAILED: number;
   RECONCILING: number;
   CANCELING: number;
+  RECOVERING: number;
 }
 
 interface MetricsStatus {
@@ -130,6 +133,8 @@ export interface NodesItemInterface {
 export interface NodesItemCorrectInterface extends NodesItemInterface {
   detail: VerticesItemInterface | undefined;
   lowWatermark?: number;
+  backPressuredPercentage?: number;
+  busyPercentage?: number;
 }
 
 export interface NodesItemLinkInterface {

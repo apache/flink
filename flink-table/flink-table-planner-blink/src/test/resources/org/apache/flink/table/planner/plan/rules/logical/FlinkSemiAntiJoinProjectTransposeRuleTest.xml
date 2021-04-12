@@ -24,7 +24,7 @@ SELECT a, f FROM
 WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
@@ -39,7 +39,7 @@ LogicalProject(i=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[>($3, 100)])
@@ -63,7 +63,7 @@ SELECT a, f FROM
 WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[AND(>($3, 100), IN($2, {
@@ -78,7 +78,7 @@ LogicalProject(i=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], f=[$4])
 +- LogicalFilter(condition=[>($3, 100)])

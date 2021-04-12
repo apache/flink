@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions.validation
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.MapTypeTestBase
+
 import org.junit.Test
 
 class MapTypeValidationTest extends MapTypeTestBase {
@@ -43,11 +43,6 @@ class MapTypeValidationTest extends MapTypeTestBase {
   @Test(expected = classOf[ValidationException])
   def testEmptyMap(): Unit = {
     testAllApis("FAIL", "map()", "MAP[]", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedMapImplicitTypeCastTableApi(): Unit = {
-    testTableApi(map("k1", 1.0, "k2", 2.0f), "map('k1', 1.0, 'k2', 2.0f)", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

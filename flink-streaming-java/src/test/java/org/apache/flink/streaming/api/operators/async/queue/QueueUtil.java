@@ -29,34 +29,33 @@ import java.util.Optional;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Utility for putting elements inside a {@link StreamElementQueue}.
- */
+/** Utility for putting elements inside a {@link StreamElementQueue}. */
 class QueueUtil {
-	static ResultFuture<Integer> putSuccessfully(StreamElementQueue<Integer> queue, StreamElement streamElement) {
-		Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
-		assertTrue(resultFuture.isPresent());
-		return resultFuture.get();
-	}
+    static ResultFuture<Integer> putSuccessfully(
+            StreamElementQueue<Integer> queue, StreamElement streamElement) {
+        Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
+        assertTrue(resultFuture.isPresent());
+        return resultFuture.get();
+    }
 
-	static void putUnsuccessfully(StreamElementQueue<Integer> queue, StreamElement streamElement) {
-		Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
-		assertFalse(resultFuture.isPresent());
-	}
+    static void putUnsuccessfully(StreamElementQueue<Integer> queue, StreamElement streamElement) {
+        Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
+        assertFalse(resultFuture.isPresent());
+    }
 
-	/**
-	 * Pops all completed elements from the head of this queue.
-	 *
-	 * @return Completed elements or empty list if none exists.
-	 */
-	static List<StreamElement> popCompleted(StreamElementQueue<Integer> queue) {
-		final List<StreamElement> completed = new ArrayList<>();
-		TimestampedCollector<Integer> collector = new TimestampedCollector<>(new CollectorOutput<>(completed));
-		while (queue.hasCompletedElements()) {
-			queue.emitCompletedElement(collector);
-		}
-		collector.close();
-		return completed;
-	}
-
+    /**
+     * Pops all completed elements from the head of this queue.
+     *
+     * @return Completed elements or empty list if none exists.
+     */
+    static List<StreamElement> popCompleted(StreamElementQueue<Integer> queue) {
+        final List<StreamElement> completed = new ArrayList<>();
+        TimestampedCollector<Integer> collector =
+                new TimestampedCollector<>(new CollectorOutput<>(completed));
+        while (queue.hasCompletedElements()) {
+            queue.emitCompletedElement(collector);
+        }
+        collector.close();
+        return completed;
+    }
 }

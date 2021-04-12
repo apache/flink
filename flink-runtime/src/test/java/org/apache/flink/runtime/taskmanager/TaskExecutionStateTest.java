@@ -18,104 +18,100 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.testutils.CommonTestUtils;
-
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
- * Correctness tests for hash/equals and serialization for the
- * {@link org.apache.flink.runtime.taskmanager.TaskExecutionState}.
+ * Correctness tests for hash/equals and serialization for the {@link
+ * org.apache.flink.runtime.taskmanager.TaskExecutionState}.
  */
 public class TaskExecutionStateTest {
 
-	@Test
-	public void testEqualsHashCode() {
-		try {
-			final JobID jid = new JobID();
-			final ExecutionAttemptID executionId = new ExecutionAttemptID();
-			final ExecutionState state = ExecutionState.RUNNING;
-			final Throwable error = new RuntimeException("some test error message");
-			
-			TaskExecutionState s1 = new TaskExecutionState(jid, executionId, state, error);
-			TaskExecutionState s2 = new TaskExecutionState(jid, executionId, state, error);
-			
-			assertEquals(s1.hashCode(), s2.hashCode());
-			assertEquals(s1, s2);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testSerialization() {
-		try {
-			final JobID jid = new JobID();
-			final ExecutionAttemptID executionId = new ExecutionAttemptID();
-			final ExecutionState state = ExecutionState.DEPLOYING;
-			final Throwable error = new IOException("fubar");
-			
-			TaskExecutionState original1 = new TaskExecutionState(jid, executionId, state, error);
-			TaskExecutionState original2 = new TaskExecutionState(jid, executionId, state);
-			
-			TaskExecutionState javaSerCopy1 = CommonTestUtils.createCopySerializable(original1);
-			TaskExecutionState javaSerCopy2 = CommonTestUtils.createCopySerializable(original2);
+    @Test
+    public void testEqualsHashCode() {
+        try {
+            final ExecutionAttemptID executionId = new ExecutionAttemptID();
+            final ExecutionState state = ExecutionState.RUNNING;
+            final Throwable error = new RuntimeException("some test error message");
 
-			// equalities
-			assertEquals(original1, javaSerCopy1);
-			assertEquals(javaSerCopy1, original1);
+            TaskExecutionState s1 = new TaskExecutionState(executionId, state, error);
+            TaskExecutionState s2 = new TaskExecutionState(executionId, state, error);
 
-			assertEquals(original2, javaSerCopy2);
-			assertEquals(javaSerCopy2, original2);
+            assertEquals(s1.hashCode(), s2.hashCode());
+            assertEquals(s1, s2);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-			// hash codes
-			assertEquals(original1.hashCode(), javaSerCopy1.hashCode());
-			assertEquals(original2.hashCode(), javaSerCopy2.hashCode());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void handleNonSerializableException() {
-		try {
-			@SuppressWarnings({"ThrowableInstanceNeverThrown", "serial"})
-			Exception hostile = new Exception() {
-				// should be non serializable, because it contains the outer class reference
-				
-				@Override
-				public String getMessage() {
-					throw new RuntimeException("Cannot get Message");
-				}
+    @Test
+    public void testSerialization() {
+        try {
+            final ExecutionAttemptID executionId = new ExecutionAttemptID();
+            final ExecutionState state = ExecutionState.DEPLOYING;
+            final Throwable error = new IOException("fubar");
 
-				@Override
-				public void printStackTrace(PrintStream s) {
-					throw new RuntimeException("Cannot print");
-				}
+            TaskExecutionState original1 = new TaskExecutionState(executionId, state, error);
+            TaskExecutionState original2 = new TaskExecutionState(executionId, state);
 
-				@Override
-				public void printStackTrace(PrintWriter s) {
-					throw new RuntimeException("Cannot print");
-				}
-			};
+            TaskExecutionState javaSerCopy1 = CommonTestUtils.createCopySerializable(original1);
+            TaskExecutionState javaSerCopy2 = CommonTestUtils.createCopySerializable(original2);
 
-			new TaskExecutionState(new JobID(), new ExecutionAttemptID(), ExecutionState.FAILED, hostile);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // equalities
+            assertEquals(original1, javaSerCopy1);
+            assertEquals(javaSerCopy1, original1);
+
+            assertEquals(original2, javaSerCopy2);
+            assertEquals(javaSerCopy2, original2);
+
+            // hash codes
+            assertEquals(original1.hashCode(), javaSerCopy1.hashCode());
+            assertEquals(original2.hashCode(), javaSerCopy2.hashCode());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void handleNonSerializableException() {
+        try {
+            @SuppressWarnings({"ThrowableInstanceNeverThrown", "serial"})
+            Exception hostile =
+                    new Exception() {
+                        // should be non serializable, because it contains the outer class reference
+
+                        @Override
+                        public String getMessage() {
+                            throw new RuntimeException("Cannot get Message");
+                        }
+
+                        @Override
+                        public void printStackTrace(PrintStream s) {
+                            throw new RuntimeException("Cannot print");
+                        }
+
+                        @Override
+                        public void printStackTrace(PrintWriter s) {
+                            throw new RuntimeException("Cannot print");
+                        }
+                    };
+
+            new TaskExecutionState(new ExecutionAttemptID(), ExecutionState.FAILED, hostile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

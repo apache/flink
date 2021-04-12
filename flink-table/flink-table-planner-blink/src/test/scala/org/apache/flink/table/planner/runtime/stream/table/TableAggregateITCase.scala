@@ -20,22 +20,23 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
-import org.apache.flink.table.planner.utils.{EmptyTableAggFuncWithoutEmit, TableAggSum, Top3, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3Accum, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 /**
   * Tests of groupby (without window) table aggregations
   */
-@Ignore("Remove this ignore when FLINK-13740 is solved.")
 @RunWith(classOf[Parameterized])
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
@@ -53,7 +54,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -87,7 +88,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val resultTable = source
       .flatAggregate(top3('a))
       .select('f0, 'f1)
-      .as('v1, 'v2)
+      .as("v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -109,7 +110,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
       .groupBy('category)
       .select('category, 'v1.max)
 
@@ -136,7 +137,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -170,7 +171,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val resultTable = source
       .groupBy('b)
       .select('b, 'a.sum as 'a)
-      .flatAggregate(top3('a) as ('v1, 'v2))
+      .flatAggregate(call(top3, 'a) as ('v1, 'v2))
       .select('v1, 'v2)
 
     val sink = new TestingRetractSink()
@@ -187,11 +188,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
 
   @Test
   def testInternalAccumulatorType(): Unit = {
-    val tableAggSum = new TableAggSum
     val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
     val resultTable = source
       .groupBy('b)
-      .flatAggregate(tableAggSum('a) as 'sum)
+      .flatAggregate(call(classOf[TableAggSum], 'a) as 'sum)
       .select('b, 'sum)
 
     val sink = new TestingRetractSink()
@@ -206,9 +206,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   @Test
   def testTableAggFunctionWithoutRetractionMethod(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Function class 'org.apache.flink.table.planner.utils.Top3'" +
-      " does not implement at least one method named 'retract' which is public, " +
-      "not abstract and (in case of table functions) not static.")
+    expectedException.expectMessage(
+      s"Could not find an implementation method 'retract' in class '${classOf[Top3].getName}' " +
+      s"for function 'Top3' that matches the following signature:\n" +
+      s"void retract(${classOf[Top3Accum].getName}, java.lang.Integer)")
 
     val top3 = new Top3
     val source = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -223,20 +224,46 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   }
 
   @Test
-  def testTableAggFunctionWithoutEmitValueMethod(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Function class " +
-      "'org.apache.flink.table.planner.utils.EmptyTableAggFuncWithoutEmit' does not " +
-      "implement at least one method named 'emitValue' which is public, " +
-      "not abstract and (in case of table functions) not static.")
+  def testOverloadedAccumulator(): Unit = {
+    val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
 
-    val func = new EmptyTableAggFuncWithoutEmit
-    val source = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val sink1 = new TestingRetractSink()
     source
-      .flatAggregate(func('a) as ('v1, 'v2))
-      .select('v1, 'v2)
+      .groupBy('b)
+      .flatAggregate(call(classOf[OverloadedDoubleMaxFunction], 'a) as 'max)
+      .select('b, 'max)
       .toRetractStream[Row]
+      .addSink(sink1).setParallelism(1)
+
+    val sink2 = new TestingRetractSink()
+    source
+      .select('a.cast(DataTypes.STRING()) + "str" as 'a, 'b)
+      .groupBy('b)
+      .flatAggregate(call(classOf[OverloadedDoubleMaxFunction], 'a) as 'max)
+      .select('b, 'max)
+      .toRetractStream[Row]
+      .addSink(sink2).setParallelism(1)
 
     env.execute()
+
+    val expected1 = List(
+      "1,1", "1,1",
+      "2,3", "2,3",
+      "3,6", "3,6",
+      "4,10", "4,10",
+      "5,15", "5,15",
+      "6,21", "6,21"
+    )
+    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
+
+    val expected2 = List(
+      "1,1str", "1,1str",
+      "2,3str", "2,3str",
+      "3,6str", "3,6str",
+      "4,9str", "4,9str",
+      "5,15str", "5,15str",
+      "6,21str", "6,21str"
+    )
+    assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
   }
 }

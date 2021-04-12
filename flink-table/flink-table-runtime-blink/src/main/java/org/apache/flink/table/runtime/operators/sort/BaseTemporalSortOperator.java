@@ -27,24 +27,20 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
-/**
- * Base class for stream temporal sort operator.
- */
-abstract class BaseTemporalSortOperator extends AbstractStreamOperator<BaseRow> implements
-		OneInputStreamOperator<BaseRow, BaseRow>, Triggerable<BaseRow, VoidNamespace> {
+/** Base class for stream temporal sort operator. */
+abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
+        implements OneInputStreamOperator<RowData, RowData>, Triggerable<RowData, VoidNamespace> {
 
-	protected transient TimerService timerService;
-	protected transient TimestampedCollector<BaseRow> collector;
+    protected transient TimerService timerService;
+    protected transient TimestampedCollector<RowData> collector;
 
-	@Override
-	public void open() throws Exception {
-		InternalTimerService<VoidNamespace> internalTimerService = getInternalTimerService("user-timers",
-				VoidNamespaceSerializer.INSTANCE,
-				this);
-		timerService = new SimpleTimerService(internalTimerService);
-		collector = new TimestampedCollector<>(output);
-	}
-
+    @Override
+    public void open() throws Exception {
+        InternalTimerService<VoidNamespace> internalTimerService =
+                getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
+        timerService = new SimpleTimerService(internalTimerService);
+        collector = new TimestampedCollector<>(output);
+    }
 }

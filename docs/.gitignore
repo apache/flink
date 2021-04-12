@@ -2,6 +2,7 @@
 .jekyll-metadata
 .jekyll-cache/
 .rubydeps/
-content/
 ruby2/.bundle/
 ruby2/.rubydeps/
+public/
+resources/

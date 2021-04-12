@@ -19,146 +19,149 @@
 package org.apache.flink.tests.util;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utility class for setting up command-line tool usages in a readable fashion.
- */
+/** Utility class for setting up command-line tool usages in a readable fashion. */
 public enum CommandLineWrapper {
-	;
+    ;
 
-	public static WGetBuilder wget(String url) {
-		return new WGetBuilder(url);
-	}
+    public static WGetBuilder wget(String url) {
+        return new WGetBuilder(url);
+    }
 
-	/**
-	 * Wrapper around wget used for downloading files.
-	 */
-	public static final class WGetBuilder {
+    /** Wrapper around wget used for downloading files. */
+    public static final class WGetBuilder {
 
-		private final String url;
-		private Path targetDir;
+        private final String url;
+        private Path targetDir;
+        private long timeoutSecs;
 
-		WGetBuilder(String url) {
-			this.url = url;
-		}
+        WGetBuilder(String url) {
+            this.url = url;
+        }
 
-		public WGetBuilder targetDir(Path dir) {
-			this.targetDir = dir;
-			return this;
-		}
+        public WGetBuilder targetDir(Path dir) {
+            this.targetDir = dir;
+            return this;
+        }
 
-		public String[] build() {
-			final List<String> commandsList = new ArrayList<>(5);
-			commandsList.add("wget");
-			commandsList.add("-q"); // silent
-			//commandsList.add("--show-progress"); // enable progress bar
-			if (targetDir != null) {
-				commandsList.add("-P");
-				commandsList.add(targetDir.toAbsolutePath().toString());
-			}
-			commandsList.add(url);
-			return commandsList.toArray(new String[commandsList.size()]);
-		}
-	}
+        public WGetBuilder timeoutSecs(Duration timeout) {
+            this.timeoutSecs = timeout.getSeconds();
+            return this;
+        }
 
-	public static SedBuilder sed(final String command, final Path file) {
-		return new SedBuilder(command, file);
-	}
+        public String[] build() {
+            final List<String> commandsList = new ArrayList<>(5);
+            commandsList.add("wget");
+            commandsList.add("-q"); // silent
+            // commandsList.add("--show-progress"); // enable progress bar
+            if (targetDir != null) {
+                commandsList.add("-P");
+                commandsList.add(targetDir.toAbsolutePath().toString());
+            }
+            if (timeoutSecs > 0) {
+                commandsList.add("--timeout");
+                commandsList.add(Long.toString(timeoutSecs));
+            }
+            commandsList.add(url);
+            return commandsList.toArray(new String[commandsList.size()]);
+        }
+    }
 
-	/**
-	 * Wrapper around sed used for processing text.
-	 */
-	public static final class SedBuilder {
+    public static SedBuilder sed(final String command, final Path file) {
+        return new SedBuilder(command, file);
+    }
 
-		private final String command;
-		private final Path file;
+    /** Wrapper around sed used for processing text. */
+    public static final class SedBuilder {
 
-		private boolean inPlace = false;
+        private final String command;
+        private final Path file;
 
-		SedBuilder(final String command, final Path file) {
-			this.command = command;
-			this.file = file;
-		}
+        private boolean inPlace = false;
 
-		public SedBuilder inPlace() {
-			inPlace = true;
-			return this;
-		}
+        SedBuilder(final String command, final Path file) {
+            this.command = command;
+            this.file = file;
+        }
 
-		public String[] build() {
-			final List<String> commandsList = new ArrayList<>(5);
-			commandsList.add("sed");
-			if (inPlace) {
-				commandsList.add("-i");
-			}
-			commandsList.add("-e");
-			commandsList.add(command);
-			commandsList.add(file.toAbsolutePath().toString());
-			return commandsList.toArray(new String[commandsList.size()]);
-		}
-	}
+        public SedBuilder inPlace() {
+            inPlace = true;
+            return this;
+        }
 
-	public static TarBuilder tar(final Path file) {
-		return new TarBuilder(file);
-	}
+        public String[] build() {
+            final List<String> commandsList = new ArrayList<>(5);
+            commandsList.add("sed");
+            if (inPlace) {
+                commandsList.add("-i");
+            }
+            commandsList.add("-e");
+            commandsList.add(command);
+            commandsList.add(file.toAbsolutePath().toString());
+            return commandsList.toArray(new String[commandsList.size()]);
+        }
+    }
 
-	/**
-	 * Wrapper around tar used for extracting .tar archives.
-	 */
-	public static final class TarBuilder {
+    public static TarBuilder tar(final Path file) {
+        return new TarBuilder(file);
+    }
 
-		private final Path file;
-		private boolean zipped = false;
-		private boolean extract = false;
-		private Path targetDir;
-		private int strips = -1;
+    /** Wrapper around tar used for extracting .tar archives. */
+    public static final class TarBuilder {
 
-		public TarBuilder(final Path file) {
-			this.file = file;
-		}
+        private final Path file;
+        private boolean zipped = false;
+        private boolean extract = false;
+        private Path targetDir;
+        private int strips = -1;
 
-		public TarBuilder zipped() {
-			zipped = true;
-			return this;
-		}
+        public TarBuilder(final Path file) {
+            this.file = file;
+        }
 
-		public TarBuilder extract() {
-			extract = true;
-			return this;
-		}
+        public TarBuilder zipped() {
+            zipped = true;
+            return this;
+        }
 
-		public TarBuilder targetDir(final Path dir) {
-			targetDir = dir;
-			return this;
-		}
+        public TarBuilder extract() {
+            extract = true;
+            return this;
+        }
 
-		public TarBuilder strip(final int num) {
-			strips = num;
-			return this;
-		}
+        public TarBuilder targetDir(final Path dir) {
+            targetDir = dir;
+            return this;
+        }
 
-		public String[] build() {
-			final List<String> commandsList = new ArrayList<>(4);
-			commandsList.add("tar");
-			if (zipped) {
-				commandsList.add("-z");
-			}
-			if (extract) {
-				commandsList.add("-x");
-			}
-			if (targetDir != null) {
-				commandsList.add("--directory");
-				commandsList.add(targetDir.toAbsolutePath().toString());
-			}
-			if (strips > 0) {
-				commandsList.add("--strip");
-				commandsList.add(String.valueOf(strips));
-			}
-			commandsList.add("-f");
-			commandsList.add(file.toAbsolutePath().toString());
-			return commandsList.toArray(new String[commandsList.size()]);
-		}
-	}
+        public TarBuilder strip(final int num) {
+            strips = num;
+            return this;
+        }
+
+        public String[] build() {
+            final List<String> commandsList = new ArrayList<>(4);
+            commandsList.add("tar");
+            if (zipped) {
+                commandsList.add("-z");
+            }
+            if (extract) {
+                commandsList.add("-x");
+            }
+            if (targetDir != null) {
+                commandsList.add("--directory");
+                commandsList.add(targetDir.toAbsolutePath().toString());
+            }
+            if (strips > 0) {
+                commandsList.add("--strip");
+                commandsList.add(String.valueOf(strips));
+            }
+            commandsList.add("-f");
+            commandsList.add(file.toAbsolutePath().toString());
+            return commandsList.toArray(new String[commandsList.size()]);
+        }
+    }
 }

@@ -17,16 +17,40 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.calcite.sql.SqlExplainLevel
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, _}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
+import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TableTestUtil
+
+import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Before, Test}
+
+import scala.collection.Seq
 
 class FlinkRelOptUtilTest {
+
+  var tableEnv: TableEnvironment = _
+
+  @Before
+  def before(): Unit = {
+    val settings = EnvironmentSettings.newInstance().build()
+    val tEnv = TableEnvironmentImpl.create(settings)
+    BatchTableEnvUtil.registerCollection(
+      tEnv,
+      "MyTable",
+      Seq(row("Mike", 1, 12.3, "Smith")),
+      new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, DOUBLE_TYPE_INFO, STRING_TYPE_INFO),
+      "first, id, score, last")
+    tableEnv = tEnv
+  }
 
   @Test
   def testToString(): Unit = {
@@ -74,9 +98,42 @@ class FlinkRelOptUtilTest {
   }
 
   @Test
+  def testGetDigestWithDynamicFunction(): Unit = {
+    val table = tableEnv.sqlQuery(
+      """
+        |(SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1)
+        |INTERSECT
+        |(SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1)
+        |INTERSECT
+        |(SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1)
+      """.stripMargin)
+    val rel = TableTestUtil.toRelNode(table)
+    val expected = TableTestUtil.readFromResource("/digest/testGetDigestWithDynamicFunction.out")
+    assertEquals(expected, FlinkRelOptUtil.getDigest(rel))
+  }
+
+  @Test
+  def testGetDigestWithDynamicFunctionView(): Unit = {
+    val view = tableEnv.sqlQuery("SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1")
+    tableEnv.registerTable("MyView", view)
+    val table = tableEnv.sqlQuery(
+      """
+        |(SELECT * FROM MyView)
+        |INTERSECT
+        |(SELECT * FROM MyView)
+        |INTERSECT
+        |(SELECT * FROM MyView)
+      """.stripMargin)
+    val rel = TableTestUtil.toRelNode(table).accept(new ExpandTableScanShuttle())
+    val expected = TableTestUtil.readFromResource(
+      "/digest/testGetDigestWithDynamicFunctionView.out")
+    assertEquals(expected, FlinkRelOptUtil.getDigest(rel))
+  }
+
+  @Test
   def testMergeRowTimeAndNone(): Unit = {
     val none = MiniBatchInterval.NONE
-    val rowtime = MiniBatchInterval(1000L, MiniBatchMode.RowTime)
+    val rowtime = new MiniBatchInterval(1000L, MiniBatchMode.RowTime)
     val mergedResult = FlinkRelOptUtil.mergeMiniBatchInterval(none, rowtime)
     assertEquals(rowtime, mergedResult)
   }
@@ -84,33 +141,33 @@ class FlinkRelOptUtilTest {
   @Test
   def testMergeProcTimeAndNone(): Unit = {
     val none = MiniBatchInterval.NONE
-    val proctime = MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
+    val proctime = new MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
     val mergedResult = FlinkRelOptUtil.mergeMiniBatchInterval(none, proctime)
     assertEquals(proctime, mergedResult)
   }
 
   @Test
   def testMergeRowTimeTAndProcTime1(): Unit = {
-    val rowtime = MiniBatchInterval(4000L, MiniBatchMode.RowTime)
-    val proctime = MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
+    val rowtime = new MiniBatchInterval(4000L, MiniBatchMode.RowTime)
+    val proctime = new MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
     val mergedResult = FlinkRelOptUtil.mergeMiniBatchInterval(rowtime, proctime)
     assertEquals(rowtime, mergedResult)
   }
 
   @Test
   def testMergeRowTimeTAndProcTime2(): Unit = {
-    val rowtime = MiniBatchInterval(0L, MiniBatchMode.RowTime)
-    val proctime = MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
+    val rowtime = new MiniBatchInterval(0L, MiniBatchMode.RowTime)
+    val proctime = new MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
     val mergedResult = FlinkRelOptUtil.mergeMiniBatchInterval(rowtime, proctime)
-    assertEquals(MiniBatchInterval(1000L, MiniBatchMode.RowTime), mergedResult)
+    assertEquals(new MiniBatchInterval(1000L, MiniBatchMode.RowTime), mergedResult)
   }
 
   @Test
   def testMergeRowTimeAndRowtime(): Unit = {
-    val rowtime1 = MiniBatchInterval(3000L, MiniBatchMode.RowTime)
-    val rowtime2 = MiniBatchInterval(5000L, MiniBatchMode.RowTime)
+    val rowtime1 = new MiniBatchInterval(3000L, MiniBatchMode.RowTime)
+    val rowtime2 = new MiniBatchInterval(5000L, MiniBatchMode.RowTime)
     val mergedResult = FlinkRelOptUtil.mergeMiniBatchInterval(rowtime1, rowtime2)
-    assertEquals(MiniBatchInterval(1000L, MiniBatchMode.RowTime), mergedResult)
+    assertEquals(new MiniBatchInterval(1000L, MiniBatchMode.RowTime), mergedResult)
   }
 
   @Test
@@ -124,12 +181,12 @@ class FlinkRelOptUtilTest {
     assertEquals(MiniBatchInterval.NO_MINIBATCH,
       FlinkRelOptUtil.mergeMiniBatchInterval(
         MiniBatchInterval.NO_MINIBATCH, MiniBatchInterval.NO_MINIBATCH))
-    val rowtime = MiniBatchInterval(3000L, MiniBatchMode.RowTime)
+    val rowtime = new MiniBatchInterval(3000L, MiniBatchMode.RowTime)
     assertEquals(MiniBatchInterval.NO_MINIBATCH,
       FlinkRelOptUtil.mergeMiniBatchInterval(MiniBatchInterval.NO_MINIBATCH, rowtime))
     assertEquals(MiniBatchInterval.NO_MINIBATCH,
       FlinkRelOptUtil.mergeMiniBatchInterval(rowtime, MiniBatchInterval.NO_MINIBATCH))
-    val proctime = MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
+    val proctime = new MiniBatchInterval(1000L, MiniBatchMode.ProcTime)
     assertEquals(MiniBatchInterval.NO_MINIBATCH,
       FlinkRelOptUtil.mergeMiniBatchInterval(MiniBatchInterval.NO_MINIBATCH, proctime))
     assertEquals(MiniBatchInterval.NO_MINIBATCH,

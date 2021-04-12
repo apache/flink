@@ -55,229 +55,226 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.REST_PATH_PREFIX;
 
-/**
- * Version-specific upsert table sink for Elasticsearch 7.
- */
+/** Version-specific upsert table sink for Elasticsearch 7. */
 @Internal
 public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkBase {
 
-	@VisibleForTesting
-	static final RequestFactory UPDATE_REQUEST_FACTORY =
-		new Elasticsearch7RequestFactory();
+    @VisibleForTesting
+    static final RequestFactory UPDATE_REQUEST_FACTORY = new Elasticsearch7RequestFactory();
 
-	public Elasticsearch7UpsertTableSink(
-			boolean isAppendOnly,
-			TableSchema schema,
-			List<Host> hosts,
-			String index,
-			String keyDelimiter,
-			String keyNullLiteral,
-			SerializationSchema<Row> serializationSchema,
-			XContentType contentType,
-			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions) {
+    public Elasticsearch7UpsertTableSink(
+            boolean isAppendOnly,
+            TableSchema schema,
+            List<Host> hosts,
+            String index,
+            String keyDelimiter,
+            String keyNullLiteral,
+            SerializationSchema<Row> serializationSchema,
+            XContentType contentType,
+            ActionRequestFailureHandler failureHandler,
+            Map<SinkOption, String> sinkOptions) {
 
-		super(
-			isAppendOnly,
-			schema,
-			hosts,
-			index,
-			"",
-			keyDelimiter,
-			keyNullLiteral,
-			serializationSchema,
-			contentType,
-			failureHandler,
-			sinkOptions,
-			UPDATE_REQUEST_FACTORY);
-	}
+        super(
+                isAppendOnly,
+                schema,
+                hosts,
+                index,
+                "",
+                keyDelimiter,
+                keyNullLiteral,
+                serializationSchema,
+                contentType,
+                failureHandler,
+                sinkOptions,
+                UPDATE_REQUEST_FACTORY);
+    }
 
-	@VisibleForTesting
-	Elasticsearch7UpsertTableSink(
-		boolean isAppendOnly,
-		TableSchema schema,
-		List<Host> hosts,
-		String index,
-		String docType,
-		String keyDelimiter,
-		String keyNullLiteral,
-		SerializationSchema<Row> serializationSchema,
-		XContentType contentType,
-		ActionRequestFailureHandler failureHandler,
-		Map<SinkOption, String> sinkOptions) {
+    @VisibleForTesting
+    Elasticsearch7UpsertTableSink(
+            boolean isAppendOnly,
+            TableSchema schema,
+            List<Host> hosts,
+            String index,
+            String docType,
+            String keyDelimiter,
+            String keyNullLiteral,
+            SerializationSchema<Row> serializationSchema,
+            XContentType contentType,
+            ActionRequestFailureHandler failureHandler,
+            Map<SinkOption, String> sinkOptions) {
 
-		super(
-			isAppendOnly,
-			schema,
-			hosts,
-			index,
-			docType,
-			keyDelimiter,
-			keyNullLiteral,
-			serializationSchema,
-			contentType,
-			failureHandler,
-			sinkOptions,
-			UPDATE_REQUEST_FACTORY);
-	}
+        super(
+                isAppendOnly,
+                schema,
+                hosts,
+                index,
+                docType,
+                keyDelimiter,
+                keyNullLiteral,
+                serializationSchema,
+                contentType,
+                failureHandler,
+                sinkOptions,
+                UPDATE_REQUEST_FACTORY);
+    }
 
-	@Override
-	protected ElasticsearchUpsertTableSinkBase copy(
-			boolean isAppendOnly,
-			TableSchema schema,
-			List<Host> hosts,
-			String index,
-			String docType,
-			String keyDelimiter,
-			String keyNullLiteral,
-			SerializationSchema<Row> serializationSchema,
-			XContentType contentType,
-			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions,
-			RequestFactory requestFactory) {
+    @Override
+    protected ElasticsearchUpsertTableSinkBase copy(
+            boolean isAppendOnly,
+            TableSchema schema,
+            List<Host> hosts,
+            String index,
+            String docType,
+            String keyDelimiter,
+            String keyNullLiteral,
+            SerializationSchema<Row> serializationSchema,
+            XContentType contentType,
+            ActionRequestFailureHandler failureHandler,
+            Map<SinkOption, String> sinkOptions,
+            RequestFactory requestFactory) {
 
-		return new Elasticsearch7UpsertTableSink(
-			isAppendOnly,
-			schema,
-			hosts,
-			index,
-			keyDelimiter,
-			keyNullLiteral,
-			serializationSchema,
-			contentType,
-			failureHandler,
-			sinkOptions);
-	}
+        return new Elasticsearch7UpsertTableSink(
+                isAppendOnly,
+                schema,
+                hosts,
+                index,
+                keyDelimiter,
+                keyNullLiteral,
+                serializationSchema,
+                contentType,
+                failureHandler,
+                sinkOptions);
+    }
 
-	@Override
-	protected SinkFunction<Tuple2<Boolean, Row>> createSinkFunction(
-			List<Host> hosts,
-			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions,
-			ElasticsearchUpsertSinkFunction upsertSinkFunction) {
+    @Override
+    protected SinkFunction<Tuple2<Boolean, Row>> createSinkFunction(
+            List<Host> hosts,
+            ActionRequestFailureHandler failureHandler,
+            Map<SinkOption, String> sinkOptions,
+            ElasticsearchUpsertSinkFunction upsertSinkFunction) {
 
-		final List<HttpHost> httpHosts = hosts.stream()
-			.map((host) -> new HttpHost(host.hostname, host.port, host.protocol))
-			.collect(Collectors.toList());
+        final List<HttpHost> httpHosts =
+                hosts.stream()
+                        .map((host) -> new HttpHost(host.hostname, host.port, host.protocol))
+                        .collect(Collectors.toList());
 
-		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> builder = createBuilder(upsertSinkFunction, httpHosts);
+        final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> builder =
+                createBuilder(upsertSinkFunction, httpHosts);
 
-		builder.setFailureHandler(failureHandler);
+        builder.setFailureHandler(failureHandler);
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_MAX_ACTIONS))
-			.ifPresent(v -> builder.setBulkFlushMaxActions(Integer.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_MAX_ACTIONS))
+                .ifPresent(v -> builder.setBulkFlushMaxActions(Integer.valueOf(v)));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_MAX_SIZE))
-			.ifPresent(v -> builder.setBulkFlushMaxSizeMb(MemorySize.parse(v).getMebiBytes()));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_MAX_SIZE))
+                .ifPresent(v -> builder.setBulkFlushMaxSizeMb(MemorySize.parse(v).getMebiBytes()));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_INTERVAL))
-			.ifPresent(v -> builder.setBulkFlushInterval(Long.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_INTERVAL))
+                .ifPresent(v -> builder.setBulkFlushInterval(Long.valueOf(v)));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_ENABLED))
-			.ifPresent(v -> builder.setBulkFlushBackoff(Boolean.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_ENABLED))
+                .ifPresent(v -> builder.setBulkFlushBackoff(Boolean.valueOf(v)));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_TYPE))
-			.ifPresent(v -> builder.setBulkFlushBackoffType(ElasticsearchSinkBase.FlushBackoffType.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_TYPE))
+                .ifPresent(
+                        v ->
+                                builder.setBulkFlushBackoffType(
+                                        ElasticsearchSinkBase.FlushBackoffType.valueOf(v)));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_RETRIES))
-			.ifPresent(v -> builder.setBulkFlushBackoffRetries(Integer.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_RETRIES))
+                .ifPresent(v -> builder.setBulkFlushBackoffRetries(Integer.valueOf(v)));
 
-		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_DELAY))
-			.ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
+        Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_DELAY))
+                .ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
 
-		builder.setRestClientFactory(
-			new DefaultRestClientFactory(sinkOptions.get(REST_PATH_PREFIX)));
+        builder.setRestClientFactory(
+                new DefaultRestClientFactory(sinkOptions.get(REST_PATH_PREFIX)));
 
-		final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
+        final ElasticsearchSink<Tuple2<Boolean, Row>> sink = builder.build();
 
-		Optional.ofNullable(sinkOptions.get(DISABLE_FLUSH_ON_CHECKPOINT))
-			.ifPresent(v -> {
-				if (Boolean.valueOf(v)) {
-					sink.disableFlushOnCheckpoint();
-				}
-			});
+        Optional.ofNullable(sinkOptions.get(DISABLE_FLUSH_ON_CHECKPOINT))
+                .ifPresent(
+                        v -> {
+                            if (Boolean.valueOf(v)) {
+                                sink.disableFlushOnCheckpoint();
+                            }
+                        });
 
-		return sink;
-	}
+        return sink;
+    }
 
-	@VisibleForTesting
-	ElasticsearchSink.Builder<Tuple2<Boolean, Row>> createBuilder(
-			ElasticsearchUpsertSinkFunction upsertSinkFunction,
-			List<HttpHost> httpHosts) {
-		return new ElasticsearchSink.Builder<>(httpHosts, upsertSinkFunction);
-	}
+    @VisibleForTesting
+    ElasticsearchSink.Builder<Tuple2<Boolean, Row>> createBuilder(
+            ElasticsearchUpsertSinkFunction upsertSinkFunction, List<HttpHost> httpHosts) {
+        return new ElasticsearchSink.Builder<>(httpHosts, upsertSinkFunction);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Helper classes
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Helper classes
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Serializable {@link RestClientFactory} used by the sink.
-	 */
-	@VisibleForTesting
-	static class DefaultRestClientFactory implements RestClientFactory {
+    /** Serializable {@link RestClientFactory} used by the sink. */
+    @VisibleForTesting
+    static class DefaultRestClientFactory implements RestClientFactory {
 
-		private String pathPrefix;
+        private String pathPrefix;
 
-		public DefaultRestClientFactory(@Nullable String pathPrefix) {
-			this.pathPrefix = pathPrefix;
-		}
+        public DefaultRestClientFactory(@Nullable String pathPrefix) {
+            this.pathPrefix = pathPrefix;
+        }
 
-		@Override
-		public void configureRestClientBuilder(RestClientBuilder restClientBuilder) {
-			if (pathPrefix != null) {
-				restClientBuilder.setPathPrefix(pathPrefix);
-			}
-		}
+        @Override
+        public void configureRestClientBuilder(RestClientBuilder restClientBuilder) {
+            if (pathPrefix != null) {
+                restClientBuilder.setPathPrefix(pathPrefix);
+            }
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			DefaultRestClientFactory that = (DefaultRestClientFactory) o;
-			return Objects.equals(pathPrefix, that.pathPrefix);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            DefaultRestClientFactory that = (DefaultRestClientFactory) o;
+            return Objects.equals(pathPrefix, that.pathPrefix);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(pathPrefix);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(pathPrefix);
+        }
+    }
 
-	/**
-	 * Version-specific creation of {@link org.elasticsearch.action.ActionRequest}s used by the sink.
-	 */
-	private static class Elasticsearch7RequestFactory implements RequestFactory {
+    /**
+     * Version-specific creation of {@link org.elasticsearch.action.ActionRequest}s used by the
+     * sink.
+     */
+    private static class Elasticsearch7RequestFactory implements RequestFactory {
 
-		@Override
-		public UpdateRequest createUpdateRequest(
-				String index,
-				String docType,
-				String key,
-				XContentType contentType,
-				byte[] document) {
-			return new UpdateRequest(index, key)
-				.doc(document, contentType)
-				.upsert(document, contentType);
-		}
+        @Override
+        public UpdateRequest createUpdateRequest(
+                String index,
+                String docType,
+                String key,
+                XContentType contentType,
+                byte[] document) {
+            return new UpdateRequest(index, key)
+                    .doc(document, contentType)
+                    .upsert(document, contentType);
+        }
 
-		@Override
-		public IndexRequest createIndexRequest(
-				String index,
-				String docType,
-				XContentType contentType,
-				byte[] document) {
-			return new IndexRequest(index)
-				.source(document, contentType);
-		}
+        @Override
+        public IndexRequest createIndexRequest(
+                String index, String docType, XContentType contentType, byte[] document) {
+            return new IndexRequest(index).source(document, contentType);
+        }
 
-		@Override
-		public DeleteRequest createDeleteRequest(String index, String docType, String key) {
-			return new DeleteRequest(index, key);
-		}
-	}
+        @Override
+        public DeleteRequest createDeleteRequest(String index, String docType, String key) {
+            return new DeleteRequest(index, key);
+        }
+    }
 }

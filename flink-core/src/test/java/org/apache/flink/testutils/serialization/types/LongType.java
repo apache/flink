@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class LongType implements SerializationTestType {
 
-	private long value;
+    private long value;
 
-	public LongType() {
-		this.value = 0;
-	}
+    public LongType() {
+        this.value = 0;
+    }
 
-	private LongType(long value) {
-		this.value = value;
-	}
+    private LongType(long value) {
+        this.value = value;
+    }
 
-	@Override
-	public LongType getRandom(Random rnd) {
-		return new LongType(rnd.nextLong());
-	}
+    @Override
+    public LongType getRandom(Random rnd) {
+        return new LongType(rnd.nextLong());
+    }
 
-	@Override
-	public int length() {
-		return 8;
-	}
+    @Override
+    public int length() {
+        return 8;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeLong(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeLong(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readLong();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readLong();
+    }
 
-	@Override
-	public int hashCode() {
-		return (int) (this.value ^ this.value >>> 32);
-	}
+    @Override
+    public int hashCode() {
+        return (int) (this.value ^ this.value >>> 32);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof LongType) {
-			LongType other = (LongType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof LongType) {
+            LongType other = (LongType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

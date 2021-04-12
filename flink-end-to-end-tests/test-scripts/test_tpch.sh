@@ -39,6 +39,7 @@ java -cp "$TARGET_DIR/TpchTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.ta
 
 echo "Preparing Flink..."
 
+set_config_key "taskmanager.memory.managed.fraction" "0.55f"
 start_cluster
 
 ################################################################################
@@ -82,7 +83,7 @@ EOF
         SQL_STATEMENT="INSERT INTO q$i $(cat "$ORIGIN_QUERY_DIR/q$i.sql")"
     fi
 
-    JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" embedded \
+    JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" \
         --environment "$SQL_CONF" \
         --update "$SQL_STATEMENT" | grep "Job ID:" | sed 's/.* //g')
 

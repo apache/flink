@@ -23,19 +23,16 @@ import org.apache.flink.annotation.Internal;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * Decorator for input streams that ignores calls to {@link OutputStream#close()}.
- */
+/** Decorator for input streams that ignores calls to {@link OutputStream#close()}. */
 @Internal
 public class NonClosingOutpusStreamDecorator extends ForwardingOutputStream {
 
+    public NonClosingOutpusStreamDecorator(OutputStream delegate) {
+        super(delegate);
+    }
 
-	public NonClosingOutpusStreamDecorator(OutputStream delegate) {
-		super(delegate);
-	}
-
-	@Override
-	public void close() throws IOException {
-		// ignore
-	}
+    @Override
+    public void close() throws IOException {
+        // ignore
+    }
 }

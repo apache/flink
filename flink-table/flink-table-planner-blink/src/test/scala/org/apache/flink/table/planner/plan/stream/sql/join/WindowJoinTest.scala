@@ -18,453 +18,962 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.apache.calcite.rel.logical.LogicalJoin
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/**
+ * Tests for window join.
+ */
 class WindowJoinTest extends TableTestBase {
 
   private val util: StreamTableTestUtil = streamTestUtil()
-  util.addDataStream[(Int, String, Long)](
-    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-  util.addDataStream[(Int, String, Long)](
-    "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable (
+       |  a INT,
+       |  b STRING NOT NULL,
+       |  c BIGINT,
+       |  rowtime TIMESTAMP(3),
+       |  proctime as PROCTIME(),
+       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+       |) with (
+       |  'connector' = 'values'
+       |)
+       |""".stripMargin)
 
-  /** There should exist exactly two time conditions **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinSingleTimeCondition(): Unit = {
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable2 (
+       |  a INT,
+       |  b STRING NOT NULL,
+       |  c BIGINT,
+       |  rowtime TIMESTAMP(3),
+       |  proctime as PROCTIME(),
+       |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+       |) with (
+       |  'connector' = 'values'
+       |)
+       |""".stripMargin)
+
+  // ----------------------------------------------------------------------------------------
+  // Tests for queries Join on window TVF
+  // Current does not support merge Window TVF into WindowJoin.
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testCantMergeWindowTVF_Tumble(): Unit = {
     val sql =
       """
-        |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  /** Both time attributes in a join condition must be of the same type **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinDiffTimeIndicator(): Unit = {
+  @Test
+  def testCantMergeWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """
-        |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
-        |  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  /** The time conditions should be an And condition **/
-  @Test(expected = classOf[TableException])
-  def testWindowJoinNotCnfCondition(): Unit = {
+  @Test
+  def testCantMergeWindowTVF_Hop(): Unit = {
     val sql =
       """
-        |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  (t1.proctime > t2.proctime - INTERVAL '5' SECOND OR
-        |   t1.proctime < t2.rowtime + INTERVAL '5' SECOND)
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  /** Validates that no rowtime attribute is in the output schema **/
-  @Test(expected = classOf[TableException])
-  def testNoRowtimeAttributeInResult(): Unit = {
+  @Test
+  def testCantMergeWindowTVF_HopOnProctime(): Unit = {
     val sql =
       """
-        |SELECT * FROM MyTable t1, MyTable2 t2 WHERE
-        |  t1.a = t2.a AND
-        |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND t2.proctime
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  /**
-    * Currently only the inner join condition can support the Python UDF taking the inputs from
-    * the left table and the right table at the same time.
-    */
-  @Test(expected = classOf[TableException])
-  def testWindowOuterJoinWithPythonFunctionInCondition(): Unit = {
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+  @Test
+  def testCantMergeWindowTVF_Cumulate(): Unit = {
     val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
-        |    t1.a = t2.a AND pyFunc(t1.a, t2.a) = t1.a + t2.a AND
-        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testProcessingTimeInnerJoinWithOnClause(): Unit = {
-    val sqlQuery =
+  def testCantMergeWindowTVF_CumulateOnProctime(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
-        |    t1.a = t2.a AND
-        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  // ----------------------------------------------------------------------------------------
+  // Tests for invalid queries Join on window Aggregate
+  // because left window strategy is not equals to right window strategy.
+  // ----------------------------------------------------------------------------------------
+
+  /** Window type in left and right child should be same **/
+  @Test
+  def testNotSameWindowType(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join doesn't support different window table function of left and " +
+        "right inputs.\n" +
+        "The left window table function is HOP(size=[10 min], slide=[5 min]).\n" +
+        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
+    util.verifyRelPlan(sql)
+  }
+
+  /** Window spec in left and right child should be same **/
+  @Test
+  def testNotSameWindowSpec(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '2' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join doesn't support different window table function of left and " +
+        "right inputs.\n" +
+        "The left window table function is CUMULATE(max_size=[2 h], step=[10 min]).\n" +
+        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
+    util.verifyRelPlan(sql)
+  }
+
+  /** Window spec in left and right child should be same **/
+  @Test
+  def testNotSameTimeAttributeType(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join doesn't support different time attribute type of left and " +
+        "right inputs.\n" +
+        "The left time attribute type is TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*.\n" +
+        "The right time attribute type is TIMESTAMP(3) *ROWTIME*.")
+    util.verifyRelPlan(sql)
+  }
+
+  // ----------------------------------------------------------------------------------------
+  // Window starts equality and window ends equality are both required for window join.
+  // TODO: In the future, we could support join clause which only includes window starts
+  //  equality or window ends equality for TUMBLE or HOP window.
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testMissWindowEndInConditionForTumbleWindow(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.a = R.a
+      """.stripMargin
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testProcessingTimeInnerJoinWithWhereClause(): Unit = {
-    val sqlQuery =
+  def testMissWindowStartInConditionForTumbleWindow(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
-        |    t1.a = t2.a AND
-        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testRowTimeInnerJoinWithOnClause(): Unit = {
-    val sqlQuery =
+  def testMissWindowEndInConditionForHopWindow(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testRowTimeInnerJoinWithWhereClause(): Unit = {
-    val sqlQuery =
+  def testMissWindowStartInConditionForHopWindow(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testJoinWithEquiProcTime(): Unit = {
-    // TODO: this should be translated into window join
-    val sqlQuery =
+  def testMissWindowEndInConditionForCumulateWindow(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
-        |  t1.a = t2.a AND t1.proctime = t2.proctime
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testJoinWithEquiRowTime(): Unit = {
-    // TODO: this should be translated into window join
-    val sqlQuery =
+  def testMissWindowStartInConditionForCumulateWindow(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
-        |  t1.a = t2.a AND t1.rowtime = t2.rowtime
-        """.stripMargin
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Currently, window join requires JOIN ON condition must contain both window starts " +
+        "equality of input tables and window ends equality of input tables.\n" +
+        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
+    util.verifyRelPlan(sql)
+  }
+
+  // ----------------------------------------------------------------------------------------
+  // Tests for valid queries Window Join on window Aggregate.
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testOnTumbleWindowAggregate(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testJoinWithNullLiteral(): Unit = {
-    val sqlQuery =
+  def testOnTumbleWindowAggregateOnProctime(): Unit = {
+    val sql =
       """
-        |WITH T1 AS (SELECT a, b, c, proctime, CAST(null AS BIGINT) AS nullField FROM MyTable),
-        |     T2 AS (SELECT a, b, c, proctime, CAST(12 AS BIGINT) AS nullField FROM MyTable2)
-        |
-        |SELECT t2.a, t2.c, t1.c
-        |FROM T1 AS t1
-        |JOIN T2 AS t2 ON t1.a = t2.a AND t1.nullField = t2.nullField AND
-        |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND
-        |  t2.proctime + INTERVAL '5' SECOND
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testRowTimeInnerJoinAndWindowAggregationOnFirst(): Unit = {
-    val sqlQuery =
+  def testOnHopWindowAggregate(): Unit = {
+    val sql =
       """
-        |SELECT t1.b, SUM(t2.a) AS aSum, COUNT(t2.b) AS bCnt
-        |FROM MyTable t1, MyTable2 t2
-        |WHERE t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
-        |GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testRowTimeInnerJoinAndWindowAggregationOnSecond(): Unit = {
-    val sqlQuery =
+  def testOnHopWindowAggregateOnProctime(): Unit = {
+    val sql =
       """
-        |SELECT t2.b, SUM(t1.a) AS aSum, COUNT(t1.b) AS bCnt
-        |FROM MyTable t1, MyTable2 t2
-        |WHERE t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
-        |GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  // Tests for left outer join
-  @Test
-  def testProcTimeLeftOuterJoin(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testRowTimeLeftOuterJoin(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  // Tests for right outer join
-  @Test
-  def testProcTimeRightOuterJoin(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testRowTimeRightOuterJoin(): Unit = {
-
-    val sqlQuery =
+  def testOnCumulateWindowAggregate(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 RIGHT OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  // Tests for full outer join
-  @Test
-  def testProcTimeFullOuterJoin(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 Full OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testRowTimeFullOuterJoin(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  // Test for outer join optimization
-  @Test
-  def testOuterJoinOpt(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT t1.a, t2.b
-        |FROM MyTable t1 FULL OUTER JOIN MyTable2 t2 ON
-        |  t1.a = t2.a AND
-        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
-        |  WHERE t1.b LIKE t2.b
-      """.stripMargin
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  // Other tests
-  @Test
-  def testJoinTimeBoundary(): Unit = {
-    verifyTimeBoundary(
-      "t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR",
-      -3600000,
-      3600000,
-      "proctime")
-
-    verifyTimeBoundary(
-      "t1.proctime > t2.proctime - INTERVAL '1' SECOND AND " +
-        "t1.proctime < t2.proctime + INTERVAL '1' SECOND",
-      -999,
-      999,
-      "proctime")
-
-    verifyTimeBoundary(
-      "t1.rowtime >= t2.rowtime - INTERVAL '1' SECOND AND " +
-        "t1.rowtime <= t2.rowtime + INTERVAL '1' SECOND",
-      -1000,
-      1000,
-      "rowtime")
-
-    verifyTimeBoundary(
-      "t1.rowtime >= t2.rowtime AND " +
-        "t1.rowtime <= t2.rowtime + INTERVAL '1' SECOND",
-      0,
-      1000,
-      "rowtime")
-
-    verifyTimeBoundary(
-      "t1.rowtime >= t2.rowtime + INTERVAL '1' SECOND AND " +
-        "t1.rowtime <= t2.rowtime + INTERVAL '10' SECOND",
-      1000,
-      10000,
-      "rowtime")
-
-    verifyTimeBoundary(
-      "t2.rowtime - INTERVAL '1' SECOND <= t1.rowtime AND " +
-        "t2.rowtime + INTERVAL '10' SECOND >= t1.rowtime",
-      -1000,
-      10000,
-      "rowtime")
-
-    verifyTimeBoundary(
-      "t1.rowtime - INTERVAL '2' SECOND >= t2.rowtime + INTERVAL '1' SECOND " +
-        "- INTERVAL '10' SECOND AND t1.rowtime <= t2.rowtime + INTERVAL '10' SECOND",
-      -7000,
-      10000,
-      "rowtime")
-
-    verifyTimeBoundary(
-      "t1.rowtime >= t2.rowtime - INTERVAL '10' SECOND AND " +
-        "t1.rowtime <= t2.rowtime - INTERVAL '5' SECOND",
-      -10000,
-      -5000,
-      "rowtime")
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testJoinRemainConditionConvert(): Unit = {
-    util.addDataStream[(Int, Long, Int)]("MyTable3", 'a, 'rowtime.rowtime, 'c, 'proctime.proctime)
-    util.addDataStream[(Int, Long, Int)]("MyTable4", 'a, 'rowtime.rowtime, 'c, 'proctime.proctime)
-    val query =
+  def testOnCumulateWindowAggregateOnProctime(): Unit = {
+    val sql =
       """
-        |SELECT t1.a, t2.c FROM MyTable3 AS t1 JOIN MyTable4 AS t2 ON
-        |    t1.a = t2.a AND
-        |    t1.rowtime >= t2.rowtime - INTERVAL '10' SECOND AND
-        |    t1.rowtime <= t2.rowtime - INTERVAL '5' SECOND AND
-        |    t1.c > t2.c
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    verifyRemainConditionConvert(
-      query,
-      ">($2, $6)")
-
-    val query1 =
-      """
-        |SELECT t1.a, t2.c FROM MyTable3 as t1 JOIN MyTable4 AS t2 ON
-        |    t1.a = t2.a AND
-        |    t1.rowtime >= t2.rowtime - INTERVAL '10' SECOND AND
-        |    t1.rowtime <= t2.rowtime - INTERVAL '5' SECOND
-      """.stripMargin
-    verifyRemainConditionConvert(
-      query1,
-      "")
-
-    util.addDataStream[(Int, Long, Int)]("MyTable5", 'a, 'b, 'c, 'proctime.proctime)
-    util.addDataStream[(Int, Long, Int)]("MyTable6", 'a, 'b, 'c, 'proctime.proctime)
-    val query2 =
-      """
-        |SELECT t1.a, t2.c FROM MyTable5 AS t1 JOIN MyTable6 AS t2 ON
-        |    t1.a = t2.a AND
-        |    t1.proctime >= t2.proctime - INTERVAL '10' SECOND AND
-        |    t1.proctime <= t2.proctime - INTERVAL '5' SECOND AND
-        |    t1.c > t2.c
-      """.stripMargin
-    verifyRemainConditionConvert(
-      query2,
-      ">($2, $6)")
+    util.verifyRelPlan(sql)
   }
 
-  private def verifyTimeBoundary(
-      timeConditionSql: String,
-      expLeftSize: Long,
-      expRightSize: Long,
-      expTimeType: String): Unit = {
-    val query =
+  @Test
+  def testWindowJoinWithNonEqui(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a AND
+        | CAST(L.window_start AS BIGINT) > R.uv
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+  // ----------------------------------------------------------------------------------------
+  // Window Join could propagate time attribute
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testTimeAttributePropagateForWindowJoin(): Unit = {
+    util.tableEnv.executeSql(
       s"""
-         |SELECT t1.a, t2.b FROM MyTable AS t1 JOIN MyTable2 AS t2 ON
-         |    t1.a = t2.a AND
-         |    $timeConditionSql
+         |CREATE TABLE MyTable3 (
+         |  a INT,
+         |  b STRING NOT NULL,
+         |  c BIGINT,
+         |  rowtime TIMESTAMP(3),
+         |  proctime as PROCTIME(),
+         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+         |) with (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW tmp AS
+        |SELECT
+        |  L.window_time as rowtime,
+        |  L.a as a,
+        |  L.b as l_b,
+        |  L.c as l_c,
+        |  R.b as r_b,
+        |  R.c as r_c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT tmp.*, MyTable3.* FROM tmp JOIN MyTable3 ON
+        | tmp.a = MyTable3.a AND
+        | tmp.rowtime BETWEEN
+        |   MyTable3.rowtime - INTERVAL '10' SECOND AND
+        |   MyTable3.rowtime + INTERVAL '1' HOUR
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testTimeAttributePropagateForWindowJoin1(): Unit = {
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable4 (
+         |  a INT,
+         |  b STRING NOT NULL,
+         |  c BIGINT,
+         |  rowtime TIMESTAMP(3),
+         |  proctime as PROCTIME(),
+         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+         |) with (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW tmp1 AS
+        |SELECT
+        |  L.window_time as rowtime,
+        |  L.a,
+        |  L.cnt as l_cnt,
+        |  L.uv as l_uv,
+        |  R.cnt as r_cnt,
+        |  R.uv as r_uv
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT tmp1.*, MyTable4.* FROM tmp1 JOIN MyTable4 ON
+        | tmp1.a = MyTable4.a AND
+        | tmp1.rowtime BETWEEN
+        |   MyTable4.rowtime - INTERVAL '10' SECOND AND
+        |   MyTable4.rowtime + INTERVAL '1' HOUR
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  // ----------------------------------------------------------------------------------------
+  // Window Join could propagate window properties
+  // ----------------------------------------------------------------------------------------
+
+  @Test
+  def testWindowPropertyPropagateForWindowJoin(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW tmp2 AS
+        |SELECT
+        |  L.window_start as window_start,
+        |  L.window_end as window_end,
+        |  L.a,
+        |  L.cnt as l_cnt,
+        |  L.uv as l_uv,
+        |  R.cnt as r_cnt,
+        |  R.uv as r_uv
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(
+        |    CUMULATE(
+        |      TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT * FROM
+        |(
+        |  SELECT *,
+        |    ROW_NUMBER() OVER(
+        |      PARTITION BY window_start, window_end ORDER BY l_cnt DESC) as rownum
+        |  FROM tmp2
+        |)
+        |WHERE rownum <= 3
       """.stripMargin
-
-    val table = util.tableEnv.sqlQuery(query)
-    val relNode = TableTestUtil.toRelNode(table)
-    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val rexNode = joinNode.getCondition
-    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      rexNode,
-      joinNode.getLeft.getRowType.getFieldCount,
-      joinNode.getRowType,
-      joinNode.getCluster.getRexBuilder,
-      util.tableEnv.getConfig)
-
-    val timeTypeStr = if (windowBounds.get.isEventTime) "rowtime" else "proctime"
-    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
-    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
-    assertEquals(expTimeType, timeTypeStr)
+    util.verifyRelPlan(sql)
   }
-
-  private def verifyRemainConditionConvert(
-      sqlQuery: String,
-      expectConditionStr: String): Unit = {
-
-    val table = util.tableEnv.sqlQuery(sqlQuery)
-    val relNode = TableTestUtil.toRelNode(table)
-    val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val joinInfo = joinNode.analyzeCondition
-    val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
-    val (_, remainCondition) =
-      WindowJoinUtil.extractWindowBoundsFromPredicate(
-        rexNode,
-        joinNode.getLeft.getRowType.getFieldCount,
-        joinNode.getRowType,
-        joinNode.getCluster.getRexBuilder,
-        util.tableEnv.getConfig)
-    val actual: String = remainCondition.getOrElse("").toString
-    assertEquals(expectConditionStr, actual)
-  }
-
 }

@@ -19,10 +19,10 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
+
 import org.junit.Test
 
 class GroupWindowTableAggregateTest extends TableTestBase {
@@ -548,5 +548,64 @@ class GroupWindowTableAggregateTest extends TableTestBase {
       )
 
     util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowTableAggregate and FlinkLogicalWindowTableAggregate
+    // nodes'v digests contain the window specs. This allows the planner to make the distinction
+    // between similar aggregations using different windows (see FLINK-15577).
+    val tableWindow1hr = table
+      .window(Slide over 1.hour every 1.hour on 'd as 'w1)
+      .groupBy('w1)
+      .flatAggregate(emptyFunc('a, 'b))
+      .select(1 as 'a)
+
+    val tableWindow2hr = table
+      .window(Slide over 2.hour every 1.hour on 'd as 'w1)
+      .groupBy('w1)
+      .flatAggregate(emptyFunc('a, 'b))
+      .select(1 as 'b)
+
+    val joinTable = tableWindow1hr.fullOuterJoin(tableWindow2hr, 'a === 'b)
+
+    val expected =
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowTableAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "a", "b", "d")
+            ),
+            // This window is the 1hr window
+            term("window", "SlidingGroupWindow('w1, 'd, 3600000.millis, 3600000.millis)"),
+            term("select", "EmptyTableAggFunc(a, b) AS (f0, f1)")
+          ),
+          term("select", "1 AS a")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          unaryNode(
+            "DataStreamGroupWindowTableAggregate",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(table),
+              term("select", "a", "b", "d")
+            ),
+            // This window is the 2hr window
+            term("window", "SlidingGroupWindow('w1, 'd, 7200000.millis, 3600000.millis)"),
+            term("select", "EmptyTableAggFunc(a, b) AS (f0, f1)")
+          ),
+          term("select", "1 AS b")
+        ),
+        term("where", "=(a, b)"),
+        term("join", "a", "b"),
+        term("joinType", "FullOuterJoin")
+      )
+    util.verifyTable(joinTable, expected)
   }
 }

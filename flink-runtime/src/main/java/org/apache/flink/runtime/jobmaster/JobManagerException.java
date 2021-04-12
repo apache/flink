@@ -20,22 +20,20 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Base exception thrown by the {@link JobMaster}.
- */
+/** Base exception thrown by the {@link JobMaster}. */
 public class JobManagerException extends FlinkException {
 
-	private static final long serialVersionUID = -7290962952242188064L;
+    private static final long serialVersionUID = -7290962952242188064L;
 
-	public JobManagerException(final String message) {
-		super(message);
-	}
+    public JobManagerException(final String message) {
+        super(message);
+    }
 
-	public JobManagerException(final String message, Throwable cause) {
-		super(message, cause);
-	}
+    public JobManagerException(final String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public JobManagerException(Throwable cause) {
-		super(cause);
-	}
+    public JobManagerException(Throwable cause) {
+        super(cause);
+    }
 }

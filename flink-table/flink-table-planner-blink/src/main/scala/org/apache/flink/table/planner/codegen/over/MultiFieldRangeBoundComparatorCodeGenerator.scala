@@ -19,22 +19,20 @@
 package org.apache.flink.table.planner.codegen.over
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GenerateUtils}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.RowType
 
 /**
   * RANGE allow the compound ORDER BY and the random type when the bound is current row.
   */
 class MultiFieldRangeBoundComparatorCodeGenerator(
     conf: TableConfig,
-    inType: RowType,
-    keys: Array[Int],
-    keyTypes: Array[LogicalType],
-    keyOrders: Array[Boolean],
-    nullsIsLasts: Array[Boolean],
+    inputType: RowType,
+    sortSpec: SortSpec,
     isLowerBound: Boolean = true) {
 
   def generateBoundComparator(name: String): GeneratedRecordComparator = {
@@ -48,9 +46,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
     }
 
     val ctx = CodeGeneratorContext(conf)
-
-    val compareCode = GenerateUtils.generateRowCompare(
-      ctx, keys, keyTypes, keyOrders, nullsIsLasts, input, current)
+    val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, input, current)
 
     val code =
       j"""
@@ -66,12 +62,12 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
         }
 
         @Override
-        public int compare($BASE_ROW $input, $BASE_ROW $current) {
+        public int compare($ROW_DATA $input, $ROW_DATA $current) {
           int ret = compareInternal($input, $current);
           ${generateReturnCode("ret")}
         }
 
-        private int compareInternal($BASE_ROW $input, $BASE_ROW $current) {
+        private int compareInternal($ROW_DATA $input, $ROW_DATA $current) {
           $compareCode
           return 0;
         }

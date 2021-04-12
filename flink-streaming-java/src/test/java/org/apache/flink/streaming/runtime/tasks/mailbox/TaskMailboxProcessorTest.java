@@ -18,286 +18,430 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Unit tests for {@link MailboxProcessor}.
- */
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+/** Unit tests for {@link MailboxProcessor}. */
 public class TaskMailboxProcessorTest {
 
-	public static final int DEFAULT_PRIORITY = 0;
+    public static final int DEFAULT_PRIORITY = 0;
 
-	@Test
-	public void testRejectIfNotOpen() {
-		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
-		mailboxProcessor.prepareClose();
-		try {
-			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
-			Assert.fail("Should not be able to accept runnables if not opened.");
-		} catch (RejectedExecutionException expected) {
-		}
-	}
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void testShutdown() {
-		MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
-		FutureTask<Void> testRunnableFuture = new FutureTask<>(() -> {}, null);
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(testRunnableFuture, "testRunnableFuture");
-		mailboxProcessor.prepareClose();
+    @Test
+    public void testRejectIfNotOpen() {
+        MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
+        mailboxProcessor.prepareClose();
+        try {
+            mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
+            Assert.fail("Should not be able to accept runnables if not opened.");
+        } catch (RejectedExecutionException expected) {
+        }
+    }
 
-		try {
-			mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
-			Assert.fail("Should not be able to accept runnables if not opened.");
-		} catch (RejectedExecutionException expected) {
-		}
+    @Test
+    public void testSubmittingRunnableWithException() throws Exception {
+        expectedException.expectMessage("Expected");
+        try (MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {})) {
+            final Thread submitThread =
+                    new Thread(
+                            () -> {
+                                mailboxProcessor
+                                        .getMainMailboxExecutor()
+                                        .execute(
+                                                this::throwFlinkException,
+                                                "testSubmittingRunnableWithException");
+                            });
 
-		Assert.assertFalse(testRunnableFuture.isDone());
+            submitThread.start();
+            mailboxProcessor.runMailboxLoop();
+            submitThread.join();
+        }
+    }
 
-		mailboxProcessor.close();
-		Assert.assertTrue(testRunnableFuture.isCancelled());
-	}
+    private void throwFlinkException() throws FlinkException {
+        throw new FlinkException("Expected");
+    }
 
-	@Test
-	public void testRunDefaultActionAndMails() throws Exception {
-		AtomicBoolean stop = new AtomicBoolean(false);
-		MailboxThread mailboxThread = new MailboxThread() {
-			@Override
-			public void runDefaultAction(Controller controller) throws Exception {
-				if (stop.get()) {
-					controller.allActionsCompleted();
-				} else {
-					Thread.sleep(10L);
-				}
-			}
-		};
+    @Test
+    public void testShutdown() {
+        MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> {});
+        FutureTaskWithException<Void> testRunnableFuture = new FutureTaskWithException<>(() -> {});
+        mailboxProcessor
+                .getMailboxExecutor(DEFAULT_PRIORITY)
+                .execute(testRunnableFuture, "testRunnableFuture");
+        mailboxProcessor.prepareClose();
 
-		MailboxProcessor mailboxProcessor = start(mailboxThread);
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true), "stop");
-		mailboxThread.join();
-	}
+        try {
+            mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
+            Assert.fail("Should not be able to accept runnables if not opened.");
+        } catch (RejectedExecutionException expected) {
+        }
 
-	@Test
-	public void testRunDefaultAction() throws Exception {
+        Assert.assertFalse(testRunnableFuture.isDone());
 
-		final int expectedInvocations = 3;
-		final AtomicInteger counter = new AtomicInteger(0);
-		MailboxThread mailboxThread = new MailboxThread() {
-			@Override
-			public void runDefaultAction(Controller controller) {
-				if (counter.incrementAndGet() == expectedInvocations) {
-					controller.allActionsCompleted();
-				}
-			}
-		};
+        mailboxProcessor.close();
+        assertTrue(testRunnableFuture.isCancelled());
+    }
 
-		start(mailboxThread);
-		mailboxThread.join();
-		Assert.assertEquals(expectedInvocations, counter.get());
-	}
+    @Test
+    public void testRunDefaultActionAndMails() throws Exception {
+        AtomicBoolean stop = new AtomicBoolean(false);
+        MailboxThread mailboxThread =
+                new MailboxThread() {
+                    @Override
+                    public void runDefaultAction(Controller controller) throws Exception {
+                        if (stop.get()) {
+                            controller.allActionsCompleted();
+                        } else {
+                            Thread.sleep(10L);
+                        }
+                    }
+                };
 
-	@Test
-	public void testSignalUnAvailable() throws Exception {
+        MailboxProcessor mailboxProcessor = start(mailboxThread);
+        mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> stop.set(true), "stop");
+        mailboxThread.join();
+    }
 
-		final AtomicInteger counter = new AtomicInteger(0);
-		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
-		final OneShotLatch actionSuspendedLatch = new OneShotLatch();
-		final int blockAfterInvocations = 3;
-		final int totalInvocations = blockAfterInvocations * 2;
+    @Test
+    public void testRunDefaultAction() throws Exception {
 
-		MailboxThread mailboxThread = new MailboxThread() {
-			@Override
-			public void runDefaultAction(Controller controller) {
-				if (counter.incrementAndGet() == blockAfterInvocations) {
-					suspendedActionRef.set(controller.suspendDefaultAction());
-					actionSuspendedLatch.trigger();
-				} else if (counter.get() == totalInvocations) {
-					controller.allActionsCompleted();
-				}
-			}
-		};
+        final int expectedInvocations = 3;
+        final AtomicInteger counter = new AtomicInteger(0);
+        MailboxThread mailboxThread =
+                new MailboxThread() {
+                    @Override
+                    public void runDefaultAction(Controller controller) {
+                        if (counter.incrementAndGet() == expectedInvocations) {
+                            controller.allActionsCompleted();
+                        }
+                    }
+                };
 
-		MailboxProcessor mailboxProcessor = start(mailboxThread);
-		actionSuspendedLatch.await();
-		Assert.assertEquals(blockAfterInvocations, counter.get());
+        start(mailboxThread);
+        mailboxThread.join();
+        Assert.assertEquals(expectedInvocations, counter.get());
+    }
 
-		MailboxDefaultAction.Suspension suspension = suspendedActionRef.get();
-		mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspension::resume, "resume");
-		mailboxThread.join();
-		Assert.assertEquals(totalInvocations, counter.get());
-	}
+    @Test
+    public void testSignalUnAvailable() throws Exception {
 
-	@Test
-	public void testSignalUnAvailablePingPong() throws Exception {
-		final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef = new AtomicReference<>();
-		final int totalSwitches = 10000;
-		final MailboxThread mailboxThread = new MailboxThread() {
-			int count = 0;
+        final AtomicInteger counter = new AtomicInteger(0);
+        final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef =
+                new AtomicReference<>();
+        final OneShotLatch actionSuspendedLatch = new OneShotLatch();
+        final int blockAfterInvocations = 3;
+        final int totalInvocations = blockAfterInvocations * 2;
 
-			@Override
-			public void runDefaultAction(Controller controller) {
+        MailboxThread mailboxThread =
+                new MailboxThread() {
+                    @Override
+                    public void runDefaultAction(Controller controller) {
+                        if (counter.incrementAndGet() == blockAfterInvocations) {
+                            suspendedActionRef.set(controller.suspendDefaultAction());
+                            actionSuspendedLatch.trigger();
+                        } else if (counter.get() == totalInvocations) {
+                            controller.allActionsCompleted();
+                        }
+                    }
+                };
 
-				// If this is violated, it means that the default action was invoked while we assumed suspension
-				Assert.assertTrue(suspendedActionRef.compareAndSet(null, controller.suspendDefaultAction()));
+        MailboxProcessor mailboxProcessor = start(mailboxThread);
+        actionSuspendedLatch.await();
+        Assert.assertEquals(blockAfterInvocations, counter.get());
 
-				++count;
+        MailboxDefaultAction.Suspension suspension = suspendedActionRef.get();
+        mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspension::resume, "resume");
+        mailboxThread.join();
+        Assert.assertEquals(totalInvocations, counter.get());
+    }
 
-				if (count == totalSwitches) {
-					controller.allActionsCompleted();
-				} else if (count % 1000 == 0) {
-					try {
-						Thread.sleep(1L);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-					}
-				}
-			}
-		};
+    @Test
+    public void testSignalUnAvailablePingPong() throws Exception {
+        final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef =
+                new AtomicReference<>();
+        final int totalSwitches = 10000;
+        final MailboxThread mailboxThread =
+                new MailboxThread() {
+                    int count = 0;
 
-		mailboxThread.start();
-		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+                    @Override
+                    public void runDefaultAction(Controller controller) {
 
-		final Thread asyncUnblocker = new Thread(() -> {
-			int count = 0;
-			while (!Thread.currentThread().isInterrupted()) {
+                        // If this is violated, it means that the default action was invoked while
+                        // we assumed suspension
+                        assertTrue(
+                                suspendedActionRef.compareAndSet(
+                                        null, controller.suspendDefaultAction()));
 
-				final MailboxDefaultAction.Suspension resume =
-						suspendedActionRef.getAndSet(null);
-				if (resume != null) {
-					mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(resume::resume, "resume");
-				} else {
-					try {
-						mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
-					} catch (RejectedExecutionException ignore) {
-					}
-				}
+                        ++count;
 
-				++count;
-				if (count % 5000 == 0) {
-					try {
-						Thread.sleep(1L);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-					}
-				}
-			}
-		});
+                        if (count == totalSwitches) {
+                            controller.allActionsCompleted();
+                        } else if (count % 1000 == 0) {
+                            try {
+                                Thread.sleep(1L);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        }
+                    }
+                };
 
-		asyncUnblocker.start();
-		mailboxThread.signalStart();
-		mailboxThread.join();
-		asyncUnblocker.interrupt();
-		asyncUnblocker.join();
-		mailboxThread.checkException();
-	}
+        mailboxThread.start();
+        final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
 
-	/**
-	 * Testing that canceling after closing will not lead to an exception.
-	 */
-	@Test
-	public void testCancelAfterClose() {
-		MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
-		mailboxProcessor.close();
-		mailboxProcessor.allActionsCompleted();
-	}
+        final Thread asyncUnblocker =
+                new Thread(
+                        () -> {
+                            int count = 0;
+                            while (!Thread.currentThread().isInterrupted()) {
 
-	private static MailboxProcessor start(MailboxThread mailboxThread) {
-		mailboxThread.start();
-		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-		mailboxThread.signalStart();
-		return mailboxProcessor;
-	}
+                                final MailboxDefaultAction.Suspension resume =
+                                        suspendedActionRef.getAndSet(null);
+                                if (resume != null) {
+                                    mailboxProcessor
+                                            .getMailboxExecutor(DEFAULT_PRIORITY)
+                                            .execute(resume::resume, "resume");
+                                } else {
+                                    try {
+                                        mailboxProcessor
+                                                .getMailboxExecutor(DEFAULT_PRIORITY)
+                                                .execute(() -> {}, "dummy");
+                                    } catch (RejectedExecutionException ignore) {
+                                    }
+                                }
 
-	/**
-	 * FLINK-14304: Avoid newly spawned letters to prevent input processing from ever happening.
-	 */
-	@Test
-	public void testAvoidStarvation() throws Exception {
+                                ++count;
+                                if (count % 5000 == 0) {
+                                    try {
+                                        Thread.sleep(1L);
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }
+                            }
+                        });
 
-		final int expectedInvocations = 3;
-		final AtomicInteger counter = new AtomicInteger(0);
-		MailboxThread mailboxThread = new MailboxThread() {
-			@Override
-			public void runDefaultAction(Controller controller) {
-				if (counter.incrementAndGet() == expectedInvocations) {
-					controller.allActionsCompleted();
-				}
-			}
-		};
+        asyncUnblocker.start();
+        mailboxThread.signalStart();
+        mailboxThread.join();
+        asyncUnblocker.interrupt();
+        asyncUnblocker.join();
+        mailboxThread.checkException();
+    }
 
-		mailboxThread.start();
-		final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-		final MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY);
-		AtomicInteger index = new AtomicInteger();
-		mailboxExecutor.execute(
-			new Runnable() {
-				@Override
-				public void run() {
-					mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());
-				}
-			},
-			"Blocking mail" + index.get());
+    /** Testing that canceling after closing will not lead to an exception. */
+    @Test
+    public void testCancelAfterClose() {
+        MailboxProcessor mailboxProcessor = new MailboxProcessor((ctx) -> {});
+        mailboxProcessor.close();
+        mailboxProcessor.allActionsCompleted();
+    }
 
-		mailboxThread.signalStart();
-		mailboxThread.join();
+    private static MailboxProcessor start(MailboxThread mailboxThread) {
+        mailboxThread.start();
+        final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+        mailboxThread.signalStart();
+        return mailboxProcessor;
+    }
 
-		Assert.assertEquals(expectedInvocations, counter.get());
-		Assert.assertEquals(expectedInvocations, index.get());
-	}
+    /** FLINK-14304: Avoid newly spawned letters to prevent input processing from ever happening. */
+    @Test
+    public void testAvoidStarvation() throws Exception {
 
-	static class MailboxThread extends Thread implements MailboxDefaultAction {
+        final int expectedInvocations = 3;
+        final AtomicInteger counter = new AtomicInteger(0);
+        MailboxThread mailboxThread =
+                new MailboxThread() {
+                    @Override
+                    public void runDefaultAction(Controller controller) {
+                        if (counter.incrementAndGet() == expectedInvocations) {
+                            controller.allActionsCompleted();
+                        }
+                    }
+                };
 
-		MailboxProcessor mailboxProcessor;
-		OneShotLatch mailboxCreatedLatch = new OneShotLatch();
-		OneShotLatch canRun = new OneShotLatch();
-		private Throwable caughtException;
+        mailboxThread.start();
+        final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
+        final MailboxExecutor mailboxExecutor =
+                mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY);
+        AtomicInteger index = new AtomicInteger();
+        mailboxExecutor.execute(
+                new RunnableWithException() {
+                    @Override
+                    public void run() {
+                        mailboxExecutor.execute(this, "Blocking mail" + index.incrementAndGet());
+                    }
+                },
+                "Blocking mail" + index.get());
 
-		@Override
-		public final void run() {
-			mailboxProcessor = new MailboxProcessor(this);
-			mailboxCreatedLatch.trigger();
-			try {
-				canRun.await();
-				mailboxProcessor.runMailboxLoop();
-			} catch (Throwable t) {
-				this.caughtException = t;
-			}
-		}
+        mailboxThread.signalStart();
+        mailboxThread.join();
 
-		@Override
-		public void runDefaultAction(Controller controller) throws Exception {
-			controller.allActionsCompleted();
-		}
+        Assert.assertEquals(expectedInvocations, counter.get());
+        Assert.assertEquals(expectedInvocations, index.get());
+    }
 
-		final MailboxProcessor getMailboxProcessor() {
-			try {
-				mailboxCreatedLatch.await();
-				return mailboxProcessor;
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throw new RuntimeException(e);
-			}
-		}
+    @Test
+    public void testSuspendRunningMailboxLoop() throws Exception {
+        // given: Thread for suspending the suspendable loop.
+        OneShotLatch doSomeWork = new OneShotLatch();
+        AtomicBoolean stop = new AtomicBoolean(false);
 
-		final void signalStart() {
-			if (mailboxCreatedLatch.isTriggered()) {
-				canRun.trigger();
-			}
-		}
+        MailboxProcessor mailboxProcessor =
+                new MailboxProcessor(
+                        controller -> {
+                            doSomeWork.trigger();
 
-		void checkException() throws Exception {
-			if (caughtException != null) {
-				throw new Exception(caughtException);
-			}
-		}
-	}
+                            if (stop.get()) {
+                                controller.allActionsCompleted();
+                            }
+                        });
 
+        Thread suspendThread =
+                new Thread(
+                        () -> {
+                            try {
+                                // Ensure that loop was started.
+                                doSomeWork.await();
+
+                                // when: Suspend the suspendable loop.
+                                mailboxProcessor.suspend();
+
+                                // and: Execute the command for stopping the loop.
+                                mailboxProcessor
+                                        .getMailboxExecutor(DEFAULT_PRIORITY)
+                                        .execute(() -> stop.set(true), "stop");
+                            } catch (Exception ignore) {
+
+                            }
+                        });
+        suspendThread.start();
+
+        // when: Start the suspendable loop.
+        mailboxProcessor.runMailboxLoop();
+
+        suspendThread.join();
+
+        // then: Mailbox is not stopped because it was suspended before the stop command.
+        assertFalse(stop.get());
+
+        // when: Resume the suspendable loop.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Stop command successfully executed because it was in the queue.
+        assertFalse(mailboxProcessor.isMailboxLoopRunning());
+        assertTrue(stop.get());
+    }
+
+    @Test
+    public void testResumeMailboxLoopAfterAllActionsCompleted() throws Exception {
+        // given: Configured suspendable loop.
+        AtomicBoolean start = new AtomicBoolean(false);
+        MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> start.set(true));
+
+        // when: Complete mailbox loop immediately after start.
+        mailboxProcessor.allActionsCompleted();
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Mailbox is finished without execution any job.
+        assertFalse(mailboxProcessor.isMailboxLoopRunning());
+        assertFalse(start.get());
+
+        // when: Start the suspendable loop again.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Nothing happens because mailbox is already permanently finished.
+        assertFalse(start.get());
+    }
+
+    @Test
+    public void testResumeMailboxLoop() throws Exception {
+        // given: Configured suspendable loop.
+        AtomicBoolean start = new AtomicBoolean(false);
+        MailboxProcessor mailboxProcessor =
+                new MailboxProcessor(
+                        controller -> {
+                            start.set(true);
+
+                            controller.allActionsCompleted();
+                        });
+
+        // when: Suspend mailbox loop immediately after start.
+        mailboxProcessor.suspend();
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Mailbox is not finished but job didn't execute because it was suspended.
+        assertFalse(start.get());
+
+        // when: Start the suspendable loop again.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Job is done.
+        assertTrue(start.get());
+    }
+
+    static class MailboxThread extends Thread implements MailboxDefaultAction {
+
+        MailboxProcessor mailboxProcessor;
+        OneShotLatch mailboxCreatedLatch = new OneShotLatch();
+        OneShotLatch canRun = new OneShotLatch();
+        private Throwable caughtException;
+
+        @Override
+        public final void run() {
+            mailboxProcessor = new MailboxProcessor(this);
+            mailboxCreatedLatch.trigger();
+            try {
+                canRun.await();
+                mailboxProcessor.runMailboxLoop();
+            } catch (Throwable t) {
+                this.caughtException = t;
+            }
+        }
+
+        @Override
+        public void runDefaultAction(Controller controller) throws Exception {
+            controller.allActionsCompleted();
+        }
+
+        final MailboxProcessor getMailboxProcessor() {
+            try {
+                mailboxCreatedLatch.await();
+                return mailboxProcessor;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+
+        final void signalStart() {
+            if (mailboxCreatedLatch.isTriggered()) {
+                canRun.trigger();
+            }
+        }
+
+        void checkException() throws Exception {
+            if (caughtException != null) {
+                throw new Exception(caughtException);
+            }
+        }
+    }
 }

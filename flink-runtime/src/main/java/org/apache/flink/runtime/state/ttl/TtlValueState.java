@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -32,27 +33,27 @@ import java.io.IOException;
  * @param <T> Type of the user value of state with TTL
  */
 class TtlValueState<K, N, T>
-	extends AbstractTtlState<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
-	implements InternalValueState<K, N, T> {
-	TtlValueState(TtlStateContext<InternalValueState<K, N, TtlValue<T>>, T> tTtlStateContext) {
-		super(tTtlStateContext);
-	}
+        extends AbstractTtlState<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
+        implements InternalValueState<K, N, T> {
+    TtlValueState(TtlStateContext<InternalValueState<K, N, TtlValue<T>>, T> tTtlStateContext) {
+        super(tTtlStateContext);
+    }
 
-	@Override
-	public T value() throws IOException {
-		accessCallback.run();
-		return getWithTtlCheckAndUpdate(original::value, original::update);
-	}
+    @Override
+    public T value() throws IOException {
+        accessCallback.run();
+        return getWithTtlCheckAndUpdate(original::value, original::update);
+    }
 
-	@Override
-	public void update(T value) throws IOException {
-		accessCallback.run();
-		original.update(wrapWithTs(value));
-	}
+    @Override
+    public void update(T value) throws IOException {
+        accessCallback.run();
+        original.update(wrapWithTs(value));
+    }
 
-	@Nullable
-	@Override
-	public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
-		return expired(ttlValue) ? null : ttlValue;
-	}
+    @Nullable
+    @Override
+    public TtlValue<T> getUnexpiredOrNull(@Nonnull TtlValue<T> ttlValue) {
+        return expired(ttlValue) ? null : ttlValue;
+    }
 }

@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -228,6 +228,18 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     env.execute()
 
     val expected = Seq("Hi,Hallo")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testInnerJoinWithDuplicateKey(): Unit = {
+    val query = "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3"
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("2,2,2", "3,3,3")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

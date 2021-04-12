@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.operators;
-
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.CompilerException;
@@ -31,58 +27,74 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
+import java.util.Collections;
+import java.util.List;
+
 public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor {
-	
-	public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2) {
-		super(keys1, keys2);
-	}
-	
-	public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2,
-			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed)
-	{
-		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
-	}
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.HYBRIDHASH_BUILD_SECOND;
-	}
+    public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2) {
+        super(keys1, keys2);
+    }
 
-	@Override
-	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
-		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(
-			new RequestedLocalProperties(), new RequestedLocalProperties()));
-	}
-	
-	@Override
-	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
-			LocalProperties produced1, LocalProperties produced2)
-	{
-		return true;
-	}
+    public HashJoinBuildSecondProperties(
+            FieldList keys1,
+            FieldList keys2,
+            boolean broadcastFirstAllowed,
+            boolean broadcastSecondAllowed,
+            boolean repartitionAllowed) {
+        super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
+    }
 
-	@Override
-	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
-		DriverStrategy strategy;
-		
-		if (!in2.isOnDynamicPath() && in1.isOnDynamicPath()) {
-			// sanity check that the first input is cached and remove that cache
-			if (!in2.getTempMode().isCached()) {
-				throw new CompilerException("No cache at point where static and dynamic parts meet.");
-			}
-			
-			in2.setTempMode(in2.getTempMode().makeNonCached());
-			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED;
-		}
-		else {
-			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND;
-		}
-		return new DualInputPlanNode(node, "Join ("+node.getOperator().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
-	}
-	
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
-		return new LocalProperties();
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.HYBRIDHASH_BUILD_SECOND;
+    }
+
+    @Override
+    protected List<LocalPropertiesPair> createPossibleLocalProperties() {
+        // all properties are possible
+        return Collections.singletonList(
+                new LocalPropertiesPair(
+                        new RequestedLocalProperties(), new RequestedLocalProperties()));
+    }
+
+    @Override
+    public boolean areCoFulfilled(
+            RequestedLocalProperties requested1,
+            RequestedLocalProperties requested2,
+            LocalProperties produced1,
+            LocalProperties produced2) {
+        return true;
+    }
+
+    @Override
+    public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
+        DriverStrategy strategy;
+
+        if (!in2.isOnDynamicPath() && in1.isOnDynamicPath()) {
+            // sanity check that the first input is cached and remove that cache
+            if (!in2.getTempMode().isCached()) {
+                throw new CompilerException(
+                        "No cache at point where static and dynamic parts meet.");
+            }
+
+            in2.setTempMode(in2.getTempMode().makeNonCached());
+            strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED;
+        } else {
+            strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND;
+        }
+        return new DualInputPlanNode(
+                node,
+                "Join (" + node.getOperator().getName() + ")",
+                in1,
+                in2,
+                strategy,
+                this.keys1,
+                this.keys2);
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties in1, LocalProperties in2) {
+        return new LocalProperties();
+    }
 }

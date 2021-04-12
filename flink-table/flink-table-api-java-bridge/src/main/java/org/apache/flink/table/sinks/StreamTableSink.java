@@ -20,32 +20,22 @@ package org.apache.flink.table.sinks;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
  * Defines an external stream table and provides write access to its data.
  *
  * @param <T> Type of the {@link DataStream} created by this {@link TableSink}.
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
+ *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 public interface StreamTableSink<T> extends TableSink<T> {
 
-	/**
-	 * Emits the DataStream.
-	 *
-	 * @deprecated This method will be removed in future versions as it returns nothing.
-	 *  It is recommended to use {@link #consumeDataStream(DataStream)} instead which
-	 *  returns the {@link DataStreamSink}. The returned {@link DataStreamSink} will be
-	 *  used to set resources for the sink operator. If the {@link #consumeDataStream(DataStream)}
-	 *  is implemented, this method can be empty implementation.
-	 */
-	@Deprecated
-	void emitDataStream(DataStream<T> dataStream);
-
-	/**
-	 * Consumes the DataStream and return the sink transformation {@link DataStreamSink}.
-	 * The returned {@link DataStreamSink} will be used to set resources for the sink operator.
-	 */
-	default DataStreamSink<?> consumeDataStream(DataStream<T> dataStream) {
-		emitDataStream(dataStream);
-		return null;
-	}
+    /**
+     * Consumes the DataStream and return the sink transformation {@link DataStreamSink}. The
+     * returned {@link DataStreamSink} will be used to set resources for the sink operator.
+     */
+    DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }

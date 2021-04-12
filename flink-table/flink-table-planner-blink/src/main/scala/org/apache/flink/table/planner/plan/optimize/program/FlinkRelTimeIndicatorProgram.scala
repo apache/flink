@@ -25,10 +25,12 @@ import org.apache.calcite.rel.RelNode
 
 /**
   * A FlinkOptimizeProgram that deals with time.
+  *
+  * @tparam OC OptimizeContext
   */
-class FlinkRelTimeIndicatorProgram extends FlinkOptimizeProgram[StreamOptimizeContext] {
+class FlinkRelTimeIndicatorProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[OC] {
 
-  override def optimize(input: RelNode, context: StreamOptimizeContext): RelNode = {
+  override def optimize(input: RelNode, context: OC): RelNode = {
     val rexBuilder = Preconditions.checkNotNull(context.getRexBuilder)
     RelTimeIndicatorConverter.convert(input, rexBuilder, context.needFinalTimeIndicatorConversion)
   }

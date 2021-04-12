@@ -23,19 +23,20 @@ import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
-import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.plan.hep.HepRelVertex
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptSchema}
+import org.apache.calcite.rel.{BiRel, RelNode, SingleRel}
 import org.apache.calcite.rel.core.{JoinRelType, TableFunctionScan}
-import org.apache.calcite.rel.logical.LogicalCorrelate
+import org.apache.calcite.rel.logical.{LogicalCorrelate}
 import org.apache.calcite.rex._
 
 /**
@@ -54,8 +55,9 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
       case f : FieldReferenceExpression
-        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-        f.getName
+        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) ||
+          hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+      => f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }
@@ -95,9 +97,9 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val relBuilder = FlinkRelBuilder.of(cluster, leftNode.getTable)
+        val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema(leftNode))
         val temporalTable: RelNode = relBuilder.queryOperation(underlyingHistoryTable).build()
-        // expand QueryOperationCatalogViewTable in TableScan
+        // expand QueryOperationCatalogViewTable in Table Scan
         val shuttle = new ExpandTableScanShuttle
         val rightNode = temporalTable.accept(shuttle)
 
@@ -118,12 +120,12 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
 
         val condition =
           if (isProctimeReference(rightTemporalTableFunction)) {
-            makeProcTimeTemporalJoinConditionCall(
+            makeProcTimeTemporalFunctionJoinConCall(
               rexBuilder,
               leftTimeAttribute,
               rightPrimaryKeyExpression)
           } else {
-            makeRowTimeTemporalJoinConditionCall(
+            makeRowTimeTemporalFunctionJoinConCall(
               rexBuilder,
               leftTimeAttribute,
               rightTimeIndicatorExpression,
@@ -144,6 +146,16 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
     val rightDataTypeField = rightNode.getRowType.getField(field, false, false)
     rexBuilder.makeInputRef(
       rightDataTypeField.getType, rightReferencesOffset + rightDataTypeField.getIndex)
+  }
+
+  /**
+    * Gets [[RelOptSchema]] from the leaf [[RelNode]] which holds a non-null [[RelOptSchema]].
+    */
+  private def getRelOptSchema(relNode: RelNode): RelOptSchema = relNode match {
+    case hep: HepRelVertex => getRelOptSchema(hep.getCurrentRel)
+    case single: SingleRel => getRelOptSchema(single.getInput)
+    case bi: BiRel => getRelOptSchema(bi.getLeft)
+    case _ => relNode.getTable.getRelOptSchema
   }
 }
 
@@ -177,16 +189,17 @@ class GetTemporalTableFunctionCall(
   }
 
   override def visitCall(rexCall: RexCall): TemporalTableFunctionCall = {
-    if (!rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
-      return null
+    val functionDefinition = rexCall.getOperator match {
+      case tsf: TableSqlFunction => tsf.udtf
+      case bsf: BridgingSqlFunction => bsf.getDefinition
+      case _ => return null
     }
-    val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
 
-    if (!tableFunction.udtf.isInstanceOf[TemporalTableFunction]) {
+    if (!functionDefinition.isInstanceOf[TemporalTableFunction]) {
       return null
     }
     val temporalTableFunction =
-      tableFunction.udtf.asInstanceOf[TemporalTableFunctionImpl]
+      functionDefinition.asInstanceOf[TemporalTableFunctionImpl]
 
     checkState(
       rexCall.getOperands.size().equals(1),

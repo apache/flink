@@ -36,57 +36,57 @@ import java.util.List;
  */
 public class NumericExceptFirstOperandChecker implements SqlOperandTypeChecker {
 
-	private int nOperands;
+    private int nOperands;
 
-	public NumericExceptFirstOperandChecker(int nOperands) {
-		this.nOperands = nOperands;
-	}
+    public NumericExceptFirstOperandChecker(int nOperands) {
+        this.nOperands = nOperands;
+    }
 
-	@Override
-	public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
-		for (int i = 1; i < callBinding.getOperandCount(); i++) {
-			if (!SqlTypeUtil.isNumeric(callBinding.getOperandType(i))) {
-				if (!throwOnFailure) {
-					return false;
-				}
-				throw callBinding.newValidationSignatureError();
-			}
-		}
-		return true;
-	}
+    @Override
+    public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
+        for (int i = 1; i < callBinding.getOperandCount(); i++) {
+            if (!SqlTypeUtil.isNumeric(callBinding.getOperandType(i))) {
+                if (!throwOnFailure) {
+                    return false;
+                }
+                throw callBinding.newValidationSignatureError();
+            }
+        }
+        return true;
+    }
 
-	@Override
-	public SqlOperandCountRange getOperandCountRange() {
-		if (nOperands == -1) {
-			return SqlOperandCountRanges.any();
-		} else {
-			return SqlOperandCountRanges.of(nOperands);
-		}
-	}
+    @Override
+    public SqlOperandCountRange getOperandCountRange() {
+        if (nOperands == -1) {
+            return SqlOperandCountRanges.any();
+        } else {
+            return SqlOperandCountRanges.of(nOperands);
+        }
+    }
 
-	@Override
-	public String getAllowedSignatures(SqlOperator op, String opName) {
-		final String anyType = "ANY_TYPE";
-		final String numericType = "NUMERIC_TYPE";
+    @Override
+    public String getAllowedSignatures(SqlOperator op, String opName) {
+        final String anyType = "ANY_TYPE";
+        final String numericType = "NUMERIC_TYPE";
 
-		if (nOperands == -1) {
-			return SqlUtil.getAliasedSignature(op, opName,
-				Arrays.asList(anyType, numericType, "..."));
-		} else {
-			List<String> types = new ArrayList<>();
-			types.add(anyType);
-			types.addAll(Collections.nCopies(nOperands - 1, numericType));
-			return SqlUtil.getAliasedSignature(op, opName, types);
-		}
-	}
+        if (nOperands == -1) {
+            return SqlUtil.getAliasedSignature(
+                    op, opName, Arrays.asList(anyType, numericType, "..."));
+        } else {
+            List<String> types = new ArrayList<>();
+            types.add(anyType);
+            types.addAll(Collections.nCopies(nOperands - 1, numericType));
+            return SqlUtil.getAliasedSignature(op, opName, types);
+        }
+    }
 
-	@Override
-	public Consistency getConsistency() {
-		return Consistency.NONE;
-	}
+    @Override
+    public Consistency getConsistency() {
+        return Consistency.NONE;
+    }
 
-	@Override
-	public boolean isOptional(int i) {
-		return false;
-	}
+    @Override
+    public boolean isOptional(int i) {
+        return false;
+    }
 }

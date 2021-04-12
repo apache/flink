@@ -19,8 +19,12 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlRichExplain, SqlShowCatalogs,
+  SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases,
+  SqlShowFunctions, SqlShowTables, SqlShowViews}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogReader
+import org.apache.flink.table.parse.CalciteParser
 
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -28,7 +32,8 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.validate.SqlValidator
+import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
@@ -40,13 +45,13 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
 /**
-  * NOTE: this is heavily inspired by Calcite's PlannerImpl.
-  * We need it in order to share the planner between the Table API relational plans
-  * and the SQL relation plans that are created by the Calcite parser.
-  * The main difference is that we do not create a new RelOptPlanner in the ready() method.
-  */
+ * NOTE: this is heavily inspired by Calcite's PlannerImpl.
+ * We need it in order to share the planner between the Table API relational plans
+ * and the SQL relation plans that are created by the Calcite parser.
+ * The main difference is that we do not create a new RelOptPlanner in the ready() method.
+ */
 class FlinkPlannerImpl(
-    config: FrameworkConfig,
+    val config: FrameworkConfig,
     val catalogReaderSupplier: JFunction[JBoolean, CatalogReader],
     planner: RelOptPlanner,
     val typeFactory: FlinkTypeFactory)
@@ -59,28 +64,24 @@ class FlinkPlannerImpl(
 
   var validator: FlinkCalciteSqlValidator = _
 
-  def getCompletionHints(sql: String, cursor: Int): Array[String] = {
-    val advisorValidator = new SqlAdvisorValidator(
+  def getSqlAdvisorValidator(): SqlAdvisorValidator = {
+    new SqlAdvisorValidator(
       operatorTable,
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
-      config.getParserConfig.conformance())
-    val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
-    val replaced = Array[String](null)
-    val hints = advisor.getCompletionHints(sql, cursor, replaced)
-      .map(item => item.toIdentifier.toString)
-    hints.toArray
+      SqlValidator.Config.DEFAULT
+        .withSqlConformance(config.getParserConfig.conformance()))
   }
 
   /**
-    * Get the [[FlinkCalciteSqlValidator]] instance from this planner, create a new instance
-    * if current validator has not been initialized, or returns the validator
-    * instance directly.
-    *
-    * <p>The validator instance creation is not thread safe.
-    *
-    * @return a new validator instance or current existed one
-    */
+   * Get the [[FlinkCalciteSqlValidator]] instance from this planner, create a new instance
+   * if current validator has not been initialized, or returns the validator
+   * instance directly.
+   *
+   * <p>The validator instance creation is not thread safe.
+   *
+   * @return a new validator instance or current existed one
+   */
   def getOrCreateSqlValidator(): FlinkCalciteSqlValidator = {
     if (validator == null) {
       val catalogReader = catalogReaderSupplier.apply(false)
@@ -93,10 +94,11 @@ class FlinkPlannerImpl(
     val validator = new FlinkCalciteSqlValidator(
       operatorTable,
       catalogReader,
-      typeFactory)
-    validator.setIdentifierExpansion(true)
-    // Disable implicit type coercion for now.
-    validator.setEnableTypeCoercion(false)
+      typeFactory,
+      SqlValidator.Config.DEFAULT
+          .withIdentifierExpansion(true)
+          // Disable implicit type coercion for now.
+          .withTypeCoercionEnabled(false))
     validator
   }
 
@@ -117,10 +119,28 @@ class FlinkPlannerImpl(
       }
       // no need to validate row type for DDL and insert nodes.
       if (sqlNode.getKind.belongsTo(SqlKind.DDL)
-        || sqlNode.getKind == SqlKind.INSERT) {
+        || sqlNode.getKind == SqlKind.INSERT
+        || sqlNode.getKind == SqlKind.CREATE_FUNCTION
+        || sqlNode.getKind == SqlKind.DROP_FUNCTION
+        || sqlNode.getKind == SqlKind.OTHER_DDL
+        || sqlNode.isInstanceOf[SqlShowCatalogs]
+        || sqlNode.isInstanceOf[SqlShowCurrentCatalog]
+        || sqlNode.isInstanceOf[SqlShowDatabases]
+        || sqlNode.isInstanceOf[SqlShowCurrentDatabase]
+        || sqlNode.isInstanceOf[SqlShowTables]
+        || sqlNode.isInstanceOf[SqlShowFunctions]
+        || sqlNode.isInstanceOf[SqlShowViews]
+        || sqlNode.isInstanceOf[SqlRichDescribeTable]) {
         return sqlNode
       }
-      validator.validate(sqlNode)
+      sqlNode match {
+        case richExplain: SqlRichExplain =>
+          val validated = validator.validate(richExplain.getStatement)
+          richExplain.setOperand(0, validated)
+          richExplain
+        case _ =>
+          validator.validate(sqlNode)
+      }
     }
     catch {
       case e: RuntimeException =>
@@ -174,19 +194,7 @@ class FlinkPlannerImpl(
     )
     val validator = createSqlValidator(readerWithPathAdjusted)
     val validated = validateInternal(parsed, validator)
-    val equivRel = rel(validated, validator)
-    if (!RelOptUtil.areRowTypesEqual(
-      rowType,
-      equivRel.validatedRowType,
-      true
-    )) {
-      throw new TableException(
-        s"""Could not expand view. Types mismatch.
-           | Expected row type: $rowType
-           | Expanded view type: ${equivRel.validatedRowType}
-           |""".stripMargin)
-    }
-    equivRel
+    rel(validated, validator)
   }
 
   private def createRexBuilder: RexBuilder = {

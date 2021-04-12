@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
 import org.junit.{Before, Test}
@@ -42,38 +42,38 @@ class TwoStageAggregateTest extends TableTestBase {
 
   @Test
   def testCountWithGroupBy(): Unit = {
-    util.verifyPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
+    util.verifyExecPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
   }
 
   @Test
   def testCountWithoutGroupBy(): Unit = {
-    util.verifyPlan("SELECT COUNT(a) FROM MyTable")
+    util.verifyExecPlan("SELECT COUNT(a) FROM MyTable")
   }
 
   @Test
   def testAvgWithGroupBy(): Unit = {
-    util.verifyPlan("SELECT AVG(a) FROM MyTable GROUP BY b")
+    util.verifyExecPlan("SELECT AVG(a) FROM MyTable GROUP BY b")
   }
 
   @Test
   def testAvgWithoutGroupBy(): Unit = {
-    util.verifyPlanWithType("SELECT AVG(CAST(a AS DOUBLE)) FROM MyTable")
+    util.verifyRelPlanWithType("SELECT AVG(CAST(a AS DOUBLE)) FROM MyTable")
   }
 
   @Test
   def testGroupAggregateWithFilter(): Unit = {
-    util.verifyPlan("SELECT * FROM (SELECT b, SUM(a) FROM MyTable GROUP BY b) WHERE b = 2")
+    util.verifyExecPlan("SELECT * FROM (SELECT b, SUM(a) FROM MyTable GROUP BY b) WHERE b = 2")
   }
 
   @Test
   def testGroupAggregateWithExpressionInSelect(): Unit = {
-    util.verifyPlan("SELECT MIN(c), AVG(a) FROM " +
+    util.verifyExecPlan("SELECT MIN(c), AVG(a) FROM " +
       "(SELECT a, b + 3 AS d, c FROM MyTable) GROUP BY d")
   }
 
   @Test
   def testGroupAggregateWithConstant(): Unit = {
-    util.verifyPlan("SELECT four, SUM(a) FROM " +
+    util.verifyExecPlan("SELECT four, SUM(a) FROM " +
       "(SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four")
   }
 }

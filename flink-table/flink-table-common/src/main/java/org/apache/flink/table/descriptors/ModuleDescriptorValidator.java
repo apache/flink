@@ -20,19 +20,15 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Validator for {@link ModuleDescriptor}.
- */
+/** Validator for {@link ModuleDescriptor}. */
 @Internal
 public abstract class ModuleDescriptorValidator implements DescriptorValidator {
 
-	/**
-	 * Key for describing the type of the module. Used for factory discovery.
-	 */
-		public static final String MODULE_TYPE = "type";
+    /** Key for describing the type of the module. Used for factory discovery. */
+    public static final String MODULE_TYPE = "type";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		properties.validateString(MODULE_TYPE, false, 1);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        properties.validateString(MODULE_TYPE, false, 1);
+    }
 }

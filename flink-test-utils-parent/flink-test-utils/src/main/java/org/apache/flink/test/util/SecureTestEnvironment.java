@@ -36,12 +36,12 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Helper {@link SecureTestEnvironment} to handle MiniKDC lifecycle.
- * This class can be used to start/stop MiniKDC and create secure configurations for MiniDFSCluster
- * and MiniYarn.
+ * Helper {@link SecureTestEnvironment} to handle MiniKDC lifecycle. This class can be used to
+ * start/stop MiniKDC and create secure configurations for MiniDFSCluster and MiniYarn.
  *
  * <p>If you use this class in your project, please make sure to add a dependency to
  * <tt>hadoop-minikdc</tt>, e.g. in your <tt>pom.xml</tt>:
+ *
  * <pre>
  * ...
  * &lt;dependencies&gt;
@@ -73,176 +73,183 @@ import java.util.Properties;
  */
 public class SecureTestEnvironment {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(SecureTestEnvironment.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(SecureTestEnvironment.class);
 
-	private static MiniKdc kdc;
+    private static MiniKdc kdc;
 
-	private static String testKeytab = null;
+    private static String testKeytab = null;
 
-	private static String testPrincipal = null;
+    private static String testPrincipal = null;
 
-	private static String testZkServerPrincipal = null;
+    private static String testZkServerPrincipal = null;
 
-	private static String testZkClientPrincipal = null;
+    private static String testZkClientPrincipal = null;
 
-	private static String testKafkaServerPrincipal = null;
+    private static String testKafkaServerPrincipal = null;
 
-	private static String hadoopServicePrincipal = null;
+    private static String hadoopServicePrincipal = null;
 
-	public static void prepare(TemporaryFolder tempFolder) {
+    public static void prepare(TemporaryFolder tempFolder) {
 
-		try {
-			File baseDirForSecureRun = tempFolder.newFolder();
-			LOG.info("Base Directory for Secure Environment: {}", baseDirForSecureRun);
+        try {
+            File baseDirForSecureRun = tempFolder.newFolder();
+            LOG.info("Base Directory for Secure Environment: {}", baseDirForSecureRun);
 
-			String hostName = "localhost";
-			Properties kdcConf = MiniKdc.createConf();
-			if (LOG.isDebugEnabled()) {
-				kdcConf.setProperty(MiniKdc.DEBUG, "true");
-			}
-			kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, hostName);
-			kdc = new MiniKdc(kdcConf, baseDirForSecureRun);
-			kdc.start();
-			LOG.info("Started Mini KDC");
+            String hostName = "localhost";
+            Properties kdcConf = MiniKdc.createConf();
+            if (LOG.isDebugEnabled()) {
+                kdcConf.setProperty(MiniKdc.DEBUG, "true");
+            }
+            kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, hostName);
+            kdc = new MiniKdc(kdcConf, baseDirForSecureRun);
+            kdc.start();
+            LOG.info("Started Mini KDC");
 
-			File keytabFile = new File(baseDirForSecureRun, "test-users.keytab");
-			testKeytab = keytabFile.getAbsolutePath();
-			testZkServerPrincipal = "zookeeper/127.0.0.1";
-			testZkClientPrincipal = "zk-client/127.0.0.1";
-			testKafkaServerPrincipal = "kafka/" + hostName;
-			hadoopServicePrincipal = "hadoop/" + hostName;
-			testPrincipal = "client/" + hostName;
+            File keytabFile = new File(baseDirForSecureRun, "test-users.keytab");
+            testKeytab = keytabFile.getAbsolutePath();
+            testZkServerPrincipal = "zookeeper/" + hostName;
+            testZkClientPrincipal = "zk-client/" + hostName;
+            testKafkaServerPrincipal = "kafka/" + hostName;
+            hadoopServicePrincipal = "hadoop/" + hostName;
+            testPrincipal = "client/" + hostName;
 
-			kdc.createPrincipal(keytabFile, testPrincipal, testZkServerPrincipal,
-					hadoopServicePrincipal,
-					testZkClientPrincipal,
-					testKafkaServerPrincipal);
+            kdc.createPrincipal(
+                    keytabFile,
+                    testPrincipal,
+                    testZkServerPrincipal,
+                    hadoopServicePrincipal,
+                    testZkClientPrincipal,
+                    testKafkaServerPrincipal);
 
-			testPrincipal = testPrincipal + "@" + kdc.getRealm();
-			testZkServerPrincipal = testZkServerPrincipal + "@" + kdc.getRealm();
-			testZkClientPrincipal = testZkClientPrincipal + "@" + kdc.getRealm();
-			testKafkaServerPrincipal = testKafkaServerPrincipal + "@" + kdc.getRealm();
-			hadoopServicePrincipal = hadoopServicePrincipal + "@" + kdc.getRealm();
+            testPrincipal = testPrincipal + "@" + kdc.getRealm();
+            testZkServerPrincipal = testZkServerPrincipal + "@" + kdc.getRealm();
+            testZkClientPrincipal = testZkClientPrincipal + "@" + kdc.getRealm();
+            testKafkaServerPrincipal = testKafkaServerPrincipal + "@" + kdc.getRealm();
+            hadoopServicePrincipal = hadoopServicePrincipal + "@" + kdc.getRealm();
 
-			LOG.info("-------------------------------------------------------------------");
-			LOG.info("Test Principal: {}", testPrincipal);
-			LOG.info("Test ZK Server Principal: {}", testZkServerPrincipal);
-			LOG.info("Test ZK Client Principal: {}", testZkClientPrincipal);
-			LOG.info("Test Kafka Server Principal: {}", testKafkaServerPrincipal);
-			LOG.info("Test Hadoop Service Principal: {}", hadoopServicePrincipal);
-			LOG.info("Test Keytab: {}", testKeytab);
-			LOG.info("-------------------------------------------------------------------");
+            LOG.info("-------------------------------------------------------------------");
+            LOG.info("Test Principal: {}", testPrincipal);
+            LOG.info("Test ZK Server Principal: {}", testZkServerPrincipal);
+            LOG.info("Test ZK Client Principal: {}", testZkClientPrincipal);
+            LOG.info("Test Kafka Server Principal: {}", testKafkaServerPrincipal);
+            LOG.info("Test Hadoop Service Principal: {}", hadoopServicePrincipal);
+            LOG.info("Test Keytab: {}", testKeytab);
+            LOG.info("-------------------------------------------------------------------");
 
-			//Security Context is established to allow non hadoop applications that requires JAAS
-			//based SASL/Kerberos authentication to work. However, for Hadoop specific applications
-			//the context can be reinitialized with Hadoop configuration by calling
-			//ctx.setHadoopConfiguration() for the UGI implementation to work properly.
-			//See Yarn test case module for reference
-			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
-			flinkConfig.setBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
-			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
-			flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
-			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
-			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Client,KafkaClient");
-			SecurityConfiguration ctx = new SecurityConfiguration(flinkConfig);
-			TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
+            // Security Context is established to allow non hadoop applications that requires JAAS
+            // based SASL/Kerberos authentication to work. However, for Hadoop specific applications
+            // the context can be reinitialized with Hadoop configuration by calling
+            // ctx.setHadoopConfiguration() for the UGI implementation to work properly.
+            // See Yarn test case module for reference
+            Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
+            flinkConfig.setBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
+            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+            flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
+            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Client,KafkaClient");
+            SecurityConfiguration ctx = new SecurityConfiguration(flinkConfig);
+            TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
-			populateJavaPropertyVariables();
+            populateJavaPropertyVariables();
 
-		} catch (Exception e) {
-			throw new RuntimeException("Exception occured while preparing secure environment.", e);
-		}
+        } catch (Exception e) {
+            throw new RuntimeException("Exception occurred while preparing secure environment.", e);
+        }
+    }
 
-	}
+    public static void cleanup() {
 
-	public static void cleanup() {
+        LOG.info("Cleaning up Secure Environment");
 
-		LOG.info("Cleaning up Secure Environment");
+        if (kdc != null) {
+            kdc.stop();
+            LOG.info("Stopped KDC server");
+        }
 
-		if (kdc != null) {
-			kdc.stop();
-			LOG.info("Stopped KDC server");
-		}
+        resetSystemEnvVariables();
 
-		resetSystemEnvVariables();
+        testKeytab = null;
+        testPrincipal = null;
+        testZkServerPrincipal = null;
+        hadoopServicePrincipal = null;
+    }
 
-		testKeytab = null;
-		testPrincipal = null;
-		testZkServerPrincipal = null;
-		hadoopServicePrincipal = null;
+    private static void populateJavaPropertyVariables() {
 
-	}
+        if (LOG.isDebugEnabled()) {
+            System.setProperty("sun.security.krb5.debug", "true");
+        }
 
-	private static void populateJavaPropertyVariables() {
+        System.setProperty("java.security.krb5.conf", kdc.getKrb5conf().getAbsolutePath());
 
-		if (LOG.isDebugEnabled()) {
-			System.setProperty("sun.security.krb5.debug", "true");
-		}
+        System.setProperty(
+                "zookeeper.authProvider.1",
+                "org.apache.zookeeper.server.auth.SASLAuthenticationProvider");
+        System.setProperty("zookeeper.kerberos.removeHostFromPrincipal", "true");
+        System.setProperty("zookeeper.kerberos.removeRealmFromPrincipal", "true");
+    }
 
-		System.setProperty("java.security.krb5.conf", kdc.getKrb5conf().getAbsolutePath());
+    private static void resetSystemEnvVariables() {
+        System.clearProperty("java.security.krb5.conf");
+        System.clearProperty("sun.security.krb5.debug");
 
-		System.setProperty("zookeeper.authProvider.1", "org.apache.zookeeper.server.auth.SASLAuthenticationProvider");
-		System.setProperty("zookeeper.kerberos.removeHostFromPrincipal", "true");
-		System.setProperty("zookeeper.kerberos.removeRealmFromPrincipal", "true");
-	}
+        System.clearProperty("zookeeper.authProvider.1");
+        System.clearProperty("zookeeper.kerberos.removeHostFromPrincipal");
+        System.clearProperty("zookeeper.kerberos.removeRealmFromPrincipal");
+    }
 
-	private static void resetSystemEnvVariables() {
-		System.clearProperty("java.security.krb5.conf");
-		System.clearProperty("sun.security.krb5.debug");
+    public static org.apache.flink.configuration.Configuration populateFlinkSecureConfigurations(
+            @Nullable org.apache.flink.configuration.Configuration flinkConf) {
 
-		System.clearProperty("zookeeper.authProvider.1");
-		System.clearProperty("zookeeper.kerberos.removeHostFromPrincipal");
-		System.clearProperty("zookeeper.kerberos.removeRealmFromPrincipal");
-	}
+        org.apache.flink.configuration.Configuration conf;
 
-	public static org.apache.flink.configuration.Configuration populateFlinkSecureConfigurations(
-			@Nullable org.apache.flink.configuration.Configuration flinkConf) {
+        if (flinkConf == null) {
+            conf = new org.apache.flink.configuration.Configuration();
+        } else {
+            conf = flinkConf;
+        }
 
-		org.apache.flink.configuration.Configuration conf;
+        conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+        conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
 
-		if (flinkConf == null) {
-			conf = new org.apache.flink.configuration.Configuration();
-		} else {
-			conf = flinkConf;
-		}
+        return conf;
+    }
 
-		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB , testKeytab);
-		conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL , testPrincipal);
+    public static Map<String, TestingSecurityContext.ClientSecurityConfiguration>
+            getClientSecurityConfigurationMap() {
 
-		return conf;
-	}
+        Map<String, TestingSecurityContext.ClientSecurityConfiguration>
+                clientSecurityConfigurationMap = new HashMap<>();
 
-	public static Map<String, TestingSecurityContext.ClientSecurityConfiguration> getClientSecurityConfigurationMap() {
+        if (testZkServerPrincipal != null) {
+            TestingSecurityContext.ClientSecurityConfiguration zkServer =
+                    new TestingSecurityContext.ClientSecurityConfiguration(
+                            testZkServerPrincipal, testKeytab);
+            clientSecurityConfigurationMap.put("Server", zkServer);
+        }
 
-		Map<String, TestingSecurityContext.ClientSecurityConfiguration> clientSecurityConfigurationMap = new HashMap<>();
+        if (testZkClientPrincipal != null) {
+            TestingSecurityContext.ClientSecurityConfiguration zkClient =
+                    new TestingSecurityContext.ClientSecurityConfiguration(
+                            testZkClientPrincipal, testKeytab);
+            clientSecurityConfigurationMap.put("Client", zkClient);
+        }
 
-		if (testZkServerPrincipal != null) {
-			TestingSecurityContext.ClientSecurityConfiguration zkServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("Server", zkServer);
-		}
+        if (testKafkaServerPrincipal != null) {
+            TestingSecurityContext.ClientSecurityConfiguration kafkaServer =
+                    new TestingSecurityContext.ClientSecurityConfiguration(
+                            testKafkaServerPrincipal, testKeytab);
+            clientSecurityConfigurationMap.put("KafkaServer", kafkaServer);
+        }
 
-		if (testZkClientPrincipal != null) {
-			TestingSecurityContext.ClientSecurityConfiguration zkClient =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("Client", zkClient);
-		}
+        return clientSecurityConfigurationMap;
+    }
 
-		if (testKafkaServerPrincipal != null) {
-			TestingSecurityContext.ClientSecurityConfiguration kafkaServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab);
-			clientSecurityConfigurationMap.put("KafkaServer", kafkaServer);
-		}
+    public static String getTestKeytab() {
+        return testKeytab;
+    }
 
-		return clientSecurityConfigurationMap;
-	}
-
-	public static String getTestKeytab() {
-		return testKeytab;
-	}
-
-	public static String getHadoopServicePrincipal() {
-		return hadoopServicePrincipal;
-	}
-
+    public static String getHadoopServicePrincipal() {
+        return hadoopServicePrincipal;
+    }
 }

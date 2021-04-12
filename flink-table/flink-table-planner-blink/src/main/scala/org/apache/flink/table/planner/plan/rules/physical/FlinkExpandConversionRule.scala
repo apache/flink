@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecSort, BatchPhysicalRel}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExchange
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalSort, BatchPhysicalExchange, BatchPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 
 import org.apache.calcite.plan.RelOptRule._
@@ -127,18 +127,18 @@ object FlinkExpandConversionRule {
                 .replace(requiredDistribution)
                 .replace(flinkConvention)
                 .replace(RelCollations.EMPTY)
-              new BatchExecExchange(node.getCluster, traitSet, node, requiredDistribution)
+              new BatchPhysicalExchange(node.getCluster, traitSet, node, requiredDistribution)
             case FlinkConventions.STREAM_PHYSICAL =>
-              val updateAsRetraction = fromTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE)
-              val accMode = fromTraitSet.getTrait(AccModeTraitDef.INSTANCE)
+              val modifyKindSetTrait = fromTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
+              val updateKindTrait = fromTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
               // replace collation with empty since distribution destroy collation
               val traitSet = fromTraitSet
                 .replace(requiredDistribution)
                 .replace(flinkConvention)
                 .replace(RelCollations.EMPTY)
-                .replace(updateAsRetraction)
-                .replace(accMode)
-              new StreamExecExchange(node.getCluster, traitSet, node, requiredDistribution)
+                .replace(modifyKindSetTrait)
+                .replace(updateKindTrait)
+              new StreamPhysicalExchange(node.getCluster, traitSet, node, requiredDistribution)
             case _ => throw new TableException(s"Unsupported convention: $flinkConvention")
           }
         case _ => throw new TableException(s"Unsupported type: ${requiredDistribution.getType}")
@@ -158,7 +158,7 @@ object FlinkExpandConversionRule {
       val sortCollation = RelCollationTraitDef.INSTANCE.canonize(requiredCollation)
       flinkConvention match {
         case FlinkConventions.BATCH_PHYSICAL =>
-          new BatchExecSort(node.getCluster, traitSet, node, sortCollation)
+          new BatchPhysicalSort(node.getCluster, traitSet, node, sortCollation)
         case _ => throw new TableException(s"Unsupported convention: $flinkConvention")
       }
     } else {

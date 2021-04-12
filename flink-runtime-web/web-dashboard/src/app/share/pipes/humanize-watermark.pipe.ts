@@ -25,7 +25,7 @@ import { LONG_MIN_VALUE } from 'config';
 export class HumanizeWatermarkPipe implements PipeTransform {
   transform(value: any): any {
     if (isNaN(value) || value <= LONG_MIN_VALUE) {
-      return 'No Watermark';
+      return 'No Watermark (Watermarks are only available if EventTime is used)';
     } else {
       return value;
     }

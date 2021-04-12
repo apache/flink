@@ -31,41 +31,42 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link SerializedThrowableSerializer} and {@link SerializedThrowableDeserializer}.
- */
+/** Tests for {@link SerializedThrowableSerializer} and {@link SerializedThrowableDeserializer}. */
 public class SerializedThrowableSerializerTest extends TestLogger {
 
-	private ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper objectMapper = new ObjectMapper();
 
-	@Before
-	public void setUp() {
-		final SimpleModule simpleModule = new SimpleModule();
-		simpleModule.addDeserializer(SerializedThrowable.class, new SerializedThrowableDeserializer());
-		simpleModule.addSerializer(SerializedThrowable.class, new SerializedThrowableSerializer());
+    @Before
+    public void setUp() {
+        final SimpleModule simpleModule = new SimpleModule();
+        simpleModule.addDeserializer(
+                SerializedThrowable.class, new SerializedThrowableDeserializer());
+        simpleModule.addSerializer(SerializedThrowable.class, new SerializedThrowableSerializer());
 
-		objectMapper = new ObjectMapper();
-		objectMapper.registerModule(simpleModule);
-	}
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(simpleModule);
+    }
 
-	@Test
-	public void testSerializationDeserialization() throws Exception {
-		final String lastExceptionMessage = "message";
-		final String causeMessage = "cause";
+    @Test
+    public void testSerializationDeserialization() throws Exception {
+        final String lastExceptionMessage = "message";
+        final String causeMessage = "cause";
 
-		final SerializedThrowable serializedThrowable = new SerializedThrowable(
-			new RuntimeException(lastExceptionMessage,
-				new RuntimeException(causeMessage)));
-		final String json = objectMapper.writeValueAsString(serializedThrowable);
-		final SerializedThrowable deserializedSerializedThrowable = objectMapper.readValue(
-			json,
-			SerializedThrowable.class);
+        final SerializedThrowable serializedThrowable =
+                new SerializedThrowable(
+                        new RuntimeException(
+                                lastExceptionMessage, new RuntimeException(causeMessage)));
+        final String json = objectMapper.writeValueAsString(serializedThrowable);
+        final SerializedThrowable deserializedSerializedThrowable =
+                objectMapper.readValue(json, SerializedThrowable.class);
 
-		assertThat(deserializedSerializedThrowable.getMessage(), equalTo(lastExceptionMessage));
-		assertThat(deserializedSerializedThrowable.getFullStringifiedStackTrace(), equalTo(serializedThrowable.getFullStringifiedStackTrace()));
+        assertThat(deserializedSerializedThrowable.getMessage(), equalTo(lastExceptionMessage));
+        assertThat(
+                deserializedSerializedThrowable.getFullStringifiedStackTrace(),
+                equalTo(serializedThrowable.getFullStringifiedStackTrace()));
 
-		assertThat(deserializedSerializedThrowable.getCause().getMessage(), equalTo(causeMessage));
-		assertThat(deserializedSerializedThrowable.getCause(), instanceOf(SerializedThrowable.class));
-	}
-
+        assertThat(deserializedSerializedThrowable.getCause().getMessage(), equalTo(causeMessage));
+        assertThat(
+                deserializedSerializedThrowable.getCause(), instanceOf(SerializedThrowable.class));
+    }
 }

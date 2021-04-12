@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.utils;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -25,51 +26,71 @@ import org.apache.flink.table.types.inference.CallContext;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * {@link CallContext} mock for testing purposes.
- */
+/** {@link CallContext} mock for testing purposes. */
 public class CallContextMock implements CallContext {
 
-	public List<DataType> argumentDataTypes;
+    public DataTypeFactory typeFactory;
 
-	public FunctionDefinition functionDefinition;
+    public List<DataType> argumentDataTypes;
 
-	public List<Boolean> argumentLiterals;
+    public FunctionDefinition functionDefinition;
 
-	public List<Boolean> argumentNulls;
+    public List<Boolean> argumentLiterals;
 
-	public List<Optional<?>> argumentValues;
+    public List<Boolean> argumentNulls;
 
-	public String name;
+    public List<Optional<?>> argumentValues;
 
-	@Override
-	public List<DataType> getArgumentDataTypes() {
-		return argumentDataTypes;
-	}
+    public String name;
 
-	@Override
-	public FunctionDefinition getFunctionDefinition() {
-		return functionDefinition;
-	}
+    public Optional<DataType> outputDataType;
 
-	@Override
-	public boolean isArgumentLiteral(int pos) {
-		return argumentLiterals.get(pos);
-	}
+    public boolean isGroupedAggregation;
 
-	@Override
-	public boolean isArgumentNull(int pos) {
-		return argumentNulls.get(pos);
-	}
+    @Override
+    public DataTypeFactory getDataTypeFactory() {
+        return typeFactory;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-		return (Optional<T>) argumentValues.get(pos);
-	}
+    @Override
+    public FunctionDefinition getFunctionDefinition() {
+        return functionDefinition;
+    }
 
-	@Override
-	public String getName() {
-		return name;
-	}
+    @Override
+    public boolean isArgumentLiteral(int pos) {
+        return argumentLiterals.get(pos);
+    }
+
+    @Override
+    public boolean isArgumentNull(int pos) {
+        return argumentNulls.get(pos);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        return (Optional<T>)
+                argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return argumentDataTypes;
+    }
+
+    @Override
+    public Optional<DataType> getOutputDataType() {
+        return outputDataType;
+    }
+
+    @Override
+    public boolean isGroupedAggregation() {
+        return isGroupedAggregation;
+    }
 }

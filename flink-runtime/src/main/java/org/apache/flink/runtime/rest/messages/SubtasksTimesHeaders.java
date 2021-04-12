@@ -23,52 +23,55 @@ import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link SubtasksTimesHandler}.
- */
-public class SubtasksTimesHeaders implements MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link SubtasksTimesHandler}. */
+public class SubtasksTimesHeaders
+        implements MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters> {
 
-	private static final SubtasksTimesHeaders INSTANCE = new SubtasksTimesHeaders();
+    private static final SubtasksTimesHeaders INSTANCE = new SubtasksTimesHeaders();
 
-	public static final String URL = "/jobs/:" + JobIDPathParameter.KEY +
-		"/vertices/:" + JobVertexIdPathParameter.KEY + "/subtasktimes";
+    public static final String URL =
+            "/jobs/:"
+                    + JobIDPathParameter.KEY
+                    + "/vertices/:"
+                    + JobVertexIdPathParameter.KEY
+                    + "/subtasktimes";
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<SubtasksTimesInfo> getResponseClass() {
-		return SubtasksTimesInfo.class;
-	}
+    @Override
+    public Class<SubtasksTimesInfo> getResponseClass() {
+        return SubtasksTimesInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SubtasksTimesHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SubtasksTimesHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns time-related information for all subtasks of a task.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns time-related information for all subtasks of a task.";
+    }
 }

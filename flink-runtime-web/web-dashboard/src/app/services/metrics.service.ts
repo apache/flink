@@ -79,36 +79,75 @@ export class MetricsService {
   }
 
   /**
-   * Get watermarks data
+   * Get aggregated metric data from all subtasks of the given vertexId
    * @param jobId
    * @param vertexId
-   * @param parallelism
+   * @param listOfMetricName
    */
-  getWatermarks(jobId: string, vertexId: string, parallelism: number) {
-    const listOfMetricName = new Array(parallelism).fill(0).map((_, index) => `${index}.currentInputWatermark`);
-    return this.getMetrics(jobId, vertexId, listOfMetricName).pipe(
-      map(metrics => {
-        let minValue = NaN;
-        let lowWatermark = NaN;
-        const watermarks: { [id: string]: number } = {};
-        const ref = metrics.values;
-        for (const key in ref) {
-          const value = ref[key];
-          const subTaskIndex = key.replace('.currentInputWatermark', '');
-          watermarks[subTaskIndex] = value;
-          if (isNaN(minValue) || value < minValue) {
-            minValue = value;
+  getAggregatedMetrics(jobId: string, vertexId: string, listOfMetricName: string[], aggregate: string = "max") {
+    const metricName = listOfMetricName.join(',');
+    return this.httpClient
+      .get<Array<{ id: string; min: number; max: number; avg: number; sum: number }>>(
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics?get=${metricName}`
+      )
+      .pipe(
+        map(arr => {
+          const result: { [id: string]: number } = {};
+          arr.forEach(item => {
+            switch (aggregate) {
+              case "min":
+                result[item.id] = +item.min;
+                break;
+              case "max":
+                result[item.id] = +item.max;
+                break;
+              case "avg":
+                result[item.id] = +item.avg;
+                break;
+              case "sum":
+                result[item.id] = +item.sum;
+                break;
+              default:
+                throw new Error("Unsupported aggregate: " + aggregate);
+            }
+          });
+          return result;
+        })
+      );
+  }
+
+  /**
+   * Gets the watermarks for a given vertex id.
+   * @param jobId
+   * @param vertexId
+   */
+  getWatermarks(jobId: string, vertexId: string) {
+    return this.httpClient
+      .get<Array<{ id: string; value: string }>>(
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/watermarks`
+      )
+      .pipe(
+        map(arr => {
+          let minValue = NaN;
+          let lowWatermark = NaN;
+          const watermarks: { [id: string]: number } = {};
+          arr.forEach(item => {
+            const value = parseInt(item.value, 10);
+            const subTaskIndex = item.id.replace('.currentInputWatermark', '');
+            watermarks[subTaskIndex] = value;
+            if (isNaN(minValue) || value < minValue) {
+              minValue = value;
+            }
+          });
+          if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
+            lowWatermark = minValue;
+          } else {
+            lowWatermark = NaN;
           }
-        }
-        if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
-          lowWatermark = minValue;
-        } else {
-          lowWatermark = NaN;
-        }
-        return {
-          lowWatermark,
-          watermarks
-        };
+          return {
+            lowWatermark,
+            watermarks
+          };
       })
     );
   }

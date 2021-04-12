@@ -47,7 +47,7 @@ class SimplifyFilterConditionRule(
     newFilter match {
       case Some(f) =>
         call.transformTo(f)
-        call.getPlanner.setImportance(filter, 0.0)
+        call.getPlanner.prune(filter)
       case _ => // do nothing
     }
   }
@@ -63,7 +63,7 @@ class SimplifyFilterConditionRule(
     val simplifiedCondition = FlinkRexUtil.simplify(rexBuilder, condition)
     val newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition)
 
-    if (!changed.head && !RexUtil.eq(condition, newCondition)) {
+    if (!changed.head && !condition.equals(newCondition)) {
       changed(0) = true
     }
 

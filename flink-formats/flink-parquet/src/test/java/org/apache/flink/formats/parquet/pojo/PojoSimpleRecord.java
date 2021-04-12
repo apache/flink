@@ -18,35 +18,33 @@
 
 package org.apache.flink.formats.parquet.pojo;
 
-/**
- * Simple POJO class for testing ParquetPojoInputFormat.
- */
+/** Simple POJO class for testing ParquetPojoInputFormat. */
 public class PojoSimpleRecord {
-	private Long foo = null;
-	private String bar = null;
-	private Long[] arr = null;
+    private Long foo = null;
+    private String bar = null;
+    private Long[] arr = null;
 
-	public Long getFoo() {
-		return foo;
-	}
+    public Long getFoo() {
+        return foo;
+    }
 
-	public void setFoo(Long foo) {
-		this.foo = foo;
-	}
+    public void setFoo(Long foo) {
+        this.foo = foo;
+    }
 
-	public String getBar() {
-		return bar;
-	}
+    public String getBar() {
+        return bar;
+    }
 
-	public void setBar(String bar) {
-		this.bar = bar;
-	}
+    public void setBar(String bar) {
+        this.bar = bar;
+    }
 
-	public Long[] getArr() {
-		return arr;
-	}
+    public Long[] getArr() {
+        return arr;
+    }
 
-	public void setArr(Long[] arr) {
-		this.arr = arr;
-	}
+    public void setArr(Long[] arr) {
+        this.arr = arr;
+    }
 }

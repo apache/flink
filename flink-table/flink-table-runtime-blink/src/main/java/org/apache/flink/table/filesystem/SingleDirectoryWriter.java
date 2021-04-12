@@ -21,9 +21,10 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * {@link PartitionWriter} for single directory writer. It just use one format to write.
@@ -33,27 +34,46 @@ import static org.apache.flink.table.filesystem.PartitionPathUtils.generateParti
 @Internal
 public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
 
-	private final PartitionComputer<T> computer;
-	private final OutputFormat<T> format;
+    private final Context<T> context;
+    private final PartitionTempFileManager manager;
+    private final PartitionComputer<T> computer;
+    private final LinkedHashMap<String, String> staticPartitions;
 
-	public SingleDirectoryWriter(
-			Context<T> context,
-			PartitionTempFileManager manager,
-			PartitionComputer<T> computer,
-			LinkedHashMap<String, String> staticPartitions) throws Exception {
-		this.computer = computer;
-		this.format = context.createNewOutputFormat(staticPartitions.size() == 0 ?
-				manager.createPartitionDir() :
-				manager.createPartitionDir(generatePartitionPath(staticPartitions)));
-	}
+    private OutputFormat<T> format;
 
-	@Override
-	public void write(T in) throws Exception {
-		format.writeRecord(computer.projectColumnsToWrite(in));
-	}
+    public SingleDirectoryWriter(
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> computer,
+            LinkedHashMap<String, String> staticPartitions) {
+        this.context = context;
+        this.manager = manager;
+        this.computer = computer;
+        this.staticPartitions = staticPartitions;
+    }
 
-	@Override
-	public void close() throws Exception {
-		format.close();
-	}
+    private void createFormat() throws IOException {
+        this.format =
+                context.createNewOutputFormat(
+                        staticPartitions.size() == 0
+                                ? manager.createPartitionDir()
+                                : manager.createPartitionDir(
+                                        generatePartitionPath(staticPartitions)));
+    }
+
+    @Override
+    public void write(T in) throws Exception {
+        if (format == null) {
+            createFormat();
+        }
+        format.writeRecord(computer.projectColumnsToWrite(in));
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (format != null) {
+            format.close();
+            format = null;
+        }
+    }
 }

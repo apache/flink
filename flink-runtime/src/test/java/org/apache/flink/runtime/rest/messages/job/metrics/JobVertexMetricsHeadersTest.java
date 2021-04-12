@@ -28,25 +28,28 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JobVertexMetricsHeaders}.
- */
+/** Tests for {@link JobVertexMetricsHeaders}. */
 public class JobVertexMetricsHeadersTest extends TestLogger {
 
-	private final JobVertexMetricsHeaders jobVertexMetricsHeaders = JobVertexMetricsHeaders
-		.getInstance();
+    private final JobVertexMetricsHeaders jobVertexMetricsHeaders =
+            JobVertexMetricsHeaders.getInstance();
 
-	@Test
-	public void testUrl() {
-		assertThat(jobVertexMetricsHeaders.getTargetRestEndpointURL(),
-			equalTo("/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" +
-				JobVertexIdPathParameter.KEY + "/metrics"));
-	}
+    @Test
+    public void testUrl() {
+        assertThat(
+                jobVertexMetricsHeaders.getTargetRestEndpointURL(),
+                equalTo(
+                        "/jobs/:"
+                                + JobIDPathParameter.KEY
+                                + "/vertices/:"
+                                + JobVertexIdPathParameter.KEY
+                                + "/metrics"));
+    }
 
-	@Test
-	public void testMessageParameters() {
-		assertThat(jobVertexMetricsHeaders.getUnresolvedMessageParameters(),
-			instanceOf(JobVertexMetricsMessageParameters.class));
-	}
-
+    @Test
+    public void testMessageParameters() {
+        assertThat(
+                jobVertexMetricsHeaders.getUnresolvedMessageParameters(),
+                instanceOf(JobVertexMetricsMessageParameters.class));
+    }
 }

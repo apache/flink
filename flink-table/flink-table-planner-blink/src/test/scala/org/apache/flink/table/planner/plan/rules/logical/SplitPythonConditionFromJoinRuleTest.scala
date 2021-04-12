@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 /**
@@ -61,7 +62,7 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
   @Test
   def testPythonFunctionInJoinCondition(): Unit = {
     val sqlQuery = "SELECT a, b, d FROM leftTable JOIN rightTable ON a=d and pyFunc(a, d)=b "
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -75,6 +76,6 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
         |    a = d and pyFunc(a, a) = a + d)
         |  WHERE pyFunc(a, d) = a * d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

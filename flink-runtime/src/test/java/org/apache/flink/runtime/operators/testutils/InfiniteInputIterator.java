@@ -16,34 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-/**
- * A simple iterator that returns an infinite amount of records resembling (0, 0) pairs.
- */
-public class InfiniteInputIterator implements MutableObjectIterator<Record>
-{
-	private final IntValue val1 = new IntValue(0);
-	private final IntValue val2 = new IntValue(0);
-	
-	@Override
-	public Record next(Record reuse) {
-		reuse.setField(0, val1);
-		reuse.setField(1, val2);
-		return reuse;
-	}
+/** A simple iterator that returns an infinite amount of records resembling (0, 0) pairs. */
+public class InfiniteInputIterator implements MutableObjectIterator<Record> {
+    private final IntValue val1 = new IntValue(0);
+    private final IntValue val2 = new IntValue(0);
 
-	@Override
-	public Record next() {
-		Record result = new Record(2);
-		result.setField(0, val1);
-		result.setField(1, val2);
-		return result;
-	}
+    @Override
+    public Record next(Record reuse) {
+        reuse.setField(0, val1);
+        reuse.setField(1, val2);
+        return reuse;
+    }
 
+    @Override
+    public Record next() {
+        Record result = new Record(2);
+        result.setField(0, val1);
+        result.setField(1, val2);
+        return result;
+    }
 }

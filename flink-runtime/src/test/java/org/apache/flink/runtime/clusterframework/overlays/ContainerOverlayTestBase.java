@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework.overlays;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.junit.After;
 import org.junit.Before;
 
@@ -30,44 +31,43 @@ import java.util.Map;
 
 public class ContainerOverlayTestBase {
 
-	private Map<String, String> originalEnvironment;
+    private Map<String, String> originalEnvironment;
 
-	@Before
-	public void before() {
-		originalEnvironment = new HashMap<>(System.getenv());
-	}
+    @Before
+    public void before() {
+        originalEnvironment = new HashMap<>(System.getenv());
+    }
 
-	@After
-	public void after() {
-		CommonTestUtils.setEnv(originalEnvironment, true);
-	}
+    @After
+    public void after() {
+        CommonTestUtils.setEnv(originalEnvironment, true);
+    }
 
-
-	/**
-	 * Create an empty file for each given path.
-	 * @param root the root folder in which to create the files.
-	 * @param paths the relative paths to create.
+    /**
+     * Create an empty file for each given path.
+     *
+     * @param root the root folder in which to create the files.
+     * @param paths the relative paths to create.
      */
-	protected static Path[] createPaths(File root, String... paths) throws Exception {
-		Path[] files = new Path[paths.length];
-		for(int i = 0; i < paths.length; i++) {
-			File file = root.toPath().resolve(paths[i]).toFile();
-			file.getParentFile().mkdirs();
-			file.createNewFile();
-			files[i] = new Path(paths[i]);
-		}
-		return files;
-	}
+    protected static Path[] createPaths(File root, String... paths) throws Exception {
+        Path[] files = new Path[paths.length];
+        for (int i = 0; i < paths.length; i++) {
+            File file = root.toPath().resolve(paths[i]).toFile();
+            file.getParentFile().mkdirs();
+            file.createNewFile();
+            files[i] = new Path(paths[i]);
+        }
+        return files;
+    }
 
-	/**
-	 * Check that an artifact exists for the given remote path.
-     */
-	protected static ContainerSpecification.Artifact checkArtifact(ContainerSpecification spec, Path remotePath) {
-		for(ContainerSpecification.Artifact artifact : spec.getArtifacts()) {
-			if(remotePath.equals(artifact.dest)) {
-				return artifact;
-			}
-		}
-		throw new AssertionError("no such artifact (" + remotePath + ")");
-	}
+    /** Check that an artifact exists for the given remote path. */
+    protected static ContainerSpecification.Artifact checkArtifact(
+            ContainerSpecification spec, Path remotePath) {
+        for (ContainerSpecification.Artifact artifact : spec.getArtifacts()) {
+            if (remotePath.equals(artifact.dest)) {
+                return artifact;
+            }
+        }
+        throw new AssertionError("no such artifact (" + remotePath + ")");
+    }
 }

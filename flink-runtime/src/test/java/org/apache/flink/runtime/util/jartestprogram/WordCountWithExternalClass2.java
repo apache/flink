@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,24 +24,24 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 public class WordCountWithExternalClass2 {
 
-	public static void main(String[] args) throws Exception {
-		// set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        // set up the execution environment
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// get input data
-		DataSet<String> text = StaticData.getDefaultTextLineDataSet(env);
+        // get input data
+        DataSet<String> text = StaticData.getDefaultTextLineDataSet(env);
 
-		DataSet<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			text.flatMap(new ExternalTokenizer2())
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
+        DataSet<Tuple2<String, Integer>> counts =
+                // split up the lines in pairs (2-tuples) containing: (word,1)
+                text.flatMap(new ExternalTokenizer2())
+                        // group by the tuple field "0" and sum up tuple field "1"
+                        .groupBy(0)
+                        .sum(1);
 
-		// emit result
-		counts.print();
+        // emit result
+        counts.print();
 
-		// execute program
-		env.execute("WordCount Example");
-	}
+        // execute program
+        env.execute("WordCount Example");
+    }
 }

@@ -29,20 +29,21 @@ import org.apache.parquet.schema.MessageType;
 /**
  * An implementation of {@link ParquetInputFormat} to read {@link Row} records from Parquet files.
  */
-public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements ResultTypeQueryable<Row> {
-	private static final long serialVersionUID = 11L;
+public class ParquetRowInputFormat extends ParquetInputFormat<Row>
+        implements ResultTypeQueryable<Row> {
+    private static final long serialVersionUID = 11L;
 
-	public ParquetRowInputFormat(Path path, MessageType messageType) {
-		super(path, messageType);
-	}
+    public ParquetRowInputFormat(Path path, MessageType messageType) {
+        super(path, messageType);
+    }
 
-	@Override
-	public TypeInformation<Row> getProducedType() {
-		return new RowTypeInfo(getFieldTypes(), getFieldNames());
-	}
+    @Override
+    public TypeInformation<Row> getProducedType() {
+        return new RowTypeInfo(getFieldTypes(), getFieldNames());
+    }
 
-	@Override
-	protected Row convert(Row row) {
-		return row;
-	}
+    @Override
+    protected Row convert(Row row) {
+        return row;
+    }
 }

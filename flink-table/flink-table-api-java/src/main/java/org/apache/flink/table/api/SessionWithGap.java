@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -32,40 +33,42 @@ import org.apache.flink.table.expressions.ExpressionParser;
 @PublicEvolving
 public final class SessionWithGap {
 
-	/** The time interval of inactivity before a window is closed. */
-	private final Expression gap;
+    /** The time interval of inactivity before a window is closed. */
+    private final Expression gap;
 
-	SessionWithGap(Expression gap) {
-		this.gap = gap;
-	}
+    SessionWithGap(Expression gap) {
+        this.gap = ApiExpressionUtils.unwrapFromApi(gap);
+    }
 
-	/**
-	 * Specifies the time attribute on which rows are grouped.
-	 *
-	 * <p>For streaming tables you can specify grouping by a event-time or processing-time
-	 * attribute.
-	 *
-	 * <p>For batch tables you can specify grouping on a timestamp or long attribute.
-	 *
-	 * @param timeField time attribute for streaming and batch tables
-	 * @return a tumbling window on event-time
-	 */
-	public SessionWithGapOnTime on(String timeField) {
-		return on(ExpressionParser.parseExpression(timeField));
-	}
+    /**
+     * Specifies the time attribute on which rows are grouped.
+     *
+     * <p>For streaming tables you can specify grouping by a event-time or processing-time
+     * attribute.
+     *
+     * <p>For batch tables you can specify grouping on a timestamp or long attribute.
+     *
+     * @param timeField time attribute for streaming and batch tables
+     * @return a tumbling window on event-time
+     * @deprecated use {@link #on(Expression)}
+     */
+    @Deprecated
+    public SessionWithGapOnTime on(String timeField) {
+        return on(ExpressionParser.parseExpression(timeField));
+    }
 
-	/**
-	 * Specifies the time attribute on which rows are grouped.
-	 *
-	 * <p>For streaming tables you can specify grouping by a event-time or processing-time
-	 * attribute.
-	 *
-	 * <p>For batch tables you can specify grouping on a timestamp or long attribute.
-	 *
-	 * @param timeField time attribute for streaming and batch tables
-	 * @return a tumbling window on event-time
-	 */
-	public SessionWithGapOnTime on(Expression timeField) {
-		return new SessionWithGapOnTime(timeField, gap);
-	}
+    /**
+     * Specifies the time attribute on which rows are grouped.
+     *
+     * <p>For streaming tables you can specify grouping by a event-time or processing-time
+     * attribute.
+     *
+     * <p>For batch tables you can specify grouping on a timestamp or long attribute.
+     *
+     * @param timeField time attribute for streaming and batch tables
+     * @return a tumbling window on event-time
+     */
+    public SessionWithGapOnTime on(Expression timeField) {
+        return new SessionWithGapOnTime(timeField, gap);
+    }
 }

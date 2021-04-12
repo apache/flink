@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -53,22 +53,22 @@ class ReplaceMinusWithAntiJoinRuleTest extends TableTestBase {
 
   @Test
   def testExcept(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
   }
 
   @Test
   def testExceptWithFilter(): Unit = {
-    util.verifyPlan("SELECT c FROM (SELECT * FROM T1 EXCEPT (SELECT * FROM T2)) WHERE b < 2")
+    util.verifyRelPlan("SELECT c FROM (SELECT * FROM T1 EXCEPT (SELECT * FROM T2)) WHERE b < 2")
   }
 
   @Test
   def testExceptLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2")
   }
 
   @Test
   def testExceptRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0")
+    util.verifyRelPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0")
   }
 
 }

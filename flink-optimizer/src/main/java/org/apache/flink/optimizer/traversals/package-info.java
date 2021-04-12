@@ -17,11 +17,10 @@
  */
 
 /**
- * This package contains the various traversals over the program plan and the
- * optimizer DAG (directed acyclic graph) that are made in the course of
- * the optimization.
+ * This package contains the various traversals over the program plan and the optimizer DAG
+ * (directed acyclic graph) that are made in the course of the optimization.
  *
- * The traversals are mostly implemented as a {@link org.apache.flink.util.Visitor} that
+ * <p>The traversals are mostly implemented as a {@link org.apache.flink.util.Visitor} that
  * traversed the program flow.
  */
 package org.apache.flink.optimizer.traversals;

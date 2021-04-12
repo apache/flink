@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.planner.runtime.stream.sql.SplitAggregateITCase.PartialAggMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchOn
@@ -34,7 +34,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
@@ -296,7 +296,6 @@ class SplitAggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  @Ignore("[FLINK-12088]: JOIN is not supported")
   @Test
   def testAggWithJoin(): Unit = {
     val t1 = tEnv.sqlQuery(
@@ -358,7 +357,7 @@ class SplitAggregateITCase(
   def testCountDistinctWithBinaryRowSource(): Unit = {
     // this case is failed before, because of object reuse problem
     val data = (0 until 100).map {i => ("1", "1", s"${i%50}", "1")}.toList
-    // use BinaryRow source here for BinaryString reuse
+    // use BinaryRowData source here for StringData reuse
     val t = failingBinaryRowSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
     tEnv.registerTable("src", t)
 
@@ -389,6 +388,28 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("1,1,50", "1,ALL,50")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testMultipleDistinctAggOnSameColumn(): Unit = {
+    val t1 = tEnv.sqlQuery(
+      s"""
+         |SELECT
+         |  a,
+         |  COUNT(DISTINCT b),
+         |  COUNT(DISTINCT b) filter (where not b = 2),
+         |  MAX(b) filter (where not b = 5),
+         |  MIN(b) filter (where not b = 2)
+         |FROM T
+         |GROUP BY a
+       """.stripMargin)
+
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,2,1,2,1", "2,4,3,4,3", "3,1,1,null,5", "4,2,2,6,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

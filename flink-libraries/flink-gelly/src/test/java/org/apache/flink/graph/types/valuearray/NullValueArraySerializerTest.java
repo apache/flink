@@ -21,47 +21,45 @@ package org.apache.flink.graph.types.valuearray;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.NullValue;
 
-/**
- * A test for the {@link NullValueArraySerializer}.
- */
+/** A test for the {@link NullValueArraySerializer}. */
 public class NullValueArraySerializerTest extends ValueArraySerializerTestBase<NullValueArray> {
 
-	@Override
-	protected TypeSerializer<NullValueArray> createSerializer() {
-		return new NullValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<NullValueArray> createSerializer() {
+        return new NullValueArraySerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return 4;
-	}
+    @Override
+    protected int getLength() {
+        return 4;
+    }
 
-	@Override
-	protected Class<NullValueArray> getTypeClass() {
-		return NullValueArray.class;
-	}
+    @Override
+    protected Class<NullValueArray> getTypeClass() {
+        return NullValueArray.class;
+    }
 
-	@Override
-	protected NullValueArray[] getTestData() {
-		NullValue nv = NullValue.getInstance();
+    @Override
+    protected NullValueArray[] getTestData() {
+        NullValue nv = NullValue.getInstance();
 
-		NullValueArray nva0 = new NullValueArray();
+        NullValueArray nva0 = new NullValueArray();
 
-		NullValueArray nva1 = new NullValueArray();
-		nva1.addAll(nva0);
-		nva1.add(nv);
+        NullValueArray nva1 = new NullValueArray();
+        nva1.addAll(nva0);
+        nva1.add(nv);
 
-		NullValueArray nva2 = new NullValueArray();
-		nva2.addAll(nva1);
-		nva2.add(nv);
+        NullValueArray nva2 = new NullValueArray();
+        nva2.addAll(nva1);
+        nva2.add(nv);
 
-		NullValueArray nva3 = new NullValueArray();
-		nva3.addAll(nva2);
-		for (int i = 0; i < 100; i++) {
-			nva3.add(nv);
-		}
-		nva3.addAll(nva3);
+        NullValueArray nva3 = new NullValueArray();
+        nva3.addAll(nva2);
+        for (int i = 0; i < 100; i++) {
+            nva3.add(nv);
+        }
+        nva3.addAll(nva3);
 
-		return new NullValueArray[] {nva0, nva1, nva2, nva3};
-	}
+        return new NullValueArray[] {nva0, nva1, nva2, nva3};
+    }
 }

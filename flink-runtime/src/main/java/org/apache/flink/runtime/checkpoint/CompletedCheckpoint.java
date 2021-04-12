@@ -45,281 +45,291 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A CompletedCheckpoint describes a checkpoint after all required tasks acknowledged it (with their state)
- * and that is considered successful. The CompletedCheckpoint class contains all the metadata of the
- * checkpoint, i.e., checkpoint ID, timestamps, and the handles to all states that are part of the
- * checkpoint.
+ * A CompletedCheckpoint describes a checkpoint after all required tasks acknowledged it (with their
+ * state) and that is considered successful. The CompletedCheckpoint class contains all the metadata
+ * of the checkpoint, i.e., checkpoint ID, timestamps, and the handles to all states that are part
+ * of the checkpoint.
  *
  * <h2>Size the CompletedCheckpoint Instances</h2>
  *
- * <p>In most cases, the CompletedCheckpoint objects are very small, because the handles to the checkpoint
- * states are only pointers (such as file paths). However, the some state backend implementations may
- * choose to store some payload data directly with the metadata (for example to avoid many small files).
- * If those thresholds are increased to large values, the memory consumption of the CompletedCheckpoint
- * objects can be significant.
+ * <p>In most cases, the CompletedCheckpoint objects are very small, because the handles to the
+ * checkpoint states are only pointers (such as file paths). However, the some state backend
+ * implementations may choose to store some payload data directly with the metadata (for example to
+ * avoid many small files). If those thresholds are increased to large values, the memory
+ * consumption of the CompletedCheckpoint objects can be significant.
  *
  * <h2>Metadata Persistence</h2>
  *
- * <p>The metadata of the CompletedCheckpoint is also persisted in an external storage
- * system. Checkpoints have an external pointer, which points to the metadata. For example
- * when storing a checkpoint in a file system, that pointer is the file path to the checkpoint's folder
- * or the metadata file. For a state backend that stores metadata in database tables, the pointer
- * could be the table name and row key. The pointer is encoded as a String.
+ * <p>The metadata of the CompletedCheckpoint is also persisted in an external storage system.
+ * Checkpoints have an external pointer, which points to the metadata. For example when storing a
+ * checkpoint in a file system, that pointer is the file path to the checkpoint's folder or the
+ * metadata file. For a state backend that stores metadata in database tables, the pointer could be
+ * the table name and row key. The pointer is encoded as a String.
  */
-public class CompletedCheckpoint implements Serializable {
+public class CompletedCheckpoint implements Serializable, Checkpoint {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CompletedCheckpoint.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CompletedCheckpoint.class);
 
-	private static final long serialVersionUID = -8360248179615702014L;
+    private static final long serialVersionUID = -8360248179615702014L;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** The ID of the job that the checkpoint belongs to. */
-	private final JobID job;
+    /** The ID of the job that the checkpoint belongs to. */
+    private final JobID job;
 
-	/** The ID (logical timestamp) of the checkpoint. */
-	private final long checkpointID;
+    /** The ID (logical timestamp) of the checkpoint. */
+    private final long checkpointID;
 
-	/** The timestamp when the checkpoint was triggered. */
-	private final long timestamp;
+    /** The timestamp when the checkpoint was triggered. */
+    private final long timestamp;
 
-	/** The duration of the checkpoint (completion timestamp - trigger timestamp). */
-	private final long duration;
+    /** The duration of the checkpoint (completion timestamp - trigger timestamp). */
+    private final long duration;
 
-	/** States of the different operator groups belonging to this checkpoint. */
-	private final Map<OperatorID, OperatorState> operatorStates;
+    /** States of the different operator groups belonging to this checkpoint. */
+    private final Map<OperatorID, OperatorState> operatorStates;
 
-	/** Properties for this checkpoint. */
-	private final CheckpointProperties props;
+    /** Properties for this checkpoint. */
+    private final CheckpointProperties props;
 
-	/** States that were created by a hook on the master (in the checkpoint coordinator). */
-	private final Collection<MasterState> masterHookStates;
+    /** States that were created by a hook on the master (in the checkpoint coordinator). */
+    private final Collection<MasterState> masterHookStates;
 
-	/** The location where the checkpoint is stored. */
-	private final CompletedCheckpointStorageLocation storageLocation;
+    /** The location where the checkpoint is stored. */
+    private final CompletedCheckpointStorageLocation storageLocation;
 
-	/** The state handle to the externalized meta data. */
-	private final StreamStateHandle metadataHandle;
+    /** The state handle to the externalized meta data. */
+    private final StreamStateHandle metadataHandle;
 
-	/** External pointer to the completed checkpoint (for example file path). */
-	private final String externalPointer;
+    /** External pointer to the completed checkpoint (for example file path). */
+    private final String externalPointer;
 
-	/** Optional stats tracker callback for discard. */
-	@Nullable
-	private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
+    /** Optional stats tracker callback for discard. */
+    @Nullable private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public CompletedCheckpoint(
-			JobID job,
-			long checkpointID,
-			long timestamp,
-			long completionTimestamp,
-			Map<OperatorID, OperatorState> operatorStates,
-			@Nullable Collection<MasterState> masterHookStates,
-			CheckpointProperties props,
-			CompletedCheckpointStorageLocation storageLocation) {
+    public CompletedCheckpoint(
+            JobID job,
+            long checkpointID,
+            long timestamp,
+            long completionTimestamp,
+            Map<OperatorID, OperatorState> operatorStates,
+            @Nullable Collection<MasterState> masterHookStates,
+            CheckpointProperties props,
+            CompletedCheckpointStorageLocation storageLocation) {
 
-		checkArgument(checkpointID >= 0);
-		checkArgument(timestamp >= 0);
-		checkArgument(completionTimestamp >= 0);
+        checkArgument(checkpointID >= 0);
+        checkArgument(timestamp >= 0);
+        checkArgument(completionTimestamp >= 0);
 
-		this.job = checkNotNull(job);
-		this.checkpointID = checkpointID;
-		this.timestamp = timestamp;
-		this.duration = completionTimestamp - timestamp;
+        this.job = checkNotNull(job);
+        this.checkpointID = checkpointID;
+        this.timestamp = timestamp;
+        this.duration = completionTimestamp - timestamp;
 
-		// we create copies here, to make sure we have no shared mutable
-		// data structure with the "outside world"
-		this.operatorStates = new HashMap<>(checkNotNull(operatorStates));
-		this.masterHookStates = masterHookStates == null || masterHookStates.isEmpty() ?
-				Collections.emptyList() :
-				new ArrayList<>(masterHookStates);
+        // we create copies here, to make sure we have no shared mutable
+        // data structure with the "outside world"
+        this.operatorStates = new HashMap<>(checkNotNull(operatorStates));
+        this.masterHookStates =
+                masterHookStates == null || masterHookStates.isEmpty()
+                        ? Collections.emptyList()
+                        : new ArrayList<>(masterHookStates);
 
-		this.props = checkNotNull(props);
-		this.storageLocation = checkNotNull(storageLocation);
-		this.metadataHandle = storageLocation.getMetadataHandle();
-		this.externalPointer = storageLocation.getExternalPointer();
-	}
+        this.props = checkNotNull(props);
+        this.storageLocation = checkNotNull(storageLocation);
+        this.metadataHandle = storageLocation.getMetadataHandle();
+        this.externalPointer = storageLocation.getExternalPointer();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Properties
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Properties
+    // ------------------------------------------------------------------------
 
-	public JobID getJobId() {
-		return job;
-	}
+    public JobID getJobId() {
+        return job;
+    }
 
-	public long getCheckpointID() {
-		return checkpointID;
-	}
+    @Override
+    public long getCheckpointID() {
+        return checkpointID;
+    }
 
-	public long getTimestamp() {
-		return timestamp;
-	}
+    public long getTimestamp() {
+        return timestamp;
+    }
 
-	public long getDuration() {
-		return duration;
-	}
+    public long getDuration() {
+        return duration;
+    }
 
-	public CheckpointProperties getProperties() {
-		return props;
-	}
+    public CheckpointProperties getProperties() {
+        return props;
+    }
 
-	public Map<OperatorID, OperatorState> getOperatorStates() {
-		return operatorStates;
-	}
+    public Map<OperatorID, OperatorState> getOperatorStates() {
+        return operatorStates;
+    }
 
-	public Collection<MasterState> getMasterHookStates() {
-		return Collections.unmodifiableCollection(masterHookStates);
-	}
+    public Collection<MasterState> getMasterHookStates() {
+        return Collections.unmodifiableCollection(masterHookStates);
+    }
 
-	public StreamStateHandle getMetadataHandle() {
-		return metadataHandle;
-	}
+    public StreamStateHandle getMetadataHandle() {
+        return metadataHandle;
+    }
 
-	public String getExternalPointer() {
-		return externalPointer;
-	}
+    public String getExternalPointer() {
+        return externalPointer;
+    }
 
-	public long getStateSize() {
-		long result = 0L;
+    public long getStateSize() {
+        long result = 0L;
 
-		for (OperatorState operatorState : operatorStates.values()) {
-			result += operatorState.getStateSize();
-		}
+        for (OperatorState operatorState : operatorStates.values()) {
+            result += operatorState.getStateSize();
+        }
 
-		return result;
-	}
+        return result;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Shared State
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Shared State
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Register all shared states in the given registry. This is method is called
-	 * before the checkpoint is added into the store.
-	 *
-	 * @param sharedStateRegistry The registry where shared states are registered
-	 */
-	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-		sharedStateRegistry.registerAll(operatorStates.values());
-	}
+    /**
+     * Register all shared states in the given registry. This is method is called before the
+     * checkpoint is added into the store.
+     *
+     * @param sharedStateRegistry The registry where shared states are registered
+     */
+    public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
+        sharedStateRegistry.registerAll(operatorStates.values());
+    }
 
-	// ------------------------------------------------------------------------
-	//  Discard and Dispose
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Discard and Dispose
+    // ------------------------------------------------------------------------
 
-	public void discardOnFailedStoring() throws Exception {
-		doDiscard();
-	}
+    public void discardOnFailedStoring() throws Exception {
+        discard();
+    }
 
-	public boolean discardOnSubsume() throws Exception {
-		if (props.discardOnSubsumed()) {
-			doDiscard();
-			return true;
-		}
+    public boolean discardOnSubsume() throws Exception {
+        if (shouldBeDiscardedOnSubsume()) {
+            discard();
+            return true;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
+    public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
 
-		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
-				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
-				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
-				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
+        if (shouldBeDiscardedOnShutdown(jobStatus)) {
 
-			doDiscard();
-			return true;
-		} else {
-			LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
-			return false;
-		}
-	}
+            discard();
+            return true;
+        } else {
+            LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
+            return false;
+        }
+    }
 
-	private void doDiscard() throws Exception {
-		LOG.trace("Executing discard procedure for {}.", this);
+    @Override
+    public void discard() throws Exception {
+        LOG.trace("Executing discard procedure for {}.", this);
 
-		try {
-			// collect exceptions and continue cleanup
-			Exception exception = null;
+        try {
+            // collect exceptions and continue cleanup
+            Exception exception = null;
 
-			// drop the metadata
-			try {
-				metadataHandle.discardState();
-			} catch (Exception e) {
-				exception = e;
-			}
+            // drop the metadata
+            try {
+                metadataHandle.discardState();
+            } catch (Exception e) {
+                exception = e;
+            }
 
-			// discard private state objects
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+            // discard private state objects
+            try {
+                StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-			// discard location as a whole
-			try {
-				storageLocation.disposeStorageLocation();
-			}
-			catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+            // discard location as a whole
+            try {
+                storageLocation.disposeStorageLocation();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-			if (exception != null) {
-				throw exception;
-			}
-		} finally {
-			operatorStates.clear();
+            if (exception != null) {
+                throw exception;
+            }
+        } finally {
+            operatorStates.clear();
 
-			// to be null-pointer safe, copy reference to stack
-			CompletedCheckpointStats.DiscardCallback discardCallback = this.discardCallback;
-			if (discardCallback != null) {
-				discardCallback.notifyDiscardedCheckpoint();
-			}
-		}
-	}
+            // to be null-pointer safe, copy reference to stack
+            CompletedCheckpointStats.DiscardCallback discardCallback = this.discardCallback;
+            if (discardCallback != null) {
+                discardCallback.notifyDiscardedCheckpoint();
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Miscellaneous
-	// ------------------------------------------------------------------------
+    public boolean shouldBeDiscardedOnSubsume() {
+        return props.discardOnSubsumed();
+    }
 
-	public static boolean checkpointsMatch(
-		Collection<CompletedCheckpoint> first,
-		Collection<CompletedCheckpoint> second) {
-		if (first.size() != second.size()) {
-			return false;
-		}
+    public boolean shouldBeDiscardedOnShutdown(JobStatus jobStatus) {
+        return jobStatus == JobStatus.FINISHED && props.discardOnJobFinished()
+                || jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled()
+                || jobStatus == JobStatus.FAILED && props.discardOnJobFailed()
+                || jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended();
+    }
 
-		List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>(first.size());
+    // ------------------------------------------------------------------------
+    //  Miscellaneous
+    // ------------------------------------------------------------------------
 
-		for (CompletedCheckpoint checkpoint : first) {
-			firstInterestingFields.add(
-				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
-		}
+    public static boolean checkpointsMatch(
+            Collection<CompletedCheckpoint> first, Collection<CompletedCheckpoint> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
 
-		List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>(second.size());
+        List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>(first.size());
 
-		for (CompletedCheckpoint checkpoint : second) {
-			secondInterestingFields.add(
-				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
-		}
+        for (CompletedCheckpoint checkpoint : first) {
+            firstInterestingFields.add(
+                    new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+        }
 
-		return firstInterestingFields.equals(secondInterestingFields);
-	}
+        List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>(second.size());
 
-	/**
-	 * Sets the callback for tracking when this checkpoint is discarded.
-	 *
-	 * @param discardCallback Callback to call when the checkpoint is discarded.
-	 */
-	void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
-		this.discardCallback = discardCallback;
-	}
+        for (CompletedCheckpoint checkpoint : second) {
+            secondInterestingFields.add(
+                    new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+        }
 
-	@Override
-	public String toString() {
-		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
-	}
+        return firstInterestingFields.equals(secondInterestingFields);
+    }
+
+    /**
+     * Sets the callback for tracking when this checkpoint is discarded.
+     *
+     * @param discardCallback Callback to call when the checkpoint is discarded.
+     */
+    void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
+        this.discardCallback = discardCallback;
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+                "%s %d @ %d for %s located at %s",
+                props.getCheckpointType().getName(), checkpointID, timestamp, job, externalPointer);
+    }
 }

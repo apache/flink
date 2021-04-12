@@ -20,10 +20,8 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.Date;
-import org.apache.flink.table.functions.hive.FlinkHiveUDFException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -34,191 +32,237 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
-import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.thrift.TException;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * Shim for Hive version 1.2.0.
- */
+/** Shim for Hive version 1.2.0. */
 public class HiveShimV120 extends HiveShimV111 {
 
-	@Override
-	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
-		try {
-			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class);
-			// getProxy is a static method
-			return (IMetaStoreClient) method.invoke(null, (hiveConf));
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to create Hive Metastore client", ex);
-		}
-	}
+    private static PrimitiveTypeInfo intervalYearMonthTypeInfo;
+    private static PrimitiveTypeInfo intervalDayTimeTypeInfo;
+    private static Class funcResourceClz;
+    private static Method registerTemporaryUDF;
 
-	@Override
-	public void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table) throws InvalidOperationException, MetaException, TException {
-		// For Hive-1.2.x, we need to tell HMS not to update stats. Otherwise, the stats we put in the table
-		// parameters can be overridden. The extra config we add here will be removed by HMS after it's used.
-		// Don't use StatsSetupConst.DO_NOT_UPDATE_STATS because it wasn't defined in Hive 1.1.x.
-		table.getParameters().put("DO_NOT_UPDATE_STATS", "true");
-		client.alter_table(databaseName, tableName, table);
-	}
+    private static boolean inited = false;
 
-	@Override
-	public ObjectInspector getObjectInspectorForConstant(PrimitiveTypeInfo primitiveTypeInfo, Object value) {
-		String className;
-		switch (primitiveTypeInfo.getPrimitiveCategory()) {
-			case BOOLEAN:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBooleanObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case BYTE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantByteObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case SHORT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantShortObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case INT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantIntObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case LONG:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantLongObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case FLOAT:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantFloatObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DOUBLE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDoubleObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case STRING:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case CHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveCharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case VARCHAR:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveVarcharObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DATE:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantDateObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case TIMESTAMP:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantTimestampObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case DECIMAL:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantHiveDecimalObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case BINARY:
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantBinaryObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value);
-			case UNKNOWN:
-			case VOID:
-				// If type is null, we use the Java Constant String to replace
-				className = "org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaConstantStringObjectInspector";
-				return HiveReflectionUtils.createConstantObjectInspector(className, value.toString());
-			default:
-				throw new FlinkHiveUDFException(
-					String.format("Cannot find ConstantObjectInspector for %s", primitiveTypeInfo));
-		}
-	}
+    private static void init() {
+        if (!inited) {
+            synchronized (HiveShimV120.class) {
+                if (!inited) {
+                    try {
+                        Field field =
+                                TypeInfoFactory.class.getDeclaredField("intervalYearMonthTypeInfo");
+                        intervalYearMonthTypeInfo = (PrimitiveTypeInfo) field.get(null);
+                        field = TypeInfoFactory.class.getDeclaredField("intervalDayTimeTypeInfo");
+                        intervalDayTimeTypeInfo = (PrimitiveTypeInfo) field.get(null);
+                        funcResourceClz =
+                                Thread.currentThread()
+                                        .getContextClassLoader()
+                                        .loadClass(
+                                                "org.apache.hadoop.hive.ql.exec.FunctionInfo$FunctionResource");
+                        registerTemporaryUDF =
+                                FunctionRegistry.class.getDeclaredMethod(
+                                        "registerTemporaryUDF",
+                                        String.class,
+                                        Class.class,
+                                        Array.newInstance(funcResourceClz, 0).getClass());
+                        inited = true;
+                    } catch (Exception e) {
+                        throw new FlinkHiveException(e);
+                    }
+                }
+            }
+        }
+    }
 
-	@Override
-	public ColumnStatisticsData toHiveDateColStats(CatalogColumnStatisticsDataDate flinkDateColStats) {
-		try {
-			Class dateStatsClz = Class.forName("org.apache.hadoop.hive.metastore.api.DateColumnStatsData");
-			Object dateStats = dateStatsClz.getDeclaredConstructor(long.class, long.class)
-					.newInstance(flinkDateColStats.getNullCount(), flinkDateColStats.getNdv());
-			Class hmsDateClz = Class.forName("org.apache.hadoop.hive.metastore.api.Date");
-			Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
-			Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
-			Constructor hmsDateConstructor = hmsDateClz.getConstructor(long.class);
-			setHigh.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMax().getDaysSinceEpoch()));
-			setLow.invoke(dateStats, hmsDateConstructor.newInstance(flinkDateColStats.getMin().getDaysSinceEpoch()));
-			Class colStatsClz = ColumnStatisticsData.class;
-			return (ColumnStatisticsData) colStatsClz.getDeclaredMethod("dateStats", dateStatsClz).invoke(null, dateStats);
-		} catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to create Hive statistics for date column", e);
-		}
-	}
+    @Override
+    public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
+        try {
+            Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class);
+            // getProxy is a static method
+            return (IMetaStoreClient) method.invoke(null, (hiveConf));
+        } catch (Exception ex) {
+            throw new CatalogException("Failed to create Hive Metastore client", ex);
+        }
+    }
 
-	@Override
-	public boolean isDateStats(ColumnStatisticsData colStatsData) {
-		try {
-			Method method = ColumnStatisticsData.class.getDeclaredMethod("isSetDateStats");
-			return (boolean) method.invoke(colStatsData);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to decide whether ColumnStatisticsData is for DATE column", e);
-		}
-	}
+    @Override
+    public void alterTable(
+            IMetaStoreClient client, String databaseName, String tableName, Table table)
+            throws InvalidOperationException, MetaException, TException {
+        // For Hive-1.2.x, we need to tell HMS not to update stats. Otherwise, the stats we put in
+        // the table
+        // parameters can be overridden. The extra config we add here will be removed by HMS after
+        // it's used.
+        // Don't use StatsSetupConst.DO_NOT_UPDATE_STATS because it wasn't defined in Hive 1.1.x.
+        table.getParameters().put("DO_NOT_UPDATE_STATS", "true");
+        client.alter_table(databaseName, tableName, table);
+    }
 
-	@Override
-	public CatalogColumnStatisticsDataDate toFlinkDateColStats(ColumnStatisticsData hiveDateColStats) {
-		try {
-			Object dateStats = ColumnStatisticsData.class.getDeclaredMethod("getDateStats").invoke(hiveDateColStats);
-			Class dateStatsClz = dateStats.getClass();
-			long numDV = (long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats);
-			long numNull = (long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats);
-			Object hmsHighDate = dateStatsClz.getMethod("getHighValue").invoke(dateStats);
-			Object hmsLowDate = dateStatsClz.getMethod("getLowValue").invoke(dateStats);
-			Class hmsDateClz = hmsHighDate.getClass();
-			Method hmsDateDays = hmsDateClz.getMethod("getDaysSinceEpoch");
-			long highDateDays = (long) hmsDateDays.invoke(hmsHighDate);
-			long lowDateDays = (long) hmsDateDays.invoke(hmsLowDate);
-			return new CatalogColumnStatisticsDataDate(new Date(lowDateDays), new Date(highDateDays), numDV, numNull);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new CatalogException("Failed to create Flink statistics for date column", e);
-		}
-	}
+    @Override
+    public ColumnStatisticsData toHiveDateColStats(
+            CatalogColumnStatisticsDataDate flinkDateColStats) {
+        try {
+            Class dateStatsClz =
+                    Class.forName("org.apache.hadoop.hive.metastore.api.DateColumnStatsData");
+            Object dateStats = dateStatsClz.getDeclaredConstructor().newInstance();
+            dateStatsClz.getMethod("clear").invoke(dateStats);
+            if (null != flinkDateColStats.getNdv()) {
+                dateStatsClz
+                        .getMethod("setNumDVs", long.class)
+                        .invoke(dateStats, flinkDateColStats.getNdv());
+            }
+            if (null != flinkDateColStats.getNullCount()) {
+                dateStatsClz
+                        .getMethod("setNumNulls", long.class)
+                        .invoke(dateStats, flinkDateColStats.getNullCount());
+            }
+            Class hmsDateClz = Class.forName("org.apache.hadoop.hive.metastore.api.Date");
+            Constructor hmsDateConstructor = hmsDateClz.getConstructor(long.class);
+            if (null != flinkDateColStats.getMax()) {
+                Method setHigh = dateStatsClz.getDeclaredMethod("setHighValue", hmsDateClz);
+                setHigh.invoke(
+                        dateStats,
+                        hmsDateConstructor.newInstance(
+                                flinkDateColStats.getMax().getDaysSinceEpoch()));
+            }
+            if (null != flinkDateColStats.getMin()) {
+                Method setLow = dateStatsClz.getDeclaredMethod("setLowValue", hmsDateClz);
+                setLow.invoke(
+                        dateStats,
+                        hmsDateConstructor.newInstance(
+                                flinkDateColStats.getMin().getDaysSinceEpoch()));
+            }
+            Class colStatsClz = ColumnStatisticsData.class;
+            return (ColumnStatisticsData)
+                    colStatsClz
+                            .getDeclaredMethod("dateStats", dateStatsClz)
+                            .invoke(null, dateStats);
+        } catch (ClassNotFoundException
+                | NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
+                | InvocationTargetException e) {
+            throw new CatalogException("Failed to create Hive statistics for date column", e);
+        }
+    }
 
-	@Override
-	public Set<String> listBuiltInFunctions() {
-		try {
-			Method method = FunctionRegistry.class.getMethod("getFunctionNames");
-			// getFunctionNames is a static method
-			Set<String> names = (Set<String>) method.invoke(null);
+    @Override
+    public boolean isDateStats(ColumnStatisticsData colStatsData) {
+        try {
+            Method method = ColumnStatisticsData.class.getDeclaredMethod("isSetDateStats");
+            return (boolean) method.invoke(colStatsData);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new CatalogException(
+                    "Failed to decide whether ColumnStatisticsData is for DATE column", e);
+        }
+    }
 
-			return names.stream()
-				.filter(n -> isBuiltInFunctionInfo(getFunctionInfo(n).get()))
-				.collect(Collectors.toSet());
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
-		}
-	}
+    @Override
+    public CatalogColumnStatisticsDataDate toFlinkDateColStats(
+            ColumnStatisticsData hiveDateColStats) {
+        try {
+            Object dateStats =
+                    ColumnStatisticsData.class
+                            .getDeclaredMethod("getDateStats")
+                            .invoke(hiveDateColStats);
+            Class dateStatsClz = dateStats.getClass();
+            boolean isSetNumDv = (boolean) dateStatsClz.getMethod("isSetNumDVs").invoke(dateStats);
+            boolean isSetNumNull =
+                    (boolean) dateStatsClz.getMethod("isSetNumNulls").invoke(dateStats);
+            boolean isSetHighValue =
+                    (boolean) dateStatsClz.getMethod("isSetHighValue").invoke(dateStats);
+            boolean isSetLowValue =
+                    (boolean) dateStatsClz.getMethod("isSetLowValue").invoke(dateStats);
+            Long numDV =
+                    isSetNumDv
+                            ? (Long) dateStatsClz.getMethod("getNumDVs").invoke(dateStats)
+                            : null;
+            Long numNull =
+                    isSetNumNull
+                            ? (Long) dateStatsClz.getMethod("getNumNulls").invoke(dateStats)
+                            : null;
+            Object hmsHighDate = dateStatsClz.getMethod("getHighValue").invoke(dateStats);
+            Object hmsLowDate = dateStatsClz.getMethod("getLowValue").invoke(dateStats);
+            Class hmsDateClz = hmsHighDate.getClass();
+            Method hmsDateDays = hmsDateClz.getMethod("getDaysSinceEpoch");
+            Date highDateDays =
+                    isSetHighValue ? new Date((Long) hmsDateDays.invoke(hmsHighDate)) : null;
+            Date lowDateDays =
+                    isSetLowValue ? new Date((Long) hmsDateDays.invoke(hmsLowDate)) : null;
+            return new CatalogColumnStatisticsDataDate(lowDateDays, highDateDays, numDV, numNull);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new CatalogException("Failed to create Flink statistics for date column", e);
+        }
+    }
 
-	@Override
-	public Optional<FunctionInfo> getBuiltInFunctionInfo(String name) {
-		Optional<FunctionInfo> functionInfo = getFunctionInfo(name);
+    @Override
+    public Set<String> listBuiltInFunctions() {
+        try {
+            Method method = FunctionRegistry.class.getMethod("getFunctionNames");
+            // getFunctionNames is a static method
+            Set<String> names = (Set<String>) method.invoke(null);
 
-		if (functionInfo.isPresent() && isBuiltInFunctionInfo(functionInfo.get())) {
-			return functionInfo;
-		} else {
-			return Optional.empty();
-		}
-	}
+            return names.stream()
+                    .filter(n -> getBuiltInFunctionInfo(n).isPresent())
+                    .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            throw new CatalogException("Failed to invoke FunctionRegistry.getFunctionNames()", ex);
+        }
+    }
 
-	private Optional<FunctionInfo> getFunctionInfo(String name) {
-		try {
-			return Optional.of(FunctionRegistry.getFunctionInfo(name));
-		} catch (SemanticException e) {
-			throw new FlinkHiveException(
-				String.format("Failed getting function info for %s", name), e);
-		} catch (NullPointerException e) {
-			return Optional.empty();
-		}
-	}
+    @Override
+    boolean isBuiltInFunctionInfo(FunctionInfo info) {
+        try {
+            Method method = FunctionInfo.class.getMethod("isBuiltIn", null);
+            return (boolean) method.invoke(info);
+        } catch (Exception ex) {
+            throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
+        }
+    }
 
-	private boolean isBuiltInFunctionInfo(FunctionInfo info) {
-		try {
-			Method method = FunctionInfo.class.getMethod("isBuiltIn", null);
-			return (boolean) method.invoke(info);
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
-		}
-	}
+    @Override
+    public PrimitiveTypeInfo getIntervalYearMonthTypeInfo() {
+        init();
+        return intervalYearMonthTypeInfo;
+    }
+
+    @Override
+    public PrimitiveTypeInfo getIntervalDayTimeTypeInfo() {
+        init();
+        return intervalDayTimeTypeInfo;
+    }
+
+    @Override
+    public boolean isIntervalYearMonthType(
+            PrimitiveObjectInspector.PrimitiveCategory primitiveCategory) {
+        return getIntervalYearMonthTypeInfo().getPrimitiveCategory() == primitiveCategory;
+    }
+
+    @Override
+    public boolean isIntervalDayTimeType(
+            PrimitiveObjectInspector.PrimitiveCategory primitiveCategory) {
+        return getIntervalDayTimeTypeInfo().getPrimitiveCategory() == primitiveCategory;
+    }
+
+    @Override
+    public void registerTemporaryFunction(String funcName, Class funcClass) {
+        init();
+        try {
+            registerTemporaryUDF.invoke(
+                    null, funcName, funcClass, Array.newInstance(funcResourceClz, 0));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to register temp function", e);
+        }
+    }
 }

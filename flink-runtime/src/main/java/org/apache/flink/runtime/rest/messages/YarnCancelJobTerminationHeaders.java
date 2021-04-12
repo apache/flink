@@ -26,30 +26,33 @@ import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
  * {@link RestHandlerSpecification} for the {@link JobCancellationHandler} which is registered for
  * compatibility with the Yarn proxy as a GET call.
  *
- * <p>For more information @see <a href="https://issues.apache.org/jira/browse/YARN-2031">YARN-2031</a>.
+ * <p>For more information @see <a
+ * href="https://issues.apache.org/jira/browse/YARN-2031">YARN-2031</a>.
  *
  * @deprecated This should be removed once we can send arbitrary REST calls via the Yarn proxy.
  */
 @Deprecated
 public class YarnCancelJobTerminationHeaders implements RestHandlerSpecification {
 
-	private static final YarnCancelJobTerminationHeaders INSTANCE = new YarnCancelJobTerminationHeaders();
+    private static final YarnCancelJobTerminationHeaders INSTANCE =
+            new YarnCancelJobTerminationHeaders();
 
-	private static final String URL = String.format("/jobs/:%s/yarn-cancel", JobIDPathParameter.KEY);
+    private static final String URL =
+            String.format("/jobs/:%s/yarn-cancel", JobIDPathParameter.KEY);
 
-	private YarnCancelJobTerminationHeaders() {}
+    private YarnCancelJobTerminationHeaders() {}
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static YarnCancelJobTerminationHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static YarnCancelJobTerminationHeaders getInstance() {
+        return INSTANCE;
+    }
 }

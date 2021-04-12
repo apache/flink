@@ -20,7 +20,6 @@ package org.apache.flink.table.planner
 
 import java.lang.{Boolean => JBool}
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
@@ -43,7 +42,8 @@ object DataStreamConversions {
     *                            field naming might be lost during optimization.
     * @param withChangeFlag      Set to true to emit records with change flags.
     * @param requestedOutputType The [[TypeInformation]] of the resulting [[DataStream]].
-    * @tparam A The type of the resulting [[DataStream]].
+    * @param config              The [[TableConfig]] of the current [[TableEnvironment]].
+    * @tparam A                  The type of the resulting [[DataStream]].
     * @return The [[DataStream]] of requested type.
     */
   def convert[A](

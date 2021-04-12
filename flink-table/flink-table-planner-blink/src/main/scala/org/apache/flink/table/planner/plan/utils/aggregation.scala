@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.dataview.DataViewSpec
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, DistinctViewSpec}
 import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.rel.core.AggregateCall
@@ -33,6 +33,7 @@ import scala.collection.mutable.ArrayBuffer
   * @param function AggregateFunction or DeclarativeAggregateFunction
   * @param aggIndex the index of the aggregate call in the aggregation list
   * @param argIndexes the aggregate arguments indexes in the input
+  * @param externalArgTypes  input types
   * @param externalAccTypes  accumulator types
   * @param viewSpecs  data view specs
   * @param externalResultType the result type of aggregate
@@ -43,6 +44,7 @@ case class AggregateInfo(
     function: UserDefinedFunction,
     aggIndex: Int,
     argIndexes: Array[Int],
+    externalArgTypes: Array[DataType],
     externalAccTypes: Array[DataType],
     viewSpecs: Array[DataViewSpec],
     externalResultType: DataType,
@@ -68,7 +70,7 @@ case class DistinctInfo(
     keyType: DataType,
     accType: DataType,
     excludeAcc: Boolean,
-    dataViewSpec: Option[DataViewSpec],
+    dataViewSpec: Option[DistinctViewSpec],
     consumeRetraction: Boolean,
     filterArgs: ArrayBuffer[Int],
     aggIndexes: ArrayBuffer[Int])

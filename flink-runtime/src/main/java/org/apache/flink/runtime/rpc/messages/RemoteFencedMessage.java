@@ -25,35 +25,36 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
- * Remote {@link FencedMessage} implementation. This message is used when the communication
- * is remote and thus requires its payload to be serializable.
+ * Remote {@link FencedMessage} implementation. This message is used when the communication is
+ * remote and thus requires its payload to be serializable.
  *
  * @param <F> type of the fencing token
  * @param <P> type of the payload
  */
-public class RemoteFencedMessage<F extends Serializable, P extends Serializable> implements FencedMessage<F, P>, Serializable {
-	private static final long serialVersionUID = 4043136067468477742L;
+public class RemoteFencedMessage<F extends Serializable, P extends Serializable>
+        implements FencedMessage<F, P>, Serializable {
+    private static final long serialVersionUID = 4043136067468477742L;
 
-	private final F fencingToken;
-	private final P payload;
+    private final F fencingToken;
+    private final P payload;
 
-	public RemoteFencedMessage(@Nullable F fencingToken, P payload) {
-		this.fencingToken = fencingToken;
-		this.payload = Preconditions.checkNotNull(payload);
-	}
+    public RemoteFencedMessage(@Nullable F fencingToken, P payload) {
+        this.fencingToken = fencingToken;
+        this.payload = Preconditions.checkNotNull(payload);
+    }
 
-	@Override
-	public F getFencingToken() {
-		return fencingToken;
-	}
+    @Override
+    public F getFencingToken() {
+        return fencingToken;
+    }
 
-	@Override
-	public P getPayload() {
-		return payload;
-	}
+    @Override
+    public P getPayload() {
+        return payload;
+    }
 
-	@Override
-	public String toString() {
-		return "RemoteFencedMessage(" + fencingToken + ", " + payload + ')';
-	}
+    @Override
+    public String toString() {
+        return "RemoteFencedMessage(" + fencingToken + ", " + payload + ')';
+    }
 }

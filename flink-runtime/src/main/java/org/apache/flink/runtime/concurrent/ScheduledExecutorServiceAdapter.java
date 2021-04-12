@@ -26,39 +26,41 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Adapter class for a {@link ScheduledExecutorService} which shall be used as a
- * {@link ScheduledExecutor}.
+ * Adapter class for a {@link ScheduledExecutorService} which shall be used as a {@link
+ * ScheduledExecutor}.
  */
 public class ScheduledExecutorServiceAdapter implements ScheduledExecutor {
 
-	private final ScheduledExecutorService scheduledExecutorService;
+    private final ScheduledExecutorService scheduledExecutorService;
 
-	public ScheduledExecutorServiceAdapter(ScheduledExecutorService scheduledExecutorService) {
-		this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
-	}
+    public ScheduledExecutorServiceAdapter(ScheduledExecutorService scheduledExecutorService) {
+        this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
+    }
 
-	@Override
-	public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-		return scheduledExecutorService.schedule(command, delay, unit);
-	}
+    @Override
+    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+        return scheduledExecutorService.schedule(command, delay, unit);
+    }
 
-	@Override
-	public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-		return scheduledExecutorService.schedule(callable, delay, unit);
-	}
+    @Override
+    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+        return scheduledExecutorService.schedule(callable, delay, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-		return scheduledExecutorService.scheduleAtFixedRate(command, initialDelay, period, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(
+            Runnable command, long initialDelay, long period, TimeUnit unit) {
+        return scheduledExecutorService.scheduleAtFixedRate(command, initialDelay, period, unit);
+    }
 
-	@Override
-	public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-		return scheduledExecutorService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
-	}
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(
+            Runnable command, long initialDelay, long delay, TimeUnit unit) {
+        return scheduledExecutorService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+    }
 
-	@Override
-	public void execute(Runnable command) {
-		scheduledExecutorService.execute(command);
-	}
+    @Override
+    public void execute(Runnable command) {
+        scheduledExecutorService.execute(command);
+    }
 }

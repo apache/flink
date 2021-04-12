@@ -19,10 +19,10 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.hamcrest.Matchers
 import org.junit.Test
 
@@ -179,7 +179,7 @@ class JoinValidationTest extends TableTestBase {
 
     val left = util.tableEnv.sqlQuery(sql1)
     val right = util.tableEnv.sqlQuery(sql2)
-    val result = left.join(right).where("id === r_id && t1 === t2").select("id, t1")
+    val result = left.join(right).where($"id" === $"r_id" && $"t1" === $"t2").select($"id", $"t1")
 
     util.verifyTable(result, "n/a")
   }

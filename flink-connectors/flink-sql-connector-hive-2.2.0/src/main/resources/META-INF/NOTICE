@@ -1,0 +1,56 @@
+flink-sql-connector-hive-2.2.0
+Copyright 2014-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- io.airlift:aircompressor:0.8
+- org.apache.hive:hive-exec:2.2.0
+- org.apache.orc:orc-core:1.4.3
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- org.antlr:antlr-runtime:3.5.2
+
+The bundled Apache Hive dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:14.0.1
+- com.googlecode.javaewah:JavaEWAH:0.3.2
+- com.tdunning:json:1.8
+- commons-lang:commons-lang:2.6
+- javax.jdo:jdo-api:3.0.1
+- joda-time:joda-time:2.8.1
+- net.sf.opencsv:opencsv:2.3
+- org.apache.avro:avro-mapred:1.7.7
+- org.apache.avro:avro:1.7.7
+- org.apache.commons:commons-lang3:3.1
+- org.apache.hive.shims:hive-shims-0.23:2.2.0
+- org.apache.hive.shims:hive-shims-common:2.2.0
+- org.apache.hive:hive-common:2.2.0
+- org.apache.hive:hive-llap-client:2.2.0
+- org.apache.hive:hive-llap-common:2.2.0
+- org.apache.hive:hive-metastore:2.2.0
+- org.apache.hive:hive-orc:2.2.0
+- org.apache.hive:hive-serde:2.2.0
+- org.apache.hive:hive-service-rpc:2.2.0
+- org.apache.hive:hive-storage-api:2.3.1
+- org.apache.hive:spark-client:2.2.0
+- org.apache.parquet:parquet-hadoop-bundle:1.8.1
+- org.apache.thrift:libfb303:0.9.3
+- org.apache.thrift:libthrift:0.9.3
+- org.codehaus.jackson:jackson-core-asl:1.9.13
+- org.codehaus.jackson:jackson-mapper-asl:1.9.13
+- org.iq80.snappy:snappy:0.2
+- org.objenesis:objenesis:2.1
+
+The bundled Apache Hive dependencies bundle the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.esotericsoftware:kryo-shaded:3.0.3
+- com.esotericsoftware:minlog:1.3.0
+- com.google.protobuf:protobuf-java:2.5.0
+- javolution:javolution:5.5.1
+- org.jodd:jodd-core:3.5.2

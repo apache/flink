@@ -22,15 +22,19 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /**
  * Configuration of a table sink.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class SinkTableEntry extends TableEntry {
 
-	SinkTableEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
-	}
+    SinkTableEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		// validation is performed by the discovered factory
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        // validation is performed by the discovered factory
+    }
 }

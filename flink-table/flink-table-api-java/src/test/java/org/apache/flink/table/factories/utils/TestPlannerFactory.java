@@ -32,38 +32,40 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Test {@link Planner} factory used in {@link org.apache.flink.table.factories.ComponentFactoryServiceTest}.
+ * Test {@link Planner} factory used in {@link
+ * org.apache.flink.table.factories.ComponentFactoryServiceTest}.
  */
 public class TestPlannerFactory implements PlannerFactory {
 
-	public static final String PLANNER_TYPE_KEY = "planner-type";
-	public static final String PLANNER_TYPE_VALUE = "test-planner";
+    public static final String PLANNER_TYPE_KEY = "planner-type";
+    public static final String PLANNER_TYPE_VALUE = "test-planner";
 
-	@Override
-	public Planner create(
-		Map<String, String> properties, Executor executor,
-		TableConfig tableConfig,
-		FunctionCatalog functionCatalog,
-		CatalogManager catalogManager) {
-		return null;
-	}
+    @Override
+    public Planner create(
+            Map<String, String> properties,
+            Executor executor,
+            TableConfig tableConfig,
+            FunctionCatalog functionCatalog,
+            CatalogManager catalogManager) {
+        return null;
+    }
 
-	@Override
-	public Map<String, String> optionalContext() {
-		HashMap<String, String> map = new HashMap<>();
-		map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
-		return map;
-	}
+    @Override
+    public Map<String, String> optionalContext() {
+        HashMap<String, String> map = new HashMap<>();
+        map.put(EnvironmentSettings.CLASS_NAME, this.getClass().getCanonicalName());
+        return map;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> map = new HashMap<>();
-		map.put(PLANNER_TYPE_KEY, PLANNER_TYPE_VALUE);
-		return map;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> map = new HashMap<>();
+        map.put(PLANNER_TYPE_KEY, PLANNER_TYPE_VALUE);
+        return map;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Arrays.asList(EnvironmentSettings.CLASS_NAME, EnvironmentSettings.STREAMING_MODE);
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Arrays.asList(EnvironmentSettings.CLASS_NAME, EnvironmentSettings.STREAMING_MODE);
+    }
 }

@@ -27,100 +27,126 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * The operator to temporal join a stream on processing time.
+ *
+ * <p>For temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) and temporal table
+ * join (FOR SYSTEM_TIME AS OF), they can reuse same processing-time operator implementation, the
+ * differences between them are: (1) The temporal TableFunction join only supports single column in
+ * primary key but temporal table join supports arbitrary columns in primary key. (2) The temporal
+ * TableFunction join only supports inner join, temporal table join supports both inner join and
+ * left outer join.
  */
-public class TemporalProcessTimeJoinOperator
-	extends BaseTwoInputStreamOperatorWithStateRetention {
+public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorWithStateRetention {
 
-	private static final long serialVersionUID = -5182289624027523612L;
+    private static final long serialVersionUID = -5182289624027523612L;
 
-	private final BaseRowTypeInfo rightType;
-	private final GeneratedJoinCondition generatedJoinCondition;
+    private final boolean isLeftOuterJoin;
+    private final InternalTypeInfo<RowData> rightType;
+    private final GeneratedJoinCondition generatedJoinCondition;
 
-	private transient ValueState<BaseRow> rightState;
-	private transient JoinCondition joinCondition;
+    private transient ValueState<RowData> rightState;
+    private transient JoinCondition joinCondition;
 
-	private transient JoinedRow outRow;
-	private transient TimestampedCollector<BaseRow> collector;
+    private transient JoinedRowData outRow;
+    private transient GenericRowData rightNullRow;
+    private transient TimestampedCollector<RowData> collector;
 
-	public TemporalProcessTimeJoinOperator(
-			BaseRowTypeInfo rightType,
-			GeneratedJoinCondition generatedJoinCondition,
-			long minRetentionTime,
-			long maxRetentionTime) {
-		super(minRetentionTime, maxRetentionTime);
-		this.rightType = rightType;
-		this.generatedJoinCondition = generatedJoinCondition;
-	}
+    public TemporalProcessTimeJoinOperator(
+            InternalTypeInfo<RowData> rightType,
+            GeneratedJoinCondition generatedJoinCondition,
+            long minRetentionTime,
+            long maxRetentionTime,
+            boolean isLeftOuterJoin) {
+        super(minRetentionTime, maxRetentionTime);
+        this.rightType = rightType;
+        this.generatedJoinCondition = generatedJoinCondition;
+        this.isLeftOuterJoin = isLeftOuterJoin;
+    }
 
-	@Override
-	public void open() throws Exception {
-		this.joinCondition = generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		FunctionUtils.setFunctionRuntimeContext(joinCondition, getRuntimeContext());
-		FunctionUtils.openFunction(joinCondition, new Configuration());
+    @Override
+    public void open() throws Exception {
+        super.open();
+        this.joinCondition =
+                generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        FunctionUtils.setFunctionRuntimeContext(joinCondition, getRuntimeContext());
+        FunctionUtils.openFunction(joinCondition, new Configuration());
 
-		ValueStateDescriptor<BaseRow> rightStateDesc = new ValueStateDescriptor<>("right", rightType);
-		this.rightState = getRuntimeContext().getState(rightStateDesc);
-		this.collector = new TimestampedCollector<>(output);
-		this.outRow = new JoinedRow();
-		// consider watermark from left stream only.
-		super.processWatermark2(Watermark.MAX_WATERMARK);
-	}
+        ValueStateDescriptor<RowData> rightStateDesc =
+                new ValueStateDescriptor<>("right", rightType);
+        this.rightState = getRuntimeContext().getState(rightStateDesc);
+        this.collector = new TimestampedCollector<>(output);
+        this.outRow = new JoinedRowData();
+        this.rightNullRow = new GenericRowData(rightType.toRowSize());
+        // consider watermark from left stream only.
+        super.processWatermark2(Watermark.MAX_WATERMARK);
+    }
 
-	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow rightSideRow = rightState.value();
-		if (rightSideRow == null) {
-			return;
-		}
+    @Override
+    public void processElement1(StreamRecord<RowData> element) throws Exception {
+        RowData leftSideRow = element.getValue();
+        RowData rightSideRow = rightState.value();
 
-		BaseRow leftSideRow = element.getValue();
-		if (joinCondition.apply(leftSideRow, rightSideRow)) {
-			outRow.setHeader(leftSideRow.getHeader());
-			outRow.replace(leftSideRow, rightSideRow);
-			collector.collect(outRow);
-		}
-		registerProcessingCleanupTimer();
-	}
+        if (rightSideRow == null) {
+            if (isLeftOuterJoin) {
+                collectJoinedRow(leftSideRow, rightNullRow);
+            } else {
+                return;
+            }
+        } else {
+            if (joinCondition.apply(leftSideRow, rightSideRow)) {
+                collectJoinedRow(leftSideRow, rightSideRow);
+            } else {
+                if (isLeftOuterJoin) {
+                    collectJoinedRow(leftSideRow, rightNullRow);
+                }
+            }
+            // register a cleanup timer only if the rightSideRow is not null
+            registerProcessingCleanupTimer();
+        }
+    }
 
-	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
-		if (BaseRowUtil.isAccumulateMsg(element.getValue())) {
-			rightState.update(element.getValue());
-			registerProcessingCleanupTimer();
-		} else {
-			rightState.clear();
-			cleanupLastTimer();
-		}
-	}
+    private void collectJoinedRow(RowData leftRow, RowData rightRow) {
+        outRow.setRowKind(leftRow.getRowKind());
+        outRow.replace(leftRow, rightRow);
+        collector.collect(outRow);
+    }
 
-	@Override
-	public void close() throws Exception {
-		FunctionUtils.closeFunction(joinCondition);
-	}
+    @Override
+    public void processElement2(StreamRecord<RowData> element) throws Exception {
+        if (RowDataUtil.isAccumulateMsg(element.getValue())) {
+            rightState.update(element.getValue());
+            registerProcessingCleanupTimer();
+        } else {
+            rightState.clear();
+            cleanupLastTimer();
+        }
+    }
 
-	/**
-	 * The method to be called when a cleanup timer fires.
-	 *
-	 * @param time The timestamp of the fired timer.
-	 */
-	@Override
-	public void cleanupState(long time) {
-		rightState.clear();
-	}
+    @Override
+    public void close() throws Exception {
+        FunctionUtils.closeFunction(joinCondition);
+    }
 
-	/**
-	 * Invoked when an event-time timer fires.
-	 */
-	@Override
-	public void onEventTime(InternalTimer<Object, VoidNamespace> timer) throws Exception {
-	}
+    /**
+     * The method to be called when a cleanup timer fires.
+     *
+     * @param time The timestamp of the fired timer.
+     */
+    @Override
+    public void cleanupState(long time) {
+        rightState.clear();
+    }
+
+    /** Invoked when an event-time timer fires. */
+    @Override
+    public void onEventTime(InternalTimer<Object, VoidNamespace> timer) throws Exception {}
 }

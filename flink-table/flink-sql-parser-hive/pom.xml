@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<artifactId>flink-table</artifactId>
+		<groupId>org.apache.flink</groupId>
+		<version>1.13-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>flink-sql-parser-hive</artifactId>
+	<name>Flink : Table : SQL Parser Hive</name>
+
+	<packaging>jar</packaging>
+
+	<properties>
+		<!-- override parent pom -->
+		<test.excludedGroups/>
+	</properties>
+
+	<dependencies>
+		<!-- depend on flink-sql-parser and explicitly define its provided deps -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-core</artifactId>
+			<version>${calcite.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-server</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<!-- Because Calcite tests use Junit5 and we extend from its SqlParserTest,
+			 we need the Junit5 runner. -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.5.2</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
+		 	 to add this dependency to make our own Junit4 tests compatible with the Junit5
+		 	 environment.-->
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<version>5.5.2</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<!-- Extract parser grammar template from calcite-core.jar and put
+                     it under ${project.build.directory} where all freemarker templates are. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-parser-template</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>unpack</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.calcite</groupId>
+									<artifactId>calcite-core</artifactId>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+									<outputDirectory>${project.build.directory}/</outputDirectory>
+									<includes>**/Parser.jj</includes>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- adding fmpp code gen -->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-fmpp-resources</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/codegen</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/main/codegen</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.googlecode.fmpp-maven-plugin</groupId>
+				<artifactId>fmpp-maven-plugin</artifactId>
+				<version>1.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.freemarker</groupId>
+						<artifactId>freemarker</artifactId>
+						<version>2.3.28</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>generate-fmpp-sources</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
+							<outputDirectory>target/generated-sources</outputDirectory>
+							<templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<!-- This must be run AFTER the fmpp-maven-plugin -->
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>javacc-maven-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<id>javacc</id>
+						<goals>
+							<goal>javacc</goal>
+						</goals>
+						<configuration>
+							<sourceDirectory>${project.build.directory}/generated-sources/</sourceDirectory>
+							<includes>
+								<include>**/Parser.jj</include>
+							</includes>
+							<!-- This must be kept synced with Apache Calcite. -->
+							<lookAhead>1</lookAhead>
+							<isStatic>false</isStatic>
+							<outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

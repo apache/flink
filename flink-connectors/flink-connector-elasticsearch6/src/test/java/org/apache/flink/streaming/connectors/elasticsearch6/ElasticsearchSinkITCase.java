@@ -24,77 +24,113 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunc
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * IT cases for the {@link ElasticsearchSink}.
- *
- * <p>The Elasticsearch ITCases for 6.x CANNOT be executed in the IDE directly, since it is required that the
- * Log4J-to-SLF4J adapter dependency must be excluded from the test classpath for the Elasticsearch embedded
- * node used in the tests to work properly.
- */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
+/** IT cases for the {@link ElasticsearchSink}. */
+public class ElasticsearchSinkITCase
+        extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
 
-	@Test
-	public void testElasticsearchSink() throws Exception {
-		runElasticsearchSinkTest();
-	}
+    @ClassRule
+    public static ElasticsearchContainer elasticsearchContainer =
+            new ElasticsearchContainer(
+                    DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
+                            .withTag("6.3.1"));
 
-	@Test
-	public void testNullAddresses() throws Exception {
-		runNullAddressesTest();
-	}
+    @Override
+    protected String getClusterName() {
+        return "docker-cluster";
+    }
 
-	@Test
-	public void testEmptyAddresses() throws Exception {
-		runEmptyAddressesTest();
-	}
+    @Override
+    @SuppressWarnings("deprecation")
+    protected final Client getClient() {
+        TransportAddress transportAddress =
+                new TransportAddress(elasticsearchContainer.getTcpHost());
+        String expectedClusterName = getClusterName();
+        Settings settings = Settings.builder().put("cluster.name", expectedClusterName).build();
+        return new PreBuiltTransportClient(settings).addTransportAddress(transportAddress);
+    }
 
-	@Test
-	public void testInvalidElasticsearchCluster() throws Exception{
-		runInvalidElasticsearchClusterTest();
-	}
+    @Test
+    public void testElasticsearchSink() throws Exception {
+        runElasticsearchSinkTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<HttpHost> httpHosts,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+    @Test
+    public void testElasticsearchSinkWithSmile() throws Exception {
+        runElasticsearchSinkSmileTest();
+    }
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+    @Test
+    public void testNullAddresses() {
+        runNullAddressesTest();
+    }
 
-		return builder.build();
-	}
+    @Test
+    public void testEmptyAddresses() {
+        runEmptyAddressesTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+    @Test
+    public void testInvalidElasticsearchCluster() throws Exception {
+        runInvalidElasticsearchClusterTest();
+    }
 
-		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
-	}
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSink(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    List<HttpHost> httpHosts,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+        ElasticsearchSink.Builder<Tuple2<Integer, String>> builder =
+                new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+        builder.setBulkFlushMaxActions(bulkFlushMaxActions);
 
-		ArrayList<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
+        return builder.build();
+    }
 
-		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSinkForEmbeddedNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		return builder.build();
-	}
+        return createElasticsearchSinkForNode(
+                bulkFlushMaxActions,
+                clusterName,
+                elasticsearchSinkFunction,
+                elasticsearchContainer.getHttpHostAddress());
+    }
+
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient>
+            createElasticsearchSinkForNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+                    String hostAddress) {
+
+        ArrayList<HttpHost> httpHosts = new ArrayList<>();
+        httpHosts.add(HttpHost.create(hostAddress));
+
+        ElasticsearchSink.Builder<Tuple2<Integer, String>> builder =
+                new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+        builder.setBulkFlushMaxActions(bulkFlushMaxActions);
+
+        return builder.build();
+    }
 }

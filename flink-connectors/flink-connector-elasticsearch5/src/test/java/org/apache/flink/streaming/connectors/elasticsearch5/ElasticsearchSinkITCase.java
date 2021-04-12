@@ -22,8 +22,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -32,71 +35,102 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * IT cases for the {@link ElasticsearchSink}.
- *
- * <p>The Elasticsearch ITCases for 5.x CANNOT be executed in the IDE directly, since it is required that the
- * Log4J-to-SLF4J adapter dependency must be excluded from the test classpath for the Elasticsearch embedded
- * node used in the tests to work properly.
- */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
+/** IT cases for the {@link ElasticsearchSink}. */
+public class ElasticsearchSinkITCase
+        extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
 
-	@Test
-	public void testElasticsearchSink() throws Exception {
-		runElasticsearchSinkTest();
-	}
+    protected static final String CLUSTER_NAME = "test-cluster";
 
-	@Test
-	public void testNullAddresses() throws Exception {
-		runNullAddressesTest();
-	}
+    @ClassRule
+    public static ElasticsearchResource elasticsearchResource =
+            new ElasticsearchResource(CLUSTER_NAME);
 
-	@Test
-	public void testEmptyAddresses() throws Exception {
-		runEmptyAddressesTest();
-	}
+    @Override
+    protected String getClusterName() {
+        return CLUSTER_NAME;
+    }
 
-	@Test
-	public void testInvalidElasticsearchCluster() throws Exception{
-		runInvalidElasticsearchClusterTest();
-	}
+    @Override
+    protected final Client getClient() {
+        return elasticsearchResource.getClient();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<InetSocketAddress> addresses,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+    @Test
+    public void testElasticsearchSink() throws Exception {
+        runElasticsearchSinkTest();
+    }
 
-		return new ElasticsearchSink<>(
-				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
-				addresses,
-				elasticsearchSinkFunction);
-	}
+    @Test
+    public void testElasticsearchSinkWithCbor() throws Exception {
+        runElasticsearchSinkCborTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+    @Test
+    public void testElasticsearchSinkWithSmile() throws Exception {
+        runElasticsearchSinkSmileTest();
+    }
 
-		return createElasticsearchSinkForNode(
-				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
-	}
+    @Test
+    public void testElasticsearchSinkWithYaml() throws Exception {
+        runElasticsearchSinkYamlTest();
+    }
 
-	@Override
-	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception {
+    @Test
+    public void testNullAddresses() throws Exception {
+        runNullAddressesTest();
+    }
 
-		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
+    @Test
+    public void testEmptyAddresses() throws Exception {
+        runEmptyAddressesTest();
+    }
 
-		return new ElasticsearchSink<>(
-				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
-				transports,
-				elasticsearchSinkFunction);
-	}
+    @Test
+    public void testInvalidElasticsearchCluster() throws Exception {
+        runInvalidElasticsearchClusterTest();
+    }
+
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSink(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    List<InetSocketAddress> addresses,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+
+        return new ElasticsearchSink<>(
+                Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+                addresses,
+                elasticsearchSinkFunction);
+    }
+
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSinkForEmbeddedNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction)
+                    throws Exception {
+
+        return createElasticsearchSinkForNode(
+                bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+    }
+
+    @Override
+    protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient>
+            createElasticsearchSinkForNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+                    String ipAddress)
+                    throws Exception {
+
+        List<InetSocketAddress> transports = new ArrayList<>();
+        transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
+
+        return new ElasticsearchSink<>(
+                Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+                transports,
+                elasticsearchSinkFunction);
+    }
 }

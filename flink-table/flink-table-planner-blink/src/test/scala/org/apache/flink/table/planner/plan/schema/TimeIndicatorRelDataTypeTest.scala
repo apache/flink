@@ -32,11 +32,14 @@ class TimeIndicatorRelDataTypeTest {
   def testGenerateTypeString() {
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     assertEquals(
-      "TIME ATTRIBUTE(PROCTIME) NOT NULL",
+      "TIMESTAMP_LTZ(3) *PROCTIME* NOT NULL",
       typeFactory.createProctimeIndicatorType(false).getFullTypeString)
     assertEquals(
-      "TIME ATTRIBUTE(ROWTIME) NOT NULL",
-      typeFactory.createRowtimeIndicatorType(false).getFullTypeString)
+      "TIMESTAMP(3) *ROWTIME* NOT NULL",
+      typeFactory.createRowtimeIndicatorType(false, false).getFullTypeString)
+    assertEquals(
+      "TIMESTAMP_LTZ(3) *ROWTIME* NOT NULL",
+      typeFactory.createRowtimeIndicatorType(false, true).getFullTypeString)
   }
 
 }

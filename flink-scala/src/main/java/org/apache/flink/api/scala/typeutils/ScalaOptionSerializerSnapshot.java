@@ -24,35 +24,36 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 import scala.Option;
 
-/**
- * A {@link TypeSerializerSnapshot} for the Scala {@link OptionSerializer}.
- */
-public final class ScalaOptionSerializerSnapshot<E> extends CompositeTypeSerializerSnapshot<Option<E>, OptionSerializer<E>> {
+/** A {@link TypeSerializerSnapshot} for the Scala {@link OptionSerializer}. */
+public final class ScalaOptionSerializerSnapshot<E>
+        extends CompositeTypeSerializerSnapshot<Option<E>, OptionSerializer<E>> {
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	@SuppressWarnings("WeakerAccess")
-	public ScalaOptionSerializerSnapshot() {
-		super(OptionSerializer.class);
-	}
+    @SuppressWarnings("WeakerAccess")
+    public ScalaOptionSerializerSnapshot() {
+        super(OptionSerializer.class);
+    }
 
-	public ScalaOptionSerializerSnapshot(OptionSerializer<E> serializerInstance) {
-		super(serializerInstance);
-	}
+    public ScalaOptionSerializerSnapshot(OptionSerializer<E> serializerInstance) {
+        super(serializerInstance);
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return VERSION;
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(OptionSerializer<E> outerSerializer) {
-		return new TypeSerializer[]{outerSerializer.elemSerializer()};
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(OptionSerializer<E> outerSerializer) {
+        return new TypeSerializer[] {outerSerializer.elemSerializer()};
+    }
 
-	@Override
-	protected OptionSerializer<E> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		@SuppressWarnings("unchecked") TypeSerializer<E> nestedSerializer = (TypeSerializer<E>) nestedSerializers[0];
-		return new OptionSerializer<>(nestedSerializer);
-	}
+    @Override
+    protected OptionSerializer<E> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        @SuppressWarnings("unchecked")
+        TypeSerializer<E> nestedSerializer = (TypeSerializer<E>) nestedSerializers[0];
+        return new OptionSerializer<>(nestedSerializer);
+    }
 }

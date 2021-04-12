@@ -17,66 +17,69 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.util.InstantiationUtil;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.util.ObjectMap;
-import org.apache.flink.util.InstantiationUtil;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 /**
- * This is a reimplementation of Kryo's {@link com.esotericsoftware.kryo.serializers.JavaSerializer},
- * that additionally makes sure the {@link ObjectInputStream} used for deserialization specifically uses Kryo's
- * registered classloader.
+ * This is a reimplementation of Kryo's {@link
+ * com.esotericsoftware.kryo.serializers.JavaSerializer}, that additionally makes sure the {@link
+ * ObjectInputStream} used for deserialization specifically uses Kryo's registered classloader.
  *
- * Flink maintains this reimplementation due to a known issue with Kryo's {@code JavaSerializer}, in which the wrong
- * classloader may be used for deserialization, leading to {@link ClassNotFoundException}s.
+ * <p>Flink maintains this reimplementation due to a known issue with Kryo's {@code JavaSerializer},
+ * in which the wrong classloader may be used for deserialization, leading to {@link
+ * ClassNotFoundException}s.
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-6025">FLINK-6025</a>
- * @see <a href="https://github.com/EsotericSoftware/kryo/pull/483">Known issue with Kryo's JavaSerializer</a>
- *
+ * @see <a href="https://github.com/EsotericSoftware/kryo/pull/483">Known issue with Kryo's
+ *     JavaSerializer</a>
  * @param <T> The type to be serialized.
  */
 public class JavaSerializer<T> extends Serializer<T> {
 
-	public JavaSerializer() {}
+    public JavaSerializer() {}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Override
-	public void write(Kryo kryo, Output output, T o) {
-		try {
-			ObjectMap graphContext = kryo.getGraphContext();
-			ObjectOutputStream objectStream = (ObjectOutputStream)graphContext.get(this);
-			if (objectStream == null) {
-				objectStream = new ObjectOutputStream(output);
-				graphContext.put(this, objectStream);
-			}
-			objectStream.writeObject(o);
-			objectStream.flush();
-		} catch (Exception ex) {
-			throw new KryoException("Error during Java serialization.", ex);
-		}
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public void write(Kryo kryo, Output output, T o) {
+        try {
+            ObjectMap graphContext = kryo.getGraphContext();
+            ObjectOutputStream objectStream = (ObjectOutputStream) graphContext.get(this);
+            if (objectStream == null) {
+                objectStream = new ObjectOutputStream(output);
+                graphContext.put(this, objectStream);
+            }
+            objectStream.writeObject(o);
+            objectStream.flush();
+        } catch (Exception ex) {
+            throw new KryoException("Error during Java serialization.", ex);
+        }
+    }
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Override
-	public T read(Kryo kryo, Input input, Class aClass) {
-		try {
-			ObjectMap graphContext = kryo.getGraphContext();
-			ObjectInputStream objectStream = (ObjectInputStream)graphContext.get(this);
-			if (objectStream == null) {
-				// make sure we use Kryo's classloader
-				objectStream = new InstantiationUtil.ClassLoaderObjectInputStream(input, kryo.getClassLoader());
-				graphContext.put(this, objectStream);
-			}
-			return (T) objectStream.readObject();
-		} catch (Exception ex) {
-			throw new KryoException("Error during Java deserialization.", ex);
-		}
-	}
-
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public T read(Kryo kryo, Input input, Class aClass) {
+        try {
+            ObjectMap graphContext = kryo.getGraphContext();
+            ObjectInputStream objectStream = (ObjectInputStream) graphContext.get(this);
+            if (objectStream == null) {
+                // make sure we use Kryo's classloader
+                objectStream =
+                        new InstantiationUtil.ClassLoaderObjectInputStream(
+                                input, kryo.getClassLoader());
+                graphContext.put(this, objectStream);
+            }
+            return (T) objectStream.readObject();
+        } catch (Exception ex) {
+            throw new KryoException("Error during Java deserialization.", ex);
+        }
+    }
 }

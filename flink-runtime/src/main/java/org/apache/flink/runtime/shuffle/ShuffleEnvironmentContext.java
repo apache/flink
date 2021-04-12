@@ -19,68 +19,76 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 
 import java.net.InetAddress;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Local context used to create {@link ShuffleEnvironment}.
- */
+/** Local context used to create {@link ShuffleEnvironment}. */
 public class ShuffleEnvironmentContext {
-	private final Configuration configuration;
-	private final ResourceID taskExecutorResourceId;
-	private final long maxJvmHeapMemory;
-	private final boolean localCommunicationOnly;
-	private final InetAddress hostAddress;
-	private final TaskEventPublisher eventPublisher;
-	private final MetricGroup parentMetricGroup;
+    private final Configuration configuration;
+    private final ResourceID taskExecutorResourceId;
+    private final MemorySize networkMemorySize;
+    private final boolean localCommunicationOnly;
+    private final InetAddress hostAddress;
+    private final TaskEventPublisher eventPublisher;
+    private final MetricGroup parentMetricGroup;
 
-	public ShuffleEnvironmentContext(
-			Configuration configuration,
-			ResourceID taskExecutorResourceId,
-			long maxJvmHeapMemory,
-			boolean localCommunicationOnly,
-			InetAddress hostAddress,
-			TaskEventPublisher eventPublisher,
-			MetricGroup parentMetricGroup) {
-		this.configuration = checkNotNull(configuration);
-		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
-		this.maxJvmHeapMemory = maxJvmHeapMemory;
-		this.localCommunicationOnly = localCommunicationOnly;
-		this.hostAddress = checkNotNull(hostAddress);
-		this.eventPublisher = checkNotNull(eventPublisher);
-		this.parentMetricGroup = checkNotNull(parentMetricGroup);
-	}
+    private final Executor ioExecutor;
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    public ShuffleEnvironmentContext(
+            Configuration configuration,
+            ResourceID taskExecutorResourceId,
+            MemorySize networkMemorySize,
+            boolean localCommunicationOnly,
+            InetAddress hostAddress,
+            TaskEventPublisher eventPublisher,
+            MetricGroup parentMetricGroup,
+            Executor ioExecutor) {
+        this.configuration = checkNotNull(configuration);
+        this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
+        this.networkMemorySize = networkMemorySize;
+        this.localCommunicationOnly = localCommunicationOnly;
+        this.hostAddress = checkNotNull(hostAddress);
+        this.eventPublisher = checkNotNull(eventPublisher);
+        this.parentMetricGroup = checkNotNull(parentMetricGroup);
+        this.ioExecutor = ioExecutor;
+    }
 
-	public ResourceID getTaskExecutorResourceId() {
-		return taskExecutorResourceId;
-	}
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	public long getMaxJvmHeapMemory() {
-		return maxJvmHeapMemory;
-	}
+    public ResourceID getTaskExecutorResourceId() {
+        return taskExecutorResourceId;
+    }
 
-	public boolean isLocalCommunicationOnly() {
-		return localCommunicationOnly;
-	}
+    public MemorySize getNetworkMemorySize() {
+        return networkMemorySize;
+    }
 
-	public InetAddress getHostAddress() {
-		return hostAddress;
-	}
+    public boolean isLocalCommunicationOnly() {
+        return localCommunicationOnly;
+    }
 
-	public TaskEventPublisher getEventPublisher() {
-		return eventPublisher;
-	}
+    public InetAddress getHostAddress() {
+        return hostAddress;
+    }
 
-	public MetricGroup getParentMetricGroup() {
-		return parentMetricGroup;
-	}
+    public TaskEventPublisher getEventPublisher() {
+        return eventPublisher;
+    }
+
+    public MetricGroup getParentMetricGroup() {
+        return parentMetricGroup;
+    }
+
+    public Executor getIoExecutor() {
+        return ioExecutor;
+    }
 }

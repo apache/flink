@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 
 import org.junit.Test
 
@@ -43,7 +42,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM   t1
         |WHERE  t1a = 'test'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -55,7 +54,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM   t1
         |    WHERE  t1a = 'test'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -68,7 +67,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM t1
         |    WHERE  t1a = 'val1b'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -81,7 +80,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |               LEFT OUTER JOIN t1 ttt
         |               ON t2.t2a=t1.t1a)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -95,7 +94,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    WHERE t1.t1e
         |    IN (select t2e from t2))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -108,7 +107,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |              FROM t3
         |              WHERE EXISTS(select * from t3 WHERE t1.t1a = t3.t3a))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[AssertionError])
@@ -124,7 +123,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM   t1
         |    WHERE  t1a = 'test'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

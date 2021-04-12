@@ -20,20 +20,23 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,323 +45,349 @@ import java.util.stream.Stream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Base implementation of KeyedStateBackend. The state can be checkpointed
- * to streams using {@link #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions)}.
+ * Base implementation of KeyedStateBackend. The state can be checkpointed to streams using {@link
+ * #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions)}.
  *
  * @param <K> Type of the key by which state is keyed.
  */
-public abstract class AbstractKeyedStateBackend<K> implements
-	KeyedStateBackend<K>,
-	SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
-	Closeable,
-	CheckpointListener {
+public abstract class AbstractKeyedStateBackend<K>
+        implements CheckpointableKeyedStateBackend<K>,
+                CheckpointListener,
+                TestableKeyedStateBackend {
 
-	/** The key serializer. */
-	protected final TypeSerializer<K> keySerializer;
+    /** The key serializer. */
+    protected final TypeSerializer<K> keySerializer;
 
-	/** Listeners to changes of ({@link #keyContext}). */
-	private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
+    /** Listeners to changes of ({@link #keyContext}). */
+    private final ArrayList<KeySelectionListener<K>> keySelectionListeners;
 
-	/** So that we can give out state when the user uses the same key. */
-	private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
+    /** So that we can give out state when the user uses the same key. */
+    private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
-	/** For caching the last accessed partitioned state. */
-	private String lastName;
+    /** For caching the last accessed partitioned state. */
+    private String lastName;
 
-	@SuppressWarnings("rawtypes")
-	private InternalKvState lastState;
+    @SuppressWarnings("rawtypes")
+    private InternalKvState lastState;
 
-	/** The number of key-groups aka max parallelism. */
-	protected final int numberOfKeyGroups;
+    /** The number of key-groups aka max parallelism. */
+    protected final int numberOfKeyGroups;
 
-	/** Range of key-groups for which this backend is responsible. */
-	protected final KeyGroupRange keyGroupRange;
+    /** Range of key-groups for which this backend is responsible. */
+    protected final KeyGroupRange keyGroupRange;
 
-	/** KvStateRegistry helper for this task. */
-	protected final TaskKvStateRegistry kvStateRegistry;
+    /** KvStateRegistry helper for this task. */
+    protected final TaskKvStateRegistry kvStateRegistry;
 
-	/** Registry for all opened streams, so they can be closed if the task using this backend is closed. */
-	protected CloseableRegistry cancelStreamRegistry;
+    /**
+     * Registry for all opened streams, so they can be closed if the task using this backend is
+     * closed.
+     */
+    protected CloseableRegistry cancelStreamRegistry;
 
-	protected final ClassLoader userCodeClassLoader;
+    protected final ClassLoader userCodeClassLoader;
 
-	private final ExecutionConfig executionConfig;
+    private final ExecutionConfig executionConfig;
 
-	protected final TtlTimeProvider ttlTimeProvider;
+    protected final TtlTimeProvider ttlTimeProvider;
 
-	/** Decorates the input and output streams to write key-groups compressed. */
-	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
+    protected final LatencyTrackingStateConfig latencyTrackingStateConfig;
 
-	/** The key context for this backend. */
-	protected final InternalKeyContext<K> keyContext;
+    /** Decorates the input and output streams to write key-groups compressed. */
+    protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
-	public AbstractKeyedStateBackend(
-		TaskKvStateRegistry kvStateRegistry,
-		TypeSerializer<K> keySerializer,
-		ClassLoader userCodeClassLoader,
-		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider,
-		CloseableRegistry cancelStreamRegistry,
-		InternalKeyContext<K> keyContext) {
-		this(
-			kvStateRegistry,
-			keySerializer,
-			userCodeClassLoader,
-			executionConfig,
-			ttlTimeProvider,
-			cancelStreamRegistry,
-			determineStreamCompression(executionConfig),
-			keyContext
-		);
-	}
+    /** The key context for this backend. */
+    protected final InternalKeyContext<K> keyContext;
 
-	public AbstractKeyedStateBackend(
-		TaskKvStateRegistry kvStateRegistry,
-		TypeSerializer<K> keySerializer,
-		ClassLoader userCodeClassLoader,
-		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider,
-		CloseableRegistry cancelStreamRegistry,
-		StreamCompressionDecorator keyGroupCompressionDecorator,
-		InternalKeyContext<K> keyContext) {
-		this.keyContext = Preconditions.checkNotNull(keyContext);
-		this.numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
-		this.keyGroupRange = Preconditions.checkNotNull(keyContext.getKeyGroupRange());
-		Preconditions.checkArgument(numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
-		Preconditions.checkArgument(numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(), "The total number of key groups must be at least the number in the key group range assigned to this backend");
+    public AbstractKeyedStateBackend(
+            TaskKvStateRegistry kvStateRegistry,
+            TypeSerializer<K> keySerializer,
+            ClassLoader userCodeClassLoader,
+            ExecutionConfig executionConfig,
+            TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            CloseableRegistry cancelStreamRegistry,
+            InternalKeyContext<K> keyContext) {
+        this(
+                kvStateRegistry,
+                keySerializer,
+                userCodeClassLoader,
+                executionConfig,
+                ttlTimeProvider,
+                latencyTrackingStateConfig,
+                cancelStreamRegistry,
+                determineStreamCompression(executionConfig),
+                keyContext);
+    }
 
-		this.kvStateRegistry = kvStateRegistry;
-		this.keySerializer = keySerializer;
-		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
-		this.cancelStreamRegistry = cancelStreamRegistry;
-		this.keyValueStatesByName = new HashMap<>();
-		this.executionConfig = executionConfig;
-		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
-		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
-		this.keySelectionListeners = new ArrayList<>(1);
-	}
+    public AbstractKeyedStateBackend(
+            TaskKvStateRegistry kvStateRegistry,
+            TypeSerializer<K> keySerializer,
+            ClassLoader userCodeClassLoader,
+            ExecutionConfig executionConfig,
+            TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            CloseableRegistry cancelStreamRegistry,
+            StreamCompressionDecorator keyGroupCompressionDecorator,
+            InternalKeyContext<K> keyContext) {
+        this.keyContext = Preconditions.checkNotNull(keyContext);
+        this.numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
+        this.keyGroupRange = Preconditions.checkNotNull(keyContext.getKeyGroupRange());
+        Preconditions.checkArgument(
+                numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
+        Preconditions.checkArgument(
+                numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(),
+                "The total number of key groups must be at least the number in the key group range assigned to this backend. "
+                        + "The total number of key groups: %s, the number in key groups in range: %s",
+                numberOfKeyGroups,
+                keyGroupRange.getNumberOfKeyGroups());
 
-	private static StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
-		if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
-			return SnappyStreamCompressionDecorator.INSTANCE;
-		} else {
-			return UncompressedStreamCompressionDecorator.INSTANCE;
-		}
-	}
+        this.kvStateRegistry = kvStateRegistry;
+        this.keySerializer = keySerializer;
+        this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+        this.cancelStreamRegistry = cancelStreamRegistry;
+        this.keyValueStatesByName = new HashMap<>();
+        this.executionConfig = executionConfig;
+        this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
+        this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
+        this.latencyTrackingStateConfig = Preconditions.checkNotNull(latencyTrackingStateConfig);
+        this.keySelectionListeners = new ArrayList<>(1);
+    }
 
-	/**
-	 * Closes the state backend, releasing all internal resources, but does not delete any persistent
-	 * checkpoint data.
-	 *
-	 */
-	@Override
-	public void dispose() {
+    private static StreamCompressionDecorator determineStreamCompression(
+            ExecutionConfig executionConfig) {
+        if (executionConfig != null && executionConfig.isUseSnapshotCompression()) {
+            return SnappyStreamCompressionDecorator.INSTANCE;
+        } else {
+            return UncompressedStreamCompressionDecorator.INSTANCE;
+        }
+    }
 
-		IOUtils.closeQuietly(cancelStreamRegistry);
+    /**
+     * Closes the state backend, releasing all internal resources, but does not delete any
+     * persistent checkpoint data.
+     */
+    @Override
+    public void dispose() {
 
-		if (kvStateRegistry != null) {
-			kvStateRegistry.unregisterAll();
-		}
+        IOUtils.closeQuietly(cancelStreamRegistry);
 
-		lastName = null;
-		lastState = null;
-		keyValueStatesByName.clear();
-	}
+        if (kvStateRegistry != null) {
+            kvStateRegistry.unregisterAll();
+        }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	@Override
-	public void setCurrentKey(K newKey) {
-		notifyKeySelected(newKey);
-		this.keyContext.setCurrentKey(newKey);
-		this.keyContext.setCurrentKeyGroupIndex(KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
-	}
+        lastName = null;
+        lastState = null;
+        keyValueStatesByName.clear();
+    }
 
-	private void notifyKeySelected(K newKey) {
-		// we prefer a for-loop over other iteration schemes for performance reasons here.
-		for (int i = 0; i < keySelectionListeners.size(); ++i) {
-			keySelectionListeners.get(i).keySelected(newKey);
-		}
-	}
+    /** @see KeyedStateBackend */
+    @Override
+    public void setCurrentKey(K newKey) {
+        notifyKeySelected(newKey);
+        this.keyContext.setCurrentKey(newKey);
+        this.keyContext.setCurrentKeyGroupIndex(
+                KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
+    }
 
-	@Override
-	public void registerKeySelectionListener(KeySelectionListener<K> listener) {
-		keySelectionListeners.add(listener);
-	}
+    private void notifyKeySelected(K newKey) {
+        // we prefer a for-loop over other iteration schemes for performance reasons here.
+        for (int i = 0; i < keySelectionListeners.size(); ++i) {
+            keySelectionListeners.get(i).keySelected(newKey);
+        }
+    }
 
-	@Override
-	public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
-		return keySelectionListeners.remove(listener);
-	}
+    @Override
+    public void registerKeySelectionListener(KeySelectionListener<K> listener) {
+        keySelectionListeners.add(listener);
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
+    @Override
+    public boolean deregisterKeySelectionListener(KeySelectionListener<K> listener) {
+        return keySelectionListeners.remove(listener);
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	@Override
-	public K getCurrentKey() {
-		return this.keyContext.getCurrentKey();
-	}
+    /** @see KeyedStateBackend */
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return keySerializer;
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	public int getCurrentKeyGroupIndex() {
-		return this.keyContext.getCurrentKeyGroupIndex();
-	}
+    /** @see KeyedStateBackend */
+    @Override
+    public K getCurrentKey() {
+        return this.keyContext.getCurrentKey();
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	public int getNumberOfKeyGroups() {
-		return numberOfKeyGroups;
-	}
+    /** @see KeyedStateBackend */
+    public int getCurrentKeyGroupIndex() {
+        return this.keyContext.getCurrentKeyGroupIndex();
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	public KeyGroupRange getKeyGroupRange() {
-		return keyGroupRange;
-	}
+    /** @see KeyedStateBackend */
+    public int getNumberOfKeyGroups() {
+        return numberOfKeyGroups;
+    }
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	@Override
-	public <N, S extends State, T> void applyToAllKeys(
-			final N namespace,
-			final TypeSerializer<N> namespaceSerializer,
-			final StateDescriptor<S, T> stateDescriptor,
-			final KeyedStateFunction<K, S> function) throws Exception {
+    /** @see KeyedStateBackend */
+    @Override
+    public KeyGroupRange getKeyGroupRange() {
+        return keyGroupRange;
+    }
 
-		try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
+    /** @see KeyedStateBackend */
+    @Override
+    public <N, S extends State, T> void applyToAllKeys(
+            final N namespace,
+            final TypeSerializer<N> namespaceSerializer,
+            final StateDescriptor<S, T> stateDescriptor,
+            final KeyedStateFunction<K, S> function)
+            throws Exception {
 
-			final S state = getPartitionedState(
-				namespace,
-				namespaceSerializer,
-				stateDescriptor);
+        applyToAllKeys(
+                namespace,
+                namespaceSerializer,
+                stateDescriptor,
+                function,
+                this::getPartitionedState);
+    }
 
-			keyStream.forEach((K key) -> {
-				setCurrentKey(key);
-				try {
-					function.process(key, state);
-				} catch (Throwable e) {
-					// we wrap the checked exception in an unchecked
-					// one and catch it (and re-throw it) later.
-					throw new RuntimeException(e);
-				}
-			});
-		}
-	}
+    public <N, S extends State, T> void applyToAllKeys(
+            final N namespace,
+            final TypeSerializer<N> namespaceSerializer,
+            final StateDescriptor<S, T> stateDescriptor,
+            final KeyedStateFunction<K, S> function,
+            final PartitionStateFactory partitionStateFactory)
+            throws Exception {
 
-	/**
-	 * @see KeyedStateBackend
-	 */
-	@Override
-	@SuppressWarnings("unchecked")
-	public <N, S extends State, V> S getOrCreateKeyedState(
-			final TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, V> stateDescriptor) throws Exception {
-		checkNotNull(namespaceSerializer, "Namespace serializer");
-		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
-				"This operation cannot use partitioned state.");
+        try (Stream<K> keyStream = getKeys(stateDescriptor.getName(), namespace)) {
 
-		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
-		if (kvState == null) {
-			if (!stateDescriptor.isSerializerInitialized()) {
-				stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-			}
-			kvState = TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
-				namespaceSerializer, stateDescriptor, this, ttlTimeProvider);
-			keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-			publishQueryableStateIfEnabled(stateDescriptor, kvState);
-		}
-		return (S) kvState;
-	}
+            final S state =
+                    partitionStateFactory.get(namespace, namespaceSerializer, stateDescriptor);
 
-	private void publishQueryableStateIfEnabled(
-		StateDescriptor<?, ?> stateDescriptor,
-		InternalKvState<?, ?, ?> kvState) {
-		if (stateDescriptor.isQueryable()) {
-			if (kvStateRegistry == null) {
-				throw new IllegalStateException("State backend has not been initialized for job.");
-			}
-			String name = stateDescriptor.getQueryableStateName();
-			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
-		}
-	}
+            keyStream.forEach(
+                    (K key) -> {
+                        setCurrentKey(key);
+                        try {
+                            function.process(key, state);
+                        } catch (Throwable e) {
+                            // we wrap the checked exception in an unchecked
+                            // one and catch it (and re-throw it) later.
+                            throw new RuntimeException(e);
+                        }
+                    });
+        }
+    }
 
-	/**
-	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
-	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
-	 *       state backend, or being set on the state directly.
-	 *
-	 * @see KeyedStateBackend
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public <N, S extends State> S getPartitionedState(
-			final N namespace,
-			final TypeSerializer<N> namespaceSerializer,
-			final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+    /** @see KeyedStateBackend */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <N, S extends State, V> S getOrCreateKeyedState(
+            final TypeSerializer<N> namespaceSerializer, StateDescriptor<S, V> stateDescriptor)
+            throws Exception {
+        checkNotNull(namespaceSerializer, "Namespace serializer");
+        checkNotNull(
+                keySerializer,
+                "State key serializer has not been configured in the config. "
+                        + "This operation cannot use partitioned state.");
 
-		checkNotNull(namespace, "Namespace");
+        InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
+        if (kvState == null) {
+            if (!stateDescriptor.isSerializerInitialized()) {
+                stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+            }
+            kvState =
+                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                            TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+                                    namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
+                            stateDescriptor,
+                            latencyTrackingStateConfig);
+            keyValueStatesByName.put(stateDescriptor.getName(), kvState);
+            publishQueryableStateIfEnabled(stateDescriptor, kvState);
+        }
+        return (S) kvState;
+    }
 
-		if (lastName != null && lastName.equals(stateDescriptor.getName())) {
-			lastState.setCurrentNamespace(namespace);
-			return (S) lastState;
-		}
+    public void publishQueryableStateIfEnabled(
+            StateDescriptor<?, ?> stateDescriptor, InternalKvState<?, ?, ?> kvState) {
+        if (stateDescriptor.isQueryable()) {
+            if (kvStateRegistry == null) {
+                throw new IllegalStateException("State backend has not been initialized for job.");
+            }
+            String name = stateDescriptor.getQueryableStateName();
+            kvStateRegistry.registerKvState(keyGroupRange, name, kvState, userCodeClassLoader);
+        }
+    }
 
-		InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
-		if (previous != null) {
-			lastState = previous;
-			lastState.setCurrentNamespace(namespace);
-			lastName = stateDescriptor.getName();
-			return (S) previous;
-		}
+    /**
+     * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the
+     * namespace. This method should be removed for the sake of namespaces being lazily fetched from
+     * the keyed state backend, or being set on the state directly.
+     *
+     * @see KeyedStateBackend
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public <N, S extends State> S getPartitionedState(
+            final N namespace,
+            final TypeSerializer<N> namespaceSerializer,
+            final StateDescriptor<S, ?> stateDescriptor)
+            throws Exception {
 
-		final S state = getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
-		final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
+        checkNotNull(namespace, "Namespace");
 
-		lastName = stateDescriptor.getName();
-		lastState = kvState;
-		kvState.setCurrentNamespace(namespace);
+        if (lastName != null && lastName.equals(stateDescriptor.getName())) {
+            lastState.setCurrentNamespace(namespace);
+            return (S) lastState;
+        }
 
-		return state;
-	}
+        InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
+        if (previous != null) {
+            lastState = previous;
+            lastState.setCurrentNamespace(namespace);
+            lastName = stateDescriptor.getName();
+            return (S) previous;
+        }
 
-	@Override
-	public void close() throws IOException {
-		cancelStreamRegistry.close();
-	}
+        final S state = getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+        final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 
-	@VisibleForTesting
-	public boolean supportsAsynchronousSnapshots() {
-		return false;
-	}
+        lastName = stateDescriptor.getName();
+        lastState = kvState;
+        kvState.setCurrentNamespace(namespace);
 
-	@VisibleForTesting
-	public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
-		return keyGroupCompressionDecorator;
-	}
+        return state;
+    }
 
-	/**
-	 * Returns the total number of state entries across all keys/namespaces.
-	 */
-	@VisibleForTesting
-	public abstract int numKeyValueStateEntries();
+    @Override
+    public void close() throws IOException {
+        cancelStreamRegistry.close();
+    }
 
-	// TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
-	public boolean requiresLegacySynchronousTimerSnapshots() {
-		return false;
-	}
+    public LatencyTrackingStateConfig getLatencyTrackingStateConfig() {
+        return latencyTrackingStateConfig;
+    }
 
+    @VisibleForTesting
+    public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
+        return keyGroupCompressionDecorator;
+    }
+
+    @VisibleForTesting
+    public int numKeyValueStatesByName() {
+        return keyValueStatesByName.size();
+    }
+
+    // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return false;
+    }
+
+    public interface PartitionStateFactory {
+        <N, S extends State> S get(
+                final N namespace,
+                final TypeSerializer<N> namespaceSerializer,
+                final StateDescriptor<S, ?> stateDescriptor)
+                throws Exception;
+    }
 }

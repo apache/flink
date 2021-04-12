@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import java.util
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.plan.logical.LogicalWindow
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.plan.logical.LogicalWindow
+
+import java.util
 
 /**
   * Sub-class of [[WindowTableAggregate]] that is a relational expression which performs window
@@ -69,8 +70,7 @@ object LogicalWindowTableAggregate {
   def create(
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty],
-    aggregate: Aggregate)
-  : LogicalWindowTableAggregate = {
+    aggregate: Aggregate): LogicalWindowTableAggregate = {
 
     val cluster: RelOptCluster = aggregate.getCluster
     val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)

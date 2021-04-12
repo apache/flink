@@ -25,50 +25,48 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/**
- * User accumulator info.
- */
+/** User accumulator info. */
 public final class UserAccumulator {
 
-	public static final String FIELD_NAME_ACC_NAME = "name";
-	public static final String FIELD_NAME_ACC_TYPE = "type";
-	public static final String FIELD_NAME_ACC_VALUE = "value";
+    public static final String FIELD_NAME_ACC_NAME = "name";
+    public static final String FIELD_NAME_ACC_TYPE = "type";
+    public static final String FIELD_NAME_ACC_VALUE = "value";
 
-	@JsonProperty(FIELD_NAME_ACC_NAME)
-	private String name;
+    @JsonProperty(FIELD_NAME_ACC_NAME)
+    private String name;
 
-	@JsonProperty(FIELD_NAME_ACC_TYPE)
-	private String type;
+    @JsonProperty(FIELD_NAME_ACC_TYPE)
+    private String type;
 
-	@JsonProperty(FIELD_NAME_ACC_VALUE)
-	private String value;
+    @JsonProperty(FIELD_NAME_ACC_VALUE)
+    private String value;
 
-	@JsonCreator
-	public UserAccumulator(
-			@JsonProperty(FIELD_NAME_ACC_NAME) String name,
-			@JsonProperty(FIELD_NAME_ACC_TYPE) String type,
-			@JsonProperty(FIELD_NAME_ACC_VALUE) String value) {
-		this.name = Preconditions.checkNotNull(name);
-		this.type = Preconditions.checkNotNull(type);
-		this.value = Preconditions.checkNotNull(value);
-	}
+    @JsonCreator
+    public UserAccumulator(
+            @JsonProperty(FIELD_NAME_ACC_NAME) String name,
+            @JsonProperty(FIELD_NAME_ACC_TYPE) String type,
+            @JsonProperty(FIELD_NAME_ACC_VALUE) String value) {
+        this.name = Preconditions.checkNotNull(name);
+        this.type = Preconditions.checkNotNull(type);
+        this.value = Preconditions.checkNotNull(value);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		UserAccumulator that = (UserAccumulator) o;
-		return Objects.equals(name, that.name) &&
-			Objects.equals(type, that.type) &&
-			Objects.equals(value, that.value);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        UserAccumulator that = (UserAccumulator) o;
+        return Objects.equals(name, that.name)
+                && Objects.equals(type, that.type)
+                && Objects.equals(value, that.value);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name, type, value);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, type, value);
+    }
 }

@@ -18,15 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-/**
- * A simple BufferAvailabilityListener that counts the number of notifications.
- */
+/** A simple BufferAvailabilityListener that counts the number of notifications. */
 final class CountingAvailabilityListener implements BufferAvailabilityListener {
 
-	int numNotifications;
+    int numNotifications;
 
-	@Override
-	public void notifyDataAvailable() {
-		numNotifications++;
-	}
+    @Override
+    public void notifyDataAvailable() {
+        numNotifications++;
+    }
 }

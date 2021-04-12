@@ -36,41 +36,35 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 
-/**
- * Tests for the {@link BlobServer}.
- */
+/** Tests for the {@link BlobServer}. */
 public class BlobServerTest extends TestLogger {
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Tests that the {@link BlobServer} fails if the blob storage directory
-	 * cannot be created.
-	 */
-	@Test
-	public void testFailureIfStorageDirectoryCannotBeCreated() throws IOException {
-		final Configuration configuration = new Configuration();
-		final File blobStorageDirectory = createNonWritableDirectory();
+    /** Tests that the {@link BlobServer} fails if the blob storage directory cannot be created. */
+    @Test
+    public void testFailureIfStorageDirectoryCannotBeCreated() throws IOException {
+        final Configuration configuration = new Configuration();
+        final File blobStorageDirectory = createNonWritableDirectory();
 
-		final String nonExistDirectory = new File(blobStorageDirectory, "does_not_exist_for_sure").getAbsolutePath();
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, nonExistDirectory);
+        final String nonExistDirectory =
+                new File(blobStorageDirectory, "does_not_exist_for_sure").getAbsolutePath();
+        configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, nonExistDirectory);
 
-		try (BlobServer ignored = new BlobServer(configuration, new VoidBlobStore())) {
-			fail("Expected that the BlobServer initialization fails.");
-		} catch (IOException expected) {
-			// expected
-		}
-	}
+        try (BlobServer ignored = new BlobServer(configuration, new VoidBlobStore())) {
+            fail("Expected that the BlobServer initialization fails.");
+        } catch (IOException expected) {
+            // expected
+        }
+    }
 
-	@Nonnull
-	private File createNonWritableDirectory() throws IOException {
-		assumeFalse(OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
-		final File blobStorageDirectory = temporaryFolder.newFolder();
-		assertTrue(blobStorageDirectory.setExecutable(true, false));
-		assertTrue(blobStorageDirectory.setReadable(true, false));
-		assertTrue(blobStorageDirectory.setWritable(false, false));
-		return blobStorageDirectory;
-	}
-
+    @Nonnull
+    private File createNonWritableDirectory() throws IOException {
+        assumeFalse(OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
+        final File blobStorageDirectory = temporaryFolder.newFolder();
+        assertTrue(blobStorageDirectory.setExecutable(true, false));
+        assertTrue(blobStorageDirectory.setReadable(true, false));
+        assertTrue(blobStorageDirectory.setWritable(false, false));
+        return blobStorageDirectory;
+    }
 }

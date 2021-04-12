@@ -38,34 +38,43 @@ import java.io.IOException;
  * @param <V> Type of the value.
  */
 @Public
-public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K, V>> {
+public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>>
+        implements ResultTypeQueryable<Tuple2<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
-		super(mapredInputFormat, key, value, job);
-	}
+    public HadoopInputFormat(
+            org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat,
+            Class<K> key,
+            Class<V> value,
+            JobConf job) {
+        super(mapredInputFormat, key, value, job);
+    }
 
-	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value) {
-		super(mapredInputFormat, key, value, new JobConf());
-	}
+    public HadoopInputFormat(
+            org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat,
+            Class<K> key,
+            Class<V> value) {
+        super(mapredInputFormat, key, value, new JobConf());
+    }
 
-	@Override
-	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if (!fetched) {
-			fetchNext();
-		}
-		if (!hasNext) {
-			return null;
-		}
-		record.f0 = key;
-		record.f1 = value;
-		fetched = false;
-		return record;
-	}
+    @Override
+    public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
+        if (!fetched) {
+            fetchNext();
+        }
+        if (!hasNext) {
+            return null;
+        }
+        record.f0 = key;
+        record.f1 = value;
+        fetched = false;
+        return record;
+    }
 
-	@Override
-	public TypeInformation<Tuple2<K, V>> getProducedType() {
-		return new TupleTypeInfo<>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
-	}
+    @Override
+    public TypeInformation<Tuple2<K, V>> getProducedType() {
+        return new TupleTypeInfo<>(
+                TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
+    }
 }

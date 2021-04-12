@@ -28,22 +28,21 @@ import javax.annotation.Nonnull;
 @FunctionalInterface
 public interface KeyExtractorFunction<T> {
 
-	KeyExtractorFunction<? extends Keyed<?>> FOR_KEYED_OBJECTS = new KeyExtractorFunction<Keyed<?>>() {
-		@Nonnull
-		@Override
-		public Object extractKeyFromElement(@Nonnull Keyed<?> element) {
-			return element.getKey();
-		}
-	};
+    KeyExtractorFunction<? extends Keyed<?>> FOR_KEYED_OBJECTS =
+            new KeyExtractorFunction<Keyed<?>>() {
+                @Nonnull
+                @Override
+                public Object extractKeyFromElement(@Nonnull Keyed<?> element) {
+                    return element.getKey();
+                }
+            };
 
-	/**
-	 * Returns the key for the given element by which the key-group can be computed.
-	 */
-	@Nonnull
-	Object extractKeyFromElement(@Nonnull T element);
+    /** Returns the key for the given element by which the key-group can be computed. */
+    @Nonnull
+    Object extractKeyFromElement(@Nonnull T element);
 
-	@SuppressWarnings("unchecked")
-	static <T extends Keyed<?>> KeyExtractorFunction<T> forKeyedObjects() {
-		return (KeyExtractorFunction<T>) FOR_KEYED_OBJECTS;
-	}
+    @SuppressWarnings("unchecked")
+    static <T extends Keyed<?>> KeyExtractorFunction<T> forKeyedObjects() {
+        return (KeyExtractorFunction<T>) FOR_KEYED_OBJECTS;
+    }
 }

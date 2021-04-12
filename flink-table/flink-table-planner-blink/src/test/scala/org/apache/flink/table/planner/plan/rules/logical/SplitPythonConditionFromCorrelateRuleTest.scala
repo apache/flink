@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{TableFunc2, TableTestBase}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.{Before, Test}
 
 /**
@@ -64,6 +65,6 @@ class SplitPythonConditionFromCorrelateRuleTest extends TableTestBase {
   def testPythonFunctionInCorrelateCondition(): Unit = {
     val sqlQuery = "SELECT a, b, c, s, l FROM MyTable, LATERAL TABLE(func(c)) AS T(s, l) " +
       "WHERE l = a and c = s and pyFunc(l, l) = 2 and l + 1 = l * l"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

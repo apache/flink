@@ -20,41 +20,41 @@ package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.BlockLocation;
-
-import java.io.IOException;
+import org.apache.flink.util.StringUtils;
 
 /**
  * Implementation of the {@link BlockLocation} interface for a local file system.
+ *
+ * <p>Local files have only one block that represents the entire file. The block has no location
+ * information, because it is not accessible where the files (or their block) actually reside,
+ * especially in cases where the files are on a mounted file system.
  */
 @Internal
 public class LocalBlockLocation implements BlockLocation {
 
-	private final long length;
+    private final long length;
 
-	private final String[] hosts;
+    public LocalBlockLocation(final long length) {
+        this.length = length;
+    }
 
-	public LocalBlockLocation(final String host, final long length) {
-		this.hosts = new String[] { host };
-		this.length = length;
-	}
+    @Override
+    public String[] getHosts() {
+        return StringUtils.EMPTY_STRING_ARRAY;
+    }
 
-	@Override
-	public String[] getHosts() throws IOException {
-		return this.hosts;
-	}
+    @Override
+    public long getLength() {
+        return this.length;
+    }
 
-	@Override
-	public long getLength() {
-		return this.length;
-	}
+    @Override
+    public long getOffset() {
+        return 0;
+    }
 
-	@Override
-	public long getOffset() {
-		return 0;
-	}
-
-	@Override
-	public int compareTo(final BlockLocation o) {
-		return 0;
-	}
+    @Override
+    public int compareTo(final BlockLocation o) {
+        return 0;
+    }
 }

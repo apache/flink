@@ -18,53 +18,76 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
-/**
- * Simple container to hold an exception and the corresponding timestamp.
- */
+/** Simple container to hold an exception and the corresponding timestamp. */
 public class ErrorInfo implements Serializable {
 
-	private static final long serialVersionUID = -6138942031953594202L;
+    private static final long serialVersionUID = -6138942031953594202L;
 
-	/** The exception that we keep holding forever. Has no strong reference to any user-defined code. */
-	private final SerializedThrowable exception;
+    /**
+     * The exception that we keep holding forever. Has no strong reference to any user-defined code.
+     */
+    private final SerializedThrowable exception;
 
-	private final long timestamp;
-	public ErrorInfo(Throwable exception, long timestamp) {
-		Preconditions.checkNotNull(exception);
-		Preconditions.checkArgument(timestamp > 0);
+    private final long timestamp;
 
-		this.exception = exception instanceof SerializedThrowable ?
-				(SerializedThrowable) exception : new SerializedThrowable(exception);
-		this.timestamp = timestamp;
-	}
+    /**
+     * Instantiates an {@code ErrorInfo} to cover inconsistent behavior due to FLINK-21376.
+     *
+     * @param exception The error cause that might be {@code null}.
+     * @param timestamp The timestamp the error was noticed.
+     * @return a {@code ErrorInfo} containing a generic {@link FlinkException} in case of a missing
+     *     error cause.
+     */
+    public static ErrorInfo createErrorInfoWithNullableCause(
+            @Nullable Throwable exception, long timestamp) {
+        return new ErrorInfo(
+                exception != null
+                        ? exception
+                        : new FlinkException(
+                                "Unknown cause for Execution failure (this might be caused by FLINK-21376)."),
+                timestamp);
+    }
 
-	/**
-	 * Returns the serialized form of the original exception.
-	 */
-	public SerializedThrowable getException() {
-		return exception;
-	}
+    public ErrorInfo(@Nonnull Throwable exception, long timestamp) {
+        Preconditions.checkNotNull(exception);
+        Preconditions.checkArgument(timestamp > 0);
 
-	/**
-	 * Returns the contained exception as a string.
-	 *
-	 * @return failure causing exception as a string, or {@code "(null)"}
-	 */
-	public String getExceptionAsString() {
-		return exception.getFullStringifiedStackTrace();
-	}
+        this.exception =
+                exception instanceof SerializedThrowable
+                        ? (SerializedThrowable) exception
+                        : new SerializedThrowable(exception);
+        this.timestamp = timestamp;
+    }
 
-	/**
-	 * Returns the timestamp for the contained exception.
-	 *
-	 * @return timestamp of contained exception, or 0 if no exception was set
-	 */
-	public long getTimestamp() {
-		return timestamp;
-	}
+    /** Returns the serialized form of the original exception. */
+    public SerializedThrowable getException() {
+        return exception;
+    }
+
+    /**
+     * Returns the contained exception as a string.
+     *
+     * @return failure causing exception as a string, or {@code "(null)"}
+     */
+    public String getExceptionAsString() {
+        return exception.getFullStringifiedStackTrace();
+    }
+
+    /**
+     * Returns the timestamp for the contained exception.
+     *
+     * @return timestamp of contained exception, or 0 if no exception was set
+     */
+    public long getTimestamp() {
+        return timestamp;
+    }
 }

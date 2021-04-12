@@ -29,81 +29,82 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 
 /**
- * This is a wrapper around {@link RocksIterator} to check the iterator status for all the methods mentioned
- * to require this check in the wiki documentation: seek, next, seekToFirst, seekToLast, seekForPrev, and prev.
- * This is required because the iterator may pass the blocks or files it had difficulties in reading (because
- * of IO error, data corruption or other issues) and continue with the next available keys. The status flag may not be
- * OK, even if the iterator is valid. More information can be found
- * <a href="https://github.com/facebook/rocksdb/wiki/Iterator#error-handling">here</a>.
+ * This is a wrapper around {@link RocksIterator} to check the iterator status for all the methods
+ * mentioned to require this check in the wiki documentation: seek, next, seekToFirst, seekToLast,
+ * seekForPrev, and prev. This is required because the iterator may pass the blocks or files it had
+ * difficulties in reading (because of IO error, data corruption or other issues) and continue with
+ * the next available keys. The status flag may not be OK, even if the iterator is valid. More
+ * information can be found <a
+ * href="https://github.com/facebook/rocksdb/wiki/Iterator#error-handling">here</a>.
  */
 public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
-	private RocksIterator iterator;
+    private RocksIterator iterator;
 
-	public RocksIteratorWrapper(@Nonnull RocksIterator iterator) {
-		this.iterator = iterator;
-	}
+    public RocksIteratorWrapper(@Nonnull RocksIterator iterator) {
+        this.iterator = iterator;
+    }
 
-	@Override
-	public boolean isValid() {
-		return this.iterator.isValid();
-	}
+    @Override
+    public boolean isValid() {
+        return this.iterator.isValid();
+    }
 
-	@Override
-	public void seekToFirst() {
-		iterator.seekToFirst();
-		status();
-	}
+    @Override
+    public void seekToFirst() {
+        iterator.seekToFirst();
+        status();
+    }
 
-	@Override
-	public void seekToLast() {
-		iterator.seekToFirst();
-		status();
-	}
+    @Override
+    public void seekToLast() {
+        iterator.seekToFirst();
+        status();
+    }
 
-	@Override
-	public void seek(byte[] target) {
-		iterator.seek(target);
-		status();
-	}
+    @Override
+    public void seek(byte[] target) {
+        iterator.seek(target);
+        status();
+    }
 
-	@Override
-	public void seekForPrev(byte[] target) {
-		iterator.seekForPrev(target);
-		status();
-	}
+    @Override
+    public void seekForPrev(byte[] target) {
+        iterator.seekForPrev(target);
+        status();
+    }
 
-	@Override
-	public void next() {
-		iterator.next();
-		status();
-	}
+    @Override
+    public void next() {
+        iterator.next();
+        status();
+    }
 
-	@Override
-	public void prev() {
-		iterator.prev();
-		status();
-	}
+    @Override
+    public void prev() {
+        iterator.prev();
+        status();
+    }
 
-	@Override
-	public void status() {
-		try {
-			iterator.status();
-		} catch (RocksDBException ex) {
-			throw new FlinkRuntimeException("Internal exception found in RocksDB", ex);
-		}
-	}
+    @Override
+    public void status() {
+        try {
+            iterator.status();
+        } catch (RocksDBException ex) {
+            throw new FlinkRuntimeException("Internal exception found in RocksDB", ex);
+        }
+    }
 
-	public byte[] key() {
-		return iterator.key();
-	}
+    public byte[] key() {
+        return iterator.key();
+    }
 
-	public byte[] value() {
-		return iterator.value();
-	}
+    public byte[] value() {
+        return iterator.value();
+    }
 
-	@Override
-	public void close() {
-		iterator.close();
-	}
+    @Override
+    public void close() {
+        iterator.close();
+    }
 }

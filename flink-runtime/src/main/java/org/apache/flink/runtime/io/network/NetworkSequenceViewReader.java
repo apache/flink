@@ -23,51 +23,56 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
- * Simple wrapper for the partition readerQueue iterator, which increments a
- * sequence number for each returned buffer and remembers the receiver ID.
+ * Simple wrapper for the partition readerQueue iterator, which increments a sequence number for
+ * each returned buffer and remembers the receiver ID.
  */
 public interface NetworkSequenceViewReader {
 
-	void requestSubpartitionView(
-		ResultPartitionProvider partitionProvider,
-		ResultPartitionID resultPartitionId,
-		int subPartitionIndex) throws IOException;
+    void requestSubpartitionView(
+            ResultPartitionProvider partitionProvider,
+            ResultPartitionID resultPartitionId,
+            int subPartitionIndex)
+            throws IOException;
 
-	BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
+    @Nullable
+    BufferAndAvailability getNextBuffer() throws IOException;
 
-	/**
-	 * The credits from consumer are added in incremental way.
-	 *
-	 * @param creditDeltas The credit deltas
-	 */
-	void addCredit(int creditDeltas);
+    /**
+     * The credits from consumer are added in incremental way.
+     *
+     * @param creditDeltas The credit deltas
+     */
+    void addCredit(int creditDeltas);
 
-	/**
-	 * Checks whether this reader is available or not.
-	 *
-	 * @return True if the reader is available.
-	 */
-	boolean isAvailable();
+    /** Resumes data consumption after an exactly once checkpoint. */
+    void resumeConsumption();
 
-	boolean isRegisteredAsAvailable();
+    /**
+     * Checks whether this reader is available or not.
+     *
+     * @return True if the reader is available.
+     */
+    boolean isAvailable();
 
-	/**
-	 * Updates the value to indicate whether the reader is enqueued in the pipeline or not.
-	 *
-	 * @param isRegisteredAvailable True if this reader is already enqueued in the pipeline.
-	 */
-	void setRegisteredAsAvailable(boolean isRegisteredAvailable);
+    boolean isRegisteredAsAvailable();
 
-	boolean isReleased();
+    /**
+     * Updates the value to indicate whether the reader is enqueued in the pipeline or not.
+     *
+     * @param isRegisteredAvailable True if this reader is already enqueued in the pipeline.
+     */
+    void setRegisteredAsAvailable(boolean isRegisteredAvailable);
 
-	void releaseAllResources() throws IOException;
+    boolean isReleased();
 
-	Throwable getFailureCause();
+    void releaseAllResources() throws IOException;
 
-	InputChannelID getReceiverId();
+    Throwable getFailureCause();
 
-	int getSequenceNumber();
+    InputChannelID getReceiverId();
 }

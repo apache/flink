@@ -66,7 +66,7 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
           outCRow.row = v
           outCRow
         }
-      }).returns(cRowType)
+      }).returns(cRowType).setParallelism(input.getParallelism)
 
     } else {
       // input needs to be converted and wrapped as CRow or time indicators need to be generated
@@ -88,7 +88,11 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
 
       val opName = s"from: (${schema.fieldNames.mkString(", ")})"
 
-      input.process(processFunc).name(opName).returns(cRowType)
+      input
+        .process(processFunc)
+        .name(opName)
+        .returns(cRowType)
+        .setParallelism(input.getParallelism)
     }
   }
 

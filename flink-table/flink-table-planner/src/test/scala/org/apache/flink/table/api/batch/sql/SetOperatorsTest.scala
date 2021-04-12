@@ -20,12 +20,13 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.Expressions.$
+import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.{Ignore, Test}
+
+import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
 
@@ -64,16 +65,16 @@ class SetOperatorsTest extends TableTestBase {
             unaryNode(
               "DataSetCalc",
               batchTableNode(table1),
-              term("select", "b_long AS b_long3", "true AS $f0"),
+              term("select", "b_long", "true AS $f0"),
               term("where", "IS NOT NULL(b_long)")
             ),
-            term("groupBy", "b_long3"),
-            term("select", "b_long3", "MIN($f0) AS $f1")
+            term("groupBy", "b_long"),
+            term("select", "b_long", "MIN($f0) AS $f1")
           ),
-          term("select", "b_long3")
+          term("select", "b_long")
         ),
-        term("where", "=(a_long, b_long3)"),
-        term("join", "a_long", "a_int", "a_string", "b_long3"),
+        term("where", "=(a_long, b_long)"),
+        term("join", "a_long", "a_int", "a_string", "b_long"),
         term("joinType", "InnerJoin")
       ),
       term("select", "a_int", "a_string")
@@ -105,7 +106,7 @@ class SetOperatorsTest extends TableTestBase {
                 "DataSetCalc",
                 batchTableNode(table),
                 term("select", "b"),
-                term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+                term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
               ),
               term("select", "COUNT(*) AS $f0", "COUNT(b) AS $f1")
             ),
@@ -121,7 +122,7 @@ class SetOperatorsTest extends TableTestBase {
             "DataSetCalc",
             batchTableNode(table),
             term("select", "b", "true AS $f1"),
-            term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+            term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
           ),
           term("groupBy", "b"),
           term("select", "b", "MIN($f1) AS $f1")
@@ -159,13 +160,57 @@ class SetOperatorsTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // Calcite bug
   def testNotInWithFilter(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
-    util.addTable[(Int, Long, Int, String, Long)]("B", 'a, 'b, 'c, 'd, 'e)
+    val tableA = util.addTable[(Int, Long, String)]("A", 'a, 'b, 'c)
+    val tableB = util.addTable[(Int, Long, Int, String, Long)]("B", 'a, 'b, 'c, 'd, 'e)
 
-    val expected = "FAIL"
+    val expected = unaryNode(
+      "DataSetCalc",
+      binaryNode(
+        "DataSetJoin",
+        unaryNode(
+          "DataSetCalc",
+          binaryNode(
+            "DataSetSingleRowJoin",
+            unaryNode(
+              "DataSetCalc",
+              batchTableNode(tableB),
+              term("select", "d"),
+              term("where", "<(CAST(d), 5:BIGINT)")
+            ),
+            unaryNode(
+              "DataSetAggregate",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(tableA),
+                term("select", "a")
+              ),
+              term("select", "COUNT(*) AS $f0, COUNT(a) AS $f1")
+            ),
+            term("where", "true"),
+            term("join", "d, $f0, $f1"),
+            term("joinType", "NestedLoopInnerJoin")
+          ),
+          term("select", "d, $f0, $f1, d AS d0")
+        ),
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(tableA),
+            term("select", "a, true AS $f1")
+          ),
+          term("groupBy", "a"),
+          term("select", "a, MIN($f1) AS $f1")
+        ),
+        term("where", "=(d0, a)"),
+        term("join", "d, $f0, $f1, d0, a, $f10"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "d"),
+      term("where", "OR(=($f0, 0:BIGINT), AND(IS NULL($f10), >=($f1, $f0), IS NOT NULL(d0)))")
+    )
 
     util.verifySql(
       "SELECT d FROM B WHERE d NOT IN (SELECT a FROM A) AND d < 5",
@@ -207,7 +252,7 @@ class SetOperatorsTest extends TableTestBase {
     val typeInfo = Types.ROW(
       new GenericTypeInfo(classOf[NonPojo]),
       new GenericTypeInfo(classOf[NonPojo]))
-    val table = util.addJavaTable(typeInfo, "A", "a, b")
+    val table = util.addJavaTable(typeInfo, "A", $("a"), $("b"))
 
     val expected = binaryNode(
       "DataSetUnion",

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -43,7 +43,7 @@ class JoinTest extends TableTestBase {
       .where('a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -57,7 +57,7 @@ class JoinTest extends TableTestBase {
       .where('a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -71,7 +71,7 @@ class JoinTest extends TableTestBase {
       .where('a === 'd && 'lptime === 'rptime)
       .select('a, 'e, 'lptime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   /**
@@ -85,7 +85,7 @@ class JoinTest extends TableTestBase {
     val resultTable = left.join(right)
       .where('a ==='d && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime && 'lrtime > 'f)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   // Tests for left outer join
@@ -101,7 +101,7 @@ class JoinTest extends TableTestBase {
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -115,7 +115,7 @@ class JoinTest extends TableTestBase {
       .leftOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   // Tests for right outer join
@@ -132,7 +132,7 @@ class JoinTest extends TableTestBase {
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -146,7 +146,7 @@ class JoinTest extends TableTestBase {
       .rightOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   // Tests for full outer join
@@ -163,7 +163,7 @@ class JoinTest extends TableTestBase {
         'a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -177,7 +177,7 @@ class JoinTest extends TableTestBase {
       .fullOuterJoin(right, 'a === 'd && 'lptime >= 'rptime - 1.second && 'lptime < 'rptime)
       .select('a, 'e, 'lptime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   // Test for outer join optimization
@@ -192,7 +192,7 @@ class JoinTest extends TableTestBase {
       .where('a === 'd && 'lrtime >= 'rrtime - 5.minutes && 'lrtime < 'rrtime + 3.seconds)
       .select('a, 'e, 'lrtime)
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -203,7 +203,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -214,7 +214,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -225,7 +225,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -236,7 +236,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -247,7 +247,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'x < 2).select('b, 'x)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -258,6 +258,6 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 }

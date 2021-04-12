@@ -19,142 +19,97 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.stream.IntStream;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThat;
 
 /**
- * Test to verify that timer triggers are run according to operator precedence (combined with yield() at operator
- * level).
+ * Test to verify that timer triggers are run according to operator precedence (combined with
+ * yield() at operator level).
  */
 public class MailboxOperatorTest extends TestLogger {
 
-	@Test
-	public void testAvoidTaskStarvation() throws Exception {
-		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
-			OneInputStreamTask::new,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO);
+    @Test
+    public void testAvoidTaskStarvation() throws Exception {
+        final int numRecords = 3;
 
-		testHarness.setupOperatorChain(new OperatorID(), new ReplicatingMailOperatorFactory())
-			.chain(new OperatorID(), new ReplicatingMailOperatorFactory(), IntSerializer.INSTANCE)
-			.finish();
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOperatorChain(new StreamMap<>(i1 -> i1))
+                        .chain(new StreamMap<>(i -> i), IntSerializer.INSTANCE)
+                        .finish();
 
-		testHarness.invoke();
-		testHarness.waitForTaskRunning();
+        try (StreamTaskMailboxTestHarness<Integer> testHarness = builder.build()) {
+            final ReplicatingMail mail1 = createReplicatingMail(numRecords, testHarness, 0);
+            final ReplicatingMail mail2 = createReplicatingMail(numRecords, testHarness, 1);
+            for (int i = 0; i < numRecords; i++) {
+                testHarness.processElement(new StreamRecord<>(i));
+            }
 
-		testHarness.processElement(new StreamRecord<>(0));
-		testHarness.processElement(new StreamRecord<>(0));
-		testHarness.processElement(new StreamRecord<>(0));
+            while (testHarness.getOutput().size() < numRecords) {
+                testHarness.processSingleStep();
+            }
 
-		testHarness.endInput();
-		testHarness.waitForTaskCompletion();
+            final int[] output =
+                    testHarness.getOutput().stream()
+                            .mapToInt(r -> ((StreamRecord<Integer>) r).getValue())
+                            .toArray();
+            assertArrayEquals(output, IntStream.range(0, numRecords).toArray());
+            assertThat(mail1.getMailCount(), equalTo(numRecords + 1));
+            assertThat(mail2.getMailCount(), equalTo(numRecords + 1));
+        }
+    }
 
-		// with each input two mails should be processed, one of each operator in the chain
-		List<Integer> numMailsProcessed = testHarness.getOutput().stream()
-			.map(element -> ((StreamRecord<Integer>) element).getValue())
-			.collect(Collectors.toList());
-		assertThat(numMailsProcessed, is(Arrays.asList(0, 2, 4)));
-	}
+    @Nonnull
+    private ReplicatingMail createReplicatingMail(
+            int numRecords, StreamTaskMailboxTestHarness<Integer> testHarness, int priority) {
+        final MailboxExecutor mailboxExecutor = testHarness.getExecutor(priority);
+        final ReplicatingMail mail1 = new ReplicatingMail(mailboxExecutor, numRecords + 1);
+        mailboxExecutor.submit(mail1, "Initial mail");
+        return mail1;
+    }
 
-	private static class ReplicatingMailOperatorFactory implements OneInputStreamOperatorFactory<Integer, Integer>,
-			YieldingOperatorFactory<Integer> {
-		private MailboxExecutor mailboxExecutor;
+    private static class ReplicatingMail implements RunnableWithException {
+        private int mailCount = -1;
+        private final MailboxExecutor mailboxExecutor;
+        private final int maxMails;
 
-		@Override
-		public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
-			this.mailboxExecutor = mailboxExecutor;
-		}
+        ReplicatingMail(final MailboxExecutor mailboxExecutor, int maxMails) {
+            this.mailboxExecutor = mailboxExecutor;
+            this.maxMails = maxMails;
+        }
 
-		@Override
-		public <Operator extends StreamOperator<Integer>> Operator createStreamOperator(
-				StreamTask<?, ?> containingTask,
-				StreamConfig config,
-				Output<StreamRecord<Integer>> output) {
-			ReplicatingMailOperator operator = new ReplicatingMailOperator(mailboxExecutor);
-			operator.setup(containingTask, config, output);
-			return (Operator) operator;
-		}
+        @Override
+        public void run() {
+            try {
+                if (mailCount < maxMails) {
+                    mailboxExecutor.execute(this, "Blocking mail" + ++mailCount);
+                }
+            } catch (RejectedExecutionException e) {
+                // during shutdown the executor will reject new mails, which is fine for us.
+            }
+        }
 
-		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-		}
-
-		@Override
-		public ChainingStrategy getChainingStrategy() {
-			return ChainingStrategy.ALWAYS;
-		}
-
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return ReplicatingMailOperator.class;
-		}
-	}
-
-	private static class ReplicatingMailOperator extends AbstractStreamOperator<Integer>
-			implements OneInputStreamOperator<Integer, Integer> {
-		private final ReplicatingMail replicatingMail;
-
-		ReplicatingMailOperator(final MailboxExecutor mailboxExecutor) {
-			replicatingMail = new ReplicatingMail(mailboxExecutor);
-		}
-
-		@Override
-		public void processElement(StreamRecord<Integer> upstreamMailCount) throws Exception {
-			// for the very first element, enqueue one mail that replicates itself
-			if (!replicatingMail.hasBeenEnqueued()) {
-				replicatingMail.run();
-			}
-			// output how many mails have been processed so far (from upstream and this operator)
-			output.collect(new StreamRecord<>(replicatingMail.getMailCount() + upstreamMailCount.getValue()));
-		}
-	}
-
-	private static class ReplicatingMail implements Runnable {
-		private int mailCount = -1;
-		private final MailboxExecutor mailboxExecutor;
-
-		ReplicatingMail(final MailboxExecutor mailboxExecutor) {
-			this.mailboxExecutor = mailboxExecutor;
-		}
-
-		@Override
-		public void run() {
-			try {
-				mailboxExecutor.execute(this, "Blocking mail" + ++mailCount);
-			} catch (RejectedExecutionException e) {
-				// during shutdown the executor will reject new mails, which is fine for us.
-			}
-		}
-
-		boolean hasBeenEnqueued() {
-			return mailCount > -1;
-		}
-
-		int getMailCount() {
-			return mailCount;
-		}
-	}
+        int getMailCount() {
+            return mailCount;
+        }
+    }
 }

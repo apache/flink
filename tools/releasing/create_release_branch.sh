@@ -59,14 +59,23 @@ git checkout -b $target_branch
 #change version in all pom files
 find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(.*)</version>#<version>${1}'$NEW_VERSION'${2}</version>#' {} \;
 
+pushd tools
+./releasing/update_japicmp_configuration.sh
+popd
+
 #change version of documentation
 cd docs
-perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^  Version = .*#  Version = \"${NEW_VERSION}\"#" config.toml
 
 # The version in the title should not contain the bugfix version (e.g. 1.3)
 VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
-perl -pi -e "s#^version_title: .*#version_title: ${VERSION_TITLE}#" _config.yml
+perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${VERSION_TITLE}\"#" config.toml
 cd ..
+
+#change version of pyflink
+cd flink-python/pyflink
+perl -pi -e "s#^__version__ = \".*\"#__version__ = \"${NEW_VERSION}\"#" version.py
+cd ../..
 
 git commit -am "Commit for release $NEW_VERSION"
 

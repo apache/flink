@@ -29,71 +29,84 @@ import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class CoGroupWithDistributionTest extends CompilerTestBase {
 
-	@Test
-	 public void CoGroupWithSameDistributionTest() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple3<Integer, Integer, Integer>> set1 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
-		DataSet<Tuple3<Integer, Integer, Integer>> set2 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
+    @Test
+    public void CoGroupWithSameDistributionTest() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple3<Integer, Integer, Integer>> set1 =
+                env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
+        DataSet<Tuple3<Integer, Integer, Integer>> set2 =
+                env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
 
-		TestDistribution testDistribution1 = new TestDistribution(3);
-		TestDistribution testDistribution2 = new TestDistribution(3);
+        TestDistribution testDistribution1 = new TestDistribution(3);
+        TestDistribution testDistribution2 = new TestDistribution(3);
 
-		DataSet<Tuple3<Integer, Integer, Integer>> coGrouped = DataSetUtils.partitionByRange(set1, testDistribution1, 0)
-				.coGroup(DataSetUtils.partitionByRange(set2, testDistribution2, 0))
-				.where(0).equalTo(0).with(new CoGroupFunc());
+        DataSet<Tuple3<Integer, Integer, Integer>> coGrouped =
+                DataSetUtils.partitionByRange(set1, testDistribution1, 0)
+                        .coGroup(DataSetUtils.partitionByRange(set2, testDistribution2, 0))
+                        .where(0)
+                        .equalTo(0)
+                        .with(new CoGroupFunc());
 
-		coGrouped.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
-		Plan plan = env.createProgramPlan();
-		OptimizedPlan oPlan = compileWithStats(plan);
+        coGrouped.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
+        Plan plan = env.createProgramPlan();
+        OptimizedPlan oPlan = compileWithStats(plan);
 
-		SinkPlanNode sink = oPlan.getDataSinks().iterator().next();
-		DualInputPlanNode coGroup= (DualInputPlanNode)sink.getInput().getSource();
-		Channel input1 = coGroup.getInput1();
-		Channel input2 = coGroup.getInput2();
-		assertEquals(ShipStrategyType.FORWARD, input1.getShipStrategy());
-		assertEquals(ShipStrategyType.FORWARD, input2.getShipStrategy());
+        SinkPlanNode sink = oPlan.getDataSinks().iterator().next();
+        DualInputPlanNode coGroup = (DualInputPlanNode) sink.getInput().getSource();
+        Channel input1 = coGroup.getInput1();
+        Channel input2 = coGroup.getInput2();
+        assertEquals(ShipStrategyType.FORWARD, input1.getShipStrategy());
+        assertEquals(ShipStrategyType.FORWARD, input2.getShipStrategy());
+    }
 
-	}
+    @Test
+    public void CoGroupWithDifferentDistributionTest() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple3<Integer, Integer, Integer>> set1 =
+                env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
+        DataSet<Tuple3<Integer, Integer, Integer>> set2 =
+                env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
 
-	@Test
-	public void CoGroupWithDifferentDistributionTest() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple3<Integer, Integer, Integer>> set1 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
-		DataSet<Tuple3<Integer, Integer, Integer>> set2 = env.readCsvFile(IN_FILE).types(Integer.class, Integer.class, Integer.class);
+        TestDistribution testDistribution1 = new TestDistribution(3);
+        TestDistribution testDistribution2 = new TestDistribution(2);
 
-		TestDistribution testDistribution1 = new TestDistribution(3);
-		TestDistribution testDistribution2 = new TestDistribution(2);
+        DataSet<Tuple3<Integer, Integer, Integer>> coGrouped =
+                DataSetUtils.partitionByRange(set1, testDistribution1, 0)
+                        .coGroup(DataSetUtils.partitionByRange(set2, testDistribution2, 0))
+                        .where(0)
+                        .equalTo(0)
+                        .with(new CoGroupFunc());
 
-		DataSet<Tuple3<Integer, Integer, Integer>> coGrouped = DataSetUtils.partitionByRange(set1, testDistribution1, 0)
-				.coGroup(DataSetUtils.partitionByRange(set2, testDistribution2, 0))
-				.where(0).equalTo(0).with(new CoGroupFunc());
+        coGrouped.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
+        Plan plan = env.createProgramPlan();
+        OptimizedPlan oPlan = compileWithStats(plan);
 
-		coGrouped.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
-		Plan plan = env.createProgramPlan();
-		OptimizedPlan oPlan = compileWithStats(plan);
+        SinkPlanNode sink = oPlan.getDataSinks().iterator().next();
+        DualInputPlanNode coGroup = (DualInputPlanNode) sink.getInput().getSource();
+        Channel input1 = coGroup.getInput1();
+        Channel input2 = coGroup.getInput2();
+        assertEquals(ShipStrategyType.PARTITION_HASH, input1.getShipStrategy());
+        assertEquals(ShipStrategyType.PARTITION_HASH, input2.getShipStrategy());
+    }
 
-		SinkPlanNode sink = oPlan.getDataSinks().iterator().next();
-		DualInputPlanNode coGroup= (DualInputPlanNode)sink.getInput().getSource();
-		Channel input1 = coGroup.getInput1();
-		Channel input2 = coGroup.getInput2();
-		assertEquals(ShipStrategyType.PARTITION_HASH, input1.getShipStrategy());
-		assertEquals(ShipStrategyType.PARTITION_HASH, input2.getShipStrategy());
+    public static class CoGroupFunc
+            implements CoGroupFunction<
+                    Tuple3<Integer, Integer, Integer>,
+                    Tuple3<Integer, Integer, Integer>,
+                    Tuple3<Integer, Integer, Integer>> {
 
-	}
-
-	public static class CoGroupFunc implements CoGroupFunction<Tuple3<Integer, Integer, Integer>,
-			Tuple3<Integer, Integer, Integer>, Tuple3<Integer, Integer, Integer>> {
-
-		@Override
-		public void coGroup(Iterable<Tuple3<Integer, Integer, Integer>> first, Iterable<Tuple3<Integer, Integer, Integer>> second,
-							Collector<Tuple3<Integer, Integer, Integer>> out) throws Exception {
-
-		}
-	}
+        @Override
+        public void coGroup(
+                Iterable<Tuple3<Integer, Integer, Integer>> first,
+                Iterable<Tuple3<Integer, Integer, Integer>> second,
+                Collector<Tuple3<Integer, Integer, Integer>> out)
+                throws Exception {}
+    }
 }

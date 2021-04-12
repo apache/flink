@@ -18,38 +18,37 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Date;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link SqlDateSerializer}.
- */
+import java.sql.Date;
+
+/** A test for the {@link SqlDateSerializer}. */
 public class SqlDateSerializerTest extends SerializerTestBase<Date> {
 
-	@Override
-	protected TypeSerializer<Date> createSerializer() {
-		return new SqlDateSerializer();
-	}
+    @Override
+    protected TypeSerializer<Date> createSerializer() {
+        return new SqlDateSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return 8;
-	}
+    @Override
+    protected int getLength() {
+        return 8;
+    }
 
-	@Override
-	protected Class<Date> getTypeClass() {
-		return Date.class;
-	}
+    @Override
+    protected Class<Date> getTypeClass() {
+        return Date.class;
+    }
 
-	@Override
-	protected Date[] getTestData() {
-		return new Date[] {
-			new Date(0L),
-			Date.valueOf("1970-01-01"),
-			Date.valueOf("1990-10-14"),
-			Date.valueOf("2013-08-12"),
-			Date.valueOf("2040-05-12")
-		};
-	}
+    @Override
+    protected Date[] getTestData() {
+        return new Date[] {
+            new Date(0L),
+            Date.valueOf("1970-01-01"),
+            Date.valueOf("1990-10-14"),
+            Date.valueOf("2013-08-12"),
+            Date.valueOf("2040-05-12")
+        };
+    }
 }

@@ -23,16 +23,16 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import java.util.Map;
 
 /**
- * Event sent by the {@code IterationSynchronizationSinkTask} to each
- * {@code IterationHead} signaling to start a new superstep.
+ * Event sent by the {@code IterationSynchronizationSinkTask} to each {@code IterationHead}
+ * signaling to start a new superstep.
  */
 public class AllWorkersDoneEvent extends IterationEventWithAggregators {
 
-	public AllWorkersDoneEvent() {
-		super();
-	}
+    public AllWorkersDoneEvent() {
+        super();
+    }
 
-	public AllWorkersDoneEvent(Map<String, Aggregator<?>> aggregators) {
-		super(aggregators);
-	}
+    public AllWorkersDoneEvent(Map<String, Aggregator<?>> aggregators) {
+        super(aggregators);
+    }
 }

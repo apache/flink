@@ -84,7 +84,6 @@ class RankITCase extends BatchTestBase {
       Seq(row(2, 2, 2), row(3, 6, 3), row(4, 7, 3), row(4, 10, 3), row(5, 14, 2), row(5, 15, 2)))
   }
 
-  @Ignore
   @Test
   def testRankValueFilterWithLowerValue(): Unit = {
     checkResult("SELECT * FROM (" +

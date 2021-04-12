@@ -24,8 +24,6 @@ package org.apache.flink.runtime.state;
  * @param <R> Generic type of the restore result.
  */
 public interface RestoreOperation<R> {
-	/**
-	 * Restores state that was previously snapshot-ed from the provided state handles.
-	 */
-	R restore() throws Exception;
+    /** Restores state that was previously snapshot-ed from the provided state handles. */
+    R restore() throws Exception;
 }

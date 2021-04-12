@@ -21,28 +21,21 @@ package org.apache.flink.runtime.metrics.scope;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 
-/**
- * The scope format for the {@link org.apache.flink.runtime.metrics.groups.JobMetricGroup}.
- */
+/** The scope format for the {@link org.apache.flink.runtime.metrics.groups.JobMetricGroup}. */
 public class TaskManagerJobScopeFormat extends ScopeFormat {
 
-	public TaskManagerJobScopeFormat(String format, TaskManagerScopeFormat parentFormat) {
-		super(format, parentFormat, new String[] {
-				SCOPE_HOST,
-				SCOPE_TASKMANAGER_ID,
-				SCOPE_JOB_ID,
-				SCOPE_JOB_NAME
-		});
-	}
+    public TaskManagerJobScopeFormat(String format, TaskManagerScopeFormat parentFormat) {
+        super(
+                format,
+                parentFormat,
+                new String[] {SCOPE_HOST, SCOPE_TASKMANAGER_ID, SCOPE_JOB_ID, SCOPE_JOB_NAME});
+    }
 
-	public String[] formatScope(TaskManagerMetricGroup parent, JobID jid, String jobName) {
-		final String[] template = copyTemplate();
-		final String[] values = {
-				parent.hostname(),
-				parent.taskManagerId(),
-				valueOrNull(jid),
-				valueOrNull(jobName)
-		};
-		return bindVariables(template, values);
-	}
+    public String[] formatScope(TaskManagerMetricGroup parent, JobID jid, String jobName) {
+        final String[] template = copyTemplate();
+        final String[] values = {
+            parent.hostname(), parent.taskManagerId(), valueOrNull(jid), valueOrNull(jobName)
+        };
+        return bindVariables(template, values);
+    }
 }

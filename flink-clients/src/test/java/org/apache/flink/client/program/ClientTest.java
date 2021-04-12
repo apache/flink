@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -41,9 +40,10 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
-import org.apache.flink.core.execution.Executor;
-import org.apache.flink.core.execution.ExecutorFactory;
-import org.apache.flink.core.execution.ExecutorServiceLoader;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.PipelineExecutor;
+import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -52,14 +52,13 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -68,6 +67,7 @@ import javax.annotation.Nonnull;
 import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -77,329 +77,415 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Simple and maybe stupid test to check the {@link ClusterClient} class.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Simple and maybe stupid test to check the {@link ClusterClient} class. */
 public class ClientTest extends TestLogger {
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-		new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
 
-	private Plan plan;
+    private Plan plan;
 
-	private Configuration config;
+    private Configuration config;
 
-	private static final String TEST_EXECUTOR_NAME = "test_executor";
+    private static final String TEST_EXECUTOR_NAME = "test_executor";
 
-	private static final String ACCUMULATOR_NAME = "test_accumulator";
+    private static final String ACCUMULATOR_NAME = "test_accumulator";
 
-	private static final String FAIL_MESSAGE = "Invalid program should have thrown ProgramInvocationException.";
+    private static final String FAIL_MESSAGE =
+            "Invalid program should have thrown ProgramInvocationException.";
 
-	@Before
-	public void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
-		plan = env.createProgramPlan();
+        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        env.generateSequence(1, 1000).output(new DiscardingOutputFormat<>());
+        plan = env.createProgramPlan();
 
-		final int freePort = NetUtils.getAvailablePort();
-		config = new Configuration();
-		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setInteger(JobManagerOptions.PORT, freePort);
-		config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
-	}
+        final int freePort = NetUtils.getAvailablePort();
+        config = new Configuration();
+        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.setInteger(JobManagerOptions.PORT, freePort);
+        config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
+    }
 
-	private Configuration fromPackagedProgram(final PackagedProgram program, final int parallelism, final boolean detached) {
-		final Configuration configuration = new Configuration();
-		configuration.setString(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
-		configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
-		configuration.set(DeploymentOptions.ATTACHED, !detached);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
-		return configuration;
-	}
+    private Configuration fromPackagedProgram(
+            final PackagedProgram program, final int parallelism, final boolean detached) {
+        final Configuration configuration = new Configuration();
+        configuration.setString(DeploymentOptions.TARGET, TEST_EXECUTOR_NAME);
+        configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+        configuration.set(DeploymentOptions.ATTACHED, !detached);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
+        ConfigUtils.encodeCollectionToConfig(
+                configuration,
+                PipelineOptions.JARS,
+                program.getJobJarAndDependencies(),
+                URL::toString);
+        return configuration;
+    }
 
-	/**
-	 * Tests that invalid detached mode programs fail.
-	 */
-	@Test
-	public void testDetachedMode() throws Exception{
-		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestExecuteTwice.class.getName()).build();
-			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+    /** Tests that invalid detached mode programs fail. */
+    @Test
+    public void testDetachedMode() throws Exception {
+        final ClusterClient<?> clusterClient =
+                new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE,
-					e.getCause().getMessage());
-		}
+        try {
+            PackagedProgram prg =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestEager.class.getName())
+                            .build();
+            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
-			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(clusterClient, plan),
+                    configuration,
+                    prg,
+                    false,
+                    false);
+            fail(FAIL_MESSAGE);
+        } catch (ProgramInvocationException e) {
+            assertEquals(
+                    DetachedJobExecutionResult.DETACHED_MESSAGE
+                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
+                            + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
+                    e.getCause().getMessage());
+        }
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
-					e.getCause().getMessage());
-		}
+        try {
+            PackagedProgram prg =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestGetRuntime.class.getName())
+                            .build();
+            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
-			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(clusterClient, plan),
+                    configuration,
+                    prg,
+                    false,
+                    false);
+            fail(FAIL_MESSAGE);
+        } catch (ProgramInvocationException e) {
+            assertEquals(
+                    DetachedJobExecutionResult.DETACHED_MESSAGE
+                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
+                    e.getCause().getMessage());
+        }
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-					e.getCause().getMessage());
-		}
+        try {
+            PackagedProgram prg =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestGetAccumulator.class.getName())
+                            .build();
+            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
-			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(clusterClient, plan),
+                    configuration,
+                    prg,
+                    false,
+                    false);
+            fail(FAIL_MESSAGE);
+        } catch (ProgramInvocationException e) {
+            assertEquals(
+                    DetachedJobExecutionResult.DETACHED_MESSAGE
+                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE
+                            + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
+                    e.getCause().getMessage());
+        }
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE + DetachedJobExecutionResult.EAGER_FUNCTION_MESSAGE,
-					e.getCause().getMessage());
-		}
+        try {
+            PackagedProgram prg =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestGetAllAccumulator.class.getName())
+                            .build();
+            final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
-			final Configuration configuration = fromPackagedProgram(prg, 1, true);
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(clusterClient, plan),
+                    configuration,
+                    prg,
+                    false,
+                    false);
+            fail(FAIL_MESSAGE);
+        } catch (ProgramInvocationException e) {
+            assertEquals(
+                    DetachedJobExecutionResult.DETACHED_MESSAGE
+                            + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
+                    e.getCause().getMessage());
+        }
+    }
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-					e.getCause().getMessage());
-		}
-	}
+    @Test(expected = FlinkRuntimeException.class)
+    public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
+        try {
+            launchMultiExecuteJob(true);
+        } catch (Exception e) {
+            if (e instanceof ProgramInvocationException) {
+                throw e.getCause();
+            }
+        }
+        fail("Test should have failed due to multiple execute() calls.");
+    }
 
-	/**
-	 * This test verifies correct job submission messaging logic and plan translation calls.
-	 */
-	@Test
-	public void shouldSubmitToJobClient() throws Exception {
-		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
-				plan,
-				new Configuration(),
-				1);
+    @Test
+    public void testMultiExecuteWithoutEnforcingSingleJobExecution()
+            throws ProgramInvocationException {
+        launchMultiExecuteJob(false);
+    }
 
-		jobGraph.addJars(Collections.emptyList());
-		jobGraph.setClasspaths(Collections.emptyList());
+    private void launchMultiExecuteJob(final boolean enforceSingleJobExecution)
+            throws ProgramInvocationException {
+        try (final ClusterClient<?> clusterClient =
+                new MiniClusterClient(
+                        new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
 
-		JobSubmissionResult result = ClientUtils.submitJob(clusterClient, jobGraph);
-		assertNotNull(result);
-	}
+            final PackagedProgram program =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestMultiExecute.class.getName())
+                            .build();
 
-	/**
-	 * This test verifies that the local execution environment cannot be created when
-	 * the program is submitted through a client.
-	 */
-	@Test
-	public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
-		PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
+            final Configuration configuration = fromPackagedProgram(program, 1, false);
 
-		when(packagedProgramMock.getUserCodeClassLoader())
-				.thenReturn(packagedProgramMock.getClass().getClassLoader());
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(clusterClient, plan),
+                    configuration,
+                    program,
+                    enforceSingleJobExecution,
+                    false);
+        }
+    }
 
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) throws Throwable {
-				ExecutionEnvironment.createLocalEnvironment();
-				return null;
-			}
-		}).when(packagedProgramMock).invokeInteractiveModeForExecution();
+    /** This test verifies correct job submission messaging logic and plan translation calls. */
+    @Test
+    public void shouldSubmitToJobClient() throws Exception {
+        final ClusterClient<?> clusterClient =
+                new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+        JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan, new Configuration(), 1);
 
-		try {
-			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
-			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock);
-			fail("Creating the local execution environment should not be possible");
-		}
-		catch (InvalidProgramException e) {
-			// that is what we want
-		}
-	}
+        jobGraph.addJars(Collections.emptyList());
+        jobGraph.setClasspaths(Collections.emptyList());
 
-	@Test
-	public void testGetExecutionPlan() throws ProgramInvocationException {
-		PackagedProgram prg = PackagedProgram.newBuilder()
-			.setEntryPointClassName(TestOptimizerPlan.class.getName())
-			.setArguments("/dev/random", "/tmp")
-			.build();
+        assertNotNull(clusterClient.submitJob(jobGraph).get());
+    }
 
-		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1);
-		OptimizedPlan op = optimizer.compile(plan);
-		assertNotNull(op);
+    /**
+     * This test verifies that the local execution environment cannot be created when the program is
+     * submitted through a client.
+     */
+    @Test
+    public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
+        PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
 
-		PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-		assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+        when(packagedProgramMock.getUserCodeClassLoader())
+                .thenReturn(packagedProgramMock.getClass().getClassLoader());
 
-		// test HTML escaping
-		PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
-		dumper2.setEncodeForHTML(true);
-		String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
+        doAnswer(
+                        new Answer<Void>() {
+                            @Override
+                            public Void answer(InvocationOnMock invocation) throws Throwable {
+                                ExecutionEnvironment.createLocalEnvironment();
+                                return null;
+                            }
+                        })
+                .when(packagedProgramMock)
+                .invokeInteractiveModeForExecution();
 
-		assertEquals(-1, htmlEscaped.indexOf('\\'));
-	}
+        try {
+            final ClusterClient<?> client =
+                    new MiniClusterClient(
+                            new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
+            final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
+            ClientUtils.executeProgram(
+                    new TestExecutorServiceLoader(client, plan),
+                    configuration,
+                    packagedProgramMock,
+                    false,
+                    false);
+            fail("Creating the local execution environment should not be possible");
+        } catch (InvalidProgramException e) {
+            // that is what we want
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    @Test
+    public void testGetExecutionPlan() throws ProgramInvocationException {
+        PackagedProgram prg =
+                PackagedProgram.newBuilder()
+                        .setEntryPointClassName(TestOptimizerPlan.class.getName())
+                        .setArguments("/dev/random", "/tmp")
+                        .build();
 
-	/**
-	 * A test job.
-	 */
-	public static class TestOptimizerPlan implements ProgramDescription {
+        Optimizer optimizer =
+                new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+        Plan plan =
+                (Plan)
+                        PackagedProgramUtils.getPipelineFromProgram(
+                                prg, new Configuration(), 1, true);
+        OptimizedPlan op = optimizer.compile(plan);
+        assertNotNull(op);
 
-		@SuppressWarnings("serial")
-		public static void main(String[] args) throws Exception {
-			if (args.length < 2) {
-				System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
-				return;
-			}
+        PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+        assertNotNull(dumper.getOptimizerPlanAsJSON(op));
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        // test HTML escaping
+        PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
+        dumper2.setEncodeForHTML(true);
+        String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
-			DataSet<Tuple2<Long, Long>> input = env.readCsvFile(args[0])
-					.fieldDelimiter("\t").types(Long.class, Long.class);
+        assertEquals(-1, htmlEscaped.indexOf('\\'));
+    }
 
-			DataSet<Tuple2<Long, Long>> result = input.map(
-					new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
-						public Tuple2<Long, Long> map(Tuple2<Long, Long> value){
-							return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
-						}
-					});
-			result.writeAsCsv(args[1], "\n", "\t");
-			env.execute();
-		}
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		public String getDescription() {
-			return "TestOptimizerPlan <input-file-path> <output-file-path>";
-		}
-	}
+    /** A test job. */
+    public static class TestOptimizerPlan implements ProgramDescription {
 
-	/**
-	 * Test job that calls {@link ExecutionEnvironment#execute()} twice.
-	 */
-	public static final class TestExecuteTwice {
+        @SuppressWarnings("serial")
+        public static void main(String[] args) throws Exception {
+            if (args.length < 2) {
+                System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
+                return;
+            }
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
-			env.execute();
-			env.fromElements(1, 2).collect();
-		}
-	}
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-	/**
-	 * Test job that uses an eager sink.
-	 */
-	public static final class TestEager {
+            DataSet<Tuple2<Long, Long>> input =
+                    env.readCsvFile(args[0]).fieldDelimiter("\t").types(Long.class, Long.class);
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).collect();
-		}
-	}
+            DataSet<Tuple2<Long, Long>> result =
+                    input.map(
+                            new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+                                public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
+                                    return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
+                                }
+                            });
+            result.writeAsCsv(args[1], "\n", "\t");
+            env.execute();
+        }
 
-	/**
-	 * Test job that retrieves the net runtime from the {@link JobExecutionResult}.
-	 */
-	public static final class TestGetRuntime {
+        @Override
+        public String getDescription() {
+            return "TestOptimizerPlan <input-file-path> <output-file-path>";
+        }
+    }
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
-			env.execute().getNetRuntime();
-		}
-	}
+    /** Test job that uses an eager sink. */
+    public static final class TestEager {
 
-	/**
-	 * Test job that retrieves the job ID from the {@link JobExecutionResult}.
-	 */
-	public static final class TestGetJobID {
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.fromElements(1, 2).collect();
+        }
+    }
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
-			env.execute().getJobID();
-		}
-	}
+    /** Test job with multiple execute() calls. */
+    public static final class TestMultiExecute {
 
-	/**
-	 * Test job that retrieves an accumulator from the {@link JobExecutionResult}.
-	 */
-	public static final class TestGetAccumulator {
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
-			env.execute().getAccumulatorResult(ACCUMULATOR_NAME);
-		}
-	}
+            for (int i = 0; i < 2; i++) {
+                env.fromElements(1, 2).output(new DiscardingOutputFormat<>());
+                JobClient jc = env.executeAsync();
 
-	/**
-	 * Test job that retrieves all accumulators from the {@link JobExecutionResult}.
-	 */
-	public static final class TestGetAllAccumulator {
+                jc.getJobExecutionResult();
+            }
+        }
+    }
 
-		public static void main(String[] args) throws Exception {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
-			env.execute().getAllAccumulatorResults();
-		}
-	}
+    /** Test job that retrieves the net runtime from the {@link JobExecutionResult}. */
+    public static final class TestGetRuntime {
 
-	private static final class TestExecutorServiceLoader implements ExecutorServiceLoader {
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            env.execute().getNetRuntime();
+        }
+    }
 
-		private final ClusterClient<?> clusterClient;
+    /** Test job that retrieves the job ID from the {@link JobExecutionResult}. */
+    public static final class TestGetJobID {
 
-		private final Plan plan;
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            env.execute().getJobID();
+        }
+    }
 
-		TestExecutorServiceLoader(final ClusterClient<?> clusterClient, final Plan plan) {
-			this.clusterClient = checkNotNull(clusterClient);
-			this.plan = checkNotNull(plan);
-		}
+    /** Test job that retrieves an accumulator from the {@link JobExecutionResult}. */
+    public static final class TestGetAccumulator {
 
-		@Override
-		public ExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
-			return new ExecutorFactory() {
-				@Override
-				public boolean isCompatibleWith(@Nonnull Configuration configuration) {
-					return TEST_EXECUTOR_NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
-				}
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            env.execute().getAccumulatorResult(ACCUMULATOR_NAME);
+        }
+    }
 
-				@Override
-				public Executor getExecutor(@Nonnull Configuration configuration) {
-					return (pipeline, config) -> {
-						final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
-						final JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(plan, config, parallelism);
+    /** Test job that retrieves all accumulators from the {@link JobExecutionResult}. */
+    public static final class TestGetAllAccumulator {
 
-						final ExecutionConfigAccessor accessor = ExecutionConfigAccessor.fromConfiguration(config);
-						jobGraph.addJars(accessor.getJars());
-						jobGraph.setClasspaths(accessor.getClasspaths());
+        public static void main(String[] args) throws Exception {
+            final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.fromElements(1, 2).output(new DiscardingOutputFormat<Integer>());
+            env.execute().getAllAccumulatorResults();
+        }
+    }
 
-						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
-						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(clusterClient, jobID));
-					};
-				}
-			};
-		}
-	}
+    private static final class TestExecutorServiceLoader implements PipelineExecutorServiceLoader {
+
+        private final ClusterClient<?> clusterClient;
+
+        private final Plan plan;
+
+        TestExecutorServiceLoader(final ClusterClient<?> clusterClient, final Plan plan) {
+            this.clusterClient = checkNotNull(clusterClient);
+            this.plan = checkNotNull(plan);
+        }
+
+        @Override
+        public PipelineExecutorFactory getExecutorFactory(@Nonnull Configuration configuration) {
+            return new PipelineExecutorFactory() {
+
+                @Override
+                public String getName() {
+                    return "my-name";
+                }
+
+                @Override
+                public boolean isCompatibleWith(@Nonnull Configuration configuration) {
+                    return TEST_EXECUTOR_NAME.equalsIgnoreCase(
+                            configuration.getString(DeploymentOptions.TARGET));
+                }
+
+                @Override
+                public PipelineExecutor getExecutor(@Nonnull Configuration configuration) {
+                    return (pipeline, config, classLoader) -> {
+                        final int parallelism = config.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+                        final JobGraph jobGraph =
+                                FlinkPipelineTranslationUtil.getJobGraph(plan, config, parallelism);
+
+                        final ExecutionConfigAccessor accessor =
+                                ExecutionConfigAccessor.fromConfiguration(config);
+                        jobGraph.addJars(accessor.getJars());
+                        jobGraph.setClasspaths(accessor.getClasspaths());
+
+                        final JobID jobID = clusterClient.submitJob(jobGraph).get();
+                        return CompletableFuture.completedFuture(
+                                new ClusterClientJobClientAdapter<>(
+                                        () -> clusterClient, jobID, classLoader));
+                    };
+                }
+            };
+        }
+
+        @Override
+        public Stream<String> getExecutorNames() {
+            throw new UnsupportedOperationException("not implemented");
+        }
+    }
 }

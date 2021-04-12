@@ -403,6 +403,9 @@ class LaunchCoordinatorTest
       }
       "ResourceOffers" which {
         "stays in GatheringOffers with offer queue updated" in new Context {
+          private val result: SchedulingResult = schedulingResult(successes = Nil)
+          when(optimizer.scheduleOnce(MM.any(), MM.any())).thenReturn(result)
+
           fsm.setState(GatheringOffers,
             GatherData(tasks = Seq(task1._2), newLeases = Seq(lease(slave1._3))))
           fsm ! new ResourceOffers(Seq(slave1._4, slave2._3).asJava)

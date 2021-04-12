@@ -16,13 +16,11 @@
  */
 
 /**
- * This package contains classes that realize streaming tasks. These tasks are
- * executable stream consumers and producers that are scheduled by the distributed
- * dataflow runtime. Each task occupies one execution slot and is run with by an
- * executing thread.
+ * This package contains classes that realize streaming tasks. These tasks are executable stream
+ * consumers and producers that are scheduled by the distributed dataflow runtime. Each task
+ * occupies one execution slot and is run with by an executing thread.
  *
- * <p>The tasks merely set up the distributed stream coordination and the checkpointing.
- * Internally, the tasks create one or more operators, perform the stream transformations.
+ * <p>The tasks merely set up the distributed stream coordination and the checkpointing. Internally,
+ * the tasks create one or more operators, perform the stream transformations.
  */
-
 package org.apache.flink.streaming.runtime.tasks;

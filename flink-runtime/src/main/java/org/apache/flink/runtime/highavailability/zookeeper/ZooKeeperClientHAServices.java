@@ -23,34 +23,32 @@ import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-import org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 
 import javax.annotation.Nonnull;
 
-/**
- * ZooKeeper based implementation for {@link ClientHighAvailabilityServices}.
- */
+/** ZooKeeper based implementation for {@link ClientHighAvailabilityServices}. */
 public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices {
 
-	private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
+    private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
 
-	private final CuratorFramework client;
-	private final Configuration configuration;
+    private final CuratorFramework client;
+    private final Configuration configuration;
 
-	public ZooKeeperClientHAServices(
-		@Nonnull CuratorFramework client,
-		@Nonnull Configuration configuration) {
-		this.client = client;
-		this.configuration = configuration;
-	}
+    public ZooKeeperClientHAServices(
+            @Nonnull CuratorFramework client, @Nonnull Configuration configuration) {
+        this.client = client;
+        this.configuration = configuration;
+    }
 
-	@Override
-	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
-	}
+    @Override
+    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+        return ZooKeeperUtils.createLeaderRetrievalService(
+                client, configuration, REST_SERVER_LEADER_PATH);
+    }
 
-	@Override
-	public void close() throws Exception {
-		client.close();
-	}
+    @Override
+    public void close() throws Exception {
+        client.close();
+    }
 }

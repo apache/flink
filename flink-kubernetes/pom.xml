@@ -23,17 +23,28 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
-	<name>flink-kubernetes</name>
+	<name>Flink : Kubernetes</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>4.5.2</kubernetes.client.version>
+		<kubernetes.client.version>4.9.2</kubernetes.client.version>
 	</properties>
+
+	<!-- Set dependency version for transitive dependencies -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp</artifactId>
+				<version>3.12.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
@@ -54,57 +65,22 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
 			<version>${kubernetes.client.version}</version>
-			<!-- exclude for dependency convergence and use fixed version -->
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.9.8</version>
-		</dependency>
-		<dependency>
-			<groupId>com.squareup.okhttp3</groupId>
-			<artifactId>okhttp</artifactId>
-			<version>3.12.1</version>
 		</dependency>
 
 		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-server-mock</artifactId>
 			<version>${kubernetes.client.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okhttp3</groupId>
-					<artifactId>okhttp</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
-				</exclusion>
-			</exclusions>
 			<scope>test</scope>
 		</dependency>
 
@@ -137,6 +113,14 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<reuseForks>true</reuseForks>
+					<forkCount>1</forkCount>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
@@ -151,17 +135,20 @@ under the License.
 									<include>io.fabric8:kubernetes-client</include>
 									<include>io.fabric8:kubernetes-model</include>
 									<include>io.fabric8:kubernetes-model-common</include>
+									<include>io.fabric8:zjsonpatch</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
+									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:okio</include>
 									<include>org.yaml:*</include>
-									<include>com.mifmif:*</include>
 									<include>dk.brics.automaton:*</include>
+
+									<include>META-INF/services/org.apache.flink.*</include>
 								</includes>
 							</artifactSet>
 							<filters combine.children="append">
@@ -170,7 +157,7 @@ under the License.
 									<excludes>
 										<exclude>*.aut</exclude>
 										<exclude>META-INF/maven/**</exclude>
-										<exclude>META-INF/services/**</exclude>
+										<exclude>META-INF/services/*com.fasterxml*</exclude>
 										<exclude>META-INF/proguard/**</exclude>
 										<exclude>OSGI-INF/**</exclude>
 										<exclude>schema/**</exclude>
@@ -185,27 +172,23 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.okhttp3</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okhttp3</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.okio</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.org.yaml</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.mifmif</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.com.mifmif</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>dk.brics.automaton</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shadded.dk.brics.automaton</shadedPattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

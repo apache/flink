@@ -27,40 +27,45 @@ import scala.util.Try;
 /**
  * A {@link TypeSerializerSnapshot} for the Scala {@link TrySerializer}.
  *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * <p>This configuration snapshot class is implemented in Java because Scala does not allow calling
+ * different base class constructors from subclasses, while we need that for the default empty
+ * constructor.
  */
-public class ScalaTrySerializerSnapshot<E> extends CompositeTypeSerializerSnapshot<Try<E>, TrySerializer<E>> {
+public class ScalaTrySerializerSnapshot<E>
+        extends CompositeTypeSerializerSnapshot<Try<E>, TrySerializer<E>> {
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	@SuppressWarnings("unused")
-	public ScalaTrySerializerSnapshot() {
-		super(TrySerializer.class);
-	}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    @SuppressWarnings("unused")
+    public ScalaTrySerializerSnapshot() {
+        super(TrySerializer.class);
+    }
 
-	public ScalaTrySerializerSnapshot(TrySerializer<E> trySerializer) {
-		super(trySerializer);
-	}
+    public ScalaTrySerializerSnapshot(TrySerializer<E> trySerializer) {
+        super(trySerializer);
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return VERSION;
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(TrySerializer<E> outerSerializer) {
-		return new TypeSerializer[]{outerSerializer.getElementSerializer(), outerSerializer.getThrowableSerializer()};
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(TrySerializer<E> outerSerializer) {
+        return new TypeSerializer[] {
+            outerSerializer.getElementSerializer(), outerSerializer.getThrowableSerializer()
+        };
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected TrySerializer<E> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		TypeSerializer<E> elementSerializer = (TypeSerializer<E>) nestedSerializers[0];
-		TypeSerializer<Throwable> valueSerializer = (TypeSerializer<Throwable>) nestedSerializers[1];
+    @Override
+    @SuppressWarnings("unchecked")
+    protected TrySerializer<E> createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
+        TypeSerializer<E> elementSerializer = (TypeSerializer<E>) nestedSerializers[0];
+        TypeSerializer<Throwable> valueSerializer =
+                (TypeSerializer<Throwable>) nestedSerializers[1];
 
-		return new TrySerializer<>(elementSerializer, valueSerializer);
-	}
+        return new TrySerializer<>(elementSerializer, valueSerializer);
+    }
 }

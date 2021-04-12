@@ -18,46 +18,44 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import java.lang.annotation.Annotation;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.InstantiationUtil;
 
-/**
- * This holds a class containing user defined code.
- */
+import java.lang.annotation.Annotation;
+
+/** This holds a class containing user defined code. */
 @Internal
 public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
-	private static final long serialVersionUID = 1L;
-	
-	private Class<? extends T> userCodeClass;
-	
-	public UserCodeClassWrapper(Class<? extends T> userCodeClass) {
-		this.userCodeClass = userCodeClass;
-	}
-	
-	@Override
-	public T getUserCodeObject(Class<? super T> superClass, ClassLoader cl) {
-		return InstantiationUtil.instantiate(userCodeClass, superClass);
-	}
-	
-	@Override
-	public T getUserCodeObject() {
-		return InstantiationUtil.instantiate(userCodeClass, Object.class);
-	}
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass) {
-		return userCodeClass.getAnnotation(annotationClass);
-	}
-	
-	@Override
-	public Class<? extends T> getUserCodeClass() {
-		return userCodeClass;
-	}
-	
-	@Override
-	public boolean hasObject() {
-		return false;
-	}
+    private Class<? extends T> userCodeClass;
+
+    public UserCodeClassWrapper(Class<? extends T> userCodeClass) {
+        this.userCodeClass = userCodeClass;
+    }
+
+    @Override
+    public T getUserCodeObject(Class<? super T> superClass, ClassLoader cl) {
+        return InstantiationUtil.instantiate(userCodeClass, superClass);
+    }
+
+    @Override
+    public T getUserCodeObject() {
+        return InstantiationUtil.instantiate(userCodeClass, Object.class);
+    }
+
+    @Override
+    public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass) {
+        return userCodeClass.getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Class<? extends T> getUserCodeClass() {
+        return userCodeClass;
+    }
+
+    @Override
+    public boolean hasObject() {
+        return false;
+    }
 }

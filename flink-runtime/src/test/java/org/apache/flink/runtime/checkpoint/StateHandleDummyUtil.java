@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -32,108 +37,162 @@ import java.util.UUID;
 
 public class StateHandleDummyUtil {
 
-	/**
-	 * Creates a new test {@link OperatorStreamStateHandle} with a given number of randomly created named states.
-	 */
-	public static OperatorStateHandle createNewOperatorStateHandle(int numNamedStates, Random random) {
-		Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetaData = new HashMap<>(numNamedStates);
-		byte[] streamData = new byte[numNamedStates * 4];
-		random.nextBytes(streamData);
-		long off = 0;
-		for (int i = 0; i < numNamedStates; ++i) {
-			long[] offsets = new long[4];
-			for (int o = 0; o < offsets.length; ++o) {
-				offsets[o] = off++;
-			}
-			OperatorStateHandle.StateMetaInfo metaInfo =
-				new OperatorStateHandle.StateMetaInfo(offsets, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
-			operatorStateMetaData.put(String.valueOf(UUID.randomUUID()), metaInfo);
-		}
-		ByteStreamStateHandle byteStreamStateHandle =
-			new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
-		return new OperatorStreamStateHandle(operatorStateMetaData, byteStreamStateHandle);
-	}
+    /**
+     * Creates a new test {@link OperatorStreamStateHandle} with a given number of randomly created
+     * named states.
+     */
+    public static OperatorStateHandle createNewOperatorStateHandle(
+            int numNamedStates, Random random) {
+        Map<String, OperatorStateHandle.StateMetaInfo> operatorStateMetaData =
+                new HashMap<>(numNamedStates);
+        long off = 0;
+        for (int i = 0; i < numNamedStates; ++i) {
+            long[] offsets = new long[4];
+            for (int o = 0; o < offsets.length; ++o) {
+                offsets[o] = off++;
+            }
+            OperatorStateHandle.StateMetaInfo metaInfo =
+                    new OperatorStateHandle.StateMetaInfo(
+                            offsets, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
+            operatorStateMetaData.put(String.valueOf(UUID.randomUUID()), metaInfo);
+        }
+        return new OperatorStreamStateHandle(
+                operatorStateMetaData, createStreamStateHandle(numNamedStates, random));
+    }
 
-	/**
-	 * Creates a new test {@link KeyedStateHandle} for the given key-group.
-	 */
-	public static KeyedStateHandle createNewKeyedStateHandle(KeyGroupRange keyGroupRange) {
-		return new DummyKeyedStateHandle(keyGroupRange);
-	}
+    private static ByteStreamStateHandle createStreamStateHandle(
+            int numNamedStates, Random random) {
+        byte[] streamData = new byte[numNamedStates * 4];
+        random.nextBytes(streamData);
+        return new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
+    }
 
-	/**
-	 * Creates a deep copy of the given {@link OperatorStreamStateHandle}.
-	 */
-	public static OperatorStateHandle deepDummyCopy(OperatorStateHandle original) {
+    /** Creates a new test {@link KeyedStateHandle} for the given key-group. */
+    public static KeyedStateHandle createNewKeyedStateHandle(KeyGroupRange keyGroupRange) {
+        return new DummyKeyedStateHandle(keyGroupRange);
+    }
 
-		if (original == null) {
-			return null;
-		}
+    /** Creates a deep copy of the given {@link OperatorStreamStateHandle}. */
+    public static OperatorStateHandle deepDummyCopy(OperatorStateHandle original) {
 
-		ByteStreamStateHandle stateHandle = (ByteStreamStateHandle) original.getDelegateStateHandle();
-		ByteStreamStateHandle stateHandleCopy = new ByteStreamStateHandle(
-			String.valueOf(stateHandle.getHandleName()),
-			stateHandle.getData().clone());
-		Map<String, OperatorStateHandle.StateMetaInfo> offsets = original.getStateNameToPartitionOffsets();
-		Map<String, OperatorStateHandle.StateMetaInfo> offsetsCopy = new HashMap<>(offsets.size());
+        if (original == null) {
+            return null;
+        }
 
-		for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : offsets.entrySet()) {
-			OperatorStateHandle.StateMetaInfo metaInfo = entry.getValue();
-			OperatorStateHandle.StateMetaInfo metaInfoCopy =
-				new OperatorStateHandle.StateMetaInfo(metaInfo.getOffsets(), metaInfo.getDistributionMode());
-			offsetsCopy.put(String.valueOf(entry.getKey()), metaInfoCopy);
-		}
-		return new OperatorStreamStateHandle(offsetsCopy, stateHandleCopy);
-	}
+        ByteStreamStateHandle stateHandleCopy =
+                cloneByteStreamStateHandle(
+                        (ByteStreamStateHandle) original.getDelegateStateHandle());
+        Map<String, OperatorStateHandle.StateMetaInfo> offsets =
+                original.getStateNameToPartitionOffsets();
+        Map<String, OperatorStateHandle.StateMetaInfo> offsetsCopy = new HashMap<>(offsets.size());
 
-	/**
-	 * Creates deep copy of the given {@link KeyedStateHandle}.
-	 */
-	public static KeyedStateHandle deepDummyCopy(KeyedStateHandle original) {
+        for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : offsets.entrySet()) {
+            OperatorStateHandle.StateMetaInfo metaInfo = entry.getValue();
+            OperatorStateHandle.StateMetaInfo metaInfoCopy =
+                    new OperatorStateHandle.StateMetaInfo(
+                            metaInfo.getOffsets(), metaInfo.getDistributionMode());
+            offsetsCopy.put(String.valueOf(entry.getKey()), metaInfoCopy);
+        }
+        return new OperatorStreamStateHandle(offsetsCopy, stateHandleCopy);
+    }
 
-		if (original == null) {
-			return null;
-		}
+    /** Creates deep copy of the given {@link KeyedStateHandle}. */
+    public static KeyedStateHandle deepDummyCopy(KeyedStateHandle original) {
 
-		KeyGroupRange keyGroupRange = original.getKeyGroupRange();
-		return new DummyKeyedStateHandle(
-			new KeyGroupRange(keyGroupRange.getStartKeyGroup(), keyGroupRange.getEndKeyGroup()));
-	}
+        if (original == null) {
+            return null;
+        }
 
-	/**
-	 * KeyedStateHandle that only holds a key-group information.
-	 */
-	private static class DummyKeyedStateHandle implements KeyedStateHandle {
+        KeyGroupRange keyGroupRange = original.getKeyGroupRange();
+        return new DummyKeyedStateHandle(
+                new KeyGroupRange(
+                        keyGroupRange.getStartKeyGroup(), keyGroupRange.getEndKeyGroup()));
+    }
 
-		private static final long serialVersionUID = 1L;
+    public static InputChannelStateHandle deepDummyCopy(InputChannelStateHandle original) {
+        if (original == null) {
+            return null;
+        }
+        return new InputChannelStateHandle(
+                new InputChannelInfo(
+                        original.getInfo().getGateIdx(), original.getInfo().getInputChannelIdx()),
+                cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegate()),
+                new ArrayList<>(original.getOffsets()));
+    }
 
-		private final KeyGroupRange keyGroupRange;
+    public static ResultSubpartitionStateHandle deepDummyCopy(
+            ResultSubpartitionStateHandle original) {
+        if (original == null) {
+            return null;
+        }
+        return new ResultSubpartitionStateHandle(
+                new ResultSubpartitionInfo(
+                        original.getInfo().getPartitionIdx(),
+                        original.getInfo().getSubPartitionIdx()),
+                cloneByteStreamStateHandle((ByteStreamStateHandle) original.getDelegate()),
+                new ArrayList<>(original.getOffsets()));
+    }
 
-		private DummyKeyedStateHandle(KeyGroupRange keyGroupRange) {
-			this.keyGroupRange = keyGroupRange;
-		}
+    private static ByteStreamStateHandle cloneByteStreamStateHandle(
+            ByteStreamStateHandle delegate) {
+        return new ByteStreamStateHandle(
+                String.valueOf(delegate.getHandleName()), delegate.getData().clone());
+    }
 
-		@Override
-		public KeyGroupRange getKeyGroupRange() {
-			return keyGroupRange;
-		}
+    public static InputChannelStateHandle createNewInputChannelStateHandle(
+            int numNamedStates, Random random) {
+        return new InputChannelStateHandle(
+                new InputChannelInfo(random.nextInt(), random.nextInt()),
+                createStreamStateHandle(numNamedStates, random),
+                genOffsets(numNamedStates, random));
+    }
 
-		@Override
-		public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-			return new DummyKeyedStateHandle(this.keyGroupRange.getIntersection(keyGroupRange));
-		}
+    public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
+            int i, Random random) {
+        return new ResultSubpartitionStateHandle(
+                new ResultSubpartitionInfo(random.nextInt(), random.nextInt()),
+                createStreamStateHandle(i, random),
+                genOffsets(i, random));
+    }
 
-		@Override
-		public void registerSharedStates(SharedStateRegistry stateRegistry) {
-		}
+    private static ArrayList<Long> genOffsets(int size, Random random) {
+        final ArrayList<Long> offsets = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            offsets.add(random.nextLong());
+        }
+        return offsets;
+    }
 
-		@Override
-		public void discardState() throws Exception {
-		}
+    /** KeyedStateHandle that only holds a key-group information. */
+    private static class DummyKeyedStateHandle implements KeyedStateHandle {
 
-		@Override
-		public long getStateSize() {
-			return 0L;
-		}
-	}
+        private static final long serialVersionUID = 1L;
+
+        private final KeyGroupRange keyGroupRange;
+
+        private DummyKeyedStateHandle(KeyGroupRange keyGroupRange) {
+            this.keyGroupRange = keyGroupRange;
+        }
+
+        @Override
+        public KeyGroupRange getKeyGroupRange() {
+            return keyGroupRange;
+        }
+
+        @Override
+        public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
+            return new DummyKeyedStateHandle(this.keyGroupRange.getIntersection(keyGroupRange));
+        }
+
+        @Override
+        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+
+        @Override
+        public void discardState() throws Exception {}
+
+        @Override
+        public long getStateSize() {
+            return 0L;
+        }
+    }
 }

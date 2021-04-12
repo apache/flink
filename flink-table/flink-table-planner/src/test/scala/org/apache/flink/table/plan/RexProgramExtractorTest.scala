@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.plan
 
-import java.math.BigDecimal
-import java.sql.{Date, Time, Timestamp}
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
+import org.apache.flink.table.utils.CatalogManagerMocks
+import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
@@ -28,14 +33,12 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
-import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat}
 import org.junit.Test
+
+import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -43,13 +46,12 @@ import scala.collection.mutable
 class RexProgramExtractorTest extends RexProgramTestBase {
 
   private val functionCatalog: FunctionCatalog = new FunctionCatalog(
-    new CatalogManager("default_catalog", new GenericInMemoryCatalog("default_catalog")),
+    TableConfig.getDefault,
+    CatalogManagerMocks.createEmptyCatalogManager(),
     new ModuleManager
   )
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](
-      functionCatalog,
-      PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -187,14 +189,13 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     builder.addCondition(builder.addExpr(and))
 
     val program = builder.getProgram
-    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
 
     val expanded = program.expandLocalRef(program.getCondition)
 
     var convertedExpressions = new mutable.ArrayBuffer[Expression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = program.getInputRowType.getFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog)
+    val converter = new RexNodeToExpressionConverter(rexBuilder, inputNames, functionCatalog)
 
     expanded.accept(converter) match {
       case Some(expression) =>

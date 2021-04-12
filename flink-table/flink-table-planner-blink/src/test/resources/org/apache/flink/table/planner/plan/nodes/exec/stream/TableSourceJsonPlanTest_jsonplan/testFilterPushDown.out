@@ -1,0 +1,116 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "src"
+      },
+      "catalogTable" : {
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "filterable-fields" : "a",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT"
+      },
+      "sourceAbilitySpecs" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : ">",
+            "kind" : "GREATER_THAN",
+            "syntax" : "BINARY"
+          },
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 0,
+            "type" : {
+              "typeName" : "BIGINT",
+              "nullable" : true
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : "0",
+            "type" : {
+              "typeName" : "INTEGER",
+              "nullable" : false
+            }
+          } ],
+          "type" : {
+            "typeName" : "BOOLEAN",
+            "nullable" : true
+          }
+        } ]
+      } ]
+    },
+    "id" : 6,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, src, filter=[greaterThan(a, 0)]]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
+  } ],
+  "edges" : [ {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -50,102 +50,113 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
-/**
- * Unit tests for {@link JarDeleteHandler}.
- */
+/** Unit tests for {@link JarDeleteHandler}. */
 public class JarDeleteHandlerTest extends TestLogger {
 
-	private static final String TEST_JAR_NAME = "test.jar";
+    private static final String TEST_JAR_NAME = "test.jar";
 
-	private JarDeleteHandler jarDeleteHandler;
+    private JarDeleteHandler jarDeleteHandler;
 
-	private RestfulGateway restfulGateway;
+    private RestfulGateway restfulGateway;
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private Path jarDir;
+    private Path jarDir;
 
-	@Before
-	public void setUp() throws Exception {
-		jarDir = temporaryFolder.newFolder().toPath();
-		restfulGateway = new TestingRestfulGateway.Builder().build();
-		jarDeleteHandler = new JarDeleteHandler(
-			() -> CompletableFuture.completedFuture(restfulGateway),
-			Time.seconds(10),
-			Collections.emptyMap(),
-			new JarDeleteHeaders(),
-			jarDir,
-			Executors.directExecutor()
-		);
+    @Before
+    public void setUp() throws Exception {
+        jarDir = temporaryFolder.newFolder().toPath();
+        restfulGateway = new TestingRestfulGateway.Builder().build();
+        jarDeleteHandler =
+                new JarDeleteHandler(
+                        () -> CompletableFuture.completedFuture(restfulGateway),
+                        Time.seconds(10),
+                        Collections.emptyMap(),
+                        new JarDeleteHeaders(),
+                        jarDir,
+                        Executors.directExecutor());
 
-		Files.createFile(jarDir.resolve(TEST_JAR_NAME));
-	}
+        Files.createFile(jarDir.resolve(TEST_JAR_NAME));
+    }
 
-	@Test
-	public void testDeleteJarById() throws Exception {
-		assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(true));
+    @Test
+    public void testDeleteJarById() throws Exception {
+        assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(true));
 
-		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest(TEST_JAR_NAME);
-		jarDeleteHandler.handleRequest(request, restfulGateway).get();
+        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
+                createRequest(TEST_JAR_NAME);
+        jarDeleteHandler.handleRequest(request, restfulGateway).get();
 
-		assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(false));
-	}
+        assertThat(Files.exists(jarDir.resolve(TEST_JAR_NAME)), equalTo(false));
+    }
 
-	@Test
-	public void testDeleteUnknownJar() throws Exception {
-		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest("doesnotexist.jar");
-		try {
-			jarDeleteHandler.handleRequest(request, restfulGateway).get();
-		} catch (final ExecutionException e) {
-			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-			assertThat(throwable, instanceOf(RestHandlerException.class));
+    @Test
+    public void testDeleteUnknownJar() throws Exception {
+        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
+                createRequest("doesnotexist.jar");
+        try {
+            jarDeleteHandler.handleRequest(request, restfulGateway).get();
+        } catch (final ExecutionException e) {
+            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
+            assertThat(throwable, instanceOf(RestHandlerException.class));
 
-			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getMessage(), containsString("File doesnotexist.jar does not exist in"));
-			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
-		}
-	}
+            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+            assertThat(
+                    restHandlerException.getMessage(),
+                    containsString("File doesnotexist.jar does not exist in"));
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    equalTo(HttpResponseStatus.BAD_REQUEST));
+            return;
+        }
+        fail("The test should have failed by now.");
+    }
 
-	@Test
-	public void testFailedDelete() throws Exception {
-		makeJarDirReadOnly();
+    @Test
+    public void testFailedDelete() throws Exception {
+        makeJarDirReadOnly();
 
-		final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request = createRequest(TEST_JAR_NAME);
-		try {
-			jarDeleteHandler.handleRequest(request, restfulGateway).get();
-		} catch (final ExecutionException e) {
-			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-			assertThat(throwable, instanceOf(RestHandlerException.class));
+        final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request =
+                createRequest(TEST_JAR_NAME);
+        try {
+            jarDeleteHandler.handleRequest(request, restfulGateway).get();
+        } catch (final ExecutionException e) {
+            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
+            assertThat(throwable, instanceOf(RestHandlerException.class));
 
-			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getMessage(), containsString("Failed to delete jar"));
-			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
-		}
-	}
+            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+            assertThat(restHandlerException.getMessage(), containsString("Failed to delete jar"));
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    equalTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
 
-	private static HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> createRequest(
-			final String jarFileName) throws HandlerRequestException {
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new JarDeleteMessageParameters(),
-			Collections.singletonMap(JarIdPathParameter.KEY, jarFileName),
-			Collections.emptyMap());
-	}
+    private static HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> createRequest(
+            final String jarFileName) throws HandlerRequestException {
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                new JarDeleteMessageParameters(),
+                Collections.singletonMap(JarIdPathParameter.KEY, jarFileName),
+                Collections.emptyMap());
+    }
 
-	private void makeJarDirReadOnly() {
-		try {
-			Files.setPosixFilePermissions(jarDir, new HashSet<>(Arrays.asList(
-				PosixFilePermission.OTHERS_READ,
-				PosixFilePermission.GROUP_READ,
-				PosixFilePermission.OWNER_READ,
-				PosixFilePermission.OTHERS_EXECUTE,
-				PosixFilePermission.GROUP_EXECUTE,
-				PosixFilePermission.OWNER_EXECUTE)));
-		} catch (final Exception e) {
-			Assume.assumeNoException(e);
-		}
-	}
-
+    private void makeJarDirReadOnly() {
+        try {
+            Files.setPosixFilePermissions(
+                    jarDir,
+                    new HashSet<>(
+                            Arrays.asList(
+                                    PosixFilePermission.OTHERS_READ,
+                                    PosixFilePermission.GROUP_READ,
+                                    PosixFilePermission.OWNER_READ,
+                                    PosixFilePermission.OTHERS_EXECUTE,
+                                    PosixFilePermission.GROUP_EXECUTE,
+                                    PosixFilePermission.OWNER_EXECUTE)));
+        } catch (final Exception e) {
+            Assume.assumeNoException(e);
+        }
+    }
 }

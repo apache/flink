@@ -25,30 +25,27 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JarIdPathParameter}.
- */
+/** Tests for {@link JarIdPathParameter}. */
 public class JarIdPathParameterTest extends TestLogger {
 
-	private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+    private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-	@Test(expected = ConversionException.class)
-	public void testJarIdWithParentDir() throws Exception {
-		jarIdPathParameter.convertFromString("../../test.jar");
-	}
+    @Test(expected = ConversionException.class)
+    public void testJarIdWithParentDir() throws Exception {
+        jarIdPathParameter.convertFromString("../../test.jar");
+    }
 
-	@Test
-	public void testConvertFromString() throws Exception {
-		final String expectedJarId = "test.jar";
-		final String jarId = jarIdPathParameter.convertFromString(expectedJarId);
-		assertEquals(expectedJarId, jarId);
-	}
+    @Test
+    public void testConvertFromString() throws Exception {
+        final String expectedJarId = "test.jar";
+        final String jarId = jarIdPathParameter.convertFromString(expectedJarId);
+        assertEquals(expectedJarId, jarId);
+    }
 
-	@Test
-	public void testConvertToString() throws Exception {
-		final String expected = "test.jar";
-		final String toString = jarIdPathParameter.convertToString(expected);
-		assertEquals(expected, toString);
-	}
-
+    @Test
+    public void testConvertToString() throws Exception {
+        final String expected = "test.jar";
+        final String toString = jarIdPathParameter.convertToString(expected);
+        assertEquals(expected, toString);
+    }
 }

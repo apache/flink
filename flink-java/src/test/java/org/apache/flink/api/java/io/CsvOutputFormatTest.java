@@ -37,61 +37,59 @@ import java.util.List;
 
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link CsvOutputFormat}.
- */
+/** Tests for {@link CsvOutputFormat}. */
 public class CsvOutputFormatTest {
 
-	private String path = null;
+    private String path = null;
 
-	@Before
-	public void createFile() throws Exception {
-		path = File.createTempFile("csv_output_test_file", ".csv").getAbsolutePath();
-	}
+    @Before
+    public void createFile() throws Exception {
+        path = File.createTempFile("csv_output_test_file", ".csv").getAbsolutePath();
+    }
 
-	@Test
-	public void testNullAllow() throws Exception {
-		final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
-		try {
-			csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
-			csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-			csvOutputFormat.setAllowNullValues(true);
-			csvOutputFormat.open(0, 1);
-			csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
-		}
-		finally {
-			csvOutputFormat.close();
-		}
+    @Test
+    public void testNullAllow() throws Exception {
+        final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat =
+                new CsvOutputFormat<>(new Path(path));
+        try {
+            csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+            csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
+            csvOutputFormat.setAllowNullValues(true);
+            csvOutputFormat.open(0, 1);
+            csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
+        } finally {
+            csvOutputFormat.close();
+        }
 
-		java.nio.file.Path p = Paths.get(path);
-		Assert.assertTrue(Files.exists(p));
-		List<String> lines = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
-		Assert.assertEquals(1, lines.size());
-		Assert.assertEquals("One,,8", lines.get(0));
-	}
+        java.nio.file.Path p = Paths.get(path);
+        Assert.assertTrue(Files.exists(p));
+        List<String> lines = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
+        Assert.assertEquals(1, lines.size());
+        Assert.assertEquals("One,,8", lines.get(0));
+    }
 
-	@Test
-	public void testNullDisallowOnDefault() throws Exception {
-		final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat = new CsvOutputFormat<>(new Path(path));
-		try {
-			csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
-			csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
-			csvOutputFormat.open(0, 1);
-			try {
-				csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
-				fail("should fail with an exception");
-			} catch (RuntimeException e) {
-				// expected
-			}
+    @Test
+    public void testNullDisallowOnDefault() throws Exception {
+        final CsvOutputFormat<Tuple3<String, String, Integer>> csvOutputFormat =
+                new CsvOutputFormat<>(new Path(path));
+        try {
+            csvOutputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+            csvOutputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.PARONLY);
+            csvOutputFormat.open(0, 1);
+            try {
+                csvOutputFormat.writeRecord(new Tuple3<String, String, Integer>("One", null, 8));
+                fail("should fail with an exception");
+            } catch (RuntimeException e) {
+                // expected
+            }
 
-		}
-		finally {
-			csvOutputFormat.close();
-		}
-	}
+        } finally {
+            csvOutputFormat.close();
+        }
+    }
 
-	@After
-	public void cleanUp() throws IOException {
-		Files.deleteIfExists(Paths.get(path));
-	}
+    @After
+    public void cleanUp() throws IOException {
+        Files.deleteIfExists(Paths.get(path));
+    }
 }

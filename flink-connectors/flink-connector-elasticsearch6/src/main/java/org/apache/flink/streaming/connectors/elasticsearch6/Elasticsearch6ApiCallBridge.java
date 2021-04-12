@@ -41,102 +41,102 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions.
- */
+/** Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions. */
 @Internal
-public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<RestHighLevelClient> {
+public class Elasticsearch6ApiCallBridge
+        implements ElasticsearchApiCallBridge<RestHighLevelClient> {
 
-	private static final long serialVersionUID = -5222683870097809633L;
+    private static final long serialVersionUID = -5222683870097809633L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch6ApiCallBridge.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch6ApiCallBridge.class);
 
-	/**
-	 * User-provided HTTP Host.
-	 */
-	private final List<HttpHost> httpHosts;
+    /** User-provided HTTP Host. */
+    private final List<HttpHost> httpHosts;
 
-	/**
-	 * The factory to configure the rest client.
-	 */
-	private final RestClientFactory restClientFactory;
+    /** The factory to configure the rest client. */
+    private final RestClientFactory restClientFactory;
 
-	Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
-		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
-		this.httpHosts = httpHosts;
-		this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
-	}
+    Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
+        Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
+        this.httpHosts = httpHosts;
+        this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
+    }
 
-	@Override
-	public RestHighLevelClient createClient(Map<String, String> clientConfig) throws IOException {
-		RestClientBuilder builder = RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
-		restClientFactory.configureRestClientBuilder(builder);
+    @Override
+    public RestHighLevelClient createClient(Map<String, String> clientConfig) {
+        RestClientBuilder builder =
+                RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
+        restClientFactory.configureRestClientBuilder(builder);
 
-		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
+        RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
-		}
+        return rhlClient;
+    }
 
-		if (!rhlClient.ping()) {
-			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
-		}
+    @Override
+    public BulkProcessor.Builder createBulkProcessorBuilder(
+            RestHighLevelClient client, BulkProcessor.Listener listener) {
+        return BulkProcessor.builder(client::bulkAsync, listener);
+    }
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
-		}
+    @Override
+    public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
+        if (!bulkItemResponse.isFailed()) {
+            return null;
+        } else {
+            return bulkItemResponse.getFailure().getCause();
+        }
+    }
 
-		return rhlClient;
-	}
+    @Override
+    public void configureBulkProcessorBackoff(
+            BulkProcessor.Builder builder,
+            @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
 
-	@Override
-	public BulkProcessor.Builder createBulkProcessorBuilder(RestHighLevelClient client, BulkProcessor.Listener listener) {
-		return BulkProcessor.builder(client::bulkAsync, listener);
-	}
+        BackoffPolicy backoffPolicy;
+        if (flushBackoffPolicy != null) {
+            switch (flushBackoffPolicy.getBackoffType()) {
+                case CONSTANT:
+                    backoffPolicy =
+                            BackoffPolicy.constantBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+                    break;
+                case EXPONENTIAL:
+                default:
+                    backoffPolicy =
+                            BackoffPolicy.exponentialBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+            }
+        } else {
+            backoffPolicy = BackoffPolicy.noBackoff();
+        }
 
-	@Override
-	public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
-		if (!bulkItemResponse.isFailed()) {
-			return null;
-		} else {
-			return bulkItemResponse.getFailure().getCause();
-		}
-	}
+        builder.setBackoffPolicy(backoffPolicy);
+    }
 
-	@Override
-	public void configureBulkProcessorBackoff(
-		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+    @Override
+    public RequestIndexer createBulkProcessorIndexer(
+            BulkProcessor bulkProcessor,
+            boolean flushOnCheckpoint,
+            AtomicLong numPendingRequestsRef) {
+        return new Elasticsearch6BulkProcessorIndexer(
+                bulkProcessor, flushOnCheckpoint, numPendingRequestsRef);
+    }
 
-		BackoffPolicy backoffPolicy;
-		if (flushBackoffPolicy != null) {
-			switch (flushBackoffPolicy.getBackoffType()) {
-				case CONSTANT:
-					backoffPolicy = BackoffPolicy.constantBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-					break;
-				case EXPONENTIAL:
-				default:
-					backoffPolicy = BackoffPolicy.exponentialBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-			}
-		} else {
-			backoffPolicy = BackoffPolicy.noBackoff();
-		}
+    @Override
+    public void verifyClientConnection(RestHighLevelClient client) throws IOException {
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
+        }
 
-		builder.setBackoffPolicy(backoffPolicy);
-	}
+        if (!client.ping()) {
+            throw new RuntimeException("There are no reachable Elasticsearch nodes!");
+        }
 
-	@Override
-	public RequestIndexer createBulkProcessorIndexer(
-			BulkProcessor bulkProcessor,
-			boolean flushOnCheckpoint,
-			AtomicLong numPendingRequestsRef) {
-		return new Elasticsearch6BulkProcessorIndexer(
-			bulkProcessor,
-			flushOnCheckpoint,
-			numPendingRequestsRef);
-	}
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Elasticsearch RestHighLevelClient is connected to {}", httpHosts.toString());
+        }
+    }
 }

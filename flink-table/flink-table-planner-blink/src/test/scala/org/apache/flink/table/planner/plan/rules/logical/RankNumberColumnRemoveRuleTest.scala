@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -49,7 +49,7 @@ class RankNumberColumnRemoveRuleTest extends TableTestBase {
         |WHERE rank_num >= 1 AND rank_num < 2
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -63,7 +63,7 @@ class RankNumberColumnRemoveRuleTest extends TableTestBase {
         |WHERE rank_num >= 1 AND rank_num < 3
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -78,7 +78,7 @@ class RankNumberColumnRemoveRuleTest extends TableTestBase {
         |WHERE rank_num >= 1 AND rank_num < 2
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
@@ -92,6 +92,6 @@ class RankNumberColumnRemoveRuleTest extends TableTestBase {
         |WHERE rank_num >= 1 AND rank_num < 2
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyRelPlan(sql)
   }
 }

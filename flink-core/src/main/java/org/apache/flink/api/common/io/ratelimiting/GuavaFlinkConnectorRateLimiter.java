@@ -23,57 +23,59 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
 
 /**
- * An implemetation of {@link FlinkConnectorRateLimiter} that uses Guava's RateLimiter for rate limiting.
+ * An implementation of {@link FlinkConnectorRateLimiter} that uses Guava's RateLimiter for rate
+ * limiting.
  */
 public class GuavaFlinkConnectorRateLimiter implements FlinkConnectorRateLimiter {
 
-	private static final long serialVersionUID = -3680641524643737192L;
+    private static final long serialVersionUID = -3680641524643737192L;
 
-	/** Rate in bytes per second for the consumer on a whole. */
-	private long globalRateBytesPerSecond;
+    /** Rate in bytes per second for the consumer on a whole. */
+    private long globalRateBytesPerSecond;
 
-	/** Rate in bytes per second per subtask of the consumer. */
-	private long localRateBytesPerSecond;
+    /** Rate in bytes per second per subtask of the consumer. */
+    private long localRateBytesPerSecond;
 
-	/** Runtime context. **/
-	private RuntimeContext runtimeContext;
+    /** Runtime context. * */
+    private RuntimeContext runtimeContext;
 
-	/** RateLimiter. **/
-	private RateLimiter rateLimiter;
+    /** RateLimiter. * */
+    private RateLimiter rateLimiter;
 
-	/**
-	 * Creates a rate limiter with the runtime context provided.
-	 * @param runtimeContext
-	 */
-	@Override
-	public void open(RuntimeContext runtimeContext) {
-		this.runtimeContext = runtimeContext;
-		localRateBytesPerSecond = globalRateBytesPerSecond / runtimeContext.getNumberOfParallelSubtasks();
-		this.rateLimiter = RateLimiter.create(localRateBytesPerSecond);
-	}
+    /**
+     * Creates a rate limiter with the runtime context provided.
+     *
+     * @param runtimeContext
+     */
+    @Override
+    public void open(RuntimeContext runtimeContext) {
+        this.runtimeContext = runtimeContext;
+        localRateBytesPerSecond =
+                globalRateBytesPerSecond / runtimeContext.getNumberOfParallelSubtasks();
+        this.rateLimiter = RateLimiter.create(localRateBytesPerSecond);
+    }
 
-	/**
-	 * Set the global per consumer and per sub-task rates.
-	 * @param globalRate Value of rate in bytes per second.
-	 */
-	@Override
-	public void setRate(long globalRate) {
-		this.globalRateBytesPerSecond = globalRate;
-	}
+    /**
+     * Set the global per consumer and per sub-task rates.
+     *
+     * @param globalRate Value of rate in bytes per second.
+     */
+    @Override
+    public void setRate(long globalRate) {
+        this.globalRateBytesPerSecond = globalRate;
+    }
 
-	@Override
-	public void acquire(int permits) {
-		// Ensure permits > 0
-		rateLimiter.acquire(Math.max(1, permits));
-	}
+    @Override
+    public void acquire(int permits) {
+        // Ensure permits > 0
+        rateLimiter.acquire(Math.max(1, permits));
+    }
 
-	@Override
-	public long getRate() {
-		return globalRateBytesPerSecond;
-	}
+    @Override
+    public long getRate() {
+        return globalRateBytesPerSecond;
+    }
 
-	@Override
-	public void close() {
-
-	}
+    @Override
+    public void close() {}
 }

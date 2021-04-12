@@ -28,98 +28,101 @@ import java.time.LocalTime;
 @Internal
 public final class LocalTimeComparator extends BasicTypeComparator<LocalTime> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public LocalTimeComparator(boolean ascending) {
-		super(ascending);
-	}
+    public LocalTimeComparator(boolean ascending) {
+        super(ascending);
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		return compareSerializedLocalTime(firstSource, secondSource, ascendingComparison);
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        return compareSerializedLocalTime(firstSource, secondSource, ascendingComparison);
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return 7;
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return 7;
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(LocalTime record, MemorySegment target, int offset, int numBytes) {
-		putNormalizedKeyLocalTime(record, target, offset, numBytes);
-	}
+    @Override
+    public void putNormalizedKey(LocalTime record, MemorySegment target, int offset, int numBytes) {
+        putNormalizedKeyLocalTime(record, target, offset, numBytes);
+    }
 
-	@Override
-	public LocalTimeComparator duplicate() {
-		return new LocalTimeComparator(ascendingComparison);
-	}
+    @Override
+    public LocalTimeComparator duplicate() {
+        return new LocalTimeComparator(ascendingComparison);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//                           Static Helpers for Date Comparison
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //                           Static Helpers for Date Comparison
+    // --------------------------------------------------------------------------------------------
 
-	public static int compareSerializedLocalTime(DataInputView firstSource, DataInputView secondSource,
-			boolean ascendingComparison) throws IOException {
-		int cmp = firstSource.readByte() - secondSource.readByte();
-		if (cmp == 0) {
-			cmp = firstSource.readByte() - secondSource.readByte();
-			if (cmp == 0) {
-				cmp = firstSource.readByte() - secondSource.readByte();
-				if (cmp == 0) {
-					cmp = firstSource.readInt() - secondSource.readInt();
-				}
-			}
-		}
-		return ascendingComparison ? cmp : -cmp;
-	}
+    public static int compareSerializedLocalTime(
+            DataInputView firstSource, DataInputView secondSource, boolean ascendingComparison)
+            throws IOException {
+        int cmp = firstSource.readByte() - secondSource.readByte();
+        if (cmp == 0) {
+            cmp = firstSource.readByte() - secondSource.readByte();
+            if (cmp == 0) {
+                cmp = firstSource.readByte() - secondSource.readByte();
+                if (cmp == 0) {
+                    cmp = firstSource.readInt() - secondSource.readInt();
+                }
+            }
+        }
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	public static void putNormalizedKeyLocalTime(LocalTime record, MemorySegment target, int offset, int numBytes) {
-		int hour = record.getHour();
-		if (numBytes > 0) {
-			target.put(offset, (byte) (hour & 0xff - Byte.MIN_VALUE));
-			numBytes -= 1;
-			offset += 1;
-		}
+    public static void putNormalizedKeyLocalTime(
+            LocalTime record, MemorySegment target, int offset, int numBytes) {
+        int hour = record.getHour();
+        if (numBytes > 0) {
+            target.put(offset, (byte) (hour & 0xff - Byte.MIN_VALUE));
+            numBytes -= 1;
+            offset += 1;
+        }
 
-		int minute = record.getMinute();
-		if (numBytes > 0) {
-			target.put(offset, (byte) (minute & 0xff - Byte.MIN_VALUE));
-			numBytes -= 1;
-			offset += 1;
-		}
+        int minute = record.getMinute();
+        if (numBytes > 0) {
+            target.put(offset, (byte) (minute & 0xff - Byte.MIN_VALUE));
+            numBytes -= 1;
+            offset += 1;
+        }
 
-		int second = record.getSecond();
-		if (numBytes > 0) {
-			target.put(offset, (byte) (second & 0xff - Byte.MIN_VALUE));
-			numBytes -= 1;
-			offset += 1;
-		}
+        int second = record.getSecond();
+        if (numBytes > 0) {
+            target.put(offset, (byte) (second & 0xff - Byte.MIN_VALUE));
+            numBytes -= 1;
+            offset += 1;
+        }
 
-		int nano = record.getNano();
-		int unsignedNano = nano - Integer.MIN_VALUE;
-		if (numBytes >= 4) {
-			target.putIntBigEndian(offset, unsignedNano);
-			numBytes -= 4;
-			offset += 4;
-		} else if (numBytes > 0) {
-			for (int i = 0; numBytes > 0; numBytes--, i++) {
-				target.put(offset + i, (byte) (unsignedNano >>> ((3 - i) << 3)));
-			}
-			return;
-		}
+        int nano = record.getNano();
+        int unsignedNano = nano - Integer.MIN_VALUE;
+        if (numBytes >= 4) {
+            target.putIntBigEndian(offset, unsignedNano);
+            numBytes -= 4;
+            offset += 4;
+        } else if (numBytes > 0) {
+            for (int i = 0; numBytes > 0; numBytes--, i++) {
+                target.put(offset + i, (byte) (unsignedNano >>> ((3 - i) << 3)));
+            }
+            return;
+        }
 
-		for (int i = 0; i < numBytes; i++) {
-			target.put(offset + i, (byte) 0);
-		}
-	}
+        for (int i = 0; i < numBytes; i++) {
+            target.put(offset + i, (byte) 0);
+        }
+    }
 }

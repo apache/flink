@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -31,52 +31,40 @@ import java.net.URLClassLoader;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
-/**
- * Tests for {@link CompileUtils}.
- */
+/** Tests for {@link CompileUtils}. */
 public class CompileUtilsTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Before
-	public void before() {
-		// cleanup cached class before tests
-		CompileUtils.COMPILED_CACHE.invalidateAll();
-	}
+    @Before
+    public void before() {
+        // cleanup cached class before tests
+        CompileUtils.COMPILED_CACHE.invalidateAll();
+    }
 
-	@Test
-	public void testCacheReuse() {
-		String code =
-			"public class Main {\n" +
-			"  int i;\n" +
-			"  int j;\n" +
-			"}";
+    @Test
+    public void testCacheReuse() {
+        String code = "public class Main {\n" + "  int i;\n" + "  int j;\n" + "}";
 
-		Class<?> class1 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
-		Class<?> class2 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
-		Class<?> class3 = CompileUtils.compile(new TestClassLoader(), "Main", code);
-		assertSame(class1, class2);
-		assertNotSame(class1, class3);
-	}
+        Class<?> class1 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
+        Class<?> class2 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
+        Class<?> class3 = CompileUtils.compile(new TestClassLoader(), "Main", code);
+        assertSame(class1, class2);
+        assertNotSame(class1, class3);
+    }
 
-	@Test
-	public void testWrongCode() {
-		String code =
-			"public class111 Main {\n" +
-			"  int i;\n" +
-			"  int j;\n" +
-			"}";
+    @Test
+    public void testWrongCode() {
+        String code = "public class111 Main {\n" + "  int i;\n" + "  int j;\n" + "}";
 
-		thrown.expect(InvalidProgramException.class);
-		thrown.expectMessage("Table program cannot be compiled. This is a bug. Please file an issue.");
-		CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
-	}
+        thrown.expect(FlinkRuntimeException.class);
+        CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
+    }
 
-	private static class TestClassLoader extends URLClassLoader {
+    private static class TestClassLoader extends URLClassLoader {
 
-		TestClassLoader() {
-			super(new URL[0], Thread.currentThread().getContextClassLoader());
-		}
-	}
+        TestClassLoader() {
+            super(new URL[0], Thread.currentThread().getContextClassLoader());
+        }
+    }
 }

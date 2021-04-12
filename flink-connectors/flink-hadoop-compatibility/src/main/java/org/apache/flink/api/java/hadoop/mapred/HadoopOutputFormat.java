@@ -37,19 +37,23 @@ import java.io.IOException;
 @Public
 public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
-		super(mapredOutputFormat, job);
-	}
+    public HadoopOutputFormat(
+            org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
+        super(mapredOutputFormat, job);
+    }
 
-	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, Class<OutputCommitter> outputCommitterClass, JobConf job) {
-		this(mapredOutputFormat, job);
-		super.getJobConf().setOutputCommitter(outputCommitterClass);
-	}
+    public HadoopOutputFormat(
+            org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat,
+            Class<OutputCommitter> outputCommitterClass,
+            JobConf job) {
+        this(mapredOutputFormat, job);
+        super.getJobConf().setOutputCommitter(outputCommitterClass);
+    }
 
-	@Override
-	public void writeRecord(Tuple2<K, V> record) throws IOException {
-		this.recordWriter.write(record.f0, record.f1);
-	}
+    @Override
+    public void writeRecord(Tuple2<K, V> record) throws IOException {
+        this.recordWriter.write(record.f0, record.f1);
+    }
 }

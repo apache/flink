@@ -75,7 +75,7 @@ object SessionWindowing {
 
     // We create sessions for each id with max timeout of 3 time units
     val aggregated: DataStream[(String, Long, Int)] = source
-      .keyBy(0)
+      .keyBy(_._1)
       .window(EventTimeSessionWindows.withGap(Time.milliseconds(3L)))
       .sum(2)
 

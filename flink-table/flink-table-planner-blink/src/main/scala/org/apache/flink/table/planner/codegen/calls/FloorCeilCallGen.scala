@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, SQL_TIMESTAMP}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForType, qualifyMethod, TIMESTAMP_DATA}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
@@ -66,23 +66,25 @@ class FloorCeilCallGen(
         terms =>
           unit match {
             // for Timestamp with timezone info
-            case YEAR | QUARTER | MONTH | DAY | HOUR
+            case YEAR | QUARTER | MONTH | WEEK | DAY | HOUR
               if terms.length + 1 == method.getParameterCount &&
                 method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
-              val timeZone = ctx.addReusableTimeZone()
+              val timeZone = ctx.addReusableSessionTimeZone()
+              val longTerm = s"${terms.head}.getMillisecond()"
               s"""
-                 |($internalType) ${qualifyMethod(temporalMethod.get)}(${terms(1)},
-                 |                                                     ${terms.head},
-                 |                                                     $timeZone)
+                 |$TIMESTAMP_DATA.fromEpochMillis(
+                 |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
+                 |  $longTerm,
+                 |  $timeZone))
                  |""".stripMargin
 
             // for Unix Date / Unix Time
-            case YEAR | MONTH =>
+            case YEAR | MONTH | WEEK =>
               operand.resultType.getTypeRoot match {
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP.fromEpochMillis(
+                     |$TIMESTAMP_DATA.fromEpochMillis(
                      |  ${qualifyMethod(temporalMethod.get)}(${terms(1)}, $longTerm))
                    """.stripMargin
                 case _ =>
@@ -96,7 +98,7 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$SQL_TIMESTAMP.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
+                     |$TIMESTAMP_DATA.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
                      |  $longTerm,
                      |  (long) ${unit.startUnit.multiplier.intValue()}))
                    """.stripMargin

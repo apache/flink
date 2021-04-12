@@ -20,21 +20,15 @@ package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.test.util.AbstractTestBase
+
 import org.junit.Test
 
 class UnsupportedOpsValidationTest extends AbstractTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testSort(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.fromCollection(TestData.smallTupleData3).toTable(tEnv).orderBy('_1.desc)
-  }
 
   @Test(expected = classOf[ValidationException])
   def testJoin(): Unit = {
@@ -89,21 +83,4 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.minusAll(t2)
   }
-
-  @Test(expected = classOf[ValidationException])
-  def testOffset(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.offset(5)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFetch(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
-    t1.fetch(5)
-  }
-
 }

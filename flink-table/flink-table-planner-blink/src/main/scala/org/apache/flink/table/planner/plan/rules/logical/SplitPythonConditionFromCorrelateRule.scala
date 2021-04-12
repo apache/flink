@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalRel, FlinkLogicalTableFunctionScan}
+import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule
+import org.apache.flink.table.planner.plan.utils.PythonUtil.{containsPythonCall, isNonPythonCall}
+import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalRel}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecCorrelateRule
-import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -51,18 +52,22 @@ class SplitPythonConditionFromCorrelateRule
     val correlate: FlinkLogicalCorrelate = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]
     val right: FlinkLogicalCalc = call.rel(2).asInstanceOf[FlinkLogicalCalc]
     val joinType: JoinRelType = correlate.getJoinType
-    val mergedCalc = StreamExecCorrelateRule.getMergedCalc(right)
+    val mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right)
+    val tableScan = StreamPhysicalCorrelateRule
+      .getTableScan(mergedCalc)
+      .asInstanceOf[FlinkLogicalTableFunctionScan]
     joinType == JoinRelType.INNER &&
+      isNonPythonCall(tableScan.getCall) &&
       Option(mergedCalc.getProgram.getCondition)
         .map(mergedCalc.getProgram.expandLocalRef)
-        .exists(containsPythonCall)
+        .exists(containsPythonCall(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val correlate: FlinkLogicalCorrelate = call.rel(0).asInstanceOf[FlinkLogicalCorrelate]
     val right: FlinkLogicalCalc = call.rel(2).asInstanceOf[FlinkLogicalCalc]
     val rexBuilder = call.builder().getRexBuilder
-    val mergedCalc = StreamExecCorrelateRule.getMergedCalc(right)
+    val mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(right)
     val mergedCalcProgram = mergedCalc.getProgram
     val input = mergedCalc.getInput
 
@@ -97,7 +102,7 @@ class SplitPythonConditionFromCorrelateRule
       correlate.getRowType.getFieldCount - mergedCalc.getRowType.getFieldCount)
 
     val pythonFilters = correlateFilters
-      .filter(containsPythonCall)
+      .filter(containsPythonCall(_))
       .map(_.accept(inputRefRewriter))
 
     val topCalcCondition = RexUtil.composeConjunction(rexBuilder, pythonFilters)

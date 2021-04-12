@@ -28,7 +28,7 @@ import java.io.Serializable;
  */
 public interface FencedMessage<F extends Serializable, P> {
 
-	F getFencingToken();
+    F getFencingToken();
 
-	P getPayload();
+    P getPayload();
 }

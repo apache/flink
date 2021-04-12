@@ -31,78 +31,97 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
 
-/**
- * Delta iteration test implementing the connected components algorithm with a join.
- */
+/** Delta iteration test implementing the connected components algorithm with a join. */
 public class ConnectedComponentsITCase extends JavaProgramTestBase {
 
-	private static final long SEED = 0xBADC0FFEEBEEFL;
+    private static final long SEED = 0xBADC0FFEEBEEFL;
 
-	private static final int NUM_VERTICES = 1000;
+    private static final int NUM_VERTICES = 1000;
 
-	private static final int NUM_EDGES = 10000;
+    private static final int NUM_EDGES = 10000;
 
-	protected String verticesPath;
-	protected String edgesPath;
-	protected String resultPath;
+    protected String verticesPath;
+    protected String edgesPath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
-		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
-		resultPath = getTempFilePath("results");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        verticesPath =
+                createTempFile(
+                        "vertices.txt",
+                        ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
+        edgesPath =
+                createTempFile(
+                        "edges.txt",
+                        ConnectedComponentsData.getRandomOddEvenEdges(
+                                NUM_EDGES, NUM_VERTICES, SEED));
+        resultPath = getTempFilePath("results");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		// set up execution environment
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        // set up execution environment
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// read vertex and edge data
-		DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
+        // read vertex and edge data
+        DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
 
-		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class)
-				.flatMap(new ConnectedComponents.UndirectEdge());
+        DataSet<Tuple2<Long, Long>> edges =
+                env.readCsvFile(edgesPath)
+                        .fieldDelimiter(" ")
+                        .types(Long.class, Long.class)
+                        .flatMap(new ConnectedComponents.UndirectEdge());
 
-		// assign the initial components (equal to the vertex id)
-		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
+        // assign the initial components (equal to the vertex id)
+        DataSet<Tuple2<Long, Long>> verticesWithInitialId =
+                vertices.map(new DuplicateValue<Long>());
 
-		// open a delta iteration
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
+        // open a delta iteration
+        DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+                verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
 
-		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
-		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new ConnectedComponents.NeighborWithComponentIDJoin())
-				.groupBy(0).aggregate(Aggregations.MIN, 1)
-				.join(iteration.getSolutionSet()).where(0).equalTo(0)
-				.with(new ConnectedComponents.ComponentIdFilter());
+        // apply the step logic: join with the edges, select the minimum neighbor, update if the
+        // component of the candidate is smaller
+        DataSet<Tuple2<Long, Long>> changes =
+                iteration
+                        .getWorkset()
+                        .join(edges)
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.NeighborWithComponentIDJoin())
+                        .groupBy(0)
+                        .aggregate(Aggregations.MIN, 1)
+                        .join(iteration.getSolutionSet())
+                        .where(0)
+                        .equalTo(0)
+                        .with(new ConnectedComponents.ComponentIdFilter());
 
-		// close the delta iteration (delta and new workset are identical)
-		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
+        // close the delta iteration (delta and new workset are identical)
+        DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 
-		result.writeAsCsv(resultPath, "\n", " ");
+        result.writeAsCsv(resultPath, "\n", " ");
 
-		// execute program
-		env.execute("Connected Components Example");
-	}
+        // execute program
+        env.execute("Connected Components Example");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		for (BufferedReader reader : getResultReader(resultPath)) {
-			ConnectedComponentsData.checkOddEvenResult(reader);
-		}
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        for (BufferedReader reader : getResultReader(resultPath)) {
+            ConnectedComponentsData.checkOddEvenResult(reader);
+        }
+    }
 
-	/**
-	 * Duplicate the vertex ID into both fields of a {@link Tuple2}.
-	 *
-	 * @param <T> key type
-	 */
-	public static final class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
+    /**
+     * Duplicate the vertex ID into both fields of a {@link Tuple2}.
+     *
+     * @param <T> key type
+     */
+    public static final class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
 
-		@Override
-		public Tuple2<T, T> map(Tuple1<T> vertex) {
-			return new Tuple2<>(vertex.f0, vertex.f0);
-		}
-	}
+        @Override
+        public Tuple2<T, T> map(Tuple1<T> vertex) {
+            return new Tuple2<>(vertex.f0, vertex.f0);
+        }
+    }
 }

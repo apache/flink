@@ -41,6 +41,9 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -49,312 +52,374 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.RFC3339_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Serialization schema that serializes an object of Flink types into a JSON bytes.
  *
- * <p>Serializes the input Flink object into a JSON string and
- * converts it into <code>byte[]</code>.
+ * <p>Serializes the input Flink object into a JSON string and converts it into <code>byte[]</code>.
  *
- * <p>Result <code>byte[]</code> messages can be deserialized using {@link JsonRowDeserializationSchema}.
+ * <p>Result <code>byte[]</code> messages can be deserialized using {@link
+ * JsonRowDeserializationSchema}.
  */
 @PublicEvolving
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
-	private static final long serialVersionUID = -2885556750743978636L;
+    private static final long serialVersionUID = -2885556750743978636L;
 
-	/** Type information describing the input type. */
-	private final RowTypeInfo typeInfo;
+    /** Type information describing the input type. */
+    private final RowTypeInfo typeInfo;
 
-	/** Object mapper that is used to create output JSON objects. */
-	private final ObjectMapper mapper = new ObjectMapper();
+    /** Object mapper that is used to create output JSON objects. */
+    private final ObjectMapper mapper = new ObjectMapper();
 
-	private final SerializationRuntimeConverter runtimeConverter;
+    private final SerializationRuntimeConverter runtimeConverter;
 
-	/** Reusable object node. */
-	private transient ObjectNode node;
+    /** Reusable object node. */
+    private transient ObjectNode node;
 
-	/**
-	 * @deprecated Use the provided {@link Builder} instead.
-	 */
-	@Deprecated
-	public JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
-		// TODO make this constructor private in the future
-		Preconditions.checkNotNull(typeInfo, "Type information");
-		Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
-		this.typeInfo = (RowTypeInfo) typeInfo;
-		this.runtimeConverter = createConverter(typeInfo);
-	}
+    private JsonRowSerializationSchema(TypeInformation<Row> typeInfo) {
+        Preconditions.checkNotNull(typeInfo, "Type information");
+        Preconditions.checkArgument(
+                typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+        this.typeInfo = (RowTypeInfo) typeInfo;
+        this.runtimeConverter = createConverter(typeInfo);
+    }
 
-	/**
-	 * Builder for {@link JsonRowSerializationSchema}.
-	 */
-	@PublicEvolving
-	public static class Builder {
+    /** Builder for {@link JsonRowSerializationSchema}. */
+    @PublicEvolving
+    public static class Builder {
 
-		private final RowTypeInfo typeInfo;
+        private RowTypeInfo typeInfo;
 
-		/**
-		 * Creates a JSON serialization schema for the given type information.
-		 *
-		 * @param typeInfo Type information describing the result type. The field names of {@link Row}
-		 *                 are used to parse the JSON properties.
-		 */
-		public Builder(TypeInformation<Row> typeInfo) {
-			checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
-			this.typeInfo = (RowTypeInfo) typeInfo;
-		}
+        private Builder() {
+            // private constructor
+        }
 
-		/**
-		 * Creates a JSON serialization schema for the given JSON schema.
-		 *
-		 * @param jsonSchema JSON schema describing the result type
-		 *
-		 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
-		 */
-		public Builder(String jsonSchema) {
-			this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
-		}
+        /**
+         * Creates a JSON serialization schema for the given type information.
+         *
+         * @param typeInfo Type information describing the result type. The field names of {@link
+         *     Row} are used to parse the JSON properties.
+         * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
+         */
+        @Deprecated
+        public Builder(TypeInformation<Row> typeInfo) {
+            checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+            this.typeInfo = (RowTypeInfo) typeInfo;
+        }
 
-		public JsonRowSerializationSchema build() {
-			return new JsonRowSerializationSchema(typeInfo);
-		}
-	}
+        /**
+         * Creates a JSON serialization schema for the given JSON schema.
+         *
+         * @param jsonSchema JSON schema describing the result type
+         * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
+         * @deprecated Use {@link JsonRowSerializationSchema#builder()} instead.
+         */
+        @Deprecated
+        public Builder(String jsonSchema) {
+            this(JsonRowSchemaConverter.convert(checkNotNull(jsonSchema)));
+        }
 
-	@Override
-	public byte[] serialize(Row row) {
-		if (node == null) {
-			node = mapper.createObjectNode();
-		}
+        /**
+         * Sets type information for JSON serialization schema.
+         *
+         * @param typeInfo Type information describing the result type. The field names of {@link
+         *     Row} are used to parse the JSON properties.
+         */
+        public Builder withTypeInfo(TypeInformation<Row> typeInfo) {
+            checkArgument(typeInfo instanceof RowTypeInfo, "Only RowTypeInfo is supported");
+            this.typeInfo = (RowTypeInfo) typeInfo;
+            return this;
+        }
 
-		try {
-			runtimeConverter.convert(mapper, node, row);
-			return mapper.writeValueAsBytes(node);
-		} catch (Throwable t) {
-			throw new RuntimeException("Could not serialize row '" + row + "'. " +
-				"Make sure that the schema matches the input.", t);
-		}
-	}
+        /**
+         * Finalizes the configuration and checks validity.
+         *
+         * @return Configured {@link JsonRowSerializationSchema}
+         */
+        public JsonRowSerializationSchema build() {
+            checkArgument(typeInfo != null, "typeInfo should be set.");
+            return new JsonRowSerializationSchema(typeInfo);
+        }
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final JsonRowSerializationSchema that = (JsonRowSerializationSchema) o;
-		return Objects.equals(typeInfo, that.typeInfo);
-	}
+    /** Creates a builder for {@link JsonRowSerializationSchema.Builder}. */
+    public static Builder builder() {
+        return new Builder();
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(typeInfo);
-	}
+    @Override
+    public byte[] serialize(Row row) {
+        if (node == null) {
+            node = mapper.createObjectNode();
+        }
 
-	/*
-		Runtime converters
-	 */
+        try {
+            runtimeConverter.convert(mapper, node, row);
+            return mapper.writeValueAsBytes(node);
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "Could not serialize row '"
+                            + row
+                            + "'. "
+                            + "Make sure that the schema matches the input.",
+                    t);
+        }
+    }
 
-	/**
-	 * Runtime converter that maps between Java objects and corresponding {@link JsonNode}s.
-	 */
-	@FunctionalInterface
-	private interface SerializationRuntimeConverter extends Serializable {
-		JsonNode convert(ObjectMapper mapper, JsonNode reuse, Object object);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final JsonRowSerializationSchema that = (JsonRowSerializationSchema) o;
+        return Objects.equals(typeInfo, that.typeInfo);
+    }
 
-	private SerializationRuntimeConverter createConverter(TypeInformation<?> typeInfo) {
-		SerializationRuntimeConverter baseConverter = createConverterForSimpleType(typeInfo)
-			.orElseGet(() ->
-				createContainerConverter(typeInfo)
-					.orElseGet(this::createFallbackConverter));
-		return wrapIntoNullableConverter(baseConverter);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(typeInfo);
+    }
 
-	private SerializationRuntimeConverter wrapIntoNullableConverter(SerializationRuntimeConverter converter) {
-		return (mapper, reuse, object) -> {
-			if (object == null) {
-				return mapper.getNodeFactory().nullNode();
-			}
+    /*
+    Runtime converters
+    */
 
-			return converter.convert(mapper, reuse, object);
-		};
-	}
+    /** Runtime converter that maps between Java objects and corresponding {@link JsonNode}s. */
+    @FunctionalInterface
+    private interface SerializationRuntimeConverter extends Serializable {
+        JsonNode convert(ObjectMapper mapper, JsonNode reuse, Object object);
+    }
 
-	private Optional<SerializationRuntimeConverter> createContainerConverter(TypeInformation<?> typeInfo) {
-		if (typeInfo instanceof RowTypeInfo) {
-			return Optional.of(createRowConverter((RowTypeInfo) typeInfo));
-		} else if (typeInfo instanceof ObjectArrayTypeInfo) {
-			return Optional.of(createObjectArrayConverter(((ObjectArrayTypeInfo) typeInfo).getComponentInfo()));
-		} else if (typeInfo instanceof BasicArrayTypeInfo) {
-			return Optional.of(createObjectArrayConverter(((BasicArrayTypeInfo) typeInfo).getComponentInfo()));
-		} else if (isPrimitiveByteArray(typeInfo)) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().binaryNode((byte[]) object));
-		} else {
-			return Optional.empty();
-		}
-	}
+    private SerializationRuntimeConverter createConverter(TypeInformation<?> typeInfo) {
+        SerializationRuntimeConverter baseConverter =
+                createConverterForSimpleType(typeInfo)
+                        .orElseGet(
+                                () ->
+                                        createContainerConverter(typeInfo)
+                                                .orElseGet(this::createFallbackConverter));
+        return wrapIntoNullableConverter(baseConverter);
+    }
 
-	private boolean isPrimitiveByteArray(TypeInformation<?> typeInfo) {
-		return typeInfo instanceof PrimitiveArrayTypeInfo &&
-			((PrimitiveArrayTypeInfo) typeInfo).getComponentType() == Types.BYTE;
-	}
+    private SerializationRuntimeConverter wrapIntoNullableConverter(
+            SerializationRuntimeConverter converter) {
+        return (mapper, reuse, object) -> {
+            if (object == null) {
+                return mapper.getNodeFactory().nullNode();
+            }
 
-	private SerializationRuntimeConverter createObjectArrayConverter(TypeInformation elementTypeInfo) {
-		SerializationRuntimeConverter elementConverter = createConverter(elementTypeInfo);
-		return assembleArrayConverter(elementConverter);
-	}
+            return converter.convert(mapper, reuse, object);
+        };
+    }
 
-	private SerializationRuntimeConverter createRowConverter(RowTypeInfo typeInfo) {
-		List<SerializationRuntimeConverter> fieldConverters = Arrays.stream(typeInfo.getFieldTypes())
-			.map(this::createConverter)
-			.collect(Collectors.toList());
+    private Optional<SerializationRuntimeConverter> createContainerConverter(
+            TypeInformation<?> typeInfo) {
+        if (typeInfo instanceof RowTypeInfo) {
+            return Optional.of(createRowConverter((RowTypeInfo) typeInfo));
+        } else if (typeInfo instanceof ObjectArrayTypeInfo) {
+            return Optional.of(
+                    createObjectArrayConverter(
+                            ((ObjectArrayTypeInfo) typeInfo).getComponentInfo()));
+        } else if (typeInfo instanceof BasicArrayTypeInfo) {
+            return Optional.of(
+                    createObjectArrayConverter(((BasicArrayTypeInfo) typeInfo).getComponentInfo()));
+        } else if (isPrimitiveByteArray(typeInfo)) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().binaryNode((byte[]) object));
+        } else {
+            return Optional.empty();
+        }
+    }
 
-		return assembleRowConverter(typeInfo.getFieldNames(), fieldConverters);
-	}
+    private boolean isPrimitiveByteArray(TypeInformation<?> typeInfo) {
+        return typeInfo instanceof PrimitiveArrayTypeInfo
+                && ((PrimitiveArrayTypeInfo) typeInfo).getComponentType() == Types.BYTE;
+    }
 
-	private SerializationRuntimeConverter createFallbackConverter() {
-		return (mapper, reuse, object) -> {
-			// for types that were specified without JSON schema
-			// e.g. POJOs
-			try {
-				return mapper.valueToTree(object);
-			} catch (IllegalArgumentException e) {
-				throw new WrappingRuntimeException(format("Could not convert object: %s", object), e);
-			}
-		};
-	}
+    private SerializationRuntimeConverter createObjectArrayConverter(
+            TypeInformation elementTypeInfo) {
+        SerializationRuntimeConverter elementConverter = createConverter(elementTypeInfo);
+        return assembleArrayConverter(elementConverter);
+    }
 
-	private Optional<SerializationRuntimeConverter> createConverterForSimpleType(TypeInformation<?> simpleTypeInfo) {
-		if (simpleTypeInfo == Types.VOID) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().nullNode());
-		} else if (simpleTypeInfo == Types.BOOLEAN) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().booleanNode((Boolean) object));
-		} else if (simpleTypeInfo == Types.STRING) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().textNode((String) object));
-		} else if (simpleTypeInfo == Types.INT) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Integer) object));
-		} else if (simpleTypeInfo == Types.LONG) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Long) object));
-		} else if (simpleTypeInfo == Types.DOUBLE) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Double) object));
-		} else if (simpleTypeInfo == Types.FLOAT) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Float) object));
-		} else if (simpleTypeInfo == Types.SHORT) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Short) object));
-		} else if (simpleTypeInfo == Types.BYTE) {
-			return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Byte) object));
-		} else if (simpleTypeInfo == Types.BIG_DEC) {
-			return Optional.of(createBigDecimalConverter());
-		} else if (simpleTypeInfo == Types.BIG_INT) {
-			return Optional.of(createBigIntegerConverter());
-		} else if (simpleTypeInfo == Types.SQL_DATE) {
-			return Optional.of(createDateConverter());
-		} else if (simpleTypeInfo == Types.SQL_TIME) {
-			return Optional.of(createTimeConverter());
-		} else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
-			return Optional.of(createTimestampConverter());
-		} else {
-			return Optional.empty();
-		}
-	}
+    private SerializationRuntimeConverter createRowConverter(RowTypeInfo typeInfo) {
+        List<SerializationRuntimeConverter> fieldConverters =
+                Arrays.stream(typeInfo.getFieldTypes())
+                        .map(this::createConverter)
+                        .collect(Collectors.toList());
 
-	private SerializationRuntimeConverter createDateConverter() {
-		return (mapper, reuse, object) -> {
-			Date date = (Date) object;
+        return assembleRowConverter(typeInfo.getFieldNames(), fieldConverters);
+    }
 
-			return mapper.getNodeFactory().textNode(ISO_LOCAL_DATE.format(date.toLocalDate()));
-		};
-	}
+    private SerializationRuntimeConverter createFallbackConverter() {
+        return (mapper, reuse, object) -> {
+            // for types that were specified without JSON schema
+            // e.g. POJOs
+            try {
+                return mapper.valueToTree(object);
+            } catch (IllegalArgumentException e) {
+                throw new WrappingRuntimeException(
+                        format("Could not convert object: %s", object), e);
+            }
+        };
+    }
 
-	private SerializationRuntimeConverter createTimestampConverter() {
-		return (mapper, reuse, object) -> {
-			Timestamp timestamp = (Timestamp) object;
+    private Optional<SerializationRuntimeConverter> createConverterForSimpleType(
+            TypeInformation<?> simpleTypeInfo) {
+        if (simpleTypeInfo == Types.VOID) {
+            return Optional.of((mapper, reuse, object) -> mapper.getNodeFactory().nullNode());
+        } else if (simpleTypeInfo == Types.BOOLEAN) {
+            return Optional.of(
+                    (mapper, reuse, object) ->
+                            mapper.getNodeFactory().booleanNode((Boolean) object));
+        } else if (simpleTypeInfo == Types.STRING) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().textNode((String) object));
+        } else if (simpleTypeInfo == Types.INT) {
+            return Optional.of(
+                    (mapper, reuse, object) ->
+                            mapper.getNodeFactory().numberNode((Integer) object));
+        } else if (simpleTypeInfo == Types.LONG) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Long) object));
+        } else if (simpleTypeInfo == Types.DOUBLE) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Double) object));
+        } else if (simpleTypeInfo == Types.FLOAT) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Float) object));
+        } else if (simpleTypeInfo == Types.SHORT) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Short) object));
+        } else if (simpleTypeInfo == Types.BYTE) {
+            return Optional.of(
+                    (mapper, reuse, object) -> mapper.getNodeFactory().numberNode((Byte) object));
+        } else if (simpleTypeInfo == Types.BIG_DEC) {
+            return Optional.of(createBigDecimalConverter());
+        } else if (simpleTypeInfo == Types.BIG_INT) {
+            return Optional.of(createBigIntegerConverter());
+        } else if (simpleTypeInfo == Types.SQL_DATE) {
+            return Optional.of(this::convertDate);
+        } else if (simpleTypeInfo == Types.SQL_TIME) {
+            return Optional.of(this::convertTime);
+        } else if (simpleTypeInfo == Types.SQL_TIMESTAMP) {
+            return Optional.of(this::convertTimestamp);
+        } else if (simpleTypeInfo == Types.LOCAL_DATE) {
+            return Optional.of(this::convertLocalDate);
+        } else if (simpleTypeInfo == Types.LOCAL_TIME) {
+            return Optional.of(this::convertLocalTime);
+        } else if (simpleTypeInfo == Types.LOCAL_DATE_TIME) {
+            return Optional.of(this::convertLocalDateTime);
+        } else {
+            return Optional.empty();
+        }
+    }
 
-			return mapper.getNodeFactory()
-				.textNode(RFC3339_TIMESTAMP_FORMAT.format(timestamp.toLocalDateTime()));
-		};
-	}
+    private JsonNode convertLocalDate(ObjectMapper mapper, JsonNode reuse, Object object) {
+        return mapper.getNodeFactory().textNode(ISO_LOCAL_DATE.format((LocalDate) object));
+    }
 
-	private SerializationRuntimeConverter createTimeConverter() {
-		return (mapper, reuse, object) -> {
-			final Time time = (Time) object;
+    private JsonNode convertDate(ObjectMapper mapper, JsonNode reuse, Object object) {
+        Date date = (Date) object;
+        return convertLocalDate(mapper, reuse, date.toLocalDate());
+    }
 
-			JsonNodeFactory nodeFactory = mapper.getNodeFactory();
-			return nodeFactory.textNode(RFC3339_TIME_FORMAT.format(time.toLocalTime()));
-		};
-	}
+    private JsonNode convertLocalDateTime(ObjectMapper mapper, JsonNode reuse, Object object) {
+        return mapper.getNodeFactory()
+                .textNode(RFC3339_TIMESTAMP_FORMAT.format((LocalDateTime) object));
+    }
 
-	private SerializationRuntimeConverter createBigDecimalConverter() {
-		return (mapper, reuse, object) -> {
-			// convert decimal if necessary
-			JsonNodeFactory nodeFactory = mapper.getNodeFactory();
-			if (object instanceof BigDecimal) {
-				return nodeFactory.numberNode((BigDecimal) object);
-			}
-			return nodeFactory.numberNode(BigDecimal.valueOf(((Number) object).doubleValue()));
-		};
-	}
+    private JsonNode convertTimestamp(ObjectMapper mapper, JsonNode reuse, Object object) {
+        Timestamp timestamp = (Timestamp) object;
+        return convertLocalDateTime(mapper, reuse, timestamp.toLocalDateTime());
+    }
 
-	private SerializationRuntimeConverter createBigIntegerConverter() {
-		return (mapper, reuse, object) -> {
-			// convert decimal if necessary
-			JsonNodeFactory nodeFactory = mapper.getNodeFactory();
-			if (object instanceof BigInteger) {
-				return nodeFactory.numberNode((BigInteger) object);
-			}
-			return nodeFactory.numberNode(BigInteger.valueOf(((Number) object).longValue()));
-		};
-	}
+    private JsonNode convertLocalTime(ObjectMapper mapper, JsonNode reuse, Object object) {
+        JsonNodeFactory nodeFactory = mapper.getNodeFactory();
+        return nodeFactory.textNode(RFC3339_TIME_FORMAT.format((LocalTime) object));
+    }
 
-	private SerializationRuntimeConverter assembleRowConverter(
-			String[] fieldNames,
-			List<SerializationRuntimeConverter> fieldConverters) {
-		return (mapper, reuse, object) -> {
-			ObjectNode node;
+    private JsonNode convertTime(ObjectMapper mapper, JsonNode reuse, Object object) {
+        final Time time = (Time) object;
+        return convertLocalTime(mapper, reuse, time.toLocalTime());
+    }
 
-			if (reuse == null) {
-				node = mapper.createObjectNode();
-			} else {
-				node = (ObjectNode) reuse;
-			}
+    private SerializationRuntimeConverter createBigDecimalConverter() {
+        return (mapper, reuse, object) -> {
+            // convert decimal if necessary
+            JsonNodeFactory nodeFactory = mapper.getNodeFactory();
+            if (object instanceof BigDecimal) {
+                return nodeFactory.numberNode((BigDecimal) object);
+            }
+            return nodeFactory.numberNode(BigDecimal.valueOf(((Number) object).doubleValue()));
+        };
+    }
 
-			Row row = (Row) object;
+    private SerializationRuntimeConverter createBigIntegerConverter() {
+        return (mapper, reuse, object) -> {
+            // convert decimal if necessary
+            JsonNodeFactory nodeFactory = mapper.getNodeFactory();
+            if (object instanceof BigInteger) {
+                return nodeFactory.numberNode((BigInteger) object);
+            }
+            return nodeFactory.numberNode(BigInteger.valueOf(((Number) object).longValue()));
+        };
+    }
 
-			for (int i = 0; i < fieldNames.length; i++) {
-				String fieldName = fieldNames[i];
-				node.set(fieldName,
-					fieldConverters.get(i).convert(mapper, node.get(fieldNames[i]), row.getField(i)));
-			}
+    private SerializationRuntimeConverter assembleRowConverter(
+            String[] fieldNames, List<SerializationRuntimeConverter> fieldConverters) {
+        return (mapper, reuse, object) -> {
+            ObjectNode node;
 
-			return node;
-		};
-	}
+            // reuse could be a NullNode if last record is null.
+            if (reuse == null || reuse.isNull()) {
+                node = mapper.createObjectNode();
+            } else {
+                node = (ObjectNode) reuse;
+            }
 
-	private SerializationRuntimeConverter assembleArrayConverter(SerializationRuntimeConverter elementConverter) {
-		return (mapper, reuse, object) -> {
-			ArrayNode node;
+            Row row = (Row) object;
 
-			if (reuse == null) {
-				node = mapper.createArrayNode();
-			} else {
-				node = (ArrayNode) reuse;
-				node.removeAll();
-			}
+            for (int i = 0; i < fieldNames.length; i++) {
+                String fieldName = fieldNames[i];
+                node.set(
+                        fieldName,
+                        fieldConverters
+                                .get(i)
+                                .convert(mapper, node.get(fieldNames[i]), row.getField(i)));
+            }
 
-			Object[] array = (Object[]) object;
+            return node;
+        };
+    }
 
-			for (Object element : array) {
-				node.add(elementConverter.convert(mapper, null, element));
-			}
+    private SerializationRuntimeConverter assembleArrayConverter(
+            SerializationRuntimeConverter elementConverter) {
+        return (mapper, reuse, object) -> {
+            ArrayNode node;
 
-			return node;
-		};
-	}
+            // reuse could be a NullNode if last record is null.
+            if (reuse == null || reuse.isNull()) {
+                node = mapper.createArrayNode();
+            } else {
+                node = (ArrayNode) reuse;
+                node.removeAll();
+            }
+
+            Object[] array = (Object[]) object;
+
+            for (Object element : array) {
+                node.add(elementConverter.convert(mapper, null, element));
+            }
+
+            return node;
+        };
+    }
 }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -58,23 +58,24 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
 
   @Test
   def testPushExpressionsOnSemiJoin_In(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE b + 1 = e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE b + 1 = e)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_Exists(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
+    util.verifyRelPlan(
+      "SELECT * FROM l WHERE EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_NotIn(): Unit = {
-    util.verifyPlan("SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE b + 1 = e)")
+    util.verifyRelPlan("SELECT * FROM l WHERE a NOT IN (SELECT d FROM r WHERE b + 1 = e)")
   }
 
   @Test
   def testPushExpressionsOnSemiJoin_NotExists(): Unit = {
     val sqlQuery = "SELECT * FROM l WHERE NOT EXISTS (SELECT d FROM r WHERE CAST(b AS INTEGER) = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

@@ -18,63 +18,59 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * The unbounded window frame calculates frames with the following SQL forms:
- * ... (No Frame Definition)
- * ... BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+ * The unbounded window frame calculates frames with the following SQL forms: ... (No Frame
+ * Definition) ... BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
  */
 public class UnboundedOverWindowFrame implements OverWindowFrame {
 
-	private GeneratedAggsHandleFunction aggsHandleFunction;
-	private final RowType valueType;
+    private GeneratedAggsHandleFunction aggsHandleFunction;
+    private final RowType valueType;
 
-	private AggsHandleFunction processor;
-	private BaseRow accValue;
+    private AggsHandleFunction processor;
+    private RowData accValue;
 
-	private BaseRowSerializer valueSer;
+    private RowDataSerializer valueSer;
 
-	public UnboundedOverWindowFrame(
-			GeneratedAggsHandleFunction aggsHandleFunction,
-			RowType valueType) {
-		this.aggsHandleFunction = aggsHandleFunction;
-		this.valueType = valueType;
-	}
+    public UnboundedOverWindowFrame(
+            GeneratedAggsHandleFunction aggsHandleFunction, RowType valueType) {
+        this.aggsHandleFunction = aggsHandleFunction;
+        this.valueType = valueType;
+    }
 
-	@Override
-	public void open(ExecutionContext ctx) throws Exception {
-		ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
-		processor = aggsHandleFunction.newInstance(cl);
-		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
-		this.aggsHandleFunction = null;
-		this.valueSer = new BaseRowSerializer(
-				ctx.getRuntimeContext().getExecutionConfig(),
-				valueType.getChildren().toArray(new LogicalType[0]));
-	}
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        ClassLoader cl = ctx.getRuntimeContext().getUserCodeClassLoader();
+        processor = aggsHandleFunction.newInstance(cl);
+        processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+        this.aggsHandleFunction = null;
+        this.valueSer = new RowDataSerializer(valueType.getChildren().toArray(new LogicalType[0]));
+    }
 
-	@Override
-	public void prepare(ResettableExternalBuffer rows) throws Exception {
-		//cleanup the retired accumulators value
-		processor.setAccumulators(processor.createAccumulators());
-		ResettableExternalBuffer.BufferIterator iterator = rows.newIterator();
-		while (iterator.advanceNext()) {
-			processor.accumulate(iterator.getRow());
-		}
-		accValue = valueSer.copy(processor.getValue());
-		iterator.close();
-	}
+    @Override
+    public void prepare(ResettableExternalBuffer rows) throws Exception {
+        // cleanup the retired accumulators value
+        processor.setAccumulators(processor.createAccumulators());
+        ResettableExternalBuffer.BufferIterator iterator = rows.newIterator();
+        while (iterator.advanceNext()) {
+            processor.accumulate(iterator.getRow());
+        }
+        accValue = valueSer.copy(processor.getValue());
+        iterator.close();
+    }
 
-	@Override
-	public BaseRow process(int index, BaseRow current) throws Exception {
-		return accValue;
-	}
+    @Override
+    public RowData process(int index, RowData current) throws Exception {
+        return accValue;
+    }
 }

@@ -18,22 +18,20 @@
 
 package org.apache.flink.runtime.rpc.exceptions;
 
-/**
- * Base class for RPC related exceptions.
- */
+/** Base class for RPC related exceptions. */
 public class RpcException extends Exception {
 
-	private static final long serialVersionUID = -7163591879289483630L;
+    private static final long serialVersionUID = -7163591879289483630L;
 
-	public RpcException(String message) {
-		super(message);
-	}
+    public RpcException(String message) {
+        super(message);
+    }
 
-	public RpcException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public RpcException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public RpcException(Throwable cause) {
-		super(cause);
-	}
+    public RpcException(Throwable cause) {
+        super(cause);
+    }
 }

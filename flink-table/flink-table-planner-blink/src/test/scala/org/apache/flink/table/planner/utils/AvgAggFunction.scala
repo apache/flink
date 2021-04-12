@@ -25,6 +25,8 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findAvgAggType
 
 import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal, BigInteger, MathContext}
@@ -80,11 +82,6 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
       acc.f1 += a.f1
       acc.f0 += a.f0
     }
-  }
-
-  def resetAccumulator(acc: IntegralAvgAccumulator): Unit = {
-    acc.f0 = 0L
-    acc.f1 = 0L
   }
 
   override def getAccumulatorType: TypeInformation[IntegralAvgAccumulator] = {
@@ -174,11 +171,6 @@ abstract class BigIntegralAvgAggFunction[T]
     }
   }
 
-  def resetAccumulator(acc: BigIntegralAvgAccumulator): Unit = {
-    acc.f0 = BigInteger.ZERO
-    acc.f1 = 0
-  }
-
   override def getAccumulatorType: TypeInformation[BigIntegralAvgAccumulator] = {
     new TupleTypeInfo(classOf[BigIntegralAvgAccumulator], Types.INT, Types.LONG)
   }
@@ -249,11 +241,6 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T, FloatingAv
       acc.f1 += a.f1
       acc.f0 += a.f0
     }
-  }
-
-  def resetAccumulator(acc: FloatingAvgAccumulator): Unit = {
-    acc.f0 = 0
-    acc.f1 = 0L
   }
 
   override def getAccumulatorType: TypeInformation[FloatingAvgAccumulator] = {
@@ -333,11 +320,6 @@ class DecimalAvgAggFunction(argType: DecimalType)
     }
   }
 
-  def resetAccumulator(acc: DecimalAvgAccumulator): Unit = {
-    acc.f0 = BigDecimal.ZERO
-    acc.f1 = 0L
-  }
-
   override def getAccumulatorType: TypeInformation[DecimalAvgAccumulator] = {
     val decimalType = getSumType
     new TupleTypeInfo(
@@ -347,10 +329,10 @@ class DecimalAvgAggFunction(argType: DecimalType)
   }
 
   def getSumType: DecimalType =
-    FlinkTypeSystem.inferAggSumType(argType.getScale)
+    LogicalTypeMerging.findSumAggType(argType).asInstanceOf[DecimalType]
 
   override def getResultType: BigDecimalTypeInfo = {
-    val t = FlinkTypeSystem.inferAggAvgType(argType.getScale)
+    val t = LogicalTypeMerging.findAvgAggType(argType).asInstanceOf[DecimalType]
     new BigDecimalTypeInfo(t.getPrecision, t.getScale)
   }
 

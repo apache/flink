@@ -27,37 +27,38 @@ import java.util.Random;
 
 public class LongValueComparatorTest extends ComparatorTestBase<LongValue> {
 
-	@Override
-	protected TypeComparator<LongValue> createComparator(boolean ascending) {
-		return new LongValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<LongValue> createComparator(boolean ascending) {
+        return new LongValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<LongValue> createSerializer() {
-		return new LongValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<LongValue> createSerializer() {
+        return new LongValueSerializer();
+    }
 
-	@Override
-	protected LongValue[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		long rndLong = rnd.nextLong();
-		if (rndLong < 0) {
-			rndLong = -rndLong;
-		}
-		if (rndLong == Long.MAX_VALUE) {
-			rndLong -= 3;
-		}
-		if (rndLong <= 2) {
-			rndLong += 3;
-		}
-		return new LongValue[]{
-			new LongValue(Long.MIN_VALUE),
-			new LongValue(-rndLong),
-			new LongValue(-1L),
-			new LongValue(0L),
-			new LongValue(1L),
-			new LongValue(2L),
-			new LongValue(rndLong),
-			new LongValue(Long.MAX_VALUE)};
-	}
+    @Override
+    protected LongValue[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        long rndLong = rnd.nextLong();
+        if (rndLong < 0) {
+            rndLong = -rndLong;
+        }
+        if (rndLong == Long.MAX_VALUE) {
+            rndLong -= 3;
+        }
+        if (rndLong <= 2) {
+            rndLong += 3;
+        }
+        return new LongValue[] {
+            new LongValue(Long.MIN_VALUE),
+            new LongValue(-rndLong),
+            new LongValue(-1L),
+            new LongValue(0L),
+            new LongValue(1L),
+            new LongValue(2L),
+            new LongValue(rndLong),
+            new LongValue(Long.MAX_VALUE)
+        };
+    }
 }

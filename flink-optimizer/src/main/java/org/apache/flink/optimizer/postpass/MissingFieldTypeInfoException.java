@@ -19,16 +19,16 @@
 package org.apache.flink.optimizer.postpass;
 
 public final class MissingFieldTypeInfoException extends Exception {
-	
-	private static final long serialVersionUID = 8749941961302509358L;
-	
-	private final int fieldNumber;
 
-	public MissingFieldTypeInfoException(int fieldNumber) {
-		this.fieldNumber = fieldNumber;
-	}
-	
-	public int getFieldNumber() {
-		return fieldNumber;
-	}
+    private static final long serialVersionUID = 8749941961302509358L;
+
+    private final int fieldNumber;
+
+    public MissingFieldTypeInfoException(int fieldNumber) {
+        this.fieldNumber = fieldNumber;
+    }
+
+    public int getFieldNumber() {
+        return fieldNumber;
+    }
 }

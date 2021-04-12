@@ -24,16 +24,17 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 /**
  * A utility used to deserialize a {@link MessageBody message}.
- * @param <M> The type of the message to be deserialized.
- *           It has to extend {@link MessageBody}
+ *
+ * @param <M> The type of the message to be deserialized. It has to extend {@link MessageBody}
  */
 @Internal
 public interface MessageDeserializer<M extends MessageBody> {
 
-	/**
-	 * Deserializes a message contained in a byte buffer.
-	 * @param buf the buffer containing the message.
-	 * @return The deserialized message.
-	 */
-	M deserializeMessage(ByteBuf buf);
+    /**
+     * Deserializes a message contained in a byte buffer.
+     *
+     * @param buf the buffer containing the message.
+     * @return The deserialized message.
+     */
+    M deserializeMessage(ByteBuf buf);
 }

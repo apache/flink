@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{boxedTypeTermForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -77,14 +77,14 @@ case class GeneratedExpression(
   def deepCopy(ctx: CodeGeneratorContext): GeneratedExpression = {
     // only copy when type is mutable
     if (TypeCheckUtils.isMutable(resultType)) {
-      val newResultTerm = newName("field")
       // if the type need copy, it must be a boxed type
       val typeTerm = boxedTypeTermForType(resultType)
       val serTerm = ctx.addReusableTypeSerializer(resultType)
+      val newResultTerm = ctx.addReusableLocalVariable(typeTerm, "field")
       val newCode =
         s"""
            |$code
-           |$typeTerm $newResultTerm = $resultTerm;
+           |$newResultTerm = $resultTerm;
            |if (!$nullTerm) {
            |  $newResultTerm = ($typeTerm) ($serTerm.copy($newResultTerm));
            |}

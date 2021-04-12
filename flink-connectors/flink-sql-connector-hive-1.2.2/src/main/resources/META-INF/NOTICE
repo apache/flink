@@ -1,0 +1,52 @@
+flink-sql-connector-hive-1.2.2
+Copyright 2014-2021 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- io.airlift:aircompressor:0.8
+- org.apache.hive:hive-exec:1.2.2
+- org.apache.hive:hive-metastore:1.2.2
+- org.apache.orc:orc-core:nohive:1.5.6
+- org.apache.orc:orc-shims:1.5.6
+- org.apache.thrift:libfb303:0.9.2
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- org.antlr:antlr-runtime:3.5.2
+
+The bundled Apache Hive dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:14.0.1
+- com.googlecode.javaewah:JavaEWAH:0.3.2
+- com.twitter:parquet-hadoop-bundle:1.6.0
+- commons-lang:commons-lang:2.6
+- joda-time:joda-time:2.5
+- net.sf.opencsv:opencsv:2.3
+- org.apache.avro:avro-mapred:1.7.5
+- org.apache.avro:avro:1.7.5
+- org.apache.commons:commons-lang3:3.1
+- org.apache.hive.shims:hive-shims-0.20S:1.2.2
+- org.apache.hive.shims:hive-shims-0.23:1.2.2
+- org.apache.hive.shims:hive-shims-common:1.2.2
+- org.apache.hive:hive-common:1.2.2
+- org.apache.hive:hive-serde:1.2.2
+- org.apache.hive:spark-client:1.2.2
+- org.apache.thrift:libthrift:0.9.2
+- org.codehaus.jackson:jackson-core-asl:1.9.2
+- org.codehaus.jackson:jackson-mapper-asl:1.9.2
+- org.iq80.snappy:snappy:0.2
+- org.objenesis:objenesis:1.2
+
+The bundled Apache Hive dependencies bundle the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.esotericsoftware.kryo:kryo:2.22
+- com.esotericsoftware.minlog:minlog:1.2
+- com.esotericsoftware.reflectasm:reflectasm:1.07
+- com.google.protobuf:protobuf-java:2.5.0
+- javolution:javolution:5.5.1
+- org.jodd:jodd-core:3.5.2

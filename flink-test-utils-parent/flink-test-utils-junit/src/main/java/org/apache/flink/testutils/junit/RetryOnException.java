@@ -25,8 +25,8 @@ import java.lang.annotation.Target;
 /**
  * Annotation to use with {@link org.apache.flink.testutils.junit.RetryRule}.
  *
- * <p>Add the {@link org.apache.flink.testutils.junit.RetryRule} to your test and
- * annotate tests with {@link RetryOnException}.
+ * <p>Add the {@link org.apache.flink.testutils.junit.RetryRule} to your test and annotate tests
+ * with {@link RetryOnException}.
  *
  * <pre>
  * public class YourTest {
@@ -54,7 +54,7 @@ import java.lang.annotation.Target;
 @Target(java.lang.annotation.ElementType.METHOD)
 public @interface RetryOnException {
 
-	int times();
+    int times();
 
-	Class<? extends Throwable> exception();
+    Class<? extends Throwable> exception();
 }

@@ -26,56 +26,49 @@ import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.UnionSerializer;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-/**
- * Serializer tests for {@link UnionSerializer}.
- */
+/** Serializer tests for {@link UnionSerializer}. */
 public class UnionSerializerTest extends SerializerTestBase<TaggedUnion<Object, Object>> {
 
-	public UnionSerializerTest() {
-		super(new DeeplyEqualsChecker()
-		.withCustomCheck(
-			(o1, o2) -> o1 instanceof TaggedUnion && o2 instanceof TaggedUnion,
-			(o1, o2, checker) -> {
-				TaggedUnion union1 = (TaggedUnion) o1;
-				TaggedUnion union2 = (TaggedUnion) o2;
+    public UnionSerializerTest() {
+        super(
+                new DeeplyEqualsChecker()
+                        .withCustomCheck(
+                                (o1, o2) -> o1 instanceof TaggedUnion && o2 instanceof TaggedUnion,
+                                (o1, o2, checker) -> {
+                                    TaggedUnion union1 = (TaggedUnion) o1;
+                                    TaggedUnion union2 = (TaggedUnion) o2;
 
-				if (union1.isOne() && union2.isOne()) {
-					return checker.deepEquals(union1.getOne(), union2.getOne());
-				} else if (union1.isTwo() && union2.isTwo()) {
-					return checker.deepEquals(union1.getTwo(), union2.getTwo());
-				} else {
-					return false;
-				}
-			}
-		));
-	}
+                                    if (union1.isOne() && union2.isOne()) {
+                                        return checker.deepEquals(union1.getOne(), union2.getOne());
+                                    } else if (union1.isTwo() && union2.isTwo()) {
+                                        return checker.deepEquals(union1.getTwo(), union2.getTwo());
+                                    } else {
+                                        return false;
+                                    }
+                                }));
+    }
 
-	@Override
-	protected TypeSerializer<TaggedUnion<Object, Object>> createSerializer() {
-		return new UnionSerializer<>(
-			new KryoSerializer<>(Object.class, new ExecutionConfig()),
-			new KryoSerializer<>(Object.class, new ExecutionConfig())
-		);
-	}
+    @Override
+    protected TypeSerializer<TaggedUnion<Object, Object>> createSerializer() {
+        return new UnionSerializer<>(
+                new KryoSerializer<>(Object.class, new ExecutionConfig()),
+                new KryoSerializer<>(Object.class, new ExecutionConfig()));
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected Class<TaggedUnion<Object, Object>> getTypeClass() {
-		return (Class<TaggedUnion<Object, Object>>) (Class<?>) TaggedUnion.class;
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    protected Class<TaggedUnion<Object, Object>> getTypeClass() {
+        return (Class<TaggedUnion<Object, Object>>) (Class<?>) TaggedUnion.class;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	protected TaggedUnion<Object, Object>[] getTestData() {
-		return new TaggedUnion[]{
-			TaggedUnion.one(1),
-			TaggedUnion.two("A"),
-			TaggedUnion.one("C")
-		};
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    protected TaggedUnion<Object, Object>[] getTestData() {
+        return new TaggedUnion[] {TaggedUnion.one(1), TaggedUnion.two("A"), TaggedUnion.one("C")};
+    }
 }

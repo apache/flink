@@ -29,8 +29,6 @@ Important classes of Flink Table API:
       It is necessary when creating :class:`TableEnvironment`.
     - :class:`pyflink.table.EnvironmentSettings`
       Defines all parameters that initialize a table environment.
-    - :class:`pyflink.table.StreamQueryConfig` and :class:`pyflink.table.BatchQueryConfig`
-      A query config holds parameters to configure the behavior of queries.
     - :class:`pyflink.table.TableSource`
       Defines an external data source as a table.
     - :class:`pyflink.table.TableSink`
@@ -39,6 +37,8 @@ Important classes of Flink Table API:
       Defines a list of data types available.
     - :class:`pyflink.table.Row`
       A row in a :class:`Table`.
+    - :class:`pyflink.table.Expression`
+      A column expression in a :class:`Table`.
     - :class:`pyflink.table.window`
       Helper classes for working with :class:`pyflink.table.window.GroupWindow`
       (:class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`,
@@ -57,43 +57,73 @@ Important classes of Flink Table API:
       user-defined function is executed, such as the metric group, and global job parameters, etc.
     - :class:`pyflink.table.ScalarFunction`
       Base interface for user-defined scalar function.
+    - :class:`pyflink.table.TableFunction`
+      Base interface for user-defined table function.
+    - :class:`pyflink.table.AggregateFunction`
+      Base interface for user-defined aggregate function.
+    - :class:`pyflink.table.TableAggregateFunction`
+      Base interface for user-defined table aggregate function.
+    - :class:`pyflink.table.StatementSet`
+      Base interface accepts DML statements or Tables.
 """
 from __future__ import absolute_import
 
+from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
+from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.expression import Expression
+from pyflink.table.module import Module, ModuleEntry
+from pyflink.table.result_kind import ResultKind
+from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
+from pyflink.table.sources import CsvTableSource, TableSource
 from pyflink.table.sql_dialect import SqlDialect
-from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
+from pyflink.table.statement_set import StatementSet
+from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
                                              BatchTableEnvironment)
-from pyflink.table.sinks import TableSink, CsvTableSink, WriteMode
-from pyflink.table.sources import TableSource, CsvTableSource
-from pyflink.table.types import DataTypes, UserDefinedType, Row
+from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.udf import FunctionContext, ScalarFunction
+from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
+from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
+    TableAggregateFunction
 
 __all__ = [
-    'TableEnvironment',
-    'StreamTableEnvironment',
+    'AggregateFunction',
     'BatchTableEnvironment',
-    'EnvironmentSettings',
-    'Table',
-    'GroupedTable',
-    'GroupWindowedTable',
-    'OverWindowedTable',
-    'WindowGroupedTable',
-    'TableConfig',
-    'TableSink',
-    'TableSource',
-    'WriteMode',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',
-    'UserDefinedType',
-    'Row',
-    'TableSchema',
+    'DataView',
+    'EnvironmentSettings',
+    'ExplainDetail',
+    'Expression',
     'FunctionContext',
+    'GroupWindowedTable',
+    'GroupedTable',
+    'ListView',
+    'MapView',
+    'Module',
+    'ModuleEntry',
+    'OverWindowedTable',
+    'ResultKind',
+    'Row',
+    'RowKind',
     'ScalarFunction',
-    'SqlDialect'
+    'SqlDialect',
+    'StatementSet',
+    'StreamTableEnvironment',
+    'Table',
+    'TableConfig',
+    'TableEnvironment',
+    'TableFunction',
+    'TableResult',
+    'TableSchema',
+    'TableSink',
+    'TableSource',
+    'TableAggregateFunction',
+    'UserDefinedType',
+    'WindowGroupedTable',
+    'WriteMode'
 ]

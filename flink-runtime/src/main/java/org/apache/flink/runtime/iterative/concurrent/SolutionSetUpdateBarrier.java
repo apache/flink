@@ -24,32 +24,28 @@ import org.apache.flink.runtime.iterative.task.IterationTailTask;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Resettable barrier to synchronize the
- * {@link IterationHeadTask} and
- * the {@link IterationTailTask} in case of
- * iterations that contain a separate solution set tail.
+ * Resettable barrier to synchronize the {@link IterationHeadTask} and the {@link IterationTailTask}
+ * in case of iterations that contain a separate solution set tail.
  */
 public class SolutionSetUpdateBarrier {
 
-	private CountDownLatch latch;
+    private CountDownLatch latch;
 
-	public void setup() {
-		latch = new CountDownLatch(1);
-	}
+    public void setup() {
+        latch = new CountDownLatch(1);
+    }
 
-	/**
-	 * Waits (blocking) on barrier.
-	 *
-	 * @throws InterruptedException
-	 */
-	public void waitForSolutionSetUpdate() throws InterruptedException {
-		latch.await();
-	}
+    /**
+     * Waits (blocking) on barrier.
+     *
+     * @throws InterruptedException
+     */
+    public void waitForSolutionSetUpdate() throws InterruptedException {
+        latch.await();
+    }
 
-	/**
-	 * Releases the waiting thread.
-	 */
-	public void notifySolutionSetUpdate() {
-		latch.countDown();
-	}
+    /** Releases the waiting thread. */
+    public void notifySolutionSetUpdate() {
+        latch.countDown();
+    }
 }

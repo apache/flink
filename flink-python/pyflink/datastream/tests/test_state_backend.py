@@ -19,8 +19,9 @@ from pyflink.datastream.state_backend import (_from_j_state_backend, CustomState
                                               MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, PredefinedOptions)
 from pyflink.java_gateway import get_gateway
+from pyflink.pyflink_gateway_server import on_windows
 from pyflink.testing.test_case_utils import PyFlinkTestCase
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 
 class MemoryStateBackendTests(PyFlinkTestCase):
@@ -48,20 +49,6 @@ class MemoryStateBackendTests(PyFlinkTestCase):
 
         self.assertIsNotNone(MemoryStateBackend(
             "file://var/checkpoints/", "file://var/savepoints/", 10000000, False))
-
-    def test_is_using_asynchronous_snapshots(self):
-
-        state_backend = MemoryStateBackend()
-
-        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
-
-        state_backend = MemoryStateBackend(using_asynchronous_snapshots=True)
-
-        self.assertTrue(state_backend.is_using_asynchronous_snapshots())
-
-        state_backend = MemoryStateBackend(using_asynchronous_snapshots=False)
-
-        self.assertFalse(state_backend.is_using_asynchronous_snapshots())
 
     def test_get_max_state_size(self):
 
@@ -96,7 +83,7 @@ class FsStateBackendTests(PyFlinkTestCase):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
 
-        self.assertEqual(state_backend.get_min_file_size_threshold(), 1024)
+        self.assertEqual(state_backend.get_min_file_size_threshold(), 20480)
 
         state_backend = FsStateBackend("file://var/checkpoints/", file_state_size_threshold=2048)
 
@@ -132,27 +119,26 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
         self.assertEqual(checkpoint_backend.get_checkpoint_path(), "file://var/checkpoints")
 
     def test_get_set_db_storage_paths(self):
+        if on_windows():
+            checkpoints_path = "file:/C:/var/checkpoints/"
+            storage_path = ["file:/C:/var/db_storage_dir1/",
+                            "file:/C:/var/db_storage_dir2/",
+                            "file:/C:/var/db_storage_dir3/"]
+            expected = ["C:\\var\\db_storage_dir1",
+                        "C:\\var\\db_storage_dir2",
+                        "C:\\var\\db_storage_dir3"]
+        else:
+            checkpoints_path = "file://var/checkpoints/"
+            storage_path = ["file://var/db_storage_dir1/",
+                            "file://var/db_storage_dir2/",
+                            "file://var/db_storage_dir3/"]
+            expected = ["/db_storage_dir1",
+                        "/db_storage_dir2",
+                        "/db_storage_dir3"]
 
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        state_backend.set_db_storage_paths("file://var/db_storage_dir1/",
-                                           "file://var/db_storage_dir2/",
-                                           "file://var/db_storage_dir3/")
-
-        self.assertEqual(state_backend.get_db_storage_paths(),
-                         ['/db_storage_dir1',
-                          '/db_storage_dir2',
-                          '/db_storage_dir3'])
-
-    def test_get_set_ttl_compaction_filter(self):
-
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
-
-        state_backend.enable_ttl_compaction_filter()
-
-        self.assertTrue(state_backend.is_ttl_compaction_filter_enabled())
+        state_backend = RocksDBStateBackend(checkpoints_path)
+        state_backend.set_db_storage_paths(*storage_path)
+        self.assertEqual(state_backend.get_db_storage_paths(), expected)
 
     def test_get_set_predefined_options(self):
 

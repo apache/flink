@@ -24,49 +24,53 @@ import java.util.List;
 
 /**
  * Configuration of a temporal table.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class TemporalTableEntry extends TableEntry {
 
-	private static final String TABLES_HISTORY_TABLE = "history-table";
+    private static final String TABLES_HISTORY_TABLE = "history-table";
 
-	private static final String TABLES_PRIMARY_KEY = "primary-key";
+    private static final String TABLES_PRIMARY_KEY = "primary-key";
 
-	private static final String TABLES_TIME_ATTRIBUTE = "time-attribute";
+    private static final String TABLES_TIME_ATTRIBUTE = "time-attribute";
 
-	private final String historyTable;
+    private final String historyTable;
 
-	private final List<String> primaryKeyFields;
+    private final List<String> primaryKeyFields;
 
-	private final String timeAttribute;
+    private final String timeAttribute;
 
-	TemporalTableEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
+    TemporalTableEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
 
-		historyTable = properties.getString(TABLES_HISTORY_TABLE);
-		primaryKeyFields = properties.getArray(TABLES_PRIMARY_KEY, properties::getString);
-		timeAttribute = properties.getString(TABLES_TIME_ATTRIBUTE);
-	}
+        historyTable = properties.getString(TABLES_HISTORY_TABLE);
+        primaryKeyFields = properties.getArray(TABLES_PRIMARY_KEY, properties::getString);
+        timeAttribute = properties.getString(TABLES_TIME_ATTRIBUTE);
+    }
 
-	public String getHistoryTable() {
-		return historyTable;
-	}
+    public String getHistoryTable() {
+        return historyTable;
+    }
 
-	public List<String> getPrimaryKeyFields() {
-		return primaryKeyFields;
-	}
+    public List<String> getPrimaryKeyFields() {
+        return primaryKeyFields;
+    }
 
-	public String getTimeAttribute() {
-		return timeAttribute;
-	}
+    public String getTimeAttribute() {
+        return timeAttribute;
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(TABLES_HISTORY_TABLE, false, 1);
-		properties.validateArray(
-			TABLES_PRIMARY_KEY,
-			(key) -> properties.validateString(key, false, 1),
-			1,
-			1); // currently, composite primary keys are not supported
-		properties.validateString(TABLES_TIME_ATTRIBUTE, false, 1);
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        properties.validateString(TABLES_HISTORY_TABLE, false, 1);
+        properties.validateArray(
+                TABLES_PRIMARY_KEY,
+                (key) -> properties.validateString(key, false, 1),
+                1,
+                1); // currently, composite primary keys are not supported
+        properties.validateString(TABLES_TIME_ATTRIBUTE, false, 1);
+    }
 }

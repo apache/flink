@@ -24,7 +24,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.CRow
@@ -66,13 +66,11 @@ class DataStreamUnion(
     s"Union All(union: (${schema.fieldNames.mkString(", ")}))"
   }
 
-  override def translateToPlan(
-      planner: StreamPlanner,
-      queryConfig: StreamQueryConfig): DataStream[CRow] = {
+  override def translateToPlan(planner: StreamPlanner): DataStream[CRow] = {
 
     getInputs
       .asScala
-      .map(_.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig))
+      .map(_.asInstanceOf[DataStreamRel].translateToPlan(planner))
       .reduce((dataSetLeft, dataSetRight) => dataSetLeft.union(dataSetRight))
   }
 

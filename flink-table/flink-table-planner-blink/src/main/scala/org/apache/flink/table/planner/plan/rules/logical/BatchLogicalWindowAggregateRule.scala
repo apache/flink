@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
-  * with windowing expression to [[LogicalWindowAggregate]] for batch.
+  * with windowing expression to
+ * [[org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate]]
+ * for batch.
   */
 class BatchLogicalWindowAggregateRule
   extends LogicalWindowAggregateRuleBase("BatchLogicalWindowAggregateRule") {
@@ -47,34 +49,31 @@ class BatchLogicalWindowAggregateRule
   override private[table] def getOutAggregateGroupExpression(
       rexBuilder: RexBuilder,
       windowExpression: RexCall): RexNode = {
-
-    val literalType = windowExpression.getOperands.get(0).getType
-    rexBuilder.makeZeroLiteral(literalType)
+    // Create a literal with normal SqlTypeName.TIMESTAMP
+    // in case we reference a rowtime field.
+    rexBuilder.makeLiteral(
+      0L,
+      rexBuilder.getTypeFactory.createSqlType(
+        SqlTypeName.TIMESTAMP, windowExpression.getType.getPrecision),
+      true)
   }
 
   private[table] override def getTimeFieldReference(
       operand: RexNode,
-      windowExprIdx: Int,
+      timeAttributeIndex: Int,
       rowType: RelDataType): FieldReferenceExpression = {
-    operand match {
-      // match TUMBLE_ROWTIME and TUMBLE_PROCTIME
-      case c: RexCall if c.getOperands.size() == 1 &&
-        FlinkTypeFactory.isTimeIndicatorType(c.getType) =>
-        new FieldReferenceExpression(
-          rowType.getFieldList.get(windowExprIdx).getName,
-          fromLogicalTypeToDataType(toLogicalType(c.getType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
-      case ref: RexInputRef =>
-        // resolve field name of window attribute
-        val fieldName = rowType.getFieldList.get(ref.getIndex).getName
-        val fieldType = rowType.getFieldList.get(ref.getIndex).getType
-        new FieldReferenceExpression(
-          fieldName,
-          fromLogicalTypeToDataType(toLogicalType(fieldType)),
-          0, // only one input, should always be 0
-          windowExprIdx)
+    if (FlinkTypeFactory.isProctimeIndicatorType(operand.getType)) {
+      throw new ValidationException("Window can not be defined over "
+        + "a proctime attribute column for batch mode")
     }
+
+    val fieldName = rowType.getFieldList.get(timeAttributeIndex).getName
+    val fieldType = rowType.getFieldList.get(timeAttributeIndex).getType
+    new FieldReferenceExpression(
+      fieldName,
+      fromLogicalTypeToDataType(toLogicalType(fieldType)),
+      0,
+      timeAttributeIndex)
   }
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =

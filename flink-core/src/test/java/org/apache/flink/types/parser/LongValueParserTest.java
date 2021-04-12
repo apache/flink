@@ -16,51 +16,74 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.LongValue;
 
-
 public class LongValueParserTest extends ParserTestBase<LongValue> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE),
-			String.valueOf(Long.MAX_VALUE), String.valueOf(Long.MIN_VALUE), "7656", "1239"
-		};
-	}
-	
-	@Override
-	public LongValue[] getValidTestResults() {
-		return new LongValue[] {
-			new LongValue(0L), new LongValue(1L), new LongValue(576L), new LongValue(-877678L),
-			new LongValue((long) Integer.MAX_VALUE), new LongValue((long) Integer.MIN_VALUE),
-			new LongValue(Long.MAX_VALUE), new LongValue(Long.MIN_VALUE), new LongValue(7656L), new LongValue(1239L)
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "0",
+            "1",
+            "576",
+            "-877678",
+            String.valueOf(Integer.MAX_VALUE),
+            String.valueOf(Integer.MIN_VALUE),
+            String.valueOf(Long.MAX_VALUE),
+            String.valueOf(Long.MIN_VALUE),
+            "7656",
+            "1239"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"a", "1569a86", "-57-6", "7-877678", String.valueOf(Long.MAX_VALUE) + "0", String.valueOf(Long.MIN_VALUE) + "0",
-			"9223372036854775808", "-9223372036854775809", " 1", "2 ", " ", "\t"
-		};
-	}
+    @Override
+    public LongValue[] getValidTestResults() {
+        return new LongValue[] {
+            new LongValue(0L),
+            new LongValue(1L),
+            new LongValue(576L),
+            new LongValue(-877678L),
+            new LongValue((long) Integer.MAX_VALUE),
+            new LongValue((long) Integer.MIN_VALUE),
+            new LongValue(Long.MAX_VALUE),
+            new LongValue(Long.MIN_VALUE),
+            new LongValue(7656L),
+            new LongValue(1239L)
+        };
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {
+            "a",
+            "1569a86",
+            "-57-6",
+            "7-877678",
+            String.valueOf(Long.MAX_VALUE) + "0",
+            String.valueOf(Long.MIN_VALUE) + "0",
+            "9223372036854775808",
+            "-9223372036854775809",
+            " 1",
+            "2 ",
+            " ",
+            "\t"
+        };
+    }
 
-	@Override
-	public FieldParser<LongValue> getParser() {
-		return new LongValueParser();
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public Class<LongValue> getTypeClass() {
-		return LongValue.class;
-	}
+    @Override
+    public FieldParser<LongValue> getParser() {
+        return new LongValueParser();
+    }
+
+    @Override
+    public Class<LongValue> getTypeClass() {
+        return LongValue.class;
+    }
 }

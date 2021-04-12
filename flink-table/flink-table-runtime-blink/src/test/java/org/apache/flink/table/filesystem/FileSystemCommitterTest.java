@@ -32,127 +32,120 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Optional;
 
-/**
- * Test for {@link FileSystemCommitter}.
- */
+/** Test for {@link FileSystemCommitter}. */
 public class FileSystemCommitterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	private File tmpFile;
-	private File outputFile;
+    private File tmpFile;
+    private File outputFile;
 
-	private Path tmpPath;
+    private Path tmpPath;
 
-	private FileSystemFactory fileSystemFactory = FileSystem::get;
+    private FileSystemFactory fileSystemFactory = FileSystem::get;
 
-	private TableMetaStoreFactory metaStoreFactory;
+    private TableMetaStoreFactory metaStoreFactory;
 
-	@Before
-	public void before() throws IOException {
-		tmpFile = TEMP_FOLDER.newFolder();
-		outputFile = TEMP_FOLDER.newFolder();
+    @Before
+    public void before() throws IOException {
+        tmpFile = TEMP_FOLDER.newFolder();
+        outputFile = TEMP_FOLDER.newFolder();
 
-		tmpPath = new Path(tmpFile.getPath());
-		Path outputPath = new Path(outputFile.getPath());
-		metaStoreFactory = new TestMetaStoreFactory(outputPath);
-	}
+        tmpPath = new Path(tmpFile.getPath());
+        Path outputPath = new Path(outputFile.getPath());
+        metaStoreFactory = new TestMetaStoreFactory(outputPath);
+    }
 
-	@SuppressWarnings("ResultOfMethodCallIgnored")
-	private void createFile(String path, String... files) throws IOException {
-		File p1 = new File(tmpFile, path);
-		p1.mkdirs();
-		for (String file: files) {
-			new File(p1, file).createNewFile();
-		}
-	}
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void createFile(String path, String... files) throws IOException {
+        File p1 = new File(tmpFile, path);
+        p1.mkdirs();
+        for (String file : files) {
+            new File(p1, file).createNewFile();
+        }
+    }
 
-	@Test
-	public void testPartition() throws Exception {
-		FileSystemCommitter committer = new FileSystemCommitter(
-				fileSystemFactory, metaStoreFactory, true, tmpPath, 2);
+    @Test
+    public void testPartition() throws Exception {
+        FileSystemCommitter committer =
+                new FileSystemCommitter(fileSystemFactory, metaStoreFactory, true, tmpPath, 2);
 
-		createFile("cp-1/task-1/p1=0/p2=0/", "f1", "f2");
-		createFile("cp-1/task-2/p1=0/p2=0/", "f3");
-		createFile("cp-1/task-2/p1=0/p2=1/", "f4");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f4").exists());
+        createFile("cp-1/task-1/p1=0/p2=0/", "f1", "f2");
+        createFile("cp-1/task-2/p1=0/p2=0/", "f3");
+        createFile("cp-1/task-2/p1=0/p2=1/", "f4");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f4").exists());
 
-		createFile("cp-1/task-2/p1=0/p2=1/", "f5");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
+        createFile("cp-1/task-2/p1=0/p2=1/", "f5");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
 
-		committer = new FileSystemCommitter(
-				fileSystemFactory, metaStoreFactory, false, tmpPath, 2);
-		createFile("cp-1/task-2/p1=0/p2=1/", "f6");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
-		Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f6").exists());
-	}
+        committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 2);
+        createFile("cp-1/task-2/p1=0/p2=1/", "f6");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
+        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f6").exists());
+    }
 
-	@Test
-	public void testNotPartition() throws Exception {
-		FileSystemCommitter committer = new FileSystemCommitter(
-				fileSystemFactory, metaStoreFactory, true, tmpPath, 0);
+    @Test
+    public void testNotPartition() throws Exception {
+        FileSystemCommitter committer =
+                new FileSystemCommitter(fileSystemFactory, metaStoreFactory, true, tmpPath, 0);
 
-		createFile("cp-1/task-1/", "f1", "f2");
-		createFile("cp-1/task-2/", "f3");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "f1").exists());
-		Assert.assertTrue(new File(outputFile, "f2").exists());
-		Assert.assertTrue(new File(outputFile, "f3").exists());
+        createFile("cp-1/task-1/", "f1", "f2");
+        createFile("cp-1/task-2/", "f3");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "f1").exists());
+        Assert.assertTrue(new File(outputFile, "f2").exists());
+        Assert.assertTrue(new File(outputFile, "f3").exists());
 
-		createFile("cp-1/task-2/", "f4");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "f4").exists());
+        createFile("cp-1/task-2/", "f4");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "f4").exists());
 
-		committer = new FileSystemCommitter(
-				fileSystemFactory, metaStoreFactory, false, tmpPath, 0);
-		createFile("cp-1/task-2/", "f5");
-		committer.commitUpToCheckpoint(1);
-		Assert.assertTrue(new File(outputFile, "f4").exists());
-		Assert.assertTrue(new File(outputFile, "f5").exists());
-	}
+        committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 0);
+        createFile("cp-1/task-2/", "f5");
+        committer.commitUpToCheckpoint(1);
+        Assert.assertTrue(new File(outputFile, "f4").exists());
+        Assert.assertTrue(new File(outputFile, "f5").exists());
+    }
 
-	static class TestMetaStoreFactory implements TableMetaStoreFactory {
+    static class TestMetaStoreFactory implements TableMetaStoreFactory {
 
-		private final Path outputPath;
+        private final Path outputPath;
 
-		TestMetaStoreFactory(Path outputPath) {
-			this.outputPath = outputPath;
-		}
+        TestMetaStoreFactory(Path outputPath) {
+            this.outputPath = outputPath;
+        }
 
-		@Override
-		public TableMetaStore createTableMetaStore() {
-			return new TableMetaStore() {
+        @Override
+        public TableMetaStore createTableMetaStore() {
+            return new TableMetaStore() {
 
-				@Override
-				public Path getLocationPath() {
-					return outputPath;
-				}
+                @Override
+                public Path getLocationPath() {
+                    return outputPath;
+                }
 
-				@Override
-				public Optional<Path> getPartition(
-						LinkedHashMap<String, String> partSpec) {
-					return Optional.empty();
-				}
+                @Override
+                public Optional<Path> getPartition(LinkedHashMap<String, String> partSpec) {
+                    return Optional.empty();
+                }
 
-				@Override
-				public void createPartition(LinkedHashMap<String, String> partSpec,
-						Path path) {
-				}
+                @Override
+                public void createOrAlterPartition(
+                        LinkedHashMap<String, String> partitionSpec, Path partitionPath)
+                        throws Exception {}
 
-				@Override
-				public void close() {
-				}
-			};
-		}
-	}
+                @Override
+                public void close() {}
+            };
+        }
+    }
 }

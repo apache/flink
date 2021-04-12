@@ -30,90 +30,82 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Testing job for {@link org.apache.flink.runtime.jobmaster.JobMaster} failover.
- * Covering stream case that have a infinite source and a sink, scheduling by
- * EAGER mode, with PIPELINED edges.
+ * Testing job for {@link org.apache.flink.runtime.jobmaster.JobMaster} failover. Covering stream
+ * case that have a infinite source and a sink, scheduling by EAGER mode, with PIPELINED edges.
  */
 public class YarnTestJob {
 
-	public static JobGraph stoppableJob(final StopJobSignal stopJobSignal) {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static JobGraph stoppableJob(final StopJobSignal stopJobSignal) {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.addSource(new InfiniteSourceFunction(stopJobSignal))
-			.setParallelism(2)
-			.shuffle()
-			.addSink(new DiscardingSink<>())
-			.setParallelism(2);
+        env.addSource(new InfiniteSourceFunction(stopJobSignal))
+                .setParallelism(2)
+                .shuffle()
+                .addSink(new DiscardingSink<>())
+                .setParallelism(2);
 
-		return env.getStreamGraph().getJobGraph();
-	}
+        return env.getStreamGraph().getJobGraph();
+    }
 
-	/**
-	 * Helper class to signal between multiple processes that a job should stop.
-	 */
-	public static class StopJobSignal implements Serializable {
+    /** Helper class to signal between multiple processes that a job should stop. */
+    public static class StopJobSignal implements Serializable {
 
-		private final String stopJobMarkerFile;
+        private final String stopJobMarkerFile;
 
-		public static StopJobSignal usingMarkerFile(final Path stopJobMarkerFile) {
-			return new StopJobSignal(stopJobMarkerFile.toString());
-		}
+        public static StopJobSignal usingMarkerFile(final Path stopJobMarkerFile) {
+            return new StopJobSignal(stopJobMarkerFile.toString());
+        }
 
-		private StopJobSignal(final String stopJobMarkerFile) {
-			this.stopJobMarkerFile = stopJobMarkerFile;
-		}
+        private StopJobSignal(final String stopJobMarkerFile) {
+            this.stopJobMarkerFile = stopJobMarkerFile;
+        }
 
-		/**
-		 * Signals that the job should stop.
-		 */
-		public void signal() {
-			try {
-				Files.delete(Paths.get(stopJobMarkerFile));
-			} catch (final IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
+        /** Signals that the job should stop. */
+        public void signal() {
+            try {
+                Files.delete(Paths.get(stopJobMarkerFile));
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-		/**
-		 * True if job should stop.
-		 */
-		public boolean isSignaled() {
-			return !Files.exists(Paths.get(stopJobMarkerFile));
-		}
+        /** True if job should stop. */
+        public boolean isSignaled() {
+            return !Files.exists(Paths.get(stopJobMarkerFile));
+        }
+    }
 
-	}
+    // *************************************************************************
+    //     USER FUNCTIONS
+    // *************************************************************************
 
-	// *************************************************************************
-	//     USER FUNCTIONS
-	// *************************************************************************
+    private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer> {
 
-	private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer> {
+        private static final long serialVersionUID = -8758033916372648233L;
 
-		private static final long serialVersionUID = -8758033916372648233L;
+        private boolean running;
 
-		private boolean running;
+        private final StopJobSignal stopJobSignal;
 
-		private final StopJobSignal stopJobSignal;
+        InfiniteSourceFunction(final StopJobSignal stopJobSignal) {
+            this.running = true;
+            this.stopJobSignal = stopJobSignal;
+        }
 
-		InfiniteSourceFunction(final StopJobSignal stopJobSignal) {
-			this.running = true;
-			this.stopJobSignal = stopJobSignal;
-		}
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            while (running && !stopJobSignal.isSignaled()) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(0);
+                }
 
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			while (running && !stopJobSignal.isSignaled()) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(0);
-				}
+                Thread.sleep(5L);
+            }
+        }
 
-				Thread.sleep(5L);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
 }

@@ -30,142 +30,145 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 @SuppressWarnings("ForLoopReplaceableByForEach")
-final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>>
-		implements TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<ArrayList<T>> {
+public final class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>>
+        implements TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<ArrayList<T>> {
 
-	private static final long serialVersionUID = 1119562170939152304L;
+    private static final long serialVersionUID = 1119562170939152304L;
 
-	private final TypeSerializer<T> elementSerializer;
+    private final TypeSerializer<T> elementSerializer;
 
-	public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
-		this.elementSerializer = elementSerializer;
-	}
+    public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
+        this.elementSerializer = elementSerializer;
+    }
 
-	public TypeSerializer<T> getElementSerializer() {
-		return elementSerializer;
-	}
+    public TypeSerializer<T> getElementSerializer() {
+        return elementSerializer;
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<ArrayList<T>> duplicate() {
-		TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-		return duplicateElement == elementSerializer ? this : new ArrayListSerializer<T>(duplicateElement);
-	}
+    @Override
+    public TypeSerializer<ArrayList<T>> duplicate() {
+        TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
+        return duplicateElement == elementSerializer
+                ? this
+                : new ArrayListSerializer<T>(duplicateElement);
+    }
 
-	@Override
-	public ArrayList<T> createInstance() {
-		return new ArrayList<>();
-	}
+    @Override
+    public ArrayList<T> createInstance() {
+        return new ArrayList<>();
+    }
 
-	@Override
-	public ArrayList<T> copy(ArrayList<T> from) {
-		if (elementSerializer.isImmutableType()) {
-			// fast track using memcopy for immutable types
-			return new ArrayList<>(from);
-		} else {
-			// element-wise deep copy for mutable types
-			ArrayList<T> newList = new ArrayList<>(from.size());
-			for (int i = 0; i < from.size(); i++) {
-				newList.add(elementSerializer.copy(from.get(i)));
-			}
-			return newList;
-		}
-	}
+    @Override
+    public ArrayList<T> copy(ArrayList<T> from) {
+        if (elementSerializer.isImmutableType()) {
+            // fast track using memcopy for immutable types
+            return new ArrayList<>(from);
+        } else {
+            // element-wise deep copy for mutable types
+            ArrayList<T> newList = new ArrayList<>(from.size());
+            for (int i = 0; i < from.size(); i++) {
+                newList.add(elementSerializer.copy(from.get(i)));
+            }
+            return newList;
+        }
+    }
 
-	@Override
-	public ArrayList<T> copy(ArrayList<T> from, ArrayList<T> reuse) {
-		return copy(from);
-	}
+    @Override
+    public ArrayList<T> copy(ArrayList<T> from, ArrayList<T> reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public int getLength() {
-		return -1; // var length
-	}
+    @Override
+    public int getLength() {
+        return -1; // var length
+    }
 
-	@Override
-	public void serialize(ArrayList<T> list, DataOutputView target) throws IOException {
-		final int size = list.size();
-		target.writeInt(size);
-		for (int i = 0; i < size; i++) {
-			elementSerializer.serialize(list.get(i), target);
-		}
-	}
+    @Override
+    public void serialize(ArrayList<T> list, DataOutputView target) throws IOException {
+        final int size = list.size();
+        target.writeInt(size);
+        for (int i = 0; i < size; i++) {
+            elementSerializer.serialize(list.get(i), target);
+        }
+    }
 
-	@Override
-	public ArrayList<T> deserialize(DataInputView source) throws IOException {
-		final int size = source.readInt();
-		final ArrayList<T> list = new ArrayList<>(size);
-		for (int i = 0; i < size; i++) {
-			list.add(elementSerializer.deserialize(source));
-		}
-		return list;
-	}
+    @Override
+    public ArrayList<T> deserialize(DataInputView source) throws IOException {
+        final int size = source.readInt();
+        final ArrayList<T> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(elementSerializer.deserialize(source));
+        }
+        return list;
+    }
 
-	@Override
-	public ArrayList<T> deserialize(ArrayList<T> reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public ArrayList<T> deserialize(ArrayList<T> reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		// copy number of elements
-		final int num = source.readInt();
-		target.writeInt(num);
-		for (int i = 0; i < num; i++) {
-			elementSerializer.copy(source, target);
-		}
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        // copy number of elements
+        final int num = source.readInt();
+        target.writeInt(num);
+        for (int i = 0; i < num; i++) {
+            elementSerializer.copy(source, target);
+        }
+    }
 
-	// --------------------------------------------------------------------
+    // --------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj == this ||
-				(obj != null && obj.getClass() == getClass() &&
-						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this
+                || (obj != null
+                        && obj.getClass() == getClass()
+                        && elementSerializer.equals(
+                                ((ArrayListSerializer<?>) obj).elementSerializer));
+    }
 
-	@Override
-	public int hashCode() {
-		return elementSerializer.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return elementSerializer.hashCode();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer snapshots
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Serializer snapshots
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
-		return new ArrayListSerializerSnapshot<>(this);
-	}
+    @Override
+    public TypeSerializerSnapshot<ArrayList<T>> snapshotConfiguration() {
+        return new ArrayListSerializerSnapshot<>(this);
+    }
 
-	/**
-	 * We need to implement this method as a {@link TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer}
-	 * because this serializer was previously returning a shared {@link CollectionSerializerConfigSnapshot}
-	 * as its snapshot.
-	 *
-	 * <p>When the {@link CollectionSerializerConfigSnapshot} is restored, it is incapable of redirecting
-	 * the compatibility check to {@link ArrayListSerializerSnapshot}, so we do it here.
-	 */
-	@Override
-	public TypeSerializerSchemaCompatibility<ArrayList<T>> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-			TypeSerializerConfigSnapshot<ArrayList<T>> deprecatedConfigSnapshot) {
+    /**
+     * We need to implement this method as a {@link
+     * TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer} because this serializer was
+     * previously returning a shared {@link CollectionSerializerConfigSnapshot} as its snapshot.
+     *
+     * <p>When the {@link CollectionSerializerConfigSnapshot} is restored, it is incapable of
+     * redirecting the compatibility check to {@link ArrayListSerializerSnapshot}, so we do it here.
+     */
+    @Override
+    public TypeSerializerSchemaCompatibility<ArrayList<T>>
+            resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+                    TypeSerializerConfigSnapshot<ArrayList<T>> deprecatedConfigSnapshot) {
 
-		if (deprecatedConfigSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			CollectionSerializerConfigSnapshot<ArrayList<T>, T> castedLegacySnapshot =
-				(CollectionSerializerConfigSnapshot<ArrayList<T>, T>) deprecatedConfigSnapshot;
+        if (deprecatedConfigSnapshot instanceof CollectionSerializerConfigSnapshot) {
+            CollectionSerializerConfigSnapshot<ArrayList<T>, T> castedLegacySnapshot =
+                    (CollectionSerializerConfigSnapshot<ArrayList<T>, T>) deprecatedConfigSnapshot;
 
-			ArrayListSerializerSnapshot<T> newSnapshot = new ArrayListSerializerSnapshot<>();
-			return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-				this,
-				newSnapshot,
-				castedLegacySnapshot.getNestedSerializerSnapshots());
-		}
+            ArrayListSerializerSnapshot<T> newSnapshot = new ArrayListSerializerSnapshot<>();
+            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+                    this, newSnapshot, castedLegacySnapshot.getNestedSerializerSnapshots());
+        }
 
-		return TypeSerializerSchemaCompatibility.incompatible();
-	}
+        return TypeSerializerSchemaCompatibility.incompatible();
+    }
 }

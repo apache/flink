@@ -20,155 +20,226 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A wrapper of result partition writer for handling the logic of consumable notification.
+ * A utility to wrap a {@link ResultPartitionWriter} for that sends a "consumable" notification on
+ * the first record.
  *
- * <p>Before a consuming task can request the result, it has to be deployed. The time of deployment
- * depends on the PIPELINED vs. BLOCKING characteristic of the result partition. With pipelined
- * results, receivers are deployed as soon as the first buffer is added to the result partition.
- * With blocking results on the other hand, receivers are deployed after the partition is finished.
+ * <p>Note: This is only needed for lazy batch scheduling and thus an artifact that can be removed
+ * once we drop lazy-from-sources scheduling.
  */
-public class ConsumableNotifyingResultPartitionWriterDecorator implements ResultPartitionWriter {
+public class ConsumableNotifyingResultPartitionWriterDecorator {
 
-	private final TaskActions taskActions;
+    /**
+     * Optionally decorate the ResultPartitionWriter to call {@link
+     * ResultPartitionConsumableNotifier#notifyPartitionConsumable(JobID, ResultPartitionID,
+     * TaskActions)} on the first record, iff {@link
+     * ResultPartitionDeploymentDescriptor#notifyPartitionDataAvailable()} is true.
+     */
+    public static ResultPartitionWriter[] decorate(
+            Collection<ResultPartitionDeploymentDescriptor> descs,
+            ResultPartitionWriter[] partitionWriters,
+            TaskActions taskActions,
+            JobID jobId,
+            ResultPartitionConsumableNotifier notifier) {
 
-	private final JobID jobId;
+        ResultPartitionWriter[] consumableNotifyingPartitionWriters =
+                new ResultPartitionWriter[partitionWriters.length];
+        int counter = 0;
+        for (ResultPartitionDeploymentDescriptor desc : descs) {
+            if (desc.notifyPartitionDataAvailable() && desc.getPartitionType().isPipelined()) {
+                consumableNotifyingPartitionWriters[counter] =
+                        new ConsumableNotifyingResultPartitionWriter(
+                                taskActions, jobId, partitionWriters[counter], notifier);
+            } else {
+                consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
+            }
+            counter++;
+        }
+        return consumableNotifyingPartitionWriters;
+    }
 
-	private final ResultPartitionWriter partitionWriter;
+    /** This is a utility class not meant to be instantiated. */
+    private ConsumableNotifyingResultPartitionWriterDecorator() {}
 
-	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
+    // ------------------------------------------------------------------------
+    //  wrapper class to send notification
+    // ------------------------------------------------------------------------
 
-	private boolean hasNotifiedPipelinedConsumers;
+    private static final class ConsumableNotifyingResultPartitionWriter
+            implements ResultPartitionWriter, CheckpointedResultPartition {
 
-	public ConsumableNotifyingResultPartitionWriterDecorator(
-			TaskActions taskActions,
-			JobID jobId,
-			ResultPartitionWriter partitionWriter,
-			ResultPartitionConsumableNotifier partitionConsumableNotifier) {
-		this.taskActions = checkNotNull(taskActions);
-		this.jobId = checkNotNull(jobId);
-		this.partitionWriter = checkNotNull(partitionWriter);
-		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
-	}
+        private final TaskActions taskActions;
 
-	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		return partitionWriter.getBufferBuilder();
-	}
+        private final JobID jobId;
 
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return partitionWriter.getPartitionId();
-	}
+        private final ResultPartitionWriter partitionWriter;
 
-	@Override
-	public int getNumberOfSubpartitions() {
-		return partitionWriter.getNumberOfSubpartitions();
-	}
+        private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
-	@Override
-	public int getNumTargetKeyGroups() {
-		return partitionWriter.getNumTargetKeyGroups();
-	}
+        private boolean hasNotifiedPipelinedConsumers;
 
-	@Override
-	public void setup() throws IOException {
-		partitionWriter.setup();
-	}
+        public ConsumableNotifyingResultPartitionWriter(
+                TaskActions taskActions,
+                JobID jobId,
+                ResultPartitionWriter partitionWriter,
+                ResultPartitionConsumableNotifier partitionConsumableNotifier) {
+            this.taskActions = checkNotNull(taskActions);
+            this.jobId = checkNotNull(jobId);
+            this.partitionWriter = checkNotNull(partitionWriter);
+            this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
+        }
 
-	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex);
-		if (success) {
-			notifyPipelinedConsumers();
-		}
+        @Override
+        public ResultPartitionID getPartitionId() {
+            return partitionWriter.getPartitionId();
+        }
 
-		return success;
-	}
+        @Override
+        public int getNumberOfSubpartitions() {
+            return partitionWriter.getNumberOfSubpartitions();
+        }
 
-	@Override
-	public void flushAll() {
-		partitionWriter.flushAll();
-	}
+        @Override
+        public int getNumTargetKeyGroups() {
+            return partitionWriter.getNumTargetKeyGroups();
+        }
 
-	@Override
-	public void flush(int subpartitionIndex) {
-		partitionWriter.flush(subpartitionIndex);
-	}
+        @Override
+        public void setup() throws IOException {
+            partitionWriter.setup();
+        }
 
-	@Override
-	public void finish() throws IOException {
-		partitionWriter.finish();
+        @Override
+        public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+            partitionWriter.emitRecord(record, targetSubpartition);
 
-		notifyPipelinedConsumers();
-	}
+            notifyPipelinedConsumers();
+        }
 
-	@Override
-	public void fail(Throwable throwable) {
-		partitionWriter.fail(throwable);
-	}
+        @Override
+        public void broadcastRecord(ByteBuffer record) throws IOException {
+            partitionWriter.broadcastRecord(record);
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return partitionWriter.getAvailableFuture();
-	}
+            notifyPipelinedConsumers();
+        }
 
-	@Override
-	public void close() throws Exception {
-		partitionWriter.close();
-	}
+        @Override
+        public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
+                throws IOException {
+            partitionWriter.broadcastEvent(event, isPriorityEvent);
 
-	/**
-	 * Notifies pipelined consumers of this result partition once.
-	 *
-	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
-	 */
-	private void notifyPipelinedConsumers() {
-		if (!hasNotifiedPipelinedConsumers) {
-			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionWriter.getPartitionId(), taskActions);
+            notifyPipelinedConsumers();
+        }
 
-			hasNotifiedPipelinedConsumers = true;
-		}
-	}
+        @Override
+        public void setMetricGroup(TaskIOMetricGroup metrics) {
+            partitionWriter.setMetricGroup(metrics);
+        }
 
-	// ------------------------------------------------------------------------
-	//  Factory
-	// ------------------------------------------------------------------------
+        @Override
+        public ResultSubpartitionView createSubpartitionView(
+                int index, BufferAvailabilityListener availabilityListener) throws IOException {
+            return partitionWriter.createSubpartitionView(index, availabilityListener);
+        }
 
-	public static ResultPartitionWriter[] decorate(
-			Collection<ResultPartitionDeploymentDescriptor> descs,
-			ResultPartitionWriter[] partitionWriters,
-			TaskActions taskActions,
-			JobID jobId,
-			ResultPartitionConsumableNotifier notifier) {
+        @Override
+        public void flushAll() {
+            partitionWriter.flushAll();
+        }
 
-		ResultPartitionWriter[] consumableNotifyingPartitionWriters = new ResultPartitionWriter[partitionWriters.length];
-		int counter = 0;
-		for (ResultPartitionDeploymentDescriptor desc : descs) {
-			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
-				consumableNotifyingPartitionWriters[counter] = new ConsumableNotifyingResultPartitionWriterDecorator(
-					taskActions,
-					jobId,
-					partitionWriters[counter],
-					notifier);
-			} else {
-				consumableNotifyingPartitionWriters[counter] = partitionWriters[counter];
-			}
-			counter++;
-		}
-		return consumableNotifyingPartitionWriters;
-	}
+        @Override
+        public void flush(int subpartitionIndex) {
+            partitionWriter.flush(subpartitionIndex);
+        }
+
+        @Override
+        public void finish() throws IOException {
+            partitionWriter.finish();
+
+            notifyPipelinedConsumers();
+        }
+
+        @Override
+        public boolean isFinished() {
+            return partitionWriter.isFinished();
+        }
+
+        @Override
+        public void release(Throwable cause) {
+            partitionWriter.release(cause);
+        }
+
+        @Override
+        public boolean isReleased() {
+            return partitionWriter.isReleased();
+        }
+
+        @Override
+        public void fail(Throwable throwable) {
+            partitionWriter.fail(throwable);
+        }
+
+        @Override
+        public CompletableFuture<?> getAvailableFuture() {
+            return partitionWriter.getAvailableFuture();
+        }
+
+        @Override
+        public void close() throws Exception {
+            partitionWriter.close();
+        }
+
+        @Override
+        public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion)
+                throws IOException {
+            getCheckpointablePartition().finishReadRecoveredState(notifyAndBlockOnCompletion);
+        }
+
+        /**
+         * Notifies pipelined consumers of this result partition once.
+         *
+         * <p>For PIPELINED {@link
+         * org.apache.flink.runtime.io.network.partition.ResultPartitionType}s, this will trigger
+         * the deployment of consuming tasks after the first buffer has been added.
+         */
+        private void notifyPipelinedConsumers() {
+            if (!hasNotifiedPipelinedConsumers && !partitionWriter.isReleased()) {
+                partitionConsumableNotifier.notifyPartitionConsumable(
+                        jobId, partitionWriter.getPartitionId(), taskActions);
+
+                hasNotifiedPipelinedConsumers = true;
+            }
+        }
+
+        @Override
+        public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
+            return getCheckpointablePartition().getCheckpointedSubpartition(subpartitionIndex);
+        }
+
+        private CheckpointedResultPartition getCheckpointablePartition() {
+            if (partitionWriter instanceof CheckpointedResultPartition) {
+                return (CheckpointedResultPartition) partitionWriter;
+            } else {
+                throw new IllegalStateException(
+                        "This partition is not checkpointable: " + partitionWriter);
+            }
+        }
+    }
 }

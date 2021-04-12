@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{primitiveDefaultValue, primitiveTypeTermForType}
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.LogicalType
 
@@ -44,6 +44,7 @@ class IfCallGen() extends CallGenerator {
     }
 
     val resultTypeTerm = primitiveTypeTermForType(returnType)
+    val resultDefault = primitiveDefaultValue(returnType)
     val Seq(resultTerm, nullTerm) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),
       ("boolean", "isNull"))
@@ -51,13 +52,18 @@ class IfCallGen() extends CallGenerator {
     val resultCode =
       s"""
          |${operands.head.code}
+         |$resultTerm = $resultDefault;
          |if (${operands.head.resultTerm}) {
          |  ${operands(1).code}
-         |  $resultTerm = $castedResultTerm1;
+         |  if (!${operands(1).nullTerm}) {
+         |    $resultTerm = $castedResultTerm1;
+         |  }
          |  $nullTerm = ${operands(1).nullTerm};
          |} else {
          |  ${operands(2).code}
-         |  $resultTerm = $castedResultTerm2;
+         |  if (!${operands(2).nullTerm}) {
+         |    $resultTerm = $castedResultTerm2;
+         |  }
          |  $nullTerm = ${operands(2).nullTerm};
          |}
        """.stripMargin

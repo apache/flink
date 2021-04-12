@@ -18,18 +18,29 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.cli.utils.TerminalUtils;
+import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.environment.TestingJobClient;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
+import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.context.DefaultContext;
+import org.apache.flink.table.client.gateway.context.SessionContext;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.jline.reader.Candidate;
@@ -39,319 +50,477 @@ import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
-/**
- * Tests for the {@link CliClient}.
- */
+/** Tests for the {@link CliClient}. */
 public class CliClientTest extends TestLogger {
 
-	private static final String INSERT_INTO_STATEMENT = "INSERT INTO MyTable SELECT * FROM MyOtherTable";
-	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
+    private static final String INSERT_INTO_STATEMENT =
+            "INSERT INTO MyTable SELECT * FROM MyOtherTable";
+    private static final String INSERT_OVERWRITE_STATEMENT =
+            "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 
-	@Test
-	public void testUpdateSubmission() {
-		verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
-	}
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testFailedUpdateSubmission() {
-		// fail at executor
-		verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
+    @Test
+    public void testUpdateSubmission() throws Exception {
+        verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
+        verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
+    }
 
-		// fail early in client
-		verifyUpdateSubmission(SELECT_STATEMENT, false, true);
-	}
+    @Test
+    public void testFailedUpdateSubmission() throws Exception {
+        // fail at executor
+        verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
+        verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
+    }
 
-	@Test
-	public void testSqlCompletion() throws IOException {
-		verifySqlCompletion("", 0, Arrays.asList("SELECT", "QUIT;", "RESET;"), Collections.emptyList());
-		verifySqlCompletion("SELEC", 5, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
-		verifySqlCompletion("SELE", 0, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
-		verifySqlCompletion("QU", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
-		verifySqlCompletion("qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
-		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
-		verifySqlCompletion("set ", 3, Collections.emptyList(), Collections.singletonList("SET"));
-		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
-	}
+    @Test
+    public void testExecuteSqlFile() throws Exception {
+        MockExecutor executor = new MockExecutor();
+        executeSqlFromContent(
+                executor,
+                String.join(
+                        ";\n",
+                        Arrays.asList(
+                                INSERT_INTO_STATEMENT, "", INSERT_OVERWRITE_STATEMENT, "\n")));
+        assertEquals(INSERT_OVERWRITE_STATEMENT, executor.receivedStatement);
+    }
 
-	@Test
-	public void testUseNonExistingDB() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useDatabase(any(), any());
-		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
-		SessionContext session = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(session);
+    @Test
+    public void testSqlCompletion() throws IOException {
+        verifySqlCompletion("", 0, Arrays.asList("CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"));
+        verifySqlCompletion("SELE", 4, Collections.emptyList());
+        verifySqlCompletion("QU", 2, Collections.singletonList("QUIT"));
+        verifySqlCompletion("qu", 2, Collections.singletonList("QUIT"));
+        verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT"));
+        verifySqlCompletion("set ", 3, Collections.emptyList());
+        verifySqlCompletion("show t ", 6, Collections.emptyList());
+        verifySqlCompletion("show ", 4, Collections.emptyList());
+        verifySqlCompletion("show modules", 12, Collections.emptyList());
+    }
 
-		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
-			cliClient.open();
-			verify(executor).useDatabase(any(), any());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
-		}
-	}
+    @Test
+    public void testHistoryFile() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
 
-	@Test
-	public void testUseNonExistingCatalog() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useCatalog(any(), any());
-		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		// don't care about the output
-		OutputStream outputStream = new OutputStream() {
-			@Override
-			public void write(int b) throws IOException {
-			}
-		};
-		CliClient cliClient = null;
-		SessionContext sessionContext = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(sessionContext);
+        InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
+        Path historyFilePath = historyTempFile();
+        try (Terminal terminal =
+                        new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
+                CliClient client =
+                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            client.executeInteractive();
+            List<String> content = Files.readAllLines(historyFilePath);
+            assertEquals(2, content.size());
+            assertTrue(content.get(0).contains("help"));
+            assertTrue(content.get(1).contains("use catalog cat"));
+        }
+    }
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
-			cliClient.open();
-			verify(executor).useCatalog(any(), any());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
-		}
-	}
+    @Test
+    public void testGetEOFinNonInteractiveMode() throws Exception {
+        final List<String> statements =
+                Arrays.asList("DESC MyOtherTable;", "SHOW TABLES"); // meet EOF
+        String content = String.join("\n", statements);
 
-	// --------------------------------------------------------------------------------------------
+        final MockExecutor mockExecutor = new MockExecutor();
 
-	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {
-		final SessionContext context = new SessionContext("test-session", new Environment());
+        executeSqlFromContent(mockExecutor, content);
+        // execute the last commands
+        assertTrue(statements.get(1).contains(mockExecutor.receivedStatement));
+    }
 
-		final MockExecutor mockExecutor = new MockExecutor();
-		String sessionId = mockExecutor.openSession(context);
-		mockExecutor.failExecution = failExecution;
+    @Test
+    public void testUnknownStatementInNonInteractiveMode() throws Exception {
+        final List<String> statements =
+                Arrays.asList(
+                        "ERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
+        String content = String.join("\n", statements);
 
-		CliClient cli = null;
-		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor);
-			if (testFailure) {
-				assertFalse(cli.submitUpdate(statement));
-			} else {
-				assertTrue(cli.submitUpdate(statement));
-				assertEquals(statement, mockExecutor.receivedStatement);
-				assertEquals(context, mockExecutor.receivedContext);
-			}
-		} finally {
-			if (cli != null) {
-				cli.close();
-			}
-		}
-	}
+        final MockExecutor mockExecutor = new MockExecutor();
 
-	private void verifySqlCompletion(String statement, int position, List<String> expectedHints, List<String> notExpectedHints) throws IOException {
-		final SessionContext context = new SessionContext("test-session", new Environment());
-		final MockExecutor mockExecutor = new MockExecutor();
-		String sessionId = mockExecutor.openSession(context);
+        executeSqlFromContent(mockExecutor, content);
+        // don't execute other commands
+        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
+    }
 
-		final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
-		final SqlMultiLineParser parser = new SqlMultiLineParser();
+    @Test
+    public void testFailedExecutionInNonInteractiveMode() throws Exception {
+        final List<String> statements =
+                Arrays.asList(
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
+        String content = String.join("\n", statements);
 
-		try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
-			final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.failExecution = true;
 
-			final ParsedLine parsedLine = parser.parse(statement, position, Parser.ParseContext.COMPLETE);
-			final List<Candidate> candidates = new ArrayList<>();
-			final List<String> results = new ArrayList<>();
-			completer.complete(reader, parsedLine, candidates);
-			candidates.forEach(item -> results.add(item.value()));
+        executeSqlFromContent(mockExecutor, content);
+        // don't execute other commands
+        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
+    }
 
-			assertTrue(results.containsAll(expectedHints));
+    @Test
+    public void testIllegalResultModeInNonInteractiveMode() throws Exception {
+        // When client executes sql file, it requires sql-client.execution.result-mode = tableau;
+        // Therefore, it will get execution error and stop executing the sql follows the illegal
+        // statement.
+        final List<String> statements =
+                Arrays.asList(
+                        "SELECT * FROM MyOtherTable;",
+                        "HELP;",
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
 
-			assertEquals(statement, mockExecutor.receivedStatement);
-			assertEquals(context, mockExecutor.receivedContext);
-			assertEquals(position, mockExecutor.receivedPosition);
-			assertTrue(results.contains("HintA"));
-			assertTrue(results.contains("Hint B"));
+        String content = String.join("\n", statements);
 
-			results.retainAll(notExpectedHints);
-			assertEquals(0, results.size());
-		}
-	}
+        final MockExecutor mockExecutor = new MockExecutor();
 
-	// --------------------------------------------------------------------------------------------
+        String output = executeSqlFromContent(mockExecutor, content);
+        assertThat(
+                output,
+                containsString(
+                        "In non-interactive mode, it only supports to use TABLEAU as value of "
+                                + "sql-client.execution.result-mode when execute query. Please add "
+                                + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file."));
+    }
 
-	private static class MockExecutor implements Executor {
+    @Test
+    public void testIllegalStatementInInitFile() throws Exception {
+        final List<String> statements =
+                Arrays.asList(
+                        "CREATE TABLE source (a int, b string) with ( 'connector' = 'values');",
+                        "INSERT INTO MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;");
 
-		public boolean failExecution;
+        String content = String.join("\n", statements);
 
-		public SessionContext receivedContext;
-		public String receivedStatement;
-		public int receivedPosition;
-		private final Map<String, SessionContext> sessionMap = new HashMap<>();
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
+        CliClient cliClient = new CliClient(sessionId, mockExecutor, historyTempFile());
 
-		@Override
-		public void start() throws SqlExecutionException {
-			// nothing to do
-		}
+        assertFalse("Should fail", cliClient.executeInitialization(content));
+    }
 
-		@Override
-		public String openSession(SessionContext session) throws SqlExecutionException {
-			String sessionId = UUID.randomUUID().toString();
-			sessionMap.put(sessionId, session);
-			return sessionId;
-		}
+    @Test(timeout = 10000)
+    public void testCancelExecutionInNonInteractiveMode() throws Exception {
+        // add "\n" with quit to trigger commit the line
+        final List<String> statements =
+                Arrays.asList(
+                        "HELP;",
+                        "CREATE TABLE tbl( -- comment\n"
+                                + "-- comment with ;\n"
+                                + "id INT,\n"
+                                + "name STRING\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ");\n",
+                        "INSERT INTO \n"
+                                + "--COMMENT ; \n"
+                                + "MyOtherTable VALUES (1, 101), (2, 102);",
+                        "DESC MyOtherTable;",
+                        "SHOW TABLES;",
+                        "QUIT;\n");
 
-		@Override
-		public void closeSession(String sessionId) throws SqlExecutionException {
+        // use table.dml-sync to keep running
+        // therefore in non-interactive mode, the last executed command is INSERT INTO
+        final int hookIndex = 2;
 
-		}
+        String content = String.join("\n", statements);
 
-		@Override
-		public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = true;
 
-		@Override
-		public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+        String sessionId = mockExecutor.openSession("test-session");
 
-		}
+        Path historyFilePath = historyTempFile();
 
-		@Override
-		public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
+        OutputStream outputStream = new ByteArrayOutputStream(256);
 
-		}
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyFilePath,
+                        null)) {
+            Thread thread =
+                    new Thread(
+                            () ->
+                                    client.executeFile(
+                                            content,
+                                            CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION));
+            thread.start();
 
-		@Override
-		public void addView(String sessionId, String name, String query) throws SqlExecutionException {
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
 
-		}
+            thread.interrupt();
 
-		@Override
-		public void removeView(String sessionId, String name) throws SqlExecutionException {
+            while (thread.isAlive()) {
+                Thread.sleep(10);
+            }
+            assertTrue(
+                    outputStream
+                            .toString()
+                            .contains("java.lang.InterruptedException: sleep interrupted"));
+        }
 
-		}
+        // read the last executed statement
+        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
+    }
 
-		@Override
-		public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+    private void verifyUpdateSubmission(
+            String statement, boolean failExecution, boolean testFailure) throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.failExecution = failExecution;
 
-		@Override
-		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+        String result = executeSqlFromContent(mockExecutor, statement);
 
-		@Override
-		public List<String> listTables(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+        if (testFailure) {
+            assertTrue(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
+        } else {
+            assertFalse(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
+            assertEquals(statement, mockExecutor.receivedStatement);
+        }
+    }
 
-		@Override
-		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+    private void verifySqlCompletion(String statement, int position, List<String> expectedHints)
+            throws IOException {
+        final MockExecutor mockExecutor = new MockExecutor();
+        String sessionId = mockExecutor.openSession("test-session");
 
-		@Override
-		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+        final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
+        final SqlMultiLineParser parser = new SqlMultiLineParser();
 
-		@Override
-		public List<String> listModules(String sessionId) throws SqlExecutionException {
-			return null;
-		}
+        try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
+            final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
 
-		@Override
-		public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
+            final ParsedLine parsedLine =
+                    parser.parse(statement, position, Parser.ParseContext.COMPLETE);
+            final List<Candidate> candidates = new ArrayList<>();
+            final List<String> results = new ArrayList<>();
+            completer.complete(reader, parsedLine, candidates);
+            candidates.forEach(item -> results.add(item.value()));
 
-		}
+            assertTrue(results.containsAll(expectedHints));
 
-		@Override
-		public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
+            assertEquals(statement, mockExecutor.receivedStatement);
+            assertEquals(position, mockExecutor.receivedPosition);
+        }
+    }
 
-		}
+    private Path historyTempFile() throws IOException {
+        return File.createTempFile("history", "tmp").toPath();
+    }
 
-		@Override
-		public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
-			return null;
-		}
+    private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
+        String sessionId = executor.openSession("test-session");
+        OutputStream outputStream = new ByteArrayOutputStream(256);
+        try (CliClient client =
+                new CliClient(
+                        TerminalUtils.createDummyTerminal(outputStream),
+                        sessionId,
+                        executor,
+                        historyTempFile(),
+                        null)) {
+            client.executeFile(content, CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
+        }
+        return outputStream.toString();
+    }
 
-		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
-			return null;
-		}
+    // --------------------------------------------------------------------------------------------
 
-		@Override
-		public List<String> completeStatement(String sessionId, String statement, int position) {
-			receivedContext = sessionMap.get(sessionId);
-			receivedStatement = statement;
-			receivedPosition = position;
-			return Arrays.asList("HintA", "Hint B");
-		}
+    private static class MockExecutor implements Executor {
 
-		@Override
-		public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
-			return null;
-		}
+        public boolean failExecution;
 
-		@Override
-		public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException {
-			return null;
-		}
+        public boolean isSync = false;
+        public boolean isAwait = false;
+        public String receivedStatement;
+        public int receivedPosition;
+        private final Map<String, SessionContext> sessionMap = new HashMap<>();
+        private final SqlParserHelper helper = new SqlParserHelper();
 
-		@Override
-		public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize) throws SqlExecutionException {
-			return null;
-		}
+        @Override
+        public void start() throws SqlExecutionException {}
 
-		@Override
-		public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-			return null;
-		}
+        @Override
+        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+            Configuration configuration = new Configuration();
+            configuration.set(TABLE_DML_SYNC, isSync);
 
-		@Override
-		public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-			// nothing to do
-		}
+            DefaultContext defaultContext =
+                    new DefaultContext(
+                            new Environment(),
+                            Collections.emptyList(),
+                            configuration,
+                            Collections.singletonList(new DefaultCLI()));
+            SessionContext context = SessionContext.create(defaultContext, sessionId);
+            sessionMap.put(sessionId, context);
+            helper.registerTables();
+            return sessionId;
+        }
 
-		@Override
-		public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
-			receivedContext = sessionMap.get(sessionId);
-			receivedStatement = statement;
-			if (failExecution) {
-				throw new SqlExecutionException("Fail execution.");
-			}
-			return new ProgramTargetDescriptor("testClusterId", "testJobId", "http://testcluster:1234");
-		}
-	}
+        @Override
+        public void closeSession(String sessionId) throws SqlExecutionException {}
+
+        @Override
+        public Map<String, String> getSessionConfigMap(String sessionId)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            return context.getReadableConfig();
+        }
+
+        @Override
+        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+
+        @Override
+        public void resetSessionProperty(String sessionId, String key)
+                throws SqlExecutionException {}
+
+        @Override
+        public void setSessionProperty(String sessionId, String key, String value)
+                throws SqlExecutionException {
+            SessionContext context = this.sessionMap.get(sessionId);
+            context.set(key, value);
+        }
+
+        @Override
+        public TableResult executeOperation(String sessionId, Operation operation)
+                throws SqlExecutionException {
+            if (failExecution) {
+                throw new SqlExecutionException("Fail execution.");
+            }
+            if (operation instanceof ModifyOperation) {
+                if (isSync) {
+                    isAwait = true;
+                    try {
+                        Thread.sleep(60_000L);
+                    } catch (InterruptedException e) {
+                        throw new SqlExecutionException("Fail to execute", e);
+                    }
+                }
+                return new TestTableResult(
+                        new TestingJobClient(),
+                        ResultKind.SUCCESS_WITH_CONTENT,
+                        ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
+                        CloseableIterator.adapterForIterator(
+                                Collections.singletonList(Row.of(-1L)).iterator()));
+            }
+            return TestTableResult.TABLE_RESULT_OK;
+        }
+
+        @Override
+        public TableResult executeModifyOperations(
+                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
+            if (failExecution) {
+                throw new SqlExecutionException("Fail execution.");
+            }
+            if (isSync) {
+                isAwait = true;
+                try {
+                    Thread.sleep(60_000L);
+                } catch (InterruptedException e) {
+                    throw new SqlExecutionException("Fail to execute", e);
+                }
+            }
+            return new TestTableResult(
+                    new TestingJobClient(),
+                    ResultKind.SUCCESS_WITH_CONTENT,
+                    ResolvedSchema.of(Column.physical("result", DataTypes.BIGINT())),
+                    CloseableIterator.adapterForIterator(
+                            Collections.singletonList(Row.of(-1L)).iterator()));
+        }
+
+        @Override
+        public Operation parseStatement(String sessionId, String statement)
+                throws SqlExecutionException {
+            receivedStatement = statement;
+
+            try {
+                return helper.getSqlParser().parse(statement).get(0);
+            } catch (Exception ex) {
+                throw new SqlExecutionException("Parse error: " + statement, ex);
+            }
+        }
+
+        @Override
+        public List<String> completeStatement(String sessionId, String statement, int position) {
+            receivedStatement = statement;
+            receivedPosition = position;
+            return Arrays.asList(helper.getSqlParser().getCompletionHints(statement, position));
+        }
+
+        @Override
+        public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public List<Row> retrieveResultPage(String resultId, int page)
+                throws SqlExecutionException {
+            return null;
+        }
+
+        @Override
+        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+            // nothing to do
+        }
+    }
 }

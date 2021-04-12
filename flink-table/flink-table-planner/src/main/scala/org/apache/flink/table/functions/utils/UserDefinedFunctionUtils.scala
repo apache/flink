@@ -32,7 +32,7 @@ import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.typeutils.FieldInfoUtils
 
 import com.google.common.primitives.Primitives
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
@@ -67,11 +67,11 @@ object UserDefinedFunctionUtils {
     * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: UserDefinedAggregateFunction[_, _],
-      signature: Seq[TypeInformation[_]])
+    function: ImperativeAggregateFunction[_, _],
+    signature: Seq[TypeInformation[_]])
   : Option[Array[Class[_]]] = {
     val accType = TypeExtractor.createTypeInfo(
-      function, classOf[UserDefinedAggregateFunction[_, _]], function.getClass, 1)
+      function, classOf[ImperativeAggregateFunction[_, _]], function.getClass, 1)
     val input = (Array(accType) ++ signature).toSeq
     getUserDefinedMethod(
       function,
@@ -292,11 +292,11 @@ object UserDefinedFunctionUtils {
   def createAggregateSqlFunction(
       name: String,
       displayName: String,
-      aggFunction: UserDefinedAggregateFunction[_, _],
+      aggFunction: ImperativeAggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
-  : SqlFunction = {
+    : SqlFunction = {
     //check if a qualified accumulate method exists before create Sql function
     checkAndExtractMethods(aggFunction, "accumulate")
 
@@ -313,14 +313,14 @@ object UserDefinedFunctionUtils {
     * Creates a [[SqlOperandTypeChecker]] for SQL validation of
     * eval functions (scalar and table functions).
     */
-  def createEvalOperandTypeChecker(
+  def createEvalOperandMetadata(
       name: String,
       function: UserDefinedFunction)
-    : SqlOperandTypeChecker = {
+    : SqlOperandMetadata = {
 
     val methods = checkAndExtractMethods(function, "eval")
 
-    new SqlOperandTypeChecker {
+    new SqlOperandMetadata {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
         s"$opName[${signaturesToString(function, "eval")}]"
       }
@@ -372,6 +372,13 @@ object UserDefinedFunctionUtils {
 
       override def getConsistency: Consistency = Consistency.NONE
 
+      override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] =
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes " +
+            "should never be invoked")
+
+      override def paramNames(): util.List[String] =
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramNames " +
+            "should never be invoked")
     }
   }
 

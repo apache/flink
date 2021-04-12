@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions.resolver.rules;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
@@ -29,46 +30,51 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Looks up built-in functions in a catalog for retrieving a fully qualified {@link ObjectIdentifier}.
+ * Looks up built-in functions in a catalog for retrieving a fully qualified {@link
+ * ObjectIdentifier}.
  */
 @Internal
-class QualifyBuiltInFunctionsRule implements ResolverRule {
+final class QualifyBuiltInFunctionsRule implements ResolverRule {
 
-	@Override
-	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		return expression.stream()
-			.map(expr -> expr.accept(new QualifyBuiltInFunctionVisitor(context)))
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        return expression.stream()
+                .map(expr -> expr.accept(new QualifyBuiltInFunctionVisitor(context)))
+                .collect(Collectors.toList());
+    }
 
-	private class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
+    private static class QualifyBuiltInFunctionVisitor extends RuleExpressionVisitor<Expression> {
 
-		QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
-			super(resolutionContext);
-		}
+        QualifyBuiltInFunctionVisitor(ResolutionContext resolutionContext) {
+            super(resolutionContext);
+        }
 
-		@Override
-		public Expression visit(UnresolvedCallExpression unresolvedCall) {
-			if (!unresolvedCall.getFunctionIdentifier().isPresent() &&
-					unresolvedCall.getFunctionDefinition() instanceof BuiltInFunctionDefinition) {
-				final FunctionLookup.Result functionLookup = resolutionContext
-					.functionLookup()
-					.lookupBuiltInFunction(((BuiltInFunctionDefinition) unresolvedCall.getFunctionDefinition()));
+        @Override
+        public Expression visit(UnresolvedCallExpression unresolvedCall) {
+            if (!unresolvedCall.getFunctionIdentifier().isPresent()
+                    && unresolvedCall.getFunctionDefinition()
+                            instanceof BuiltInFunctionDefinition) {
+                final FunctionLookup.Result functionLookup =
+                        resolutionContext
+                                .functionLookup()
+                                .lookupBuiltInFunction(
+                                        ((BuiltInFunctionDefinition)
+                                                unresolvedCall.getFunctionDefinition()));
 
-				return new UnresolvedCallExpression(
-					functionLookup.getFunctionIdentifier(),
-					functionLookup.getFunctionDefinition(),
-					unresolvedCall.getChildren().stream()
-						.map(c -> c.accept(this))
-						.collect(Collectors.toList()));
-			}
+                return ApiExpressionUtils.unresolvedCall(
+                        functionLookup.getFunctionIdentifier(),
+                        functionLookup.getFunctionDefinition(),
+                        unresolvedCall.getChildren().stream()
+                                .map(c -> c.accept(this))
+                                .collect(Collectors.toList()));
+            }
 
-			return unresolvedCall;
-		}
+            return unresolvedCall;
+        }
 
-		@Override
-		protected Expression defaultMethod(Expression expression) {
-			return expression;
-		}
-	}
+        @Override
+        protected Expression defaultMethod(Expression expression) {
+            return expression;
+        }
+    }
 }

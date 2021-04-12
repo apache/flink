@@ -31,51 +31,51 @@ import org.junit.Test;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link AbstractMetricsHeaders}.
- */
+/** Tests for {@link AbstractMetricsHeaders}. */
 public class AbstractMetricsHeadersTest extends TestLogger {
 
-	private AbstractMetricsHeaders<EmptyMessageParameters> metricsHandlerHeaders;
+    private AbstractMetricsHeaders<EmptyMessageParameters> metricsHandlerHeaders;
 
-	@Before
-	public void setUp() throws Exception {
-		metricsHandlerHeaders = new AbstractMetricsHeaders<EmptyMessageParameters>() {
-			@Override
-			public EmptyMessageParameters getUnresolvedMessageParameters() {
-				return EmptyMessageParameters.getInstance();
-			}
+    @Before
+    public void setUp() throws Exception {
+        metricsHandlerHeaders =
+                new AbstractMetricsHeaders<EmptyMessageParameters>() {
+                    @Override
+                    public EmptyMessageParameters getUnresolvedMessageParameters() {
+                        return EmptyMessageParameters.getInstance();
+                    }
 
-			@Override
-			public String getTargetRestEndpointURL() {
-				return "/";
-			}
+                    @Override
+                    public String getTargetRestEndpointURL() {
+                        return "/";
+                    }
 
-			@Override
-			public String getDescription() {
-				return "";
-			}
-		};
-	}
+                    @Override
+                    public String getDescription() {
+                        return "";
+                    }
+                };
+    }
 
-	@Test
-	public void testHttpMethod() {
-		assertThat(metricsHandlerHeaders.getHttpMethod(), equalTo(HttpMethodWrapper.GET));
-	}
+    @Test
+    public void testHttpMethod() {
+        assertThat(metricsHandlerHeaders.getHttpMethod(), equalTo(HttpMethodWrapper.GET));
+    }
 
-	@Test
-	public void testResponseStatus() {
-		assertThat(metricsHandlerHeaders.getResponseStatusCode(), equalTo(HttpResponseStatus.OK));
-	}
+    @Test
+    public void testResponseStatus() {
+        assertThat(metricsHandlerHeaders.getResponseStatusCode(), equalTo(HttpResponseStatus.OK));
+    }
 
-	@Test
-	public void testRequestClass() {
-		assertThat(metricsHandlerHeaders.getRequestClass(), equalTo(EmptyRequestBody.class));
-	}
+    @Test
+    public void testRequestClass() {
+        assertThat(metricsHandlerHeaders.getRequestClass(), equalTo(EmptyRequestBody.class));
+    }
 
-	@Test
-	public void testResponseClass() {
-		assertThat(metricsHandlerHeaders.getResponseClass(), equalTo(MetricCollectionResponseBody.class));
-	}
-
+    @Test
+    public void testResponseClass() {
+        assertThat(
+                metricsHandlerHeaders.getResponseClass(),
+                equalTo(MetricCollectionResponseBody.class));
+    }
 }

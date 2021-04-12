@@ -20,15 +20,13 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime}
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
@@ -37,33 +35,12 @@ import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
 
-import scala.collection.JavaConversions._
-
 class TableScanITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-
-    val tableSource = new StreamTableSource[Row]() {
-      private val fieldNames: Array[String] = Array("name", "id", "value")
-      private val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG, Types.INT)
-
-      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-        val data = Seq(
-          Row.of("Mary", new JLong(1L), new JInt(1)),
-          Row.of("Bob", new JLong(2L), new JInt(3))
-        )
-        val dataStream = execEnv.fromCollection(data).returns(getReturnType)
-        dataStream.getTransformation.setMaxParallelism(1)
-        dataStream
-      }
-
-      override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
-
-      override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
-    }
-    tEnv.registerTableSource(tableName, tableSource)
+    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     val sink = new TestingAppendSink
@@ -84,7 +61,7 @@ class TableScanITCase extends StreamingTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -93,6 +70,48 @@ class TableScanITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("Mary", "Peter", "Bob", "Liz")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testRowtimeTableSourceWithFieldReMapping(): Unit = {
+    val tableName = "MyTable"
+
+    val data: Seq[Row] = Seq(
+      Row.of(Int.box(1), Long.box(11), "Mary"),
+      Row.of(Int.box(2), Long.box(12), "Peter"),
+      Row.of(Int.box(3), Long.box(13), "Bob"),
+      Row.of(Int.box(4), Long.box(14), "Liz"))
+
+    val schema = new TableSchema(
+      Array("key", "rowtime", "payload"),
+      Array(Types.INT(), Types.SQL_TIMESTAMP(), Types.STRING()))
+    val returnType = Types.ROW(Types.INT(), Types.LONG(), Types.STRING())
+    val mapping = Map("key" -> "f0", "ts" -> "f1", "payload" -> "f2")
+    val tableSource = new TestTableSourceWithTime(
+      false,
+      schema,
+      returnType,
+      data,
+      rowtime = "rowtime",
+      mapping = mapping,
+      existingTs = "ts")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  CAST(TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) AS VARCHAR),
+         |  COUNT(payload)
+         |FROM $tableName
+         |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+       """.stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1970-01-01 00:00:00.010,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -119,7 +138,7 @@ class TableScanITCase extends StreamingTestBase {
       fieldNames)
 
     val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 

@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
@@ -43,184 +44,191 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Variables in metrics scope will be sent to Datadog as tags.
  */
+@InstantiateViaFactory(
+        factoryClassName = "org.apache.flink.metrics.datadog.DatadogHttpReporterFactory")
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
-	private static final String HOST_VARIABLE = "<host>";
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
+    private static final String HOST_VARIABLE = "<host>";
 
-	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
-	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
-	private final Map<Counter, DCounter> counters = new ConcurrentHashMap<>();
-	private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
+    // Both Flink's Gauge and Meter values are taken as gauge in Datadog
+    private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
+    private final Map<Counter, DCounter> counters = new ConcurrentHashMap<>();
+    private final Map<Meter, DMeter> meters = new ConcurrentHashMap<>();
+    private final Map<Histogram, DHistogram> histograms = new ConcurrentHashMap<>();
 
-	private DatadogHttpClient client;
-	private List<String> configTags;
+    private DatadogHttpClient client;
+    private List<String> configTags;
+    private int maxMetricsPerRequestValue;
 
-	public static final String API_KEY = "apikey";
-	public static final String PROXY_HOST = "proxyHost";
-	public static final String PROXY_PORT = "proxyPort";
-	public static final String TAGS = "tags";
+    private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName);
+    public static final String API_KEY = "apikey";
+    public static final String PROXY_HOST = "proxyHost";
+    public static final String PROXY_PORT = "proxyPort";
+    public static final String DATA_CENTER = "dataCenter";
+    public static final String TAGS = "tags";
+    public static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
 
-		List<String> tags = new ArrayList<>(configTags);
-		tags.addAll(getTagsFromMetricGroup(group));
-		String host = getHostFromMetricGroup(group);
+    @Override
+    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+        final String name = group.getMetricIdentifier(metricName);
 
-		if (metric instanceof Counter) {
-			Counter c = (Counter) metric;
-			counters.put(c, new DCounter(c, name, host, tags));
-		} else if (metric instanceof Gauge) {
-			Gauge g = (Gauge) metric;
-			gauges.put(g, new DGauge(g, name, host, tags));
-		} else if (metric instanceof Meter) {
-			Meter m = (Meter) metric;
-			// Only consider rate
-			meters.put(m, new DMeter(m, name, host, tags));
-		} else if (metric instanceof Histogram) {
-			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
-		} else {
-			LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
-				"does not support this metric type.", metric.getClass().getName());
-		}
-	}
+        List<String> tags = new ArrayList<>(configTags);
+        tags.addAll(getTagsFromMetricGroup(group));
+        String host = getHostFromMetricGroup(group);
 
-	@Override
-	public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-		if (metric instanceof Counter) {
-			counters.remove(metric);
-		} else if (metric instanceof Gauge) {
-			gauges.remove(metric);
-		} else if (metric instanceof Meter) {
-			meters.remove(metric);
-		} else if (metric instanceof Histogram) {
-			// No Histogram is registered
-		} else {
-			LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
-				"does not support this metric type.", metric.getClass().getName());
-		}
-	}
+        if (metric instanceof Counter) {
+            Counter c = (Counter) metric;
+            counters.put(c, new DCounter(c, name, host, tags, clock));
+        } else if (metric instanceof Gauge) {
+            Gauge g = (Gauge) metric;
+            gauges.put(g, new DGauge(g, name, host, tags, clock));
+        } else if (metric instanceof Meter) {
+            Meter m = (Meter) metric;
+            // Only consider rate
+            meters.put(m, new DMeter(m, name, host, tags, clock));
+        } else if (metric instanceof Histogram) {
+            Histogram h = (Histogram) metric;
+            histograms.put(h, new DHistogram(h, name, host, tags, clock));
+        } else {
+            LOGGER.warn(
+                    "Cannot add unknown metric type {}. This indicates that the reporter "
+                            + "does not support this metric type.",
+                    metric.getClass().getName());
+        }
+    }
 
-	@Override
-	public void open(MetricConfig config) {
-		String apiKey = config.getString(API_KEY, null);
-		String proxyHost = config.getString(PROXY_HOST, null);
-		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
+    @Override
+    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+        if (metric instanceof Counter) {
+            counters.remove(metric);
+        } else if (metric instanceof Gauge) {
+            gauges.remove(metric);
+        } else if (metric instanceof Meter) {
+            meters.remove(metric);
+        } else if (metric instanceof Histogram) {
+            histograms.remove(metric);
+        } else {
+            LOGGER.warn(
+                    "Cannot remove unknown metric type {}. This indicates that the reporter "
+                            + "does not support this metric type.",
+                    metric.getClass().getName());
+        }
+    }
 
-		client = new DatadogHttpClient(apiKey, proxyHost, proxyPort);
-		LOGGER.info("Configured DatadogHttpReporter");
+    @Override
+    public void open(MetricConfig config) {
+        String apiKey = config.getString(API_KEY, null);
+        String proxyHost = config.getString(PROXY_HOST, null);
+        Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
+        String rawDataCenter = config.getString(DATA_CENTER, "US");
+        maxMetricsPerRequestValue = config.getInteger(MAX_METRICS_PER_REQUEST, 2000);
+        DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
+        String tags = config.getString(TAGS, "");
 
-		configTags = getTagsFromConfig(config.getString(TAGS, ""));
-	}
+        client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
 
-	@Override
-	public void close() {
-		client.close();
-		LOGGER.info("Shut down DatadogHttpReporter");
-	}
+        configTags = getTagsFromConfig(tags);
 
-	@Override
-	public void report() {
-		DatadogHttpRequest request = new DatadogHttpRequest();
+        LOGGER.info(
+                "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}",
+                tags,
+                proxyHost,
+                proxyPort,
+                dataCenter,
+                maxMetricsPerRequestValue);
+    }
 
-		List<Gauge> gaugesToRemove = new ArrayList<>();
-		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
-			DGauge g = entry.getValue();
-			try {
-				// Will throw exception if the Gauge is not of Number type
-				// Flink uses Gauge to store many types other than Number
-				g.getMetricValue();
-				request.addGauge(g);
-			} catch (ClassCastException e) {
-				LOGGER.info("The metric {} will not be reported because only number types are supported by this reporter.", g.getMetric());
-				gaugesToRemove.add(entry.getKey());
-			} catch (Exception e) {
-				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("The metric {} will not be reported because it threw an exception.", g.getMetric(), e);
-				} else {
-					LOGGER.info("The metric {} will not be reported because it threw an exception.", g.getMetric());
-				}
-				gaugesToRemove.add(entry.getKey());
-			}
-		}
-		gaugesToRemove.forEach(gauges::remove);
+    @Override
+    public void close() {
+        client.close();
+        LOGGER.info("Shut down DatadogHttpReporter");
+    }
 
-		for (DCounter c : counters.values()) {
-			request.addCounter(c);
-		}
+    @Override
+    public void report() {
+        DSeries request = new DSeries();
 
-		for (DMeter m : meters.values()) {
-			request.addMeter(m);
-		}
+        addGaugesAndUnregisterOnException(request);
+        counters.values().forEach(request::add);
+        meters.values().forEach(request::add);
+        histograms.values().forEach(histogram -> histogram.addTo(request));
 
-		try {
-			client.send(request);
-			LOGGER.debug("Reported series with size {}.", request.getSeries().getSeries().size());
-		} catch (SocketTimeoutException e) {
-			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout.", e.getMessage());
-		} catch (Exception e) {
-			LOGGER.warn("Failed reporting metrics to Datadog.", e);
-		}
-	}
+        int totalMetrics = request.getSeries().size();
+        int fromIndex = 0;
+        while (fromIndex < totalMetrics) {
+            int toIndex = Math.min(fromIndex + maxMetricsPerRequestValue, totalMetrics);
+            try {
+                DSeries chunk = new DSeries(request.getSeries().subList(fromIndex, toIndex));
+                client.send(chunk);
+                chunk.getSeries().forEach(DMetric::ackReport);
+                LOGGER.debug("Reported series with size {}.", chunk.getSeries().size());
+            } catch (SocketTimeoutException e) {
+                LOGGER.warn(
+                        "Failed reporting metrics to Datadog because of socket timeout: {}",
+                        e.getMessage());
+            } catch (Exception e) {
+                LOGGER.warn("Failed reporting metrics to Datadog.", e);
+            }
+            fromIndex = toIndex;
+        }
+    }
 
-	/**
-	 * Get config tags from config 'metrics.reporter.dghttp.tags'.
-	 */
-	private List<String> getTagsFromConfig(String str) {
-		return Arrays.asList(str.split(","));
-	}
+    private void addGaugesAndUnregisterOnException(DSeries request) {
+        List<Gauge> gaugesToRemove = new ArrayList<>();
+        for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
+            DGauge g = entry.getValue();
+            try {
+                // Will throw exception if the Gauge is not of Number type
+                // Flink uses Gauge to store many types other than Number
+                g.getMetricValue();
+                request.add(g);
+            } catch (ClassCastException e) {
+                LOGGER.info(
+                        "The metric {} will not be reported because only number types are supported by this reporter.",
+                        g.getMetricName());
+                gaugesToRemove.add(entry.getKey());
+            } catch (Exception e) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(
+                            "The metric {} will not be reported because it threw an exception.",
+                            g.getMetricName(),
+                            e);
+                } else {
+                    LOGGER.info(
+                            "The metric {} will not be reported because it threw an exception.",
+                            g.getMetricName());
+                }
+                gaugesToRemove.add(entry.getKey());
+            }
+        }
+        gaugesToRemove.forEach(gauges::remove);
+    }
 
-	/**
-	 * Get tags from MetricGroup#getAllVariables(), excluding 'host'.
-	 */
-	private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
-		List<String> tags = new ArrayList<>();
+    /** Get config tags from config 'metrics.reporter.dghttp.tags'. */
+    private List<String> getTagsFromConfig(String str) {
+        return Arrays.asList(str.split(","));
+    }
 
-		for (Map.Entry<String, String> entry: metricGroup.getAllVariables().entrySet()) {
-			if (!entry.getKey().equals(HOST_VARIABLE)) {
-				tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
-			}
-		}
+    /** Get tags from MetricGroup#getAllVariables(), excluding 'host'. */
+    private List<String> getTagsFromMetricGroup(MetricGroup metricGroup) {
+        List<String> tags = new ArrayList<>();
 
-		return tags;
-	}
+        for (Map.Entry<String, String> entry : metricGroup.getAllVariables().entrySet()) {
+            if (!entry.getKey().equals(HOST_VARIABLE)) {
+                tags.add(getVariableName(entry.getKey()) + ":" + entry.getValue());
+            }
+        }
 
-	private String getHostFromMetricGroup(MetricGroup metricGroup) {
-		return metricGroup.getAllVariables().get(HOST_VARIABLE);
-	}
+        return tags;
+    }
 
-	/**
-	 * Removes leading and trailing angle brackets.
-	 */
-	private String getVariableName(String str) {
-		return str.substring(1, str.length() - 1);
-	}
+    private String getHostFromMetricGroup(MetricGroup metricGroup) {
+        return metricGroup.getAllVariables().get(HOST_VARIABLE);
+    }
 
-	/**
-	 * Compact metrics in batch, serialize them, and send to Datadog via HTTP.
-	 */
-	static class DatadogHttpRequest {
-		private final DSeries series;
-
-		public DatadogHttpRequest() {
-			series = new DSeries();
-		}
-
-		public void addGauge(DGauge gauge) {
-			series.addMetric(gauge);
-		}
-
-		public void addCounter(DCounter counter) {
-			series.addMetric(counter);
-		}
-
-		public void addMeter(DMeter meter) {
-			series.addMetric(meter);
-		}
-
-		public DSeries getSeries() {
-			return series;
-		}
-	}
+    /** Removes leading and trailing angle brackets. */
+    private String getVariableName(String str) {
+        return str.substring(1, str.length() - 1);
+    }
 }

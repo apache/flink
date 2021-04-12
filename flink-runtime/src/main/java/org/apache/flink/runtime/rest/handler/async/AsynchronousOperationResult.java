@@ -34,41 +34,41 @@ import javax.annotation.Nullable;
  */
 public class AsynchronousOperationResult<V> implements AsynchronouslyCreatedResource<V> {
 
-	private static final String FIELD_NAME_STATUS = "status";
+    private static final String FIELD_NAME_STATUS = "status";
 
-	private static final String FIELD_NAME_OPERATION = "operation";
+    public static final String FIELD_NAME_OPERATION = "operation";
 
-	@JsonProperty(FIELD_NAME_STATUS)
-	private final QueueStatus queueStatus;
+    @JsonProperty(FIELD_NAME_STATUS)
+    private final QueueStatus queueStatus;
 
-	@JsonProperty(FIELD_NAME_OPERATION)
-	@Nullable
-	private final V value;
+    @JsonProperty(FIELD_NAME_OPERATION)
+    @Nullable
+    private final V value;
 
-	@JsonCreator
-	private AsynchronousOperationResult(
-			@JsonProperty(FIELD_NAME_STATUS) QueueStatus queueStatus,
-			@JsonProperty(FIELD_NAME_OPERATION) @Nullable V value) {
-		this.queueStatus = Preconditions.checkNotNull(queueStatus);
-		this.value = value;
-	}
+    @JsonCreator
+    private AsynchronousOperationResult(
+            @JsonProperty(FIELD_NAME_STATUS) QueueStatus queueStatus,
+            @JsonProperty(FIELD_NAME_OPERATION) @Nullable V value) {
+        this.queueStatus = Preconditions.checkNotNull(queueStatus);
+        this.value = value;
+    }
 
-	@Override
-	public QueueStatus queueStatus() {
-		return queueStatus;
-	}
+    @Override
+    public QueueStatus queueStatus() {
+        return queueStatus;
+    }
 
-	@Nullable
-	@Override
-	public V resource() {
-		return value;
-	}
+    @Nullable
+    @Override
+    public V resource() {
+        return value;
+    }
 
-	public static <V> AsynchronousOperationResult<V> inProgress() {
-		return new AsynchronousOperationResult<>(QueueStatus.inProgress(), null);
-	}
+    public static <V> AsynchronousOperationResult<V> inProgress() {
+        return new AsynchronousOperationResult<>(QueueStatus.inProgress(), null);
+    }
 
-	public static <V> AsynchronousOperationResult<V> completed(V value) {
-		return new AsynchronousOperationResult<>(QueueStatus.completed(), value);
-}
+    public static <V> AsynchronousOperationResult<V> completed(V value) {
+        return new AsynchronousOperationResult<>(QueueStatus.completed(), value);
+    }
 }

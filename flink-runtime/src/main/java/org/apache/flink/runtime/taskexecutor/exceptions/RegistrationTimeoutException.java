@@ -21,21 +21,20 @@ package org.apache.flink.runtime.taskexecutor.exceptions;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
 /**
- * Exception which indicates that the {@link TaskExecutor} could not register at
- * the master in time.
+ * Exception which indicates that the {@link TaskExecutor} could not register at the master in time.
  */
 public class RegistrationTimeoutException extends TaskManagerException {
-	private static final long serialVersionUID = -6377818046575001931L;
+    private static final long serialVersionUID = -6377818046575001931L;
 
-	public RegistrationTimeoutException(String message) {
-		super(message);
-	}
+    public RegistrationTimeoutException(String message) {
+        super(message);
+    }
 
-	public RegistrationTimeoutException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public RegistrationTimeoutException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public RegistrationTimeoutException(Throwable cause) {
-		super(cause);
-	}
+    public RegistrationTimeoutException(Throwable cause) {
+        super(cause);
+    }
 }

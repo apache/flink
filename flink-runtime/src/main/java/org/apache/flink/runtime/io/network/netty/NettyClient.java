@@ -43,168 +43,175 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 class NettyClient {
 
-	private static final Logger LOG = LoggerFactory.getLogger(NettyClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NettyClient.class);
 
-	private final NettyConfig config;
+    private final NettyConfig config;
 
-	private NettyProtocol protocol;
+    private NettyProtocol protocol;
 
-	private Bootstrap bootstrap;
+    private Bootstrap bootstrap;
 
-	@Nullable
-	private SSLHandlerFactory clientSSLFactory;
+    @Nullable private SSLHandlerFactory clientSSLFactory;
 
-	NettyClient(NettyConfig config) {
-		this.config = config;
-	}
+    NettyClient(NettyConfig config) {
+        this.config = config;
+    }
 
-	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
-		checkState(bootstrap == null, "Netty client has already been initialized.");
+    void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
+        checkState(bootstrap == null, "Netty client has already been initialized.");
 
-		this.protocol = protocol;
+        this.protocol = protocol;
 
-		final long start = System.nanoTime();
+        final long start = System.nanoTime();
 
-		bootstrap = new Bootstrap();
+        bootstrap = new Bootstrap();
 
-		// --------------------------------------------------------------------
-		// Transport-specific configuration
-		// --------------------------------------------------------------------
+        // --------------------------------------------------------------------
+        // Transport-specific configuration
+        // --------------------------------------------------------------------
 
-		switch (config.getTransportType()) {
-			case NIO:
-				initNioBootstrap();
-				break;
+        switch (config.getTransportType()) {
+            case NIO:
+                initNioBootstrap();
+                break;
 
-			case EPOLL:
-				initEpollBootstrap();
-				break;
+            case EPOLL:
+                initEpollBootstrap();
+                break;
 
-			case AUTO:
-				if (Epoll.isAvailable()) {
-					initEpollBootstrap();
-					LOG.info("Transport type 'auto': using EPOLL.");
-				}
-				else {
-					initNioBootstrap();
-					LOG.info("Transport type 'auto': using NIO.");
-				}
-		}
+            case AUTO:
+                if (Epoll.isAvailable()) {
+                    initEpollBootstrap();
+                    LOG.info("Transport type 'auto': using EPOLL.");
+                } else {
+                    initNioBootstrap();
+                    LOG.info("Transport type 'auto': using NIO.");
+                }
+        }
 
-		// --------------------------------------------------------------------
-		// Configuration
-		// --------------------------------------------------------------------
+        // --------------------------------------------------------------------
+        // Configuration
+        // --------------------------------------------------------------------
 
-		bootstrap.option(ChannelOption.TCP_NODELAY, true);
-		bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
+        bootstrap.option(ChannelOption.TCP_NODELAY, true);
+        bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
 
-		// Timeout for new connections
-		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getClientConnectTimeoutSeconds() * 1000);
+        // Timeout for new connections
+        bootstrap.option(
+                ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                config.getClientConnectTimeoutSeconds() * 1000);
 
-		// Pooled allocator for Netty's ByteBuf instances
-		bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
+        // Pooled allocator for Netty's ByteBuf instances
+        bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
 
-		// Receive and send buffer size
-		int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
-		if (receiveAndSendBufferSize > 0) {
-			bootstrap.option(ChannelOption.SO_SNDBUF, receiveAndSendBufferSize);
-			bootstrap.option(ChannelOption.SO_RCVBUF, receiveAndSendBufferSize);
-		}
+        // Receive and send buffer size
+        int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
+        if (receiveAndSendBufferSize > 0) {
+            bootstrap.option(ChannelOption.SO_SNDBUF, receiveAndSendBufferSize);
+            bootstrap.option(ChannelOption.SO_RCVBUF, receiveAndSendBufferSize);
+        }
 
-		try {
-			clientSSLFactory = config.createClientSSLEngineFactory();
-		} catch (Exception e) {
-			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
-		}
+        try {
+            clientSSLFactory = config.createClientSSLEngineFactory();
+        } catch (Exception e) {
+            throw new IOException("Failed to initialize SSL Context for the Netty client", e);
+        }
 
-		final long duration = (System.nanoTime() - start) / 1_000_000;
-		LOG.info("Successful initialization (took {} ms).", duration);
-	}
+        final long duration = (System.nanoTime() - start) / 1_000_000;
+        LOG.info("Successful initialization (took {} ms).", duration);
+    }
 
-	NettyConfig getConfig() {
-		return config;
-	}
+    NettyConfig getConfig() {
+        return config;
+    }
 
-	Bootstrap getBootstrap() {
-		return bootstrap;
-	}
+    Bootstrap getBootstrap() {
+        return bootstrap;
+    }
 
-	void shutdown() {
-		final long start = System.nanoTime();
+    void shutdown() {
+        final long start = System.nanoTime();
 
-		if (bootstrap != null) {
-			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully();
-			}
-			bootstrap = null;
-		}
+        if (bootstrap != null) {
+            if (bootstrap.group() != null) {
+                bootstrap.group().shutdownGracefully();
+            }
+            bootstrap = null;
+        }
 
-		final long duration = (System.nanoTime() - start) / 1_000_000;
-		LOG.info("Successful shutdown (took {} ms).", duration);
-	}
+        final long duration = (System.nanoTime() - start) / 1_000_000;
+        LOG.info("Successful shutdown (took {} ms).", duration);
+    }
 
-	private void initNioBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple clients running on the same host.
-		String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+    private void initNioBootstrap() {
+        // Add the server port number to the name in order to distinguish
+        // multiple clients running on the same host.
+        String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
 
-		NioEventLoopGroup nioGroup = new NioEventLoopGroup(config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
-		bootstrap.group(nioGroup).channel(NioSocketChannel.class);
-	}
+        NioEventLoopGroup nioGroup =
+                new NioEventLoopGroup(
+                        config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
+        bootstrap.group(nioGroup).channel(NioSocketChannel.class);
+    }
 
-	private void initEpollBootstrap() {
-		// Add the server port number to the name in order to distinguish
-		// multiple clients running on the same host.
-		String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+    private void initEpollBootstrap() {
+        // Add the server port number to the name in order to distinguish
+        // multiple clients running on the same host.
+        String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
 
-		EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
-		bootstrap.group(epollGroup).channel(EpollSocketChannel.class);
-	}
+        EpollEventLoopGroup epollGroup =
+                new EpollEventLoopGroup(
+                        config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
+        bootstrap.group(epollGroup).channel(EpollSocketChannel.class);
+    }
 
-	// ------------------------------------------------------------------------
-	// Client connections
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Client connections
+    // ------------------------------------------------------------------------
 
-	ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
-		checkState(bootstrap != null, "Client has not been initialized yet.");
+    ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
+        checkState(bootstrap != null, "Client has not been initialized yet.");
 
-		// --------------------------------------------------------------------
-		// Child channel pipeline for accepted connections
-		// --------------------------------------------------------------------
+        // --------------------------------------------------------------------
+        // Child channel pipeline for accepted connections
+        // --------------------------------------------------------------------
 
-		bootstrap.handler(new ChannelInitializer<SocketChannel>() {
-			@Override
-			public void initChannel(SocketChannel channel) throws Exception {
+        bootstrap.handler(
+                new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    public void initChannel(SocketChannel channel) throws Exception {
 
-				// SSL handler should be added first in the pipeline
-				if (clientSSLFactory != null) {
-					SslHandler sslHandler = clientSSLFactory.createNettySSLHandler(
-							channel.alloc(),
-							serverSocketAddress.getAddress().getCanonicalHostName(),
-							serverSocketAddress.getPort());
-					channel.pipeline().addLast("ssl", sslHandler);
-				}
-				channel.pipeline().addLast(protocol.getClientChannelHandlers());
-			}
-		});
+                        // SSL handler should be added first in the pipeline
+                        if (clientSSLFactory != null) {
+                            SslHandler sslHandler =
+                                    clientSSLFactory.createNettySSLHandler(
+                                            channel.alloc(),
+                                            serverSocketAddress.getAddress().getCanonicalHostName(),
+                                            serverSocketAddress.getPort());
+                            channel.pipeline().addLast("ssl", sslHandler);
+                        }
+                        channel.pipeline().addLast(protocol.getClientChannelHandlers());
+                    }
+                });
 
-		try {
-			return bootstrap.connect(serverSocketAddress);
-		}
-		catch (ChannelException e) {
-			if ((e.getCause() instanceof java.net.SocketException &&
-					e.getCause().getMessage().equals("Too many open files")) ||
-				(e.getCause() instanceof ChannelException &&
-						e.getCause().getCause() instanceof java.net.SocketException &&
-						e.getCause().getCause().getMessage().equals("Too many open files")))
-			{
-				throw new ChannelException(
-						"The operating system does not offer enough file handles to open the network connection. " +
-								"Please increase the number of available file handles.", e.getCause());
-			}
-			else {
-				throw e;
-			}
-		}
-	}
+        try {
+            return bootstrap.connect(serverSocketAddress);
+        } catch (ChannelException e) {
+            if ((e.getCause() instanceof java.net.SocketException
+                            && e.getCause().getMessage().equals("Too many open files"))
+                    || (e.getCause() instanceof ChannelException
+                            && e.getCause().getCause() instanceof java.net.SocketException
+                            && e.getCause()
+                                    .getCause()
+                                    .getMessage()
+                                    .equals("Too many open files"))) {
+                throw new ChannelException(
+                        "The operating system does not offer enough file handles to open the network connection. "
+                                + "Please increase the number of available file handles.",
+                        e.getCause());
+            } else {
+                throw e;
+            }
+        }
+    }
 }

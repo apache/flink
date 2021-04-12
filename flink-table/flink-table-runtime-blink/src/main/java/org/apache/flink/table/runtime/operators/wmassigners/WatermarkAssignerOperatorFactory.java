@@ -18,60 +18,53 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
-/**
- * The factory of {@link WatermarkAssignerOperator}.
- */
-public class WatermarkAssignerOperatorFactory implements OneInputStreamOperatorFactory<BaseRow, BaseRow> {
-	private static final long serialVersionUID = 1L;
+/** The factory of {@link WatermarkAssignerOperator}. */
+public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFactory<RowData>
+        implements OneInputStreamOperatorFactory<RowData, RowData> {
 
-	private final int rowtimeFieldIndex;
+    private static final long serialVersionUID = 1L;
 
-	private final long idleTimeout;
+    private final int rowtimeFieldIndex;
 
-	private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
+    private final long idleTimeout;
 
-	private ChainingStrategy strategy = ChainingStrategy.HEAD;
+    private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
 
-	public WatermarkAssignerOperatorFactory(
-			int rowtimeFieldIndex,
-			long idleTimeout,
-			GeneratedWatermarkGenerator generatedWatermarkGenerator) {
-		this.rowtimeFieldIndex = rowtimeFieldIndex;
-		this.idleTimeout = idleTimeout;
-		this.generatedWatermarkGenerator = generatedWatermarkGenerator;
-	}
+    public WatermarkAssignerOperatorFactory(
+            int rowtimeFieldIndex,
+            long idleTimeout,
+            GeneratedWatermarkGenerator generatedWatermarkGenerator) {
+        this.rowtimeFieldIndex = rowtimeFieldIndex;
+        this.idleTimeout = idleTimeout;
+        this.generatedWatermarkGenerator = generatedWatermarkGenerator;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
-		WatermarkGenerator watermarkGenerator = generatedWatermarkGenerator.newInstance(containingTask.getUserCodeClassLoader());
-		WatermarkAssignerOperator operator = new WatermarkAssignerOperator(rowtimeFieldIndex, watermarkGenerator, idleTimeout);
-		operator.setup(containingTask, config, output);
-		return operator;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public StreamOperator createStreamOperator(StreamOperatorParameters initializer) {
+        WatermarkGenerator watermarkGenerator =
+                generatedWatermarkGenerator.newInstance(
+                        initializer.getContainingTask().getUserCodeClassLoader());
+        WatermarkAssignerOperator operator =
+                new WatermarkAssignerOperator(
+                        rowtimeFieldIndex, watermarkGenerator, idleTimeout, processingTimeService);
+        operator.setup(
+                initializer.getContainingTask(),
+                initializer.getStreamConfig(),
+                initializer.getOutput());
+        return operator;
+    }
 
-	@Override
-	public void setChainingStrategy(ChainingStrategy strategy) {
-		this.strategy = strategy;
-	}
-
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return strategy;
-	}
-
-	@Override
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return WatermarkAssignerOperator.class;
-	}
+    @Override
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return WatermarkAssignerOperator.class;
+    }
 }

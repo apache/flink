@@ -148,7 +148,7 @@ object AkkaUtils {
                     hostname: String,
                     port: Int,
                     executorConfig: Config): Config = {
-    getAkkaConfig(configuration, Some((hostname, port)), executorConfig)
+    getAkkaConfig(configuration, Some((hostname, port)), None, executorConfig)
   }
 
   /**
@@ -191,6 +191,7 @@ object AkkaUtils {
     getAkkaConfig(
       configuration,
       externalAddress,
+      None,
       getForkJoinExecutorConfig(ForkJoinExecutorConfiguration.fromConfiguration(configuration)))
   }
 
@@ -199,28 +200,42 @@ object AkkaUtils {
     * specified, then the actor system will listen on the respective address.
     *
     * @param configuration instance containing the user provided configuration values
-    * @param externalAddress optional tuple of bindAddress and port to be reachable at.
+    * @param externalAddress optional tuple of external address and port to be reachable at.
     *                        If None is given, then an Akka config for local actor system
     *                        will be returned
+    * @param bindAddress optional tuple of bind address and port to be used locally.
+    *                    If None is given, wildcard IP address and the external port wil be used.
+    *                    Take effects only if externalAddress is not None.
     * @param executorConfig config defining the used executor by the default dispatcher
     * @return Akka config
     */
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     externalAddress: Option[(String, Int)],
+                    bindAddress: Option[(String, Int)],
                     executorConfig: Config): Config = {
     val defaultConfig = getBasicAkkaConfig(configuration).withFallback(executorConfig)
 
     externalAddress match {
 
-      case Some((hostname, port)) =>
+      case Some((externalHostname, externalPort)) =>
 
-        val remoteConfig = getRemoteAkkaConfig(configuration,
-          // the wildcard IP lets us bind to all network interfaces
-          NetUtils.getWildcardIPAddress, port,
-          hostname, port)
+        bindAddress match {
 
-        remoteConfig.withFallback(defaultConfig)
+          case Some((bindHostname, bindPort)) =>
+
+            val remoteConfig = getRemoteAkkaConfig(
+              configuration, bindHostname, bindPort, externalHostname, externalPort)
+
+            remoteConfig.withFallback(defaultConfig)
+
+          case None =>
+            val remoteConfig = getRemoteAkkaConfig(configuration,
+              // the wildcard IP lets us bind to all network interfaces
+              NetUtils.getWildcardIPAddress, externalPort, externalHostname, externalPort)
+
+            remoteConfig.withFallback(defaultConfig)
+        }
 
       case None =>
         defaultConfig
@@ -258,7 +273,7 @@ object AkkaUtils {
 
     val logLevel = getLogLevel
 
-    val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
+    val supervisorStrategy = classOf[EscalatingSupervisorStrategy]
       .getCanonicalName
 
     val config =
@@ -269,6 +284,7 @@ object AkkaUtils {
         | loggers = ["akka.event.slf4j.Slf4jLogger"]
         | logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
         | log-config-on-start = off
+        | logger-startup-timeout = 30s
         |
         | jvm-exit-on-fatal-error = $jvmExitOnFatalError
         |
@@ -287,6 +303,15 @@ object AkkaUtils {
         |
         |   default-dispatcher {
         |     throughput = $akkaThroughput
+        |   }
+        |
+        |   supervisor-dispatcher {
+        |     type = Dispatcher
+        |     executor = "thread-pool-executor"
+        |     thread-pool-executor {
+        |       core-pool-size-min = 1
+        |       core-pool-size-max = 1
+        |     }
         |   }
         | }
         |}
@@ -363,20 +388,6 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
-  private def validateHeartbeat(pauseParamName: String,
-                                pauseValue: time.Duration,
-                                intervalParamName: String,
-                                intervalValue: time.Duration): Unit = {
-    if (pauseValue.compareTo(intervalValue) <= 0) {
-      throw new IllegalConfigurationException(
-        "%s [%s] must greater than %s [%s]",
-        pauseParamName,
-        pauseValue,
-        intervalParamName,
-        intervalValue)
-    }
-  }
-
   /**
    * Creates a Akka config for a remote actor system listening on port on the network interface
    * identified by bindAddress.
@@ -404,24 +415,6 @@ object AkkaUtils {
         configuration.getString(
           AkkaOptions.STARTUP_TIMEOUT,
           TimeUtils.getStringInMillis(akkaAskTimeout.multipliedBy(10L)))))
-
-    val transportHeartbeatIntervalDuration = TimeUtils.parseDuration(
-      configuration.getString(AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL))
-
-    val transportHeartbeatPauseDuration = TimeUtils.parseDuration(
-      configuration.getString(AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE))
-
-    validateHeartbeat(
-      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
-      transportHeartbeatPauseDuration,
-      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.key(),
-      transportHeartbeatIntervalDuration)
-
-    val transportHeartbeatInterval = TimeUtils.getStringInMillis(transportHeartbeatIntervalDuration)
-
-    val transportHeartbeatPause = TimeUtils.getStringInMillis(transportHeartbeatPauseDuration)
-
-    val transportThreshold = configuration.getDouble(AkkaOptions.TRANSPORT_THRESHOLD)
 
     val akkaTCPTimeout = TimeUtils.getStringInMillis(
       TimeUtils.parseDuration(configuration.getString(AkkaOptions.TCP_TIMEOUT)))
@@ -459,6 +452,13 @@ object AkkaUtils {
                               SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
                               configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD))
 
+    val akkaSSLCertFingerprintString = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT)
+
+    val akkaSSLCertFingerprints = if ( akkaSSLCertFingerprintString != null ) {
+      akkaSSLCertFingerprintString.split(",").toList.mkString("[\"", "\",\"", "\"]")
+    } else  "[]"
+
     val akkaSSLProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL)
 
     val akkaSSLAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS)
@@ -493,10 +493,11 @@ object AkkaUtils {
          |  remote {
          |    startup-timeout = $startupTimeout
          |
+         |    # disable the transport failure detector by setting very high values
          |    transport-failure-detector{
-         |      acceptable-heartbeat-pause = $transportHeartbeatPause
-         |      heartbeat-interval = $transportHeartbeatInterval
-         |      threshold = $transportThreshold
+         |      acceptable-heartbeat-pause = 6000 s
+         |      heartbeat-interval = 1000 s
+         |      threshold = 300
          |    }
          |
          |    netty {
@@ -566,6 +567,7 @@ object AkkaUtils {
          |      ssl {
          |
          |        enable-ssl = $akkaEnableSSL
+         |        ssl-engine-provider = org.apache.flink.runtime.akka.CustomSSLEngineProvider
          |        security {
          |          key-store = "$akkaSSLKeyStore"
          |          key-store-password = "$akkaSSLKeyStorePassword"
@@ -576,6 +578,7 @@ object AkkaUtils {
          |          enabled-algorithms = $akkaSSLAlgorithms
          |          random-number-generator = ""
          |          require-mutual-authentication = on
+         |          cert-fingerprints = $akkaSSLCertFingerprints
          |        }
          |      }
          |    }
@@ -758,10 +761,6 @@ object AkkaUtils {
 
   def getLookupTimeout(config: Configuration): time.Duration = {
     TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
-  }
-
-  def getClientTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains

@@ -16,13 +16,11 @@
 # limitations under the License.
 ################################################################################
 
-import unittest
-
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table import TableConfig
 
 
-class TableConfigCompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
+class TableConfigCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
     """
     Tests whether the Python :class:`TableConfig` is consistent with
     Java `org.apache.flink.table.api.TableConfig`.
@@ -39,7 +37,7 @@ class TableConfigCompletenessTests(PythonAPICompletenessTestCase, unittest.TestC
     @classmethod
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
-        return {'getPlannerConfig', 'setPlannerConfig'}
+        return {'getPlannerConfig', 'setPlannerConfig', 'addJobParameter'}
 
     @classmethod
     def java_method_name(cls, python_method_name):
@@ -47,6 +45,7 @@ class TableConfigCompletenessTests(PythonAPICompletenessTestCase, unittest.TestC
         return {'get_local_timezone': 'get_local_time_zone',
                 'set_local_timezone': 'set_local_time_zone'}\
             .get(python_method_name, python_method_name)
+
 
 if __name__ == '__main__':
     import unittest

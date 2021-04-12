@@ -26,98 +26,117 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.junit.Test;
 
-
-/**
- * A serialization test for multidimensional arrays.
- */
+/** A serialization test for multidimensional arrays. */
 public class MultidimensionalArraySerializerTest {
 
-	@Test
-	public void testStringArray() {
-		String[][] array = new String[][]{{null,"b"},{"c","d"},{"e","f"},{"g","h"},null};
-		TypeInformation<String[][]> ti = TypeExtractor.getForClass(String[][].class);
+    @Test
+    public void testStringArray() {
+        String[][] array = new String[][] {{null, "b"}, {"c", "d"}, {"e", "f"}, {"g", "h"}, null};
+        TypeInformation<String[][]> ti = TypeExtractor.getForClass(String[][].class);
 
-		SerializerTestInstance<String[][]> testInstance = new SerializerTestInstance<String[][]>(ti.createSerializer(new ExecutionConfig()), String[][].class, -1, array);
-		testInstance.testAll();
-	}
+        SerializerTestInstance<String[][]> testInstance =
+                new SerializerTestInstance<String[][]>(
+                        ti.createSerializer(new ExecutionConfig()), String[][].class, -1, array);
+        testInstance.testAll();
+    }
 
-	@Test
-	public void testPrimitiveArray() {
-		int[][] array = new int[][]{{12,1},{48,42},{23,80},{484,849},{987,4}};
-		TypeInformation<int[][]> ti = TypeExtractor.getForClass(int[][].class);
+    @Test
+    public void testPrimitiveArray() {
+        int[][] array = new int[][] {{12, 1}, {48, 42}, {23, 80}, {484, 849}, {987, 4}};
+        TypeInformation<int[][]> ti = TypeExtractor.getForClass(int[][].class);
 
-		SerializerTestInstance<int[][]> testInstance = new SerializerTestInstance<int[][]>(ti.createSerializer(new ExecutionConfig()), int[][].class, -1, array);
-		testInstance.testAll();
-	}
+        SerializerTestInstance<int[][]> testInstance =
+                new SerializerTestInstance<int[][]>(
+                        ti.createSerializer(new ExecutionConfig()), int[][].class, -1, array);
+        testInstance.testAll();
+    }
 
-	public static class MyPojo {
-		public String field1;
-		public int field2;
+    public static class MyPojo {
+        public String field1;
+        public int field2;
 
-		public MyPojo(String field1, int field2) {
-			this.field1 = field1;
-			this.field2 = field2;
-		}
+        public MyPojo(String field1, int field2) {
+            this.field1 = field1;
+            this.field2 = field2;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (!(obj instanceof MyPojo)) {
-				return false;
-			}
-			MyPojo other = (MyPojo) obj;
-			return ((field1 == null && other.field1 == null) || (field1 != null && field1.equals(other.field1)))
-					&& field2 == other.field2;
-		}
-	}
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof MyPojo)) {
+                return false;
+            }
+            MyPojo other = (MyPojo) obj;
+            return ((field1 == null && other.field1 == null)
+                            || (field1 != null && field1.equals(other.field1)))
+                    && field2 == other.field2;
+        }
+    }
 
-	@Test
-	public void testObjectArrays() {
-		Integer[][] array = new Integer[][]{{0,1}, null, {null, 42}};
-		TypeInformation<Integer[][]> ti = TypeExtractor.getForClass(Integer[][].class);
+    @Test
+    public void testObjectArrays() {
+        Integer[][] array = new Integer[][] {{0, 1}, null, {null, 42}};
+        TypeInformation<Integer[][]> ti = TypeExtractor.getForClass(Integer[][].class);
 
-		SerializerTestInstance<Integer[][]> testInstance = new SerializerTestInstance<Integer[][]>(ti.createSerializer(new ExecutionConfig()), Integer[][].class, -1, array);
-		testInstance.testAll();
+        SerializerTestInstance<Integer[][]> testInstance =
+                new SerializerTestInstance<Integer[][]>(
+                        ti.createSerializer(new ExecutionConfig()), Integer[][].class, -1, array);
+        testInstance.testAll();
 
-		MyPojo[][] array2 = new MyPojo[][]{{new MyPojo(null, 42), new MyPojo("test2", -1)}, {null, null}, null};
-		TypeInformation<MyPojo[][]> ti2 = TypeExtractor.getForClass(MyPojo[][].class);
+        MyPojo[][] array2 =
+                new MyPojo[][] {
+                    {new MyPojo(null, 42), new MyPojo("test2", -1)}, {null, null}, null
+                };
+        TypeInformation<MyPojo[][]> ti2 = TypeExtractor.getForClass(MyPojo[][].class);
 
-		SerializerTestInstance<MyPojo[][]> testInstance2 = new SerializerTestInstance<MyPojo[][]>(ti2.createSerializer(new ExecutionConfig()), MyPojo[][].class, -1, array2);
-		testInstance2.testAll();
-	}
+        SerializerTestInstance<MyPojo[][]> testInstance2 =
+                new SerializerTestInstance<MyPojo[][]>(
+                        ti2.createSerializer(new ExecutionConfig()), MyPojo[][].class, -1, array2);
+        testInstance2.testAll();
+    }
 
-	public static class MyGenericPojo<T> {
-		public T[][] field;
+    public static class MyGenericPojo<T> {
+        public T[][] field;
 
-		public MyGenericPojo() {
-			// nothing to do
-		}
+        public MyGenericPojo() {
+            // nothing to do
+        }
 
-		public MyGenericPojo(T[][] field) {
-			this.field = field;
-		}
+        public MyGenericPojo(T[][] field) {
+            this.field = field;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (!(obj instanceof MyGenericPojo)) {
-				return false;
-			}
-			MyGenericPojo<?> other = (MyGenericPojo<?>) obj;
-			return (field == null && other.field == null) || (field != null && field.length == other.field.length);
-		}
-	}
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof MyGenericPojo)) {
+                return false;
+            }
+            MyGenericPojo<?> other = (MyGenericPojo<?>) obj;
+            return (field == null && other.field == null)
+                    || (field != null && field.length == other.field.length);
+        }
+    }
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Test
-	public void testGenericObjectArrays() {
-		MyGenericPojo<String>[][] array = (MyGenericPojo<String>[][]) new MyGenericPojo[][]{
-			{ new MyGenericPojo<String>(new String[][]{{"a", "b"},{"c", "d"}}), null}
-		};
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testGenericObjectArrays() {
+        MyGenericPojo<String>[][] array =
+                (MyGenericPojo<String>[][])
+                        new MyGenericPojo[][] {
+                            {
+                                new MyGenericPojo<String>(new String[][] {{"a", "b"}, {"c", "d"}}),
+                                null
+                            }
+                        };
 
-		TypeInformation<MyGenericPojo<String>[][]> ti =
-				TypeInformation.of(new TypeHint<MyGenericPojo<String>[][]>(){});
+        TypeInformation<MyGenericPojo<String>[][]> ti =
+                TypeInformation.of(new TypeHint<MyGenericPojo<String>[][]>() {});
 
-		SerializerTestInstance testInstance = new SerializerTestInstance(ti.createSerializer(new ExecutionConfig()), MyGenericPojo[][].class, -1, (Object) array);
-		testInstance.testAll();
-	}
-
+        SerializerTestInstance testInstance =
+                new SerializerTestInstance(
+                        ti.createSerializer(new ExecutionConfig()),
+                        MyGenericPojo[][].class,
+                        -1,
+                        (Object) array);
+        testInstance.testAll();
+    }
 }

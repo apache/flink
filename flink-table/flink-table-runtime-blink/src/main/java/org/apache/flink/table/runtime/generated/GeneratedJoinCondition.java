@@ -18,21 +18,19 @@
 
 package org.apache.flink.table.runtime.generated;
 
-/**
- * Describes a generated {@link JoinCondition}.
- */
+/** Describes a generated {@link JoinCondition}. */
 public class GeneratedJoinCondition extends GeneratedClass<JoinCondition> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates a GeneratedJoinCondition.
-	 *
-	 * @param className class name of the generated JoinCondition.
-	 * @param code code of the generated JoinCondition.
-	 * @param references referenced objects of the generated JoinCondition.
-	 */
-	public GeneratedJoinCondition(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    /**
+     * Creates a GeneratedJoinCondition.
+     *
+     * @param className class name of the generated JoinCondition.
+     * @param code code of the generated JoinCondition.
+     * @param references referenced objects of the generated JoinCondition.
+     */
+    public GeneratedJoinCondition(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

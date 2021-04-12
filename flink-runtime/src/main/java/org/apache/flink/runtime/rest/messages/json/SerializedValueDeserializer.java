@@ -29,24 +29,24 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.Type
 
 import java.io.IOException;
 
-/**
- * JSON deserializer for {@link SerializedValue}.
- */
+/** JSON deserializer for {@link SerializedValue}. */
 public class SerializedValueDeserializer extends StdDeserializer<SerializedValue<?>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SerializedValueDeserializer() {
-		super(TypeFactory.defaultInstance().constructType(new TypeReference<SerializedValue<Object>>() {}));
-	}
+    public SerializedValueDeserializer() {
+        super(
+                TypeFactory.defaultInstance()
+                        .constructType(new TypeReference<SerializedValue<Object>>() {}));
+    }
 
-	public SerializedValueDeserializer(final JavaType valueType) {
-		super(valueType);
-	}
+    public SerializedValueDeserializer(final JavaType valueType) {
+        super(valueType);
+    }
 
-	@Override
-	public SerializedValue<?> deserialize(final JsonParser p, final DeserializationContext ctxt) throws IOException {
-		return SerializedValue.fromBytes(p.getBinaryValue());
-	}
-
+    @Override
+    public SerializedValue<?> deserialize(final JsonParser p, final DeserializationContext ctxt)
+            throws IOException {
+        return SerializedValue.fromBytes(p.getBinaryValue());
+    }
 }

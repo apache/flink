@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-yarn_${scala.binary.version}</artifactId>
-	<name>flink-yarn</name>
+	<name>Flink : Yarn</name>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -54,20 +54,32 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
 		</dependency>
-
-		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-common</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+		</dependency>
+		
+
+		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -88,6 +100,12 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 			<version>${hadoop.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -97,6 +115,14 @@ under the License.
 			<type>test-jar</type>
 			<version>${hadoop.version}</version>
 			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
 				<exclusion>
 					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
 					<groupId>jdk.tools</groupId>
@@ -126,6 +152,14 @@ under the License.
 					<version>${hadoop.version}</version>
 					<scope>test</scope>
 					<exclusions>
+						<exclusion>
+							<groupId>log4j</groupId>
+							<artifactId>log4j</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>org.slf4j</groupId>
+							<artifactId>slf4j-log4j12</artifactId>
+						</exclusion>
 						<exclusion>
 							<groupId>org.apache.avro</groupId>
 							<artifactId>avro</artifactId>
@@ -190,6 +224,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>resource-types.xml</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

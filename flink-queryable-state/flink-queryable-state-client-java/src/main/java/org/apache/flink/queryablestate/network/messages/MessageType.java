@@ -21,22 +21,22 @@ package org.apache.flink.queryablestate.network.messages;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Expected message types during the communication between
- * {@link org.apache.flink.queryablestate.network.Client client} and
- * {@link org.apache.flink.queryablestate.network.AbstractServerBase server}.
+ * Expected message types during the communication between {@link
+ * org.apache.flink.queryablestate.network.Client client} and {@link
+ * org.apache.flink.queryablestate.network.AbstractServerBase server}.
  */
 @Internal
 public enum MessageType {
 
-	/** The message is a request. */
-	REQUEST,
+    /** The message is a request. */
+    REQUEST,
 
-	/** The message is a successful response. */
-	REQUEST_RESULT,
+    /** The message is a successful response. */
+    REQUEST_RESULT,
 
-	/** The message indicates a protocol-related failure. */
-	REQUEST_FAILURE,
+    /** The message indicates a protocol-related failure. */
+    REQUEST_FAILURE,
 
-	/** The message indicates a server failure. */
-	SERVER_FAILURE
+    /** The message indicates a server failure. */
+    SERVER_FAILURE
 }

@@ -100,4 +100,3 @@ NULL                           NULL                 Midway                      
 NULL                           NULL                 Milan                                                        Woodland                                                               226048                                  3239.64                                -13933.74
 NULL                           NULL                 Mount Pleasant                                               Clifton                                                                 33934                                  2089.09                                 -5930.92
 NULL                           NULL                 Mount Pleasant                                               Union                                                                  157956                                  7732.84                                -12103.02
-Warning: Null value is eliminated by an aggregate or other SET operation.

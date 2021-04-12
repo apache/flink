@@ -19,15 +19,14 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientFactory;
-import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -36,66 +35,58 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link ClusterClientFactory} for a YARN cluster.
- */
+/** A {@link ClusterClientFactory} for a YARN cluster. */
 @Internal
-public class YarnClusterClientFactory implements ClusterClientFactory<ApplicationId> {
+public class YarnClusterClientFactory
+        extends AbstractContainerizedClusterClientFactory<ApplicationId> {
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		checkNotNull(configuration);
-		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget) ||
-				YarnSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        checkNotNull(configuration);
+        final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
+        return YarnDeploymentTarget.isValidYarnTarget(deploymentTarget);
+    }
 
-	@Override
-	public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
-		checkNotNull(configuration);
-		return getClusterDescriptor(configuration);
-	}
+    @Override
+    public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
+        checkNotNull(configuration);
 
-	@Nullable
-	@Override
-	public ApplicationId getClusterId(Configuration configuration) {
-		checkNotNull(configuration);
-		final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
-		return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
-	}
+        final String configurationDirectory = configuration.get(DeploymentOptionsInternal.CONF_DIR);
+        YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
 
-	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration) {
-		checkNotNull(configuration);
+        return getClusterDescriptor(configuration);
+    }
 
-		// JobManager Memory
-		final int jobManagerMemoryMB = ConfigurationUtils.getJobManagerHeapMemory(configuration).getMebiBytes();
+    @Nullable
+    @Override
+    public ApplicationId getClusterId(Configuration configuration) {
+        checkNotNull(configuration);
+        final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
+        return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
+    }
 
-		// Task Managers memory
-		final int taskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(configuration).getMebiBytes();
+    @Override
+    public Optional<String> getApplicationTargetName() {
+        return Optional.of(YarnDeploymentTarget.APPLICATION.getName());
+    }
 
-		int slotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+    private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
+        final YarnClient yarnClient = YarnClient.createYarnClient();
+        final YarnConfiguration yarnConfiguration =
+                Utils.getYarnAndHadoopConfiguration(configuration);
 
-		return new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(jobManagerMemoryMB)
-				.setTaskManagerMemoryMB(taskManagerMemoryMB)
-				.setSlotsPerTaskManager(slotsPerTaskManager)
-				.createClusterSpecification();
-	}
+        yarnClient.init(yarnConfiguration);
+        yarnClient.start();
 
-	private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
-		final YarnClient yarnClient = YarnClient.createYarnClient();
-		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
-
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
-
-		return new YarnClusterDescriptor(
-				configuration,
-				yarnConfiguration,
-				yarnClient,
-				false);
-	}
+        return new YarnClusterDescriptor(
+                configuration,
+                yarnConfiguration,
+                yarnClient,
+                YarnClientYarnClusterInformationRetriever.create(yarnClient),
+                false);
+    }
 }

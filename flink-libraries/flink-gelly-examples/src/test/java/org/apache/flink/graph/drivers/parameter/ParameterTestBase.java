@@ -20,23 +20,20 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.junit.Before;
 
-/**
- * Base class for {@link Parameter} tests.
- */
+/** Base class for {@link Parameter} tests. */
 public abstract class ParameterTestBase {
 
-	protected ParameterizedBase owner;
+    protected ParameterizedBase owner;
 
-	@Before
-	public void setup() {
-		owner = new MockParameterized();
-	}
+    @Before
+    public void setup() {
+        owner = new MockParameterized();
+    }
 
-	private static class MockParameterized
-	extends ParameterizedBase {
-		@Override
-		public String getName() {
-			return MockParameterized.class.getSimpleName();
-		}
-	}
+    private static class MockParameterized extends ParameterizedBase {
+        @Override
+        public String getName() {
+            return MockParameterized.class.getSimpleName();
+        }
+    }
 }

@@ -43,93 +43,103 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x.
- */
+/** Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x. */
 @Internal
 public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge<TransportClient> {
 
-	private static final long serialVersionUID = -5222683870097809633L;
+    private static final long serialVersionUID = -5222683870097809633L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch5ApiCallBridge.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch5ApiCallBridge.class);
 
-	/**
-	 * User-provided transport addresses.
-	 *
-	 * <p>We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
-	 */
-	private final List<InetSocketAddress> transportAddresses;
+    /**
+     * User-provided transport addresses.
+     *
+     * <p>We are using {@link InetSocketAddress} because {@link TransportAddress} is not
+     * serializable in Elasticsearch 5.x.
+     */
+    private final List<InetSocketAddress> transportAddresses;
 
-	Elasticsearch5ApiCallBridge(List<InetSocketAddress> transportAddresses) {
-		Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
-		this.transportAddresses = transportAddresses;
-	}
+    Elasticsearch5ApiCallBridge(List<InetSocketAddress> transportAddresses) {
+        Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
+        this.transportAddresses = transportAddresses;
+    }
 
-	@Override
-	public TransportClient createClient(Map<String, String> clientConfig) {
-		Settings settings = Settings.builder().put(clientConfig)
-			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
-			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
-			.build();
+    @Override
+    public TransportClient createClient(Map<String, String> clientConfig) {
+        Settings settings =
+                Settings.builder()
+                        .put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
+                        .put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
+                        .put(clientConfig)
+                        .build();
 
-		TransportClient transportClient = new PreBuiltTransportClient(settings);
-		for (TransportAddress transport : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
-			transportClient.addTransportAddress(transport);
-		}
+        TransportClient transportClient = new PreBuiltTransportClient(settings);
+        for (TransportAddress transport :
+                ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
+            transportClient.addTransportAddress(transport);
+        }
 
-		// verify that we actually are connected to a cluster
-		if (transportClient.connectedNodes().isEmpty()) {
+        return transportClient;
+    }
 
-			// close the transportClient here
-			IOUtils.closeQuietly(transportClient);
+    @Override
+    public BulkProcessor.Builder createBulkProcessorBuilder(
+            TransportClient client, BulkProcessor.Listener listener) {
+        return BulkProcessor.builder(client, listener);
+    }
 
-			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
-		}
+    @Override
+    public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
+        if (!bulkItemResponse.isFailed()) {
+            return null;
+        } else {
+            return bulkItemResponse.getFailure().getCause();
+        }
+    }
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
-		}
+    @Override
+    public void configureBulkProcessorBackoff(
+            BulkProcessor.Builder builder,
+            @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
 
-		return transportClient;
-	}
+        BackoffPolicy backoffPolicy;
+        if (flushBackoffPolicy != null) {
+            switch (flushBackoffPolicy.getBackoffType()) {
+                case CONSTANT:
+                    backoffPolicy =
+                            BackoffPolicy.constantBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+                    break;
+                case EXPONENTIAL:
+                default:
+                    backoffPolicy =
+                            BackoffPolicy.exponentialBackoff(
+                                    new TimeValue(flushBackoffPolicy.getDelayMillis()),
+                                    flushBackoffPolicy.getMaxRetryCount());
+            }
+        } else {
+            backoffPolicy = BackoffPolicy.noBackoff();
+        }
 
-	@Override
-	public BulkProcessor.Builder createBulkProcessorBuilder(TransportClient client, BulkProcessor.Listener listener) {
-		return BulkProcessor.builder(client, listener);
-	}
+        builder.setBackoffPolicy(backoffPolicy);
+    }
 
-	@Override
-	public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
-		if (!bulkItemResponse.isFailed()) {
-			return null;
-		} else {
-			return bulkItemResponse.getFailure().getCause();
-		}
-	}
+    @Override
+    public void verifyClientConnection(TransportClient client) {
+        // verify that we actually are connected to a cluster
+        if (client.connectedNodes().isEmpty()) {
+            // close the transportClient here
+            IOUtils.closeQuietly(client);
 
-	@Override
-	public void configureBulkProcessorBackoff(
-		BulkProcessor.Builder builder,
-		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+            throw new RuntimeException(
+                    "Elasticsearch client is not connected to any Elasticsearch nodes!");
+        }
 
-		BackoffPolicy backoffPolicy;
-		if (flushBackoffPolicy != null) {
-			switch (flushBackoffPolicy.getBackoffType()) {
-				case CONSTANT:
-					backoffPolicy = BackoffPolicy.constantBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-					break;
-				case EXPONENTIAL:
-				default:
-					backoffPolicy = BackoffPolicy.exponentialBackoff(
-						new TimeValue(flushBackoffPolicy.getDelayMillis()),
-						flushBackoffPolicy.getMaxRetryCount());
-			}
-		} else {
-			backoffPolicy = BackoffPolicy.noBackoff();
-		}
-
-		builder.setBackoffPolicy(backoffPolicy);
-	}
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Elasticsearch TransportClient is connected to nodes {}",
+                    client.connectedNodes());
+        }
+    }
 }

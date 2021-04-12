@@ -22,28 +22,30 @@ import javax.annotation.Nullable;
 
 /** Common functions related to State TTL. */
 public class TtlUtils {
-	static <V> boolean expired(@Nullable TtlValue<V> ttlValue, long ttl, TtlTimeProvider timeProvider) {
-		return expired(ttlValue, ttl, timeProvider.currentTimestamp());
-	}
+    static <V> boolean expired(
+            @Nullable TtlValue<V> ttlValue, long ttl, TtlTimeProvider timeProvider) {
+        return expired(ttlValue, ttl, timeProvider.currentTimestamp());
+    }
 
-	static <V> boolean expired(@Nullable TtlValue<V> ttlValue, long ttl, long currentTimestamp) {
-		return ttlValue != null && expired(ttlValue.getLastAccessTimestamp(), ttl, currentTimestamp);
-	}
+    static <V> boolean expired(@Nullable TtlValue<V> ttlValue, long ttl, long currentTimestamp) {
+        return ttlValue != null
+                && expired(ttlValue.getLastAccessTimestamp(), ttl, currentTimestamp);
+    }
 
-	static boolean expired(long ts, long ttl, TtlTimeProvider timeProvider) {
-		return expired(ts, ttl, timeProvider.currentTimestamp());
-	}
+    static boolean expired(long ts, long ttl, TtlTimeProvider timeProvider) {
+        return expired(ts, ttl, timeProvider.currentTimestamp());
+    }
 
-	public static boolean expired(long ts, long ttl, long currentTimestamp) {
-		return getExpirationTimestamp(ts, ttl) <= currentTimestamp;
-	}
+    public static boolean expired(long ts, long ttl, long currentTimestamp) {
+        return getExpirationTimestamp(ts, ttl) <= currentTimestamp;
+    }
 
-	private static long getExpirationTimestamp(long ts, long ttl) {
-		long ttlWithoutOverflow = ts > 0 ? Math.min(Long.MAX_VALUE - ts, ttl) : ttl;
-		return ts + ttlWithoutOverflow;
-	}
+    private static long getExpirationTimestamp(long ts, long ttl) {
+        long ttlWithoutOverflow = ts > 0 ? Math.min(Long.MAX_VALUE - ts, ttl) : ttl;
+        return ts + ttlWithoutOverflow;
+    }
 
-	static <V> TtlValue<V> wrapWithTs(V value, long ts) {
-		return new TtlValue<>(value, ts);
-	}
+    static <V> TtlValue<V> wrapWithTs(V value, long ts) {
+        return new TtlValue<>(value, ts);
+    }
 }

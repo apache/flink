@@ -19,37 +19,16 @@ package org.apache.flink.table.planner.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, PojoTypeInfo}
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.planner.validate._
-import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo, LegacyLocalDateTimeTypeInfo, LegacyTimestampTypeInfo}
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
-import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 object TypeInfoCheckUtils {
 
-  /**
-    * Checks if type information is an advanced type that can be converted to a
-    * SQL type but NOT vice versa.
-    */
-  def isAdvanced(dataType: TypeInformation[_]): Boolean = dataType match {
-    case _: TimeIndicatorTypeInfo => false
-    case _: BasicTypeInfo[_] => false
-    case _: SqlTimeTypeInfo[_] => false
-    case _: TimeIntervalTypeInfo[_] => false
-    case _ => true
-  }
-
-  /**
-    * Checks if type information is a simple type that can be converted to a
-    * SQL type and vice versa.
-    */
-  def isSimple(dataType: TypeInformation[_]): Boolean = !isAdvanced(dataType)
-
   def isNumeric(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: NumericTypeInfo[_] => true
-    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo => true
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo => true
     case _ => false
   }
 
@@ -62,23 +41,6 @@ object TypeInfoCheckUtils {
   def isTimeInterval(dataType: TypeInformation[_]): Boolean =
     dataType.isInstanceOf[TimeIntervalTypeInfo[_]]
 
-  def isString(dataType: TypeInformation[_]): Boolean = dataType == STRING_TYPE_INFO
-
-  def isBoolean(dataType: TypeInformation[_]): Boolean = dataType == BOOLEAN_TYPE_INFO
-
-  def isDecimal(dataType: TypeInformation[_]): Boolean = dataType == BIG_DEC_TYPE_INFO
-
-  def isInteger(dataType: TypeInformation[_]): Boolean = dataType == INT_TYPE_INFO
-
-  def isIntegerFamily(dataType: TypeInformation[_]): Boolean =
-    dataType.isInstanceOf[IntegerTypeInfo[_]]
-
-  def isLong(dataType: TypeInformation[_]): Boolean = dataType == LONG_TYPE_INFO
-
-  def isIntervalMonths(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MONTHS
-
-  def isIntervalMillis(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MILLIS
-
   def isArray(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: ObjectArrayTypeInfo[_, _] |
          _: BasicArrayTypeInfo[_, _] |
@@ -89,39 +51,16 @@ object TypeInfoCheckUtils {
   def isMap(dataType: TypeInformation[_]): Boolean =
     dataType.isInstanceOf[MapTypeInfo[_, _]]
 
-  def isComparable(dataType: TypeInformation[_]): Boolean = dataType match {
-    case _: LegacyLocalDateTimeTypeInfo |
-         _: LegacyTimestampTypeInfo => true
-    case _ =>
-      classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass) && !isArray(dataType)
-  }
-
-  /**
-    * Types that can be easily converted into a string without ambiguity.
-    */
-  def isSimpleStringRepresentation(dataType: TypeInformation[_]): Boolean =
-    isNumeric(dataType) || isString(dataType) || isTemporal(dataType) || isBoolean(dataType)
-
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)
   : ValidationResult = dataType match {
     case _: NumericTypeInfo[_] =>
       ValidationSuccess
-    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo =>
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo =>
       ValidationSuccess
     case _ =>
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
-  }
-
-  def assertIntegerFamilyExpr(
-      dataType: TypeInformation[_],
-      caller: String)
-  : ValidationResult = dataType match {
-    case _: IntegerTypeInfo[_] =>
-      ValidationSuccess
-    case _ =>
-      ValidationFailure(s"$caller requires integer types but was '$dataType'.")
   }
 
   def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {
@@ -130,78 +69,6 @@ object TypeInfoCheckUtils {
     } else {
       ValidationFailure(s"$caller requires orderable types, get $dataType here")
     }
-  }
-
-  /**
-    * Checks whether a type implements own hashCode() and equals() methods for storing an instance
-    * in Flink's state or performing a keyBy operation.
-    *
-    * @param name name of the operation
-    * @param t type information to be validated
-    */
-  def validateEqualsHashCode(name: String, t: TypeInformation[_]): Unit = t match {
-
-    // make sure that a POJO class is a valid state type
-    case pt: PojoTypeInfo[_] =>
-      // we don't check the types recursively to give a chance of wrapping
-      // proper hashCode/equals methods around an immutable type
-      validateEqualsHashCode(name, pt.getClass)
-    // recursively check composite types
-    case ct: CompositeType[_] =>
-      validateEqualsHashCode(name, t.getTypeClass)
-      // we check recursively for entering Flink types such as tuples and rows
-      for (i <- 0 until ct.getArity) {
-        val subtype = ct.getTypeAt(i)
-        validateEqualsHashCode(name, subtype)
-      }
-    // check other type information only based on the type class
-    case _: TypeInformation[_] =>
-      validateEqualsHashCode(name, t.getTypeClass)
-  }
-
-  /**
-    * Checks whether a class implements own hashCode() and equals() methods for storing an instance
-    * in Flink's state or performing a keyBy operation.
-    *
-    * @param name name of the operation
-    * @param c class to be validated
-    */
-  def validateEqualsHashCode(name: String, c: Class[_]): Unit = {
-
-    // skip primitives
-    if (!c.isPrimitive) {
-      // check the component type of arrays
-      if (c.isArray) {
-        validateEqualsHashCode(name, c.getComponentType)
-      }
-      // check type for methods
-      else {
-        if (c.getMethod("hashCode").getDeclaringClass eq classOf[Object]) {
-          throw new ValidationException(
-            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
-                s"does not implement a proper hashCode() method.")
-        }
-        if (c.getMethod("equals", classOf[Object]).getDeclaringClass eq classOf[Object]) {
-          throw new ValidationException(
-            s"Type '${c.getCanonicalName}' cannot be used in a $name operation because it " +
-                s"does not implement a proper equals() method.")
-        }
-      }
-    }
-  }
-
-  /**
-    * Checks if a class is a Java primitive wrapper.
-    */
-  def isPrimitiveWrapper(clazz: Class[_]): Boolean = {
-    clazz == classOf[java.lang.Boolean] ||
-        clazz == classOf[java.lang.Byte] ||
-        clazz == classOf[java.lang.Character] ||
-        clazz == classOf[java.lang.Short] ||
-        clazz == classOf[java.lang.Integer] ||
-        clazz == classOf[java.lang.Long] ||
-        clazz == classOf[java.lang.Double] ||
-        clazz == classOf[java.lang.Float]
   }
 
   /**

@@ -21,53 +21,51 @@ package org.apache.flink.table.catalog.stats;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Column statistics value of string type.
- */
+/** Column statistics value of string type. */
 public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDataBase {
-	/**
-	 * max length of all values.
-	 */
-	private final long maxLength;
+    /** max length of all values. */
+    private final Long maxLength;
 
-	/**
-	 * average length of all values.
-	 */
-	private final double avgLength;
+    /** average length of all values. */
+    private final Double avgLength;
 
-	/**
-	 * number of distinct values.
-	 */
-	private final long ndv;
+    /** number of distinct values. */
+    private final Long ndv;
 
-	public CatalogColumnStatisticsDataString(long maxLength, double avgLength, long ndv, long nullCount) {
-		super(nullCount);
-		this.maxLength = maxLength;
-		this.avgLength = avgLength;
-		this.ndv = ndv;
-	}
+    public CatalogColumnStatisticsDataString(
+            Long maxLength, Double avgLength, Long ndv, Long nullCount) {
+        super(nullCount);
+        this.maxLength = maxLength;
+        this.avgLength = avgLength;
+        this.ndv = ndv;
+    }
 
-	public CatalogColumnStatisticsDataString(long maxLength, double avgLength, long ndv, long nullCount, Map<String, String> properties) {
-		super(nullCount, properties);
-		this.maxLength = maxLength;
-		this.avgLength = avgLength;
-		this.ndv = ndv;
-	}
+    public CatalogColumnStatisticsDataString(
+            Long maxLength,
+            Double avgLength,
+            Long ndv,
+            Long nullCount,
+            Map<String, String> properties) {
+        super(nullCount, properties);
+        this.maxLength = maxLength;
+        this.avgLength = avgLength;
+        this.ndv = ndv;
+    }
 
-	public long getMaxLength() {
-		return maxLength;
-	}
+    public Long getMaxLength() {
+        return maxLength;
+    }
 
-	public double getAvgLength() {
-		return avgLength;
-	}
+    public Double getAvgLength() {
+        return avgLength;
+    }
 
-	public long getNdv() {
-		return ndv;
-	}
+    public Long getNdv() {
+        return ndv;
+    }
 
-	public CatalogColumnStatisticsDataString copy() {
-		return new CatalogColumnStatisticsDataString(maxLength, avgLength, ndv, getNullCount(), new HashMap<>(getProperties()));
-	}
-
+    public CatalogColumnStatisticsDataString copy() {
+        return new CatalogColumnStatisticsDataString(
+                maxLength, avgLength, ndv, getNullCount(), new HashMap<>(getProperties()));
+    }
 }

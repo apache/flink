@@ -36,84 +36,91 @@ import java.io.PrintStream;
  * @see org.apache.flink.graph.library.metric.undirected.EdgeMetrics
  * @see org.apache.flink.graph.library.metric.undirected.VertexMetrics
  */
-public class GraphMetrics<K extends Comparable<K>, VV, EV>
-extends DriverBase<K, VV, EV> {
+public class GraphMetrics<K extends Comparable<K>, VV, EV> extends DriverBase<K, VV, EV> {
 
-	private static final String DIRECTED = "directed";
+    private static final String DIRECTED = "directed";
 
-	private static final String UNDIRECTED = "undirected";
+    private static final String UNDIRECTED = "undirected";
 
-	private ChoiceParameter order = new ChoiceParameter(this, "order")
-		.addChoices(DIRECTED, UNDIRECTED);
+    private ChoiceParameter order =
+            new ChoiceParameter(this, "order").addChoices(DIRECTED, UNDIRECTED);
 
-	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> vertexMetrics;
+    private GraphAnalytic<K, VV, EV, ? extends PrintableResult> vertexMetrics;
 
-	private GraphAnalytic<K, VV, EV, ? extends PrintableResult> edgeMetrics;
+    private GraphAnalytic<K, VV, EV, ? extends PrintableResult> edgeMetrics;
 
-	@Override
-	public String getShortDescription() {
-		return "compute vertex and edge metrics";
-	}
+    @Override
+    public String getShortDescription() {
+        return "compute vertex and edge metrics";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return new StrBuilder()
-			.appendln("Computes metrics on a directed or undirected graph.")
-			.appendNewLine()
-			.appendln("Vertex metrics:")
-			.appendln("- number of vertices")
-			.appendln("- number of edges")
-			.appendln("- number of unidirectional edges (directed only)")
-			.appendln("- number of bidirectional edges (directed only)")
-			.appendln("- average degree")
-			.appendln("- number of triplets")
-			.appendln("- maximum degree")
-			.appendln("- maximum out degree (directed only)")
-			.appendln("- maximum in degree (directed only)")
-			.appendln("- maximum number of triplets")
-			.appendNewLine()
-			.appendln("Edge metrics:")
-			.appendln("- number of triangle triplets")
-			.appendln("- number of rectangle triplets")
-			.appendln("- maximum number of triangle triplets")
-			.append("- maximum number of rectangle triplets")
-			.toString();
-	}
+    @Override
+    public String getLongDescription() {
+        return new StrBuilder()
+                .appendln("Computes metrics on a directed or undirected graph.")
+                .appendNewLine()
+                .appendln("Vertex metrics:")
+                .appendln("- number of vertices")
+                .appendln("- number of edges")
+                .appendln("- number of unidirectional edges (directed only)")
+                .appendln("- number of bidirectional edges (directed only)")
+                .appendln("- average degree")
+                .appendln("- number of triplets")
+                .appendln("- maximum degree")
+                .appendln("- maximum out degree (directed only)")
+                .appendln("- maximum in degree (directed only)")
+                .appendln("- maximum number of triplets")
+                .appendNewLine()
+                .appendln("Edge metrics:")
+                .appendln("- number of triangle triplets")
+                .appendln("- number of rectangle triplets")
+                .appendln("- maximum number of triangle triplets")
+                .append("- maximum number of rectangle triplets")
+                .toString();
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		switch (order.getValue()) {
-			case DIRECTED:
-				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.VertexMetrics<K, VV, EV>()
-						.setParallelism(parallelism.getValue().intValue()));
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        switch (order.getValue()) {
+            case DIRECTED:
+                vertexMetrics =
+                        graph.run(
+                                new org.apache.flink.graph.library.metric.directed.VertexMetrics<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism.getValue().intValue()));
 
-				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.directed.EdgeMetrics<K, VV, EV>()
-						.setParallelism(parallelism.getValue().intValue()));
-				break;
+                edgeMetrics =
+                        graph.run(
+                                new org.apache.flink.graph.library.metric.directed.EdgeMetrics<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism.getValue().intValue()));
+                break;
 
-			case UNDIRECTED:
-				vertexMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.VertexMetrics<K, VV, EV>()
-						.setParallelism(parallelism.getValue().intValue()));
+            case UNDIRECTED:
+                vertexMetrics =
+                        graph.run(
+                                new org.apache.flink.graph.library.metric.undirected.VertexMetrics<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism.getValue().intValue()));
 
-				edgeMetrics = graph
-					.run(new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<K, VV, EV>()
-						.setParallelism(parallelism.getValue().intValue()));
-				break;
-		}
+                edgeMetrics =
+                        graph.run(
+                                new org.apache.flink.graph.library.metric.undirected.EdgeMetrics<
+                                                K, VV, EV>()
+                                        .setParallelism(parallelism.getValue().intValue()));
+                break;
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	@Override
-	public void printAnalytics(PrintStream out) {
-		out.print("Vertex metrics:\n  ");
-		out.println(vertexMetrics.getResult().toPrintableString().replace(";", "\n "));
+    @Override
+    public void printAnalytics(PrintStream out) {
+        out.print("Vertex metrics:\n  ");
+        out.println(vertexMetrics.getResult().toPrintableString().replace(";", "\n "));
 
-		out.println();
-		out.print("Edge metrics:\n  ");
-		out.println(edgeMetrics.getResult().toPrintableString().replace(";", "\n "));
-	}
+        out.println();
+        out.print("Edge metrics:\n  ");
+        out.println(edgeMetrics.getResult().toPrintableString().replace(";", "\n "));
+    }
 }

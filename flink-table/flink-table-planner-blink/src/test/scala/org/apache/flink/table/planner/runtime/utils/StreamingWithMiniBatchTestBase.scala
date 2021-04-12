@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{
 
 import org.junit.runners.Parameterized
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -39,7 +40,7 @@ abstract class StreamingWithMiniBatchTestBase(
     miniBatch match {
       case MiniBatchOn =>
         tableConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
-        tableConfig.getConfiguration.setString(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+        tableConfig.getConfiguration.set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
         tableConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
       case MiniBatchOff =>
         tableConfig.getConfiguration.removeConfig(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)

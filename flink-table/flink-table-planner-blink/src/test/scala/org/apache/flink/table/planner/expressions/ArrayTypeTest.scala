@@ -18,16 +18,24 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import java.time.{LocalDateTime => JLocalDateTime}
-
 import org.junit.Test
 
+import java.time.{LocalDateTime => JLocalDateTime}
+
 class ArrayTypeTest extends ArrayTypeTestBase {
+
+  @Test
+  def testInputTypeGeneralization(): Unit = {
+    testAllApis(
+      array(1, 2.0, 3.0),
+      "array(1, 2.0, 3.0)",
+      "ARRAY[1, cast(2.0 AS DOUBLE), cast(3.0 AS DOUBLE)]",
+      "[1.0, 2.0, 3.0]")
+  }
 
   @Test
   def testArrayLiterals(): Unit = {
@@ -90,9 +98,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "ARRAY[TIME '14:15:16', TIME '17:18:19']",
       "[14:15:16, 17:18:19]")
 
-    testAllApis(
+    // There is no timestamp literal function in Java String Table API,
+    // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
+    testTableApi(
       Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
-      "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
+      "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
+
+    testSqlApi(
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
       "[1985-04-11 14:15:16, 2018-07-26 17:18:19]")
 
@@ -362,5 +374,36 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "f3.cast(OBJECT_ARRAY(SQL_DATE))",
       "[1984-03-12, 1984-02-10]"
     )
+  }
+
+  @Test
+  def testArrayIndexStaticCheckForTable(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
+    testTableApi('f2.at(0), "1")
+  }
+
+  @Test
+  def testArrayIndexStaticCheckForSql(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
+    testSqlApi("f2[0]", "1")
+  }
+
+  @Test
+  def testReturnNullWhenArrayIndexOutOfBounds(): Unit = {
+    // ARRAY<INT NOT NULL>
+    testAllApis(
+      'f2.at(4),
+      "f2.at(4)",
+      "f2[4]",
+      "null")
+
+    // ARRAY<INT>
+    testAllApis(
+      'f11.at(3),
+      "f11.at(3)",
+      "f11[4]",
+      "null")
   }
 }

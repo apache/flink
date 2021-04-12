@@ -43,7 +43,7 @@ import java.lang.annotation.Target;
  * </pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ java.lang.annotation.ElementType.METHOD })
+@Target({java.lang.annotation.ElementType.METHOD})
 public @interface RetryOnFailure {
-	int times();
+    int times();
 }

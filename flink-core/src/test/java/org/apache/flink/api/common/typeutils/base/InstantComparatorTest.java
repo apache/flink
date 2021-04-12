@@ -24,33 +24,31 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.time.Instant;
 
-/**
- * A test for the {@link InstantComparator}.
- */
+/** A test for the {@link InstantComparator}. */
 public class InstantComparatorTest extends ComparatorTestBase<Instant> {
 
-	@Override
-	protected TypeComparator<Instant> createComparator(boolean ascending) {
-		return new InstantComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Instant> createComparator(boolean ascending) {
+        return new InstantComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Instant> createSerializer() {
-		return new InstantSerializer();
-	}
+    @Override
+    protected TypeSerializer<Instant> createSerializer() {
+        return new InstantSerializer();
+    }
 
-	@Override
-	protected Instant[] getSortedTestData() {
-		return new Instant[] {
-			Instant.EPOCH,
-			Instant.parse("1970-01-01T00:00:00.001Z"),
-			Instant.parse("1990-10-14T02:42:25.123Z"),
-			Instant.parse("1990-10-14T02:42:25.123000001Z"),
-			Instant.parse("1990-10-14T02:42:25.123000002Z"),
-			Instant.parse("2013-08-12T14:15:59.478Z"),
-			Instant.parse("2013-08-12T14:15:59.479Z"),
-			Instant.parse("2040-05-12T18:00:45.999Z"),
-			Instant.MAX
-		};
-	}
+    @Override
+    protected Instant[] getSortedTestData() {
+        return new Instant[] {
+            Instant.EPOCH,
+            Instant.parse("1970-01-01T00:00:00.001Z"),
+            Instant.parse("1990-10-14T02:42:25.123Z"),
+            Instant.parse("1990-10-14T02:42:25.123000001Z"),
+            Instant.parse("1990-10-14T02:42:25.123000002Z"),
+            Instant.parse("2013-08-12T14:15:59.478Z"),
+            Instant.parse("2013-08-12T14:15:59.479Z"),
+            Instant.parse("2040-05-12T18:00:45.999Z"),
+            Instant.MAX
+        };
+    }
 }

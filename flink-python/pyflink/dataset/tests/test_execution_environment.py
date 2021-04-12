@@ -18,11 +18,14 @@
 import json
 import os
 import tempfile
+import time
 
-from pyflink.dataset import ExecutionEnvironment
+import unittest
+
 from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
 class ExecutionEnvironmentTests(PyFlinkTestCase):
@@ -95,6 +98,7 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(type_list,
                          ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
 
+    @unittest.skip("Python API does not support DataSet now. refactor this test later")
     def test_get_execution_plan(self):
         tmp_dir = tempfile.gettempdir()
         source_path = os.path.join(tmp_dir + '/streaming.csv')
@@ -108,8 +112,26 @@ class ExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.register_table_sink(
             "Results",
             CsvTableSink(field_names, field_types, tmp_csv))
-        t_env.scan("Orders").insert_into("Results")
+        t_env.from_path("Orders").execute_insert("Results").wait()
 
         plan = self.env.get_execution_plan()
 
         json.loads(plan)
+
+    def test_execute(self):
+        tmp_dir = tempfile.gettempdir()
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env = BatchTableEnvironment.create(self.env)
+        t_env.register_table_sink(
+            'Results',
+            CsvTableSink(field_names, field_types,
+                         os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
+        execution_result = exec_insert_table(
+            t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']),
+            'Results')
+        self.assertIsNotNone(execution_result.get_job_id())
+        self.assertIsNotNone(execution_result.get_net_runtime())
+        self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)
+        self.assertIsNone(execution_result.get_accumulator_result('accumulator'))
+        self.assertIsNotNone(str(execution_result))

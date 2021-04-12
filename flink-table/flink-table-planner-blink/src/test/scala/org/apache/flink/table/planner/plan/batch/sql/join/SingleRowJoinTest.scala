@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -30,14 +31,14 @@ class SingleRowJoinTest extends TableTestBase {
   def testSingleRowCrossJoin(): Unit = {
     val util = batchTestUtil()
     util.addTableSource[(Int, Int)]("A", 'a1, 'a2)
-    util.verifyPlan("SELECT a1, a_sum FROM A, (SELECT SUM(a1) + SUM(a2) AS a_sum FROM A)")
+    util.verifyExecPlan("SELECT a1, a_sum FROM A, (SELECT SUM(a1) + SUM(a2) AS a_sum FROM A)")
   }
 
   @Test
   def testSingleRowNotEquiJoin(): Unit = {
     val util = batchTestUtil()
     util.addTableSource[(Int, String)]("A", 'a1, 'a2)
-    util.verifyPlan("SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 < cnt")
+    util.verifyExecPlan("SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 < cnt")
   }
 
   @Test
@@ -51,7 +52,7 @@ class SingleRowJoinTest extends TableTestBase {
         |  (SELECT min(b1) AS b1, max(b2) AS b2 FROM B)
         |WHERE a1 < b1 AND a2 = b2
       """.stripMargin
-    util.verifyPlan(query)
+    util.verifyExecPlan(query)
   }
 
   @Test
@@ -59,7 +60,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
-    util.verifyPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
+    util.verifyExecPlan(
+      "SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt")
   }
 
   @Test
@@ -67,7 +69,8 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Int)]("A", 'a1, 'a2)
     util.addTableSource[(Int, Int)]("B", 'b1, 'b2)
-    util.verifyPlan("SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 > cnt")
+    util.verifyExecPlan(
+      "SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 > cnt")
   }
 
   @Test
@@ -75,7 +78,7 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Long)]("A", 'a1, 'a2)
     util.addTableSource[(Long, Long)]("B", 'b1, 'b2)
-    util.verifyPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2")
+    util.verifyExecPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2")
   }
 
   @Test
@@ -83,7 +86,7 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Long, Long)]("A", 'a1, 'a2)
     util.addTableSource[(Long, Long)]("B", 'b1, 'b2)
-    util.verifyPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt < a2")
+    util.verifyExecPlan("SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt < a2")
   }
 
   @Test
@@ -91,6 +94,6 @@ class SingleRowJoinTest extends TableTestBase {
     val util = batchTestUtil()
     util.addTableSource[(Int, Int)]("A", 'a1, 'a2)
     val sql = "SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }

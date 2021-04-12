@@ -22,86 +22,89 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Summary over <strong>all</strong> completed checkpoints.
- */
+/** Summary over <strong>all</strong> completed checkpoints. */
 public class CompletedCheckpointStatsSummary implements Serializable {
 
-	private static final long serialVersionUID = 5784360461635814038L;
+    private static final long serialVersionUID = 5784360461635814038L;
 
-	/** State size statistics for all completed checkpoints. */
-	private final MinMaxAvgStats stateSize;
+    /** State size statistics for all completed checkpoints. */
+    private final MinMaxAvgStats stateSize;
 
-	/** Duration statistics for all completed checkpoints. */
-	private final MinMaxAvgStats duration;
+    /** Duration statistics for all completed checkpoints. */
+    private final MinMaxAvgStats duration;
 
-	/** Byte buffered during alignment for all completed checkpoints. */
-	private final MinMaxAvgStats alignmentBuffered;
+    private final MinMaxAvgStats processedData;
 
-	CompletedCheckpointStatsSummary() {
-		this(new MinMaxAvgStats(), new MinMaxAvgStats(), new MinMaxAvgStats());
-	}
+    private final MinMaxAvgStats persistedData;
 
-	private CompletedCheckpointStatsSummary(
-			MinMaxAvgStats stateSize,
-			MinMaxAvgStats duration,
-			MinMaxAvgStats alignmentBuffered) {
+    CompletedCheckpointStatsSummary() {
+        this(
+                new MinMaxAvgStats(),
+                new MinMaxAvgStats(),
+                new MinMaxAvgStats(),
+                new MinMaxAvgStats());
+    }
 
-		this.stateSize = checkNotNull(stateSize);
-		this.duration = checkNotNull(duration);
-		this.alignmentBuffered = checkNotNull(alignmentBuffered);
-	}
+    private CompletedCheckpointStatsSummary(
+            MinMaxAvgStats stateSize,
+            MinMaxAvgStats duration,
+            MinMaxAvgStats processedData,
+            MinMaxAvgStats persistedData) {
 
-	/**
-	 * Updates the summary with the given completed checkpoint.
-	 *
-	 * @param completed Completed checkpoint to update the summary with.
-	 */
-	void updateSummary(CompletedCheckpointStats completed) {
-		stateSize.add(completed.getStateSize());
-		duration.add(completed.getEndToEndDuration());
-		alignmentBuffered.add(completed.getAlignmentBuffered());
-	}
+        this.stateSize = checkNotNull(stateSize);
+        this.duration = checkNotNull(duration);
+        this.processedData = checkNotNull(processedData);
+        this.persistedData = checkNotNull(persistedData);
+    }
 
-	/**
-	 * Creates a snapshot of the current state.
-	 *
-	 * @return A snapshot of the current state.
-	 */
-	CompletedCheckpointStatsSummary createSnapshot() {
-		return new CompletedCheckpointStatsSummary(
-				stateSize.createSnapshot(),
-				duration.createSnapshot(),
-				alignmentBuffered.createSnapshot());
-	}
+    /**
+     * Updates the summary with the given completed checkpoint.
+     *
+     * @param completed Completed checkpoint to update the summary with.
+     */
+    void updateSummary(CompletedCheckpointStats completed) {
+        stateSize.add(completed.getStateSize());
+        duration.add(completed.getEndToEndDuration());
+        processedData.add(completed.getProcessedData());
+        persistedData.add(completed.getPersistedData());
+    }
 
-	/**
-	 * Returns the summary stats for the state size of completed checkpoints.
-	 *
-	 * @return Summary stats for the state size.
-	 */
-	public MinMaxAvgStats getStateSizeStats() {
-		return stateSize;
-	}
+    /**
+     * Creates a snapshot of the current state.
+     *
+     * @return A snapshot of the current state.
+     */
+    CompletedCheckpointStatsSummary createSnapshot() {
+        return new CompletedCheckpointStatsSummary(
+                stateSize.createSnapshot(),
+                duration.createSnapshot(),
+                processedData.createSnapshot(),
+                persistedData.createSnapshot());
+    }
 
-	/**
-	 * Returns the summary stats for the duration of completed checkpoints.
-	 *
-	 * @return Summary stats for the duration.
-	 */
-	public MinMaxAvgStats getEndToEndDurationStats() {
-		return duration;
-	}
+    /**
+     * Returns the summary stats for the state size of completed checkpoints.
+     *
+     * @return Summary stats for the state size.
+     */
+    public MinMaxAvgStats getStateSizeStats() {
+        return stateSize;
+    }
 
-	/**
-	 * Returns the summary stats for the bytes buffered during alignment.
-	 *
-	 * <p>If no alignments are reported or happen (at least once mode), the
-	 * returned stats are in their initial state.
-	 *
-	 * @return Summary stats for the bytes buffered during alignment.
-	 */
-	public MinMaxAvgStats getAlignmentBufferedStats() {
-		return alignmentBuffered;
-	}
+    /**
+     * Returns the summary stats for the duration of completed checkpoints.
+     *
+     * @return Summary stats for the duration.
+     */
+    public MinMaxAvgStats getEndToEndDurationStats() {
+        return duration;
+    }
+
+    public MinMaxAvgStats getProcessedDataStats() {
+        return processedData;
+    }
+
+    public MinMaxAvgStats getPersistedDataStats() {
+        return persistedData;
+    }
 }

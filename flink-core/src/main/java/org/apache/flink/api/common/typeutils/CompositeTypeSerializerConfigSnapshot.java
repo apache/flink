@@ -29,8 +29,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A {@link TypeSerializerConfigSnapshot} for serializers that has multiple nested serializers.
- * The configuration snapshot consists of the configuration snapshots of all nested serializers, and
+ * A {@link TypeSerializerConfigSnapshot} for serializers that has multiple nested serializers. The
+ * configuration snapshot consists of the configuration snapshots of all nested serializers, and
  * also the nested serializers themselves.
  *
  * <p>Both the nested serializers and the configuration snapshots are written as configuration of
@@ -38,68 +38,76 @@ import java.util.List;
  * is required.
  */
 @Internal
-public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
+public abstract class CompositeTypeSerializerConfigSnapshot<T>
+        extends TypeSerializerConfigSnapshot<T> {
 
-	private List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs;
+    private List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> nestedSerializersAndConfigs;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public CompositeTypeSerializerConfigSnapshot() {}
+    /** This empty nullary constructor is required for deserializing the configuration. */
+    public CompositeTypeSerializerConfigSnapshot() {}
 
-	public CompositeTypeSerializerConfigSnapshot(TypeSerializer<?>... nestedSerializers) {
-		Preconditions.checkNotNull(nestedSerializers);
+    public CompositeTypeSerializerConfigSnapshot(TypeSerializer<?>... nestedSerializers) {
+        Preconditions.checkNotNull(nestedSerializers);
 
-		this.nestedSerializersAndConfigs = new ArrayList<>(nestedSerializers.length);
-		for (TypeSerializer<?> nestedSerializer : nestedSerializers) {
-			TypeSerializerSnapshot<?> configSnapshot = nestedSerializer.snapshotConfiguration();
-			this.nestedSerializersAndConfigs.add(
-				new Tuple2<>(nestedSerializer.duplicate(), Preconditions.checkNotNull(configSnapshot)));
-		}
-	}
+        this.nestedSerializersAndConfigs = new ArrayList<>(nestedSerializers.length);
+        for (TypeSerializer<?> nestedSerializer : nestedSerializers) {
+            TypeSerializerSnapshot<?> configSnapshot = nestedSerializer.snapshotConfiguration();
+            this.nestedSerializersAndConfigs.add(
+                    new Tuple2<>(
+                            nestedSerializer.duplicate(),
+                            Preconditions.checkNotNull(configSnapshot)));
+        }
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		super.write(out);
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        super.write(out);
+        TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
+                out, nestedSerializersAndConfigs);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		super.read(in);
-		this.nestedSerializersAndConfigs =
-			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        super.read(in);
+        this.nestedSerializersAndConfigs =
+                TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
+                        in, getUserCodeClassLoader());
+    }
 
-	public List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>> getNestedSerializersAndConfigs() {
-		return nestedSerializersAndConfigs;
-	}
+    public List<Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>>
+            getNestedSerializersAndConfigs() {
+        return nestedSerializersAndConfigs;
+    }
 
-	public Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> getSingleNestedSerializerAndConfig() {
-		return nestedSerializersAndConfigs.get(0);
-	}
+    public Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>>
+            getSingleNestedSerializerAndConfig() {
+        return nestedSerializersAndConfigs.get(0);
+    }
 
-	public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
-		return nestedSerializersAndConfigs
-			.stream()
-			.map(nestedSerializerAndConfig -> nestedSerializerAndConfig.f1)
-			.toArray(TypeSerializerSnapshot[]::new);
-	}
+    public TypeSerializerSnapshot<?>[] getNestedSerializerSnapshots() {
+        return nestedSerializersAndConfigs.stream()
+                .map(nestedSerializerAndConfig -> nestedSerializerAndConfig.f1)
+                .toArray(TypeSerializerSnapshot[]::new);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
 
-		if (obj == null) {
-			return false;
-		}
+        if (obj == null) {
+            return false;
+        }
 
-		return (obj.getClass().equals(getClass()))
-				&& nestedSerializersAndConfigs.equals(((CompositeTypeSerializerConfigSnapshot) obj).getNestedSerializersAndConfigs());
-	}
+        return (obj.getClass().equals(getClass()))
+                && nestedSerializersAndConfigs.equals(
+                        ((CompositeTypeSerializerConfigSnapshot) obj)
+                                .getNestedSerializersAndConfigs());
+    }
 
-	@Override
-	public int hashCode() {
-		return nestedSerializersAndConfigs.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return nestedSerializersAndConfigs.hashCode();
+    }
 }
