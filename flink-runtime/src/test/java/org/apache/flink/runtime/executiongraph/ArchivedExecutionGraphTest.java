@@ -350,8 +350,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 runtimeVertex.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedVertex.getStateTimestamp(ExecutionState.DEPLOYING));
         assertEquals(
-                runtimeVertex.getStateTimestamp(ExecutionState.RECOVERING),
-                archivedVertex.getStateTimestamp(ExecutionState.RECOVERING));
+                runtimeVertex.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedVertex.getStateTimestamp(ExecutionState.INITIALIZING));
         assertEquals(
                 runtimeVertex.getStateTimestamp(ExecutionState.RUNNING),
                 archivedVertex.getStateTimestamp(ExecutionState.RUNNING));
@@ -408,8 +408,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 runtimeExecution.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedExecution.getStateTimestamp(ExecutionState.DEPLOYING));
         assertEquals(
-                runtimeExecution.getStateTimestamp(ExecutionState.RECOVERING),
-                archivedExecution.getStateTimestamp(ExecutionState.RECOVERING));
+                runtimeExecution.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedExecution.getStateTimestamp(ExecutionState.INITIALIZING));
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.RUNNING),
                 archivedExecution.getStateTimestamp(ExecutionState.RUNNING));

@@ -86,7 +86,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.DEPLOYING;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
-import static org.apache.flink.runtime.execution.ExecutionState.RECOVERING;
+import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -623,7 +623,7 @@ public class Execution
             }
 
             // these two are the common cases where we need to send a cancel call
-            else if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
+            else if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
                 // try to transition to canceling, if successful, send the cancel call
                 if (startCancelling(NUM_CANCEL_CALL_TRIES)) {
                     return;
@@ -663,7 +663,7 @@ public class Execution
     public CompletableFuture<?> suspend() {
         switch (state) {
             case RUNNING:
-            case RECOVERING:
+            case INITIALIZING:
             case DEPLOYING:
             case CREATED:
             case SCHEDULED:
@@ -723,7 +723,7 @@ public class Execution
             // ----------------------------------------------------------------
             if (consumerState == DEPLOYING
                     || consumerState == RUNNING
-                    || consumerState == RECOVERING) {
+                    || consumerState == INITIALIZING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
@@ -856,7 +856,7 @@ public class Execution
             OperatorID operatorId, SerializedValue<OperatorEvent> event) {
         final LogicalSlot slot = assignedResource;
 
-        if (slot != null && (getState() == RUNNING || getState() == RECOVERING)) {
+        if (slot != null && (getState() == RUNNING || getState() == INITIALIZING)) {
             final TaskExecutorOperatorEventGateway eventGateway = slot.getTaskManagerGateway();
             return eventGateway.sendOperatorEventToTask(getAttemptId(), operatorId, event);
         } else {
@@ -907,7 +907,7 @@ public class Execution
         while (true) {
             ExecutionState current = this.state;
 
-            if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
+            if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
 
                 if (transitionState(current, FINISHED)) {
                     try {
@@ -999,7 +999,7 @@ public class Execution
                 return;
             } else if (current == CANCELING
                     || current == RUNNING
-                    || current == RECOVERING
+                    || current == INITIALIZING
                     || current == DEPLOYING) {
 
                 updateAccumulatorsAndMetrics(userAccumulators, metrics);
@@ -1138,7 +1138,7 @@ public class Execution
 
         if (cancelTask
                 && (stateBeforeFailed == RUNNING
-                        || stateBeforeFailed == RECOVERING
+                        || stateBeforeFailed == INITIALIZING
                         || stateBeforeFailed == DEPLOYING)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
@@ -1159,7 +1159,7 @@ public class Execution
     }
 
     boolean switchToRecovering() {
-        if (switchTo(DEPLOYING, RECOVERING)) {
+        if (switchTo(DEPLOYING, INITIALIZING)) {
             sendPartitionInfos();
             return true;
         }
@@ -1168,7 +1168,7 @@ public class Execution
     }
 
     boolean switchToRunning() {
-        return switchTo(RECOVERING, RUNNING);
+        return switchTo(INITIALIZING, RUNNING);
     }
 
     private boolean switchTo(ExecutionState from, ExecutionState to) {

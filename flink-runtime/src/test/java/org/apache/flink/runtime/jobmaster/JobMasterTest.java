@@ -1728,7 +1728,7 @@ public class JobMasterTest extends TestLogger {
 
             jobMasterGateway
                     .updateTaskExecutionState(
-                            new TaskExecutionState(executionAttemptId, ExecutionState.RECOVERING))
+                            new TaskExecutionState(executionAttemptId, ExecutionState.INITIALIZING))
                     .get();
             jobMasterGateway
                     .updateTaskExecutionState(
