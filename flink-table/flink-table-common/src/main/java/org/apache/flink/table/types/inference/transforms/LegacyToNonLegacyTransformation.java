@@ -18,32 +18,42 @@
 
 package org.apache.flink.table.types.inference.transforms;
 
-import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
+
+import javax.annotation.Nullable;
 
 /**
- * This type transformation transforms the legacy decimal type (usually converted from {@link
- * org.apache.flink.api.common.typeinfo.Types#BIG_DEC}) to DECIMAL(38, 18).
+ * Transformation that applies {@link TypeInfoDataTypeConverter} on {@link
+ * LegacyTypeInformationType}.
  */
-public class LegacyDecimalTypeTransformation implements TypeTransformation {
+@Internal
+public class LegacyToNonLegacyTransformation implements TypeTransformation {
 
-    public static final TypeTransformation INSTANCE = new LegacyDecimalTypeTransformation();
+    public static final TypeTransformation INSTANCE = new LegacyToNonLegacyTransformation();
 
     @Override
     public DataType transform(DataType typeToTransform) {
-        LogicalType logicalType = typeToTransform.getLogicalType();
-        if (logicalType instanceof LegacyTypeInformationType
-                && logicalType.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
-            DataType decimalType =
-                    DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)
-                            .bridgedTo(typeToTransform.getConversionClass());
-            return logicalType.isNullable() ? decimalType : decimalType.notNull();
+        return transform(null, typeToTransform);
+    }
+
+    @Override
+    public DataType transform(@Nullable DataTypeFactory factory, DataType dataType) {
+        if (factory == null) {
+            throw new TableException(
+                    "LegacyToNonLegacyTransformation requires access to the data type factory.");
         }
-        return typeToTransform;
+        final LogicalType type = dataType.getLogicalType();
+        if (type instanceof LegacyTypeInformationType) {
+            return TypeInfoDataTypeConverter.toDataType(
+                    factory, ((LegacyTypeInformationType<?>) type).getTypeInformation(), true);
+        }
+        return dataType;
     }
 }

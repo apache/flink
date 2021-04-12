@@ -23,27 +23,20 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, Tuple
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
-import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.connector.sink.abilities.{SupportsOverwrite, SupportsPartitioning}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable}
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.{supportsAvoidingCast, supportsImplicitCast}
+import org.apache.flink.table.types.inference.TypeTransformations.toNullable
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.{LegacyTypeInformationType, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.TypeConversions.{fromLegacyInfoToDataType, fromLogicalToDataType}
 import org.apache.flink.table.utils.{TableSchemaUtils, TypeMappingUtils}
 import org.apache.flink.types.Row
-
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
 
 import _root_.scala.collection.JavaConversions._
 

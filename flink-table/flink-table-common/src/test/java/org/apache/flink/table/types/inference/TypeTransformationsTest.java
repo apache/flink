@@ -38,7 +38,6 @@ import java.sql.Timestamp;
 import java.util.List;
 
 import static org.apache.flink.table.types.inference.TypeTransformations.TO_INTERNAL_CLASS;
-import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyRawToTypeInfoRaw;
 import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
 import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
@@ -100,25 +99,6 @@ public class TypeTransformationsTest {
     }
 
     @Test
-    public void testLegacyDecimalToDefaultDecimal() {
-        DataType dataType =
-                DataTypes.ROW(
-                        DataTypes.FIELD("a", DataTypes.STRING()),
-                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-                        DataTypes.FIELD("c", createLegacyDecimal()),
-                        DataTypes.FIELD("d", DataTypes.ARRAY(createLegacyDecimal())));
-
-        DataType expected =
-                DataTypes.ROW(
-                        DataTypes.FIELD("a", DataTypes.STRING()),
-                        DataTypes.FIELD("b", DataTypes.DECIMAL(10, 3)),
-                        DataTypes.FIELD("c", DataTypes.DECIMAL(38, 18)),
-                        DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.DECIMAL(38, 18))));
-
-        assertEquals(expected, DataTypeUtils.transform(dataType, legacyDecimalToDefaultDecimal()));
-    }
-
-    @Test
     public void testLegacyRawToTypeInfoRaw() {
         DataType dataType =
                 DataTypes.ROW(
@@ -167,10 +147,6 @@ public class TypeTransformationsTest {
     }
 
     // --------------------------------------------------------------------------------------------
-
-    private static DataType createLegacyDecimal() {
-        return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
-    }
 
     private static DataType createLegacyRaw() {
         return TypeConversions.fromLegacyInfoToDataType(
