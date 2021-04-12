@@ -205,7 +205,7 @@ public class PrintUtils {
         return sb.toString();
     }
 
-    private static int[] columnWidthsByContent(
+    public static int[] columnWidthsByContent(
             String[] columnNames, List<String[]> rows, int maxColumnWidth) {
         // fill width with field names first
         final int[] colWidths = Stream.of(columnNames).mapToInt(String::length).toArray();
