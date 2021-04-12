@@ -1445,7 +1445,7 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testOrWithIsNull(): Unit = {
+  def testOrWithIsNullPredicate(): Unit = {
     checkResult(
       """
         |SELECT * FROM NullTable3 AS T
@@ -1456,5 +1456,25 @@ class CalcITCase extends BatchTestBase {
         row(3, 2L, "Hello world"),
         row(null, 999L, "NullTuple"),
         row(null, 999L, "NullTuple")))
+  }
+
+  @Test
+  def testOrWithIsNullInIf(): Unit = {
+    val data = Seq(
+      row("", "N"),
+      row("X", "Y"),
+      row(null, "Y"))
+    registerCollection(
+      "MyTable", data, new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO), "a, b")
+
+    checkResult(
+      "SELECT IF(a = '', 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('b')))
+    checkResult(
+      "SELECT IF(a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('a')))
   }
 }
