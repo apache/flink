@@ -200,18 +200,18 @@ LogicalProject(id=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
   </TestCase>
   <TestCase name="testProjectFieldAccessWithITEM">
     <Resource name="sql">
-      <![CDATA[SELECT `Result`.data_arr[ID].`value`, `Result`.data_map['item'].`value`FROM ItemTable]]>
+      <![CDATA[SELECT `Result`.data_arr[ID].`value`, `Result`.data_map['item'].`value`, `outer_array`[ID], `outer_array`[1], `outer_map`['item'] FROM ItemTable]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value])
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($4, $0)], EXPR$3=[ITEM($4, 1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
 +- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value])
-+- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID]]])
+LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($2, $1)], EXPR$3=[ITEM($2, 1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map]]])
 ]]>
     </Resource>
   </TestCase>

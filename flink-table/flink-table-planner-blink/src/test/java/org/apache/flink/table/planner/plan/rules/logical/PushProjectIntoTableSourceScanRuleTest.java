@@ -141,7 +141,9 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "  `Timestamp` TIMESTAMP(3),\n"
                         + "  `Result` ROW(\n"
                         + "    `data_arr` ROW(`value` BIGINT) ARRAY,\n"
-                        + "      `data_map` MAP<STRING, ROW<`value` BIGINT>>),\n"
+                        + "    `data_map` MAP<STRING, ROW<`value` BIGINT>>),\n" +
+                        "  `outer_map` MAP<STRING, STRING>,\n" +
+                        "`outer_array` ARRAY<INT>,\n"
                         + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
@@ -235,7 +237,10 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().verifyPlan(
                         "SELECT "
                                 + "`Result`.data_arr[ID].`value`, "
-                                + "`Result`.data_map['item'].`value`"
+                                + "`Result`.data_map['item'].`value`, "
+                                + "`outer_array`[ID], "
+                                + "`outer_array`[1], "
+                                + "`outer_map`['item'] "
                                 + "FROM ItemTable");
     }
 }
