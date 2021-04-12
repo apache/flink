@@ -237,4 +237,12 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      *     up data stored by them.
      */
     void closeAndCleanupAllData() throws Exception;
+
+    /**
+     * Deletes all data for specified job stored by these services in external stores.
+     *
+     * @param jobID The identifier of the job to cleanup.
+     * @throws Exception Thrown, if an exception occurred while cleaning data stored by them.
+     */
+    void cleanupJobData(JobID jobID) throws Exception;
 }
