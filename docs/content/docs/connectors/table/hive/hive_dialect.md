@@ -170,6 +170,7 @@ USE database_name;
 
 ```sql
 SHOW TABLES;
+SHOW CREATE TABLE [catalog_name.][db_name.]table_name;
 ```
 
 #### Create

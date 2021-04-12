@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -987,26 +987,76 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testCreateTableAndShowCreateTable(): Unit = {
-    val createDDL =
-    """ |CREATE TABLE `TBL1` (
-        |  `A` BIGINT NOT NULL,
-        |  `H` STRING,
-        |  `G` AS 2 * (`A` + 1),
-        |  `B` STRING NOT NULL,
-        |  `TS` TIMESTAMP(3),
-        |  `PROC` AS PROCTIME(),
-        |  WATERMARK FOR `TS` AS `TS` - INTERVAL '5' SECOND,
-        |  CONSTRAINT test_constraint PRIMARY KEY (`A`, `B`) NOT ENFORCED
-        |) COMMENT 'test show create table statement'
-        |PARTITIONED BY (`B`, `H`)
-        |WITH (
+    val executedDDL =
+      """
+        |create temporary table TBL1 (
+        |  a bigint not null,
+        |  h string,
+        |  g as 2*(a+1),
+        |  b string not null,
+        |  c bigint metadata virtual,
+        |  ts timestamp(3),
+        |  proc as proctime(),
+        |  watermark for ts as ts - interval '5' second,
+        |  constraint test_constraint primary key (a, b) not enforced
+        |) comment 'test show create table statement'
+        |partitioned by (b,h)
+        |with (
         |  'connector' = 'kafka',
         |  'kafka.topic' = 'log.test'
         |)
         |""".stripMargin
-    tableEnv.executeSql(createDDL)
-    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next();
-    assertEquals(createDDL, row.getField(0))
+
+    val expectedDDL =
+      """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
+          |  `a` BIGINT NOT NULL,
+          |  `h` STRING,
+          |  `g` AS 2 * (`a` + 1),
+          |  `b` STRING NOT NULL,
+          |  `c` BIGINT METADATA VIRTUAL,
+          |  `ts` TIMESTAMP(3),
+          |  `proc` AS PROCTIME(),
+          |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND,
+          |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
+          |) COMMENT 'test show create table statement'
+          |PARTITIONED BY (`b`, `h`)
+          |WITH (
+          |  'connector' = 'kafka',
+          |  'kafka.topic' = 'log.test'
+          |)
+          |""".stripMargin
+    tableEnv.executeSql(executedDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testCreateViewAndShowCreateTable(): Unit = {
+    val createTableDDL =
+      """ |create table `source` (
+          |  `id` bigint not null,
+          | `group` string not null,
+          | `score` double
+          |) with (
+          |  'connector' = 'source-only'
+          |)
+          |""".stripMargin
+    val createViewDDL =
+      """ |create view `tmp` as
+          |select `group`, avg(`score`) as avg_score
+          |from `source`
+          |group by `group`
+          |""".stripMargin
+    val expectedDDL =
+      """ |CREATE VIEW `default_catalog`.`default_database`.`tmp` AS
+          |SELECT `source`.`group`, AVG(`source`.`score`) AS `avg_score`
+          |FROM `default_catalog`.`default_database`.`source`
+          |GROUP BY `source`.`group`
+          |""".stripMargin
+    tableEnv.executeSql(createTableDDL)
+    tableEnv.executeSql(createViewDDL)
+    val row = tableEnv.executeSql("SHOW CREATE TABLE `tmp`").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
   }
 
   @Test

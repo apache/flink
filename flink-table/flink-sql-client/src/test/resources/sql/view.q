@@ -72,6 +72,19 @@ show views;
 2 rows in set
 !ok
 
+# test SHOW CREATE TABLE for views
+show create table v1;
++------------------------------------------------------------------------------------------------------------------------+
+|                                                                                                           create table |
++------------------------------------------------------------------------------------------------------------------------+
+| CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v1` AS
+SELECT *
+FROM `default_catalog`.`default_database`.`orders`
+ |
++------------------------------------------------------------------------------------------------------------------------+
+1 row in set
+!ok
+
 # ==== test permanent view =====
 
 # register a permanent view with the duplicate name with temporary view
