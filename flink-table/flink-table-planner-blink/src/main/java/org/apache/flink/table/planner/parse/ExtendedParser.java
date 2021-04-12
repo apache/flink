@@ -40,7 +40,8 @@ public class ExtendedParser {
                     HelpOperationParseStrategy.INSTANCE,
                     QuitOperationParseStrategy.INSTANCE,
                     ResetOperationParseStrategy.INSTANCE,
-                    SetOperationParseStrategy.INSTANCE);
+                    SetOperationParseStrategy.INSTANCE,
+                    AddJarOperationParseStrategy.INSTANCE);
 
     /**
      * Parse the input statement to the {@link Operation}.

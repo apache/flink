@@ -59,6 +59,7 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -76,6 +77,7 @@ import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.parse.CalciteParser;
+import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -95,6 +97,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -1428,6 +1431,17 @@ public class SqlToOperationConverterTest {
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
         assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testAddJarOperation() {
+        final String sql = "ADD JAR   a/b/foo.jar   ";
+        Optional<Operation> optionalOpe = ExtendedParser.INSTANCE.parse(sql);
+        assertEquals(true, optionalOpe.isPresent());
+        Operation operation = optionalOpe.get();
+        assert operation instanceof AddJarOperation;
+        final AddJarOperation addJarOperation = (AddJarOperation) operation;
+        assertEquals("ADD JAR a/b/foo.jar", addJarOperation.asSummaryString());
     }
 
     // ~ Tool Methods ----------------------------------------------------------

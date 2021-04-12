@@ -37,6 +37,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
@@ -46,6 +47,8 @@ import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.PrintUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -63,9 +66,12 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -342,7 +348,8 @@ public class CliClient implements AutoCloseable {
                     && !(operation instanceof UseOperation)
                     && !(operation instanceof AlterOperation)
                     && !(operation instanceof LoadModuleOperation)
-                    && !(operation instanceof UnloadModuleOperation)) {
+                    && !(operation instanceof UnloadModuleOperation)
+                    && !(operation instanceof AddJarOperation)) {
                 throw new SqlExecutionException(
                         "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
@@ -420,6 +427,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof EndStatementSetOperation) {
             // END
             callEndStatementSet();
+        } else if (operation instanceof AddJarOperation) {
+            // ADD JAR
+            callAddJar((AddJarOperation) operation);
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
@@ -427,6 +437,24 @@ public class CliClient implements AutoCloseable {
             // fallback to default implementation
             executeOperation(operation);
         }
+    }
+
+    private void callAddJar(AddJarOperation operation) {
+        Optional<String> jarPath = operation.getValue();
+        if (!jarPath.isPresent()) {
+            printWarning("ADD JAR path is empty");
+            return;
+        }
+        URL url = null;
+        try {
+            url = urlFromPathString(jarPath.get());
+        } catch (MalformedURLException e) {
+            printWarning(
+                    String.format(CliStrings.MESSAGE_ADD_JAR_BAD_PATH, jarPath.get() + ", " + e));
+            return;
+        }
+        executor.addJars(sessionId, Lists.newArrayList(url));
+        printInfo(CliStrings.MESSAGE_EXECUTE_STATEMENT);
     }
 
     private void callQuit() {
@@ -675,5 +703,14 @@ public class CliClient implements AutoCloseable {
             LOG.warn(msg);
         }
         return lineReader;
+    }
+
+    /** Create a URL from a string representing a path to a local file. */
+    private URL urlFromPathString(String path) throws MalformedURLException {
+        URL url =
+                org.apache.flink.core.fs.Path.fromLocalFile(new File(path).getAbsoluteFile())
+                        .toUri()
+                        .toURL();
+        return url;
     }
 }

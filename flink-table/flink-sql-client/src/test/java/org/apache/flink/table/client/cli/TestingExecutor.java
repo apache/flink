@@ -34,6 +34,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -65,6 +66,11 @@ class TestingExecutor implements Executor {
     @Override
     public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
         numCancelCalls++;
+    }
+
+    @Override
+    public void addJars(String sessionId, List<URL> jarUrls) {
+        // nothing to do
     }
 
     @Override

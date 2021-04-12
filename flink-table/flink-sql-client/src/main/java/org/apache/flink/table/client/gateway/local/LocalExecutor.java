@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -223,6 +224,7 @@ public class LocalExecutor implements Executor {
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
+
             return context.wrapClassLoader(() -> tEnv.executeInternal(operations));
         } catch (Exception e) {
             throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);
@@ -306,5 +308,11 @@ public class LocalExecutor implements Executor {
             throw new SqlExecutionException("Could not cancel the query execution", e);
         }
         resultStore.removeResult(resultId);
+    }
+
+    @Override
+    public void addJars(String sessionId, List<URL> urls) {
+        final SessionContext context = getSessionContext(sessionId);
+        context.addJars(urls);
     }
 }
