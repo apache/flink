@@ -79,8 +79,11 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "IFNULL(f1, f0)",
                                 new BigDecimal("123.45"),
                                 DataTypes.DECIMAL(12, 2).notNull())
-                        .testSqlResult(
-                                "TakesNotNull(IFNULL(f0, 12))", 12, DataTypes.INT().notNull()),
+                        .testResult(
+                                call("TakesNotNull", $("f0").ifNull(12)),
+                                "TakesNotNull(IFNULL(f0, 12))",
+                                12,
+                                DataTypes.INT().notNull()),
                 TestSpec.forExpression("SQL call")
                         .onFieldsWithData(null, 12, "Hello World")
                         .andDataTypes(
