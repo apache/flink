@@ -20,12 +20,13 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
@@ -83,6 +84,8 @@ import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_FINISH_STATEM
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_REMOVED_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_RESET_KEY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SET_KEY;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_PARSE_ERROR;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SET_END_CALL_ERROR;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_STATEMENT_SUBMITTED;
@@ -325,11 +328,13 @@ public class CliClient implements AutoCloseable {
         try {
             final Optional<Operation> operation = parseCommand(statement);
             operation.ifPresent(op -> callOperation(op, executionMode));
+            return true;
+        } catch (SqlParseException e) {
+            printException(e, MESSAGE_SQL_PARSE_ERROR);
         } catch (SqlExecutionException e) {
-            printExecutionException(e);
-            return false;
+            printException(e, MESSAGE_SQL_EXECUTION_ERROR);
         }
-        return true;
+        return false;
     }
 
     private void validate(Operation operation, ExecutionMode executionMode) {
@@ -581,11 +586,10 @@ public class CliClient implements AutoCloseable {
 
     // --------------------------------------------------------------------------------------------
 
-    private void printExecutionException(Throwable t) {
-        final String errorMessage = CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
-        LOG.warn(errorMessage, t);
+    private void printException(SqlClientException e, String errorMessage) {
+        LOG.warn(errorMessage, e);
         boolean isVerbose = executor.getSessionConfig(sessionId).get(SqlClientOptions.VERBOSE);
-        terminal.writer().println(CliStrings.messageError(errorMessage, t, isVerbose).toAnsi());
+        terminal.writer().println(CliStrings.messageError(errorMessage, e, isVerbose).toAnsi());
         terminal.flush();
     }
 

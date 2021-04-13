@@ -20,7 +20,7 @@
 # ==========================================================================
 
 create table tbl(a int, b as invalid_function());
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature invalid_function()
 !error
 
@@ -40,7 +40,7 @@ org.apache.flink.table.api.ValidationException: Tables or views with the identif
 !error
 
 alter table non_exist rename to non_exist2;
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.flink.table.api.ValidationException: Table `default_catalog`.`default_database`.`non_exist` doesn't exist or is a temporary table.
 !error
 

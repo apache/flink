@@ -179,6 +179,8 @@ public final class CliStrings {
 
     public static final String MESSAGE_SQL_EXECUTION_ERROR = "Could not execute SQL statement.";
 
+    public static final String MESSAGE_SQL_PARSE_ERROR = "Could not parse SQL statement.";
+
     public static final String MESSAGE_STATEMENT_SET_SQL_EXECUTION_ERROR =
             "Only INSERT statement is allowed in Statement Set.";
 

@@ -23,7 +23,7 @@ import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;

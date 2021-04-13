@@ -30,7 +30,7 @@ org.apache.flink.table.catalog.exceptions.CatalogException: A catalog with name 
 !error
 
 create catalog invalid.cat with ('type'='generic_in_memory');
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, column 23.
 Was expecting one of:
     <EOF>

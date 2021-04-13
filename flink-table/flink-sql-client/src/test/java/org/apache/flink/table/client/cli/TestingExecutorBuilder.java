@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.SupplierWithException;

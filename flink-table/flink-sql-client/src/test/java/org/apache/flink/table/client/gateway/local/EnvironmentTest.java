@@ -19,8 +19,8 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.table.catalog.CommonCatalogOptions;
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.exception.SqlClientException;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
 import org.junit.Rule;

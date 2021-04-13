@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.config;
 
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.ConfigurationEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
@@ -26,6 +25,7 @@ import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
 import org.apache.flink.table.client.config.entries.ModuleEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
+import org.apache.flink.table.client.exception.SqlClientException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 

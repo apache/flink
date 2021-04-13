@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;

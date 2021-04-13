@@ -29,8 +29,8 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.util.FlinkException;
 

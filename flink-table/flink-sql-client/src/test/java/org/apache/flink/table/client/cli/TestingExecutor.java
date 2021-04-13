@@ -20,9 +20,11 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -60,20 +62,20 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+    public void cancelQuery(String sessionId, String resultId) throws SqlClientException {
         numCancelCalls++;
     }
 
     @Override
     public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-            throws SqlExecutionException {
+            throws SqlClientException {
         return resultChanges
                 .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
                 .get();
     }
 
     @Override
-    public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
+    public List<Row> retrieveResultPage(String resultId, int page) throws SqlClientException {
         return resultPages
                 .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))
                 .get();
@@ -81,7 +83,7 @@ class TestingExecutor implements Executor {
 
     @Override
     public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-            throws SqlExecutionException {
+            throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
@@ -89,36 +91,36 @@ class TestingExecutor implements Executor {
     public void start() throws SqlExecutionException {}
 
     @Override
-    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+    public String openSession(@Nullable String sessionId) throws SqlClientException {
         return sessionId;
     }
 
     @Override
-    public void closeSession(String sessionId) throws SqlExecutionException {}
+    public void closeSession(String sessionId) throws SqlClientException {}
 
     @Override
-    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+    public void resetSessionProperties(String sessionId) throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+    public void resetSessionProperty(String sessionId, String key) throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public void setSessionProperty(String sessionId, String key, String value)
-            throws SqlExecutionException {
+            throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
@@ -129,25 +131,24 @@ class TestingExecutor implements Executor {
 
     @Override
     public TableResult executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException {
+            throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
-            throws SqlExecutionException {
+            throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
-    public Operation parseStatement(String sessionId, String statement)
-            throws SqlExecutionException {
+    public Operation parseStatement(String sessionId, String statement) throws SqlParseException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override
     public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException {
+            throws SqlClientException {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

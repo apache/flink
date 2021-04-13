@@ -20,6 +20,9 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -41,17 +44,17 @@ public interface Executor {
      *
      * @param sessionId session identifier.
      * @return used session identifier to track the session.
-     * @throws SqlExecutionException if any error happen
+     * @throws SqlClientException if any error happen
      */
-    String openSession(@Nullable String sessionId) throws SqlExecutionException;
+    String openSession(@Nullable String sessionId) throws SqlClientException;
 
     /**
      * Close the resources of session for given session id.
      *
      * @param sessionId session identifier
-     * @throws SqlExecutionException if any error happen
+     * @throws SqlClientException if any error happen
      */
-    void closeSession(String sessionId) throws SqlExecutionException;
+    void closeSession(String sessionId) throws SqlClientException;
 
     /**
      * Returns a copy of {@link Map} of all session configurations that are defined by the executor
@@ -60,7 +63,7 @@ public interface Executor {
      * <p>Both this method and {@link #getSessionConfig(String)} return the same configuration set,
      * but different return type.
      */
-    Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException;
+    Map<String, String> getSessionConfigMap(String sessionId) throws SqlClientException;
 
     /**
      * Returns a {@link ReadableConfig} of all session configurations that are defined by the
@@ -69,15 +72,15 @@ public interface Executor {
      * <p>Both this method and {@link #getSessionConfigMap(String)} return the same configuration
      * set, but different return type.
      */
-    ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException;
+    ReadableConfig getSessionConfig(String sessionId) throws SqlClientException;
 
     /**
      * Reset all the properties for the given session identifier.
      *
      * @param sessionId to identifier the session
-     * @throws SqlExecutionException if any error happen.
+     * @throws SqlClientException if any error happen.
      */
-    void resetSessionProperties(String sessionId) throws SqlExecutionException;
+    void resetSessionProperties(String sessionId) throws SqlClientException;
 
     /**
      * Reset given key's the session property for default value, if key is not defined in config
@@ -85,58 +88,55 @@ public interface Executor {
      *
      * @param sessionId to identifier the session
      * @param key of need to reset the session property
-     * @throws SqlExecutionException if any error happen.
+     * @throws SqlClientException if any error happen.
      */
-    void resetSessionProperty(String sessionId, String key) throws SqlExecutionException;
+    void resetSessionProperty(String sessionId, String key) throws SqlClientException;
 
     /**
      * Set given key's session property to the specific value.
      *
      * @param key of the session property
      * @param value of the session property
-     * @throws SqlExecutionException if any error happen.
+     * @throws SqlClientException if any error happen.
      */
-    void setSessionProperty(String sessionId, String key, String value)
-            throws SqlExecutionException;
+    void setSessionProperty(String sessionId, String key, String value) throws SqlClientException;
 
     /** Parse a SQL statement to {@link Operation}. */
-    Operation parseStatement(String sessionId, String statement) throws SqlExecutionException;
+    Operation parseStatement(String sessionId, String statement) throws SqlParseException;
 
     /** Returns a list of completion hints for the given statement at the given position. */
     List<String> completeStatement(String sessionId, String statement, int position);
 
     /** Executes an operation, and return {@link TableResult} as execution result. */
-    TableResult executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException;
+    TableResult executeOperation(String sessionId, Operation operation) throws SqlClientException;
 
     /** Executes modify operations, and return {@link TableResult} as execution result. */
     TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
-            throws SqlExecutionException;
+            throws SqlClientException;
 
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
-    ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException;
+    ResultDescriptor executeQuery(String sessionId, QueryOperation query) throws SqlClientException;
 
     /** Asks for the next changelog results (non-blocking). */
     TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-            throws SqlExecutionException;
+            throws SqlClientException;
 
     /**
      * Creates an immutable result snapshot of the running Flink job. Throws an exception if no
      * Flink job can be found. Returns the number of pages.
      */
     TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-            throws SqlExecutionException;
+            throws SqlClientException;
 
     /**
      * Returns the rows that are part of the current page or throws an exception if the snapshot has
      * been expired.
      */
-    List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
+    List<Row> retrieveResultPage(String resultId, int page) throws SqlClientException;
 
     /**
      * Cancels a table program and stops the result retrieval. Blocking until cancellation command
      * has been sent to cluster.
      */
-    void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
+    void cancelQuery(String sessionId, String resultId) throws SqlClientException;
 }

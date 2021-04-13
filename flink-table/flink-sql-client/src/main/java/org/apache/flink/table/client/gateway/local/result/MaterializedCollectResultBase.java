@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 

@@ -29,8 +29,8 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.YamlConfigUtils;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 

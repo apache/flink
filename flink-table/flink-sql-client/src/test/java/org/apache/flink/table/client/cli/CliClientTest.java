@@ -30,9 +30,11 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
@@ -381,7 +383,7 @@ public class CliClientTest extends TestLogger {
         public void start() throws SqlExecutionException {}
 
         @Override
-        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+        public String openSession(@Nullable String sessionId) throws SqlClientException {
             Configuration configuration = new Configuration();
             configuration.set(TABLE_DML_SYNC, isSync);
 
@@ -398,37 +400,35 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public void closeSession(String sessionId) throws SqlExecutionException {}
+        public void closeSession(String sessionId) throws SqlClientException {}
 
         @Override
-        public Map<String, String> getSessionConfigMap(String sessionId)
-                throws SqlExecutionException {
+        public Map<String, String> getSessionConfigMap(String sessionId) throws SqlClientException {
             return null;
         }
 
         @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        public ReadableConfig getSessionConfig(String sessionId) throws SqlClientException {
             SessionContext context = this.sessionMap.get(sessionId);
             return context.getReadableConfig();
         }
 
         @Override
-        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+        public void resetSessionProperties(String sessionId) throws SqlClientException {}
 
         @Override
-        public void resetSessionProperty(String sessionId, String key)
-                throws SqlExecutionException {}
+        public void resetSessionProperty(String sessionId, String key) throws SqlClientException {}
 
         @Override
         public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {
+                throws SqlClientException {
             SessionContext context = this.sessionMap.get(sessionId);
             context.set(key, value);
         }
 
         @Override
         public TableResult executeOperation(String sessionId, Operation operation)
-                throws SqlExecutionException {
+                throws SqlClientException {
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
             }
@@ -453,7 +453,7 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public TableResult executeModifyOperations(
-                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
+                String sessionId, List<ModifyOperation> operations) throws SqlClientException {
             if (failExecution) {
                 throw new SqlExecutionException("Fail execution.");
             }
@@ -475,13 +475,13 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public Operation parseStatement(String sessionId, String statement)
-                throws SqlExecutionException {
+                throws SqlParseException {
             receivedStatement = statement;
 
             try {
                 return helper.getSqlParser().parse(statement).get(0);
             } catch (Exception ex) {
-                throw new SqlExecutionException("Parse error: " + statement, ex);
+                throw new SqlParseException("Parse error: " + statement, ex);
             }
         }
 
@@ -494,30 +494,29 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return null;
         }
 
         @Override
         public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return null;
         }
 
         @Override
         public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return null;
         }
 
         @Override
-        public List<Row> retrieveResultPage(String resultId, int page)
-                throws SqlExecutionException {
+        public List<Row> retrieveResultPage(String resultId, int page) throws SqlClientException {
             return null;
         }
 
         @Override
-        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+        public void cancelQuery(String sessionId, String resultId) throws SqlClientException {
             // nothing to do
         }
     }

@@ -22,9 +22,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -138,40 +140,38 @@ public class CliResultViewTest {
         }
 
         @Override
-        public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+        public String openSession(@Nullable String sessionId) throws SqlClientException {
             return sessionId;
         }
 
         @Override
-        public void closeSession(String sessionId) throws SqlExecutionException {
+        public void closeSession(String sessionId) throws SqlClientException {
             // do nothing
         }
 
         @Override
-        public Map<String, String> getSessionConfigMap(String sessionId)
-                throws SqlExecutionException {
+        public Map<String, String> getSessionConfigMap(String sessionId) throws SqlClientException {
             return null;
         }
 
         @Override
-        public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        public ReadableConfig getSessionConfig(String sessionId) throws SqlClientException {
             return null;
         }
 
         @Override
-        public void resetSessionProperties(String sessionId) throws SqlExecutionException {}
+        public void resetSessionProperties(String sessionId) throws SqlClientException {}
 
         @Override
-        public void resetSessionProperty(String sessionId, String key)
-                throws SqlExecutionException {}
+        public void resetSessionProperty(String sessionId, String key) throws SqlClientException {}
 
         @Override
         public void setSessionProperty(String sessionId, String key, String value)
-                throws SqlExecutionException {}
+                throws SqlClientException {}
 
         @Override
         public Operation parseStatement(String sessionId, String statement)
-                throws SqlExecutionException {
+                throws SqlParseException {
             return null;
         }
 
@@ -182,44 +182,43 @@ public class CliResultViewTest {
 
         @Override
         public TableResult executeOperation(String sessionId, Operation operation)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return null;
         }
 
         @Override
         public TableResult executeModifyOperations(
-                String sessionId, List<ModifyOperation> operations) throws SqlExecutionException {
+                String sessionId, List<ModifyOperation> operations) throws SqlClientException {
             return null;
         }
 
         @Override
         public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return null;
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return (TypedResult<List<Row>>) typedResult;
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-                throws SqlExecutionException {
+                throws SqlClientException {
             return (TypedResult<Integer>) typedResult;
         }
 
         @Override
-        public List<Row> retrieveResultPage(String resultId, int page)
-                throws SqlExecutionException {
+        public List<Row> retrieveResultPage(String resultId, int page) throws SqlClientException {
             return Collections.singletonList(new Row(1));
         }
 
         @Override
-        public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+        public void cancelQuery(String sessionId, String resultId) throws SqlClientException {
             cancellationCounter.countDown();
         }
     }

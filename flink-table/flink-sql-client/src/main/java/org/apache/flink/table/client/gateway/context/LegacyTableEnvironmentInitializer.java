@@ -33,7 +33,7 @@ import org.apache.flink.table.client.config.entries.SourceSinkTableEntry;
 import org.apache.flink.table.client.config.entries.SourceTableEntry;
 import org.apache.flink.table.client.config.entries.TemporalTableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;

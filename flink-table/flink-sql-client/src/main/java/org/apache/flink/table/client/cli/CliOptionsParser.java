@@ -20,7 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.exception.SqlClientException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;

@@ -51,13 +51,13 @@ org.apache.flink.table.api.ValidationException: A module with name 'core' alread
 
 # use hive built-in function without loading hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
 
 # load hive module with module name as string literal
 LOAD MODULE 'hive';
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.flink.sql.parser.impl.ParseException: Encountered "\'hive\'" at line 1, column 13.
 Was expecting one of:
     <BRACKET_QUOTED_IDENTIFIER> ...
@@ -189,7 +189,7 @@ SHOW FULL MODULES;
 
 # use hive built-in function without using hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
 

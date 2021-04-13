@@ -25,9 +25,11 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.client.config.ResultMode;
+import org.apache.flink.table.client.exception.SqlClientException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlParseException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.ExecutionContext;
@@ -86,7 +88,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+    public String openSession(@Nullable String sessionId) throws SqlClientException {
         SessionContext sessionContext =
                 LocalContextUtils.buildSessionContext(sessionId, defaultContext);
         sessionId = sessionContext.getSessionId();
@@ -100,7 +102,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public void closeSession(String sessionId) throws SqlExecutionException {
+    public void closeSession(String sessionId) throws SqlClientException {
         resultStore
                 .getResults()
                 .forEach(
@@ -131,42 +133,41 @@ public class LocalExecutor implements Executor {
      * exist.
      */
     @VisibleForTesting
-    protected ExecutionContext getExecutionContext(String sessionId) throws SqlExecutionException {
+    protected ExecutionContext getExecutionContext(String sessionId) throws SqlClientException {
         return getSessionContext(sessionId).getExecutionContext();
     }
 
     @Override
-    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlClientException {
         return getSessionContext(sessionId).getConfigMap();
     }
 
     @Override
-    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlClientException {
         return getSessionContext(sessionId).getReadableConfig();
     }
 
     @Override
-    public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+    public void resetSessionProperties(String sessionId) throws SqlClientException {
         SessionContext context = getSessionContext(sessionId);
         context.reset();
     }
 
     @Override
-    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+    public void resetSessionProperty(String sessionId, String key) throws SqlClientException {
         SessionContext context = getSessionContext(sessionId);
         context.reset(key);
     }
 
     @Override
     public void setSessionProperty(String sessionId, String key, String value)
-            throws SqlExecutionException {
+            throws SqlClientException {
         SessionContext context = getSessionContext(sessionId);
         context.set(key, value);
     }
 
     @Override
-    public Operation parseStatement(String sessionId, String statement)
-            throws SqlExecutionException {
+    public Operation parseStatement(String sessionId, String statement) throws SqlParseException {
         final ExecutionContext context = getExecutionContext(sessionId);
         final TableEnvironment tableEnv = context.getTableEnvironment();
         Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
@@ -175,10 +176,10 @@ public class LocalExecutor implements Executor {
         try {
             operations = context.wrapClassLoader(() -> parser.parse(statement));
         } catch (Exception e) {
-            throw new SqlExecutionException("Failed to parse statement: " + statement, e);
+            throw new SqlParseException("Failed to parse statement: " + statement, e);
         }
         if (operations.isEmpty()) {
-            throw new SqlExecutionException("Failed to parse statement: " + statement);
+            throw new SqlParseException("Failed to parse statement: " + statement);
         }
         return operations.get(0);
     }
@@ -205,7 +206,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public TableResult executeOperation(String sessionId, Operation operation)
-            throws SqlExecutionException {
+            throws SqlClientException {
         final ExecutionContext context = getExecutionContext(sessionId);
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
@@ -218,7 +219,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
-            throws SqlExecutionException {
+            throws SqlClientException {
         final ExecutionContext context = getExecutionContext(sessionId);
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
@@ -231,7 +232,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
-            throws SqlExecutionException {
+            throws SqlClientException {
         final TableResult tableResult = executeOperation(sessionId, query);
         final SessionContext context = getSessionContext(sessionId);
         final ReadableConfig config = context.getReadableConfig();
@@ -250,7 +251,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
-            throws SqlExecutionException {
+            throws SqlClientException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(
@@ -264,7 +265,7 @@ public class LocalExecutor implements Executor {
 
     @Override
     public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
-            throws SqlExecutionException {
+            throws SqlClientException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(
@@ -277,7 +278,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
+    public List<Row> retrieveResultPage(String resultId, int page) throws SqlClientException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(
@@ -290,7 +291,7 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+    public void cancelQuery(String sessionId, String resultId) throws SqlClientException {
         final DynamicResult result = resultStore.getResult(resultId);
         if (result == null) {
             throw new SqlExecutionException(

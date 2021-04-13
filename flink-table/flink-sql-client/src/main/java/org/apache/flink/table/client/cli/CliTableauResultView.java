@@ -20,9 +20,9 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.types.Row;

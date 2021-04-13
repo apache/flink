@@ -41,7 +41,7 @@ create table src (
 !info
 
 SELECT UPPER(str), id FROM src;
-[ERROR] Could not execute SQL statement. Reason:
+[ERROR] Could not parse SQL statement. Reason:
 java.lang.IllegalArgumentException: testing elements of values source shouldn't be empty.
 !error
 

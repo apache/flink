@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.exception.SqlClientException;
 
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;

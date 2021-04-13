@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.client.SqlClientException;
+import org.apache.flink.table.client.exception.SqlClientException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.Map;

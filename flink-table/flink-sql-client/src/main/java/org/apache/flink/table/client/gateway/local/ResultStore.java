@@ -21,7 +21,7 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.exception.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
