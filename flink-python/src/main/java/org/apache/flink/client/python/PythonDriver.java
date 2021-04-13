@@ -132,7 +132,7 @@ public final class PythonDriver {
             }
         } finally {
             PythonEnvUtils.setGatewayServer(null);
-            if (Runtime.getRuntime().removeShutdownHook(shutdownHook)) {
+            if (shutdownHook != null && Runtime.getRuntime().removeShutdownHook(shutdownHook)) {
                 shutdownHook.run();
             }
         }
