@@ -1267,7 +1267,7 @@ object ScalarOperatorGens {
           " instead, note the numeric is in seconds.")
       } else {
         throw new ValidationException("The cast conversion from TIMESTAMP type to NUMERIC type" +
-          " is not allowed,it's recommended to use" +
+          " is not allowed, it's recommended to use" +
           " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.")
       }
     }

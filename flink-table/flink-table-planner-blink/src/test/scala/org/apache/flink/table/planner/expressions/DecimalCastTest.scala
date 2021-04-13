@@ -88,10 +88,12 @@ class DecimalCastTest extends ExpressionTestBase {
 
   @Test
   def testCastFromString(): Unit = {
+    // CHAR AND VARCHAR
     testSqlApi(s"CAST(CAST(null AS VARCHAR) AS DECIMAL)", "null")
+    testSqlApi(s"CAST(CAST(null AS CHAR) AS DECIMAL)", "null")
 
     testSqlApi(s"CAST('0' AS DECIMAL)", "0")
-    testSqlApi(s"CAST('12.2' AS DECIMAL)", "12")
+    testSqlApi(s"CAST(CAST('12.2' AS VARCHAR) AS DECIMAL)", "12")
     testSqlApi(s"CAST('-12.2' AS DECIMAL)", "-12")
 
     val rV = rnd.nextInt()
@@ -111,19 +113,17 @@ class DecimalCastTest extends ExpressionTestBase {
 
   @Test
   def testCastToNumeric(): Unit = {
-    def value(i: Any) = s"CAST('$i' AS DECIMAL(38, 18))"
-
     def test(t: String, max: Any, min: Any, rV: Any): Unit = {
-      testSqlApi(s"CAST(${value(null)} AS $t)", "null")
+      testSqlApi(s"CAST(${decimal_38_18(null)} AS $t)", "null")
 
-      testSqlApi(s"CAST(${value(0)} AS $t)", "0")
-      testSqlApi(s"CAST(${value(12)} AS $t)", "12")
-      testSqlApi(s"CAST(${value(-12)} AS $t)", "-12")
-      testSqlApi(s"CAST(${value(max)} AS $t)", max.toString)
-      testSqlApi(s"CAST(${value(min)} AS $t)", min.toString)
-      testSqlApi(s"CAST(${value(rV)} AS $t)", rV.toString)
+      testSqlApi(s"CAST(${decimal_38_18(0)} AS $t)", "0")
+      testSqlApi(s"CAST(${decimal_38_18(12)} AS $t)", "12")
+      testSqlApi(s"CAST(${decimal_38_18(-12)} AS $t)", "-12")
+      testSqlApi(s"CAST(${decimal_38_18(max)} AS $t)", max.toString)
+      testSqlApi(s"CAST(${decimal_38_18(min)} AS $t)", min.toString)
+      testSqlApi(s"CAST(${decimal_38_18(rV)} AS $t)", rV.toString)
 
-      testSqlApi(s"CAST(${value(5.26)} AS $t)", "5")
+      testSqlApi(s"CAST(${decimal_38_18(5.26)} AS $t)", "5")
     }
 
     test("TINYINT", Byte.MaxValue, Byte.MinValue, rnd.nextInt().toByte)
@@ -134,30 +134,28 @@ class DecimalCastTest extends ExpressionTestBase {
     // test cast overflow
 
     // 128 => -128
-    testSqlApi(s"CAST(${value(Byte.MaxValue + 1)} AS TINYINT)", "-128")
+    testSqlApi(s"CAST(${decimal_38_18(Byte.MaxValue + 1)} AS TINYINT)", "-128")
 
     // 32768 => -32768
-    testSqlApi(s"CAST(${value(Short.MaxValue + 1)} AS SMALLINT)", "-32768")
+    testSqlApi(s"CAST(${decimal_38_18(Short.MaxValue + 1)} AS SMALLINT)", "-32768")
 
     // 2147483648 => -2147483648
-    testSqlApi(s"CAST(${value(Int.MaxValue + 1L)} AS INT)", "-2147483648")
+    testSqlApi(s"CAST(${decimal_38_18(Int.MaxValue + 1L)} AS INT)", "-2147483648")
 
     // 9223372036854775808 => -9223372036854775808
     testSqlApi(
-      s"CAST(${value(BigDecimal.apply(Long.MaxValue) + 1)} AS BIGINT)",
+      s"CAST(${decimal_38_18(BigDecimal.apply(Long.MaxValue) + 1)} AS BIGINT)",
       "-9223372036854775808")
   }
 
   @Test
   def testCastToFloat(): Unit = {
-    def value(i: Any) = s"CAST('$i' AS DECIMAL(38, 18))"
-
     def test(t: String): Unit = {
-      testSqlApi(s"CAST(${value(null)} AS $t)", "null")
-      testSqlApi(s"CAST(${value(0)} AS $t)", "0.0")
-      testSqlApi(s"CAST(${value(12.2)} AS $t)", "12.2")
-      testSqlApi(s"CAST(${value(-12.2)} AS $t)", "-12.2")
-      testSqlApi(s"CAST(${value(5.26)} AS $t)", "5.26")
+      testSqlApi(s"CAST(${decimal_38_18(null)} AS $t)", "null")
+      testSqlApi(s"CAST(${decimal_38_18(0)} AS $t)", "0.0")
+      testSqlApi(s"CAST(${decimal_38_18(12.2)} AS $t)", "12.2")
+      testSqlApi(s"CAST(${decimal_38_18(-12.2)} AS $t)", "-12.2")
+      testSqlApi(s"CAST(${decimal_38_18(5.26)} AS $t)", "5.26")
     }
 
     test("FLOAT")
@@ -166,36 +164,165 @@ class DecimalCastTest extends ExpressionTestBase {
 
   @Test
   def testCastToString(): Unit = {
-    def value(i: Any) = s"CAST('$i' AS DECIMAL(38, 2))"
-    testSqlApi(s"CAST(${value(null)} AS VARCHAR)", "null")
-    testSqlApi(s"CAST(${value(0)} AS VARCHAR)", "0.00")
-    testSqlApi(s"CAST(${value(12.2)} AS VARCHAR)", "12.20")
-    testSqlApi(s"CAST(${value(-12.2)} AS VARCHAR)", "-12.20")
-    testSqlApi(s"CAST(${value(5.26)} AS VARCHAR)", "5.26")
+    def test(t: String): Unit = {
+      testSqlApi(s"CAST(${decimal_38_2(null)} AS $t)", "null")
+      testSqlApi(s"CAST(${decimal_38_2(0)} AS $t)", "0.00")
+      testSqlApi(s"CAST(${decimal_38_2(12.2)} AS $t)", "12.20")
+      testSqlApi(s"CAST(${decimal_38_2(-12.2)} AS $t)", "-12.20")
+      testSqlApi(s"CAST(${decimal_38_2(5.26)} AS $t)", "5.26")
+    }
+
+    test("VARCHAR")
+    test("CHAR") // current CHAR is same to VARCHAR
   }
 
   @Test
   def testCastToBoolean(): Unit = {
-    def value(i: Any) = s"CAST('$i' AS DECIMAL(38, 2))"
-    testSqlApi(s"CAST(${value(null)} AS BOOLEAN)", "null")
-    testSqlApi(s"CAST(${value(0)} AS BOOLEAN)", "false")
-    testSqlApi(s"CAST(${value(1)} AS BOOLEAN)", "true")
-    testSqlApi(s"CAST(${value(12.2)} AS BOOLEAN)", "true")
-    testSqlApi(s"CAST(${value(-12.2)} AS BOOLEAN)", "true")
+    testSqlApi(s"CAST(${decimal_38_2(null)} AS BOOLEAN)", "null")
+    testSqlApi(s"CAST(${decimal_38_2(0)} AS BOOLEAN)", "false")
+    testSqlApi(s"CAST(${decimal_38_2(1)} AS BOOLEAN)", "true")
+    testSqlApi(s"CAST(${decimal_38_2(12.2)} AS BOOLEAN)", "true")
+    testSqlApi(s"CAST(${decimal_38_2(-12.2)} AS BOOLEAN)", "true")
   }
 
   @Test
   def testCastToDecimal(): Unit = {
-    def value(i: Any) = s"CAST('$i' AS DECIMAL(38, 2))"
-    testSqlApi(s"CAST(${value(null)} AS DECIMAL)", "null")
-    testSqlApi(s"CAST(${value(0)} AS DECIMAL(1, 1))", "0.0")
-    testSqlApi(s"CAST(${value(6.32)} AS DECIMAL(3, 2))", "6.32")
-    testSqlApi(s"CAST(${value(236.2)} AS DECIMAL(2, 1))", "null")
+    testSqlApi(s"CAST(${decimal_38_2(null)} AS DECIMAL)", "null")
+    testSqlApi(s"CAST(${decimal_38_2(0)} AS DECIMAL(1, 1))", "0.0")
+    testSqlApi(s"CAST(${decimal_38_2(6.32)} AS DECIMAL(3, 2))", "6.32")
+    testSqlApi(s"CAST(${decimal_38_2(236.2)} AS DECIMAL(2, 1))", "null")
 
     // Test Round HALF_UP
-    testSqlApi(s"CAST(${value(5.22)} AS DECIMAL(2, 1))", "5.2")
-    testSqlApi(s"CAST(${value(5.26)} AS DECIMAL(2, 1))", "5.3")
+    testSqlApi(s"CAST(${decimal_38_2(5.22)} AS DECIMAL(2, 1))", "5.2")
+    testSqlApi(s"CAST(${decimal_38_2(5.26)} AS DECIMAL(2, 1))", "5.3")
   }
+
+  private def testUnsupportedCastTo(t: String): Unit = {
+    expectedException.expectMessage(
+      "Cast function cannot convert value of type DECIMAL(38, 2) to type")
+    testSqlApi(s"CAST(${decimal_38_2(5.22)} AS $t)", "")
+  }
+
+  @Test
+  def testCastToBinary(): Unit = {
+    testUnsupportedCastTo("BINARY(4)")
+  }
+
+  @Test
+  def testCastToVarBinary(): Unit = {
+    testUnsupportedCastTo("VARBINARY")
+  }
+
+  @Test
+  def testCastToDate(): Unit = {
+    testUnsupportedCastTo("DATE")
+  }
+
+  @Test
+  def testCastToTime(): Unit = {
+    testUnsupportedCastTo("TIME")
+  }
+
+  @Test
+  def testCastToTimestamp(): Unit = {
+    expectedException.expectMessage(
+      "The cast conversion from NUMERIC type to TIMESTAMP type is not allowed," +
+          " it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col)) instead," +
+          " note the numeric is in seconds")
+    testSqlApi(s"CAST(${decimal_38_2(5.22)} AS TIMESTAMP)", "")
+  }
+
+  @Test
+  def testCastToTimestampLz(): Unit = {
+    expectedException.expectMessage(
+      "The cast conversion from NUMERIC type to TIMESTAMP_LTZ type is not allowed," +
+          " it's recommended to use TO_TIMESTAMP_LTZ(numeric_col, precision) instead")
+    testSqlApi(s"CAST(${decimal_38_2(5.22)} AS TIMESTAMP_LTZ)", "")
+  }
+
+  @Test
+  def testCastToArray(): Unit = {
+    testUnsupportedCastTo("ARRAY<INT>")
+  }
+
+  @Test
+  def testCastToMultiSet(): Unit = {
+    testUnsupportedCastTo("MULTISET<INT>")
+  }
+
+  @Test
+  def testCastToMap(): Unit = {
+    testUnsupportedCastTo("MAP<INT, INT>")
+  }
+
+  @Test
+  def testCastToRow(): Unit = {
+    testUnsupportedCastTo("ROW<i INT, j INT>")
+  }
+
+  private def testUnsupportedCastFrom(t: String): Unit = {
+    expectedException.expectMessage(
+      "Cast function cannot convert value of type")
+    testSqlApi(s"CAST(CAST(NULL AS $t) AS DECIMAL(38, 2))", "")
+  }
+
+  @Test
+  def testCastFromBinary(): Unit = {
+    testUnsupportedCastFrom("BINARY(4)")
+  }
+
+  @Test
+  def testCastFromVarBinary(): Unit = {
+    testUnsupportedCastFrom("VARBINARY")
+  }
+
+  @Test
+  def testCastFromDate(): Unit = {
+    testUnsupportedCastFrom("DATE")
+  }
+
+  @Test
+  def testCastFromTime(): Unit = {
+    testUnsupportedCastFrom("TIME")
+  }
+
+  @Test
+  def testCastFromTimestamp(): Unit = {
+    expectedException.expectMessage(
+      "The cast conversion from TIMESTAMP type to NUMERIC type is not allowed, " +
+          "it's recommended to use UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead")
+    testSqlApi(s"CAST(TIMESTAMP '2020-02-02' AS DECIMAL(38, 2))", "")
+  }
+
+  @Test
+  def testCastFromTimestampLz(): Unit = {
+    expectedException.expectMessage(
+      "The cast conversion from TIMESTAMP_LTZ type to NUMERIC type is not allowed.")
+    testSqlApi(s"CAST(CAST('2020-02-02' AS TIMESTAMP_LTZ) AS DECIMAL(38, 2))", "")
+  }
+
+  @Test
+  def testCastFromArray(): Unit = {
+    testUnsupportedCastFrom("ARRAY<INT>")
+  }
+
+  @Test
+  def testCastFromMultiSet(): Unit = {
+    testUnsupportedCastFrom("MULTISET<INT>")
+  }
+
+  @Test
+  def testCastFromMap(): Unit = {
+    testUnsupportedCastFrom("MAP<INT, INT>")
+  }
+
+  @Test
+  def testCastFromRow(): Unit = {
+    testUnsupportedCastFrom("ROW<i INT, j INT>")
+  }
+
+  def decimal_38_18(i: Any) = s"CAST('$i' AS DECIMAL(38, 18))"
+  def decimal_38_2(i: Any) = s"CAST('$i' AS DECIMAL(38, 2))"
 
   override def testData: Row = new Row(0)
 
