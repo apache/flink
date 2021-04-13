@@ -164,7 +164,8 @@ We have to use `--savepointPath` to specify the savepoint folder if
 If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
 barrier. This will make all registered event-time timers fire, thus flushing out any state that 
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
-shut down. This allows the job to finish processing all in-flight data.
+shut down. This allows the job to finish processing all in-flight data, which can produce some
+records to process after the savepoint taken while stopping.
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
 Use the <code class="highlighter-rouge">--drain</code> flag if you want to terminate the job permanently.
