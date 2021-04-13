@@ -18,10 +18,17 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
+import org.apache.flink.fs.gs.writer.GSRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+
+import java.io.IOException;
 
 /** Provides recoverable-writer functionality for the standard GoogleHadoopFileSystem. */
 class GSFileSystem extends HadoopFileSystem {
@@ -33,7 +40,6 @@ class GSFileSystem extends HadoopFileSystem {
         this.options = Preconditions.checkNotNull(options);
     }
 
-    /* TODO: uncomment with recoverable writer commit
     @Override
     public RecoverableWriter createRecoverableWriter() throws IOException {
 
@@ -46,5 +52,4 @@ class GSFileSystem extends HadoopFileSystem {
         // construct the recoverable writer with the blob storage wrapper and the options
         return new GSRecoverableWriter(blobStorage, options);
     }
-     */
 }
