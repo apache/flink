@@ -432,6 +432,7 @@ public class JobManagerOptions {
                             Description.builder()
                                     .text(
                                             "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. "
+                                                    + "The timeout starts once sufficient resources for running the job are available. "
                                                     + "Once this timeout has passed, the job will start executing with the available resources.")
                                     .linebreak()
                                     .text(
