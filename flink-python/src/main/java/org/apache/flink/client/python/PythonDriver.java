@@ -128,7 +128,7 @@ public final class PythonDriver {
             } else {
                 // throw ProgramAbortException if the caller is interested in the program plan,
                 // there is no harm to throw ProgramAbortException even if it is not the case.
-                throw new ProgramAbortException();
+                throw new ProgramAbortException(e);
             }
         } finally {
             PythonEnvUtils.setGatewayServer(null);
