@@ -147,7 +147,7 @@ tEnv.executeSql("SHOW CREATE TABLE my_view").print();
 // |                                            create table |
 // +---------------------------------------------------------+
 // | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-// | ...                                                   |
+// | ...                                                     |
 // |                                                         |
 // +---------------------------------------------------------+
 
@@ -248,7 +248,7 @@ tEnv.executeSql("SHOW CREATE TABLE my_view").print()
 // |                                            create table |
 // +---------------------------------------------------------+
 // | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-// | ...                                                   |
+// | ...                                                     |
 // |                                                         |
 // +---------------------------------------------------------+
 
@@ -349,7 +349,7 @@ table_env.execute_sql("SHOW CREATE TABLE my_view").print()
 # |                                            create table |
 # +---------------------------------------------------------+
 # | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-# | ...                                                   |
+# | ...                                                     |
 # |                                                         |
 # +---------------------------------------------------------+
 
