@@ -45,6 +45,7 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit._
+import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
@@ -54,6 +55,11 @@ import java.util
 import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
+
+  var _expectedEx: ExpectedException = ExpectedException.none
+
+  @Rule
+  def expectedEx: ExpectedException = _expectedEx
 
   @Before
   override def before(): Unit = {
@@ -790,6 +796,15 @@ class CalcITCase extends BatchTestBase {
         row("{2=Hello}"),
         row("{3=Hello world}")
       )
+    )
+  }
+
+  @Test
+  def testMapTypeGroupBy(): Unit = {
+    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
+    checkResult(
+      "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
+      Seq()
     )
   }
 
