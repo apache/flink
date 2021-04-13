@@ -99,13 +99,13 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
     private JobGraph jobGraph;
 
-    @Test(timeout = 5000)
+    @Test
     public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(true);
@@ -130,12 +130,12 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheTerminate() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(true);
     }
@@ -158,13 +158,13 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 getJobStatus(), either(equalTo(JobStatus.FAILED)).or(equalTo(JobStatus.FAILING)));
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInSuspend()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInTerminate()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(true);
@@ -210,7 +210,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 either(equalTo(JobStatus.CANCELLING)).or(equalTo(JobStatus.CANCELED)));
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void testRestartCheckpointCoordinatorIfStopWithSavepointFails() throws Exception {
         setUpJobGraph(CheckpointCountingTask.class, RestartStrategies.noRestart());
 
