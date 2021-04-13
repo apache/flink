@@ -47,19 +47,33 @@ public class OperatorEventValveTest {
         assertTrue(future.isDone());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void errorShuttingUnmarkedValve() {
+    @Test
+    public void shuttingMarkedValve() {
         final OperatorEventValve valve = new OperatorEventValve();
 
-        valve.shutValve(123L);
+        valve.markForCheckpoint(200L);
+        final boolean shut = valve.tryShutValve(200L);
+
+        assertTrue(shut);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void errorShuttingValveForOtherMark() {
+    @Test
+    public void notShuttingUnmarkedValve() {
+        final OperatorEventValve valve = new OperatorEventValve();
+
+        final boolean shut = valve.tryShutValve(123L);
+
+        assertFalse(shut);
+    }
+
+    @Test
+    public void notShuttingValveForOtherMark() {
         final OperatorEventValve valve = new OperatorEventValve();
 
         valve.markForCheckpoint(100L);
-        valve.shutValve(123L);
+        final boolean shut = valve.tryShutValve(123L);
+
+        assertFalse(shut);
     }
 
     @Test
@@ -68,7 +82,7 @@ public class OperatorEventValveTest {
         final OperatorEventValve valve = new OperatorEventValve();
 
         valve.markForCheckpoint(1L);
-        valve.shutValve(1L);
+        valve.tryShutValve(1L);
 
         final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
         valve.sendEvent(sender.createSendAction(new TestOperatorEvent(), 1), future);
@@ -83,7 +97,7 @@ public class OperatorEventValveTest {
         final OperatorEventValve valve = new OperatorEventValve();
 
         valve.markForCheckpoint(17L);
-        valve.shutValve(17L);
+        valve.tryShutValve(17L);
 
         final OperatorEvent event1 = new TestOperatorEvent();
         final OperatorEvent event2 = new TestOperatorEvent();
@@ -108,7 +122,7 @@ public class OperatorEventValveTest {
         final OperatorEventValve valve = new OperatorEventValve();
 
         valve.markForCheckpoint(17L);
-        valve.shutValve(17L);
+        valve.tryShutValve(17L);
 
         final CompletableFuture<Acknowledge> future = new CompletableFuture<>();
         valve.sendEvent(sender.createSendAction(new TestOperatorEvent(), 10), future);

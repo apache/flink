@@ -128,21 +128,14 @@ final class OperatorEventValve {
      * Shuts the value. All events sent through this valve are blocked until the valve is re-opened.
      * If the valve is already shut, this does nothing.
      */
-    public void shutValve(long checkpointId) {
+    public boolean tryShutValve(long checkpointId) {
         checkRunsInMainThread();
 
         if (checkpointId == currentCheckpointId) {
             shut = true;
-        } else {
-            throw new IllegalStateException(
-                    String.format(
-                            "Cannot shut valve for non-prepared checkpoint. "
-                                    + "Prepared checkpoint = %s, attempting-to-close checkpoint = %d",
-                            (currentCheckpointId == NO_CHECKPOINT
-                                    ? "(none)"
-                                    : String.valueOf(currentCheckpointId)),
-                            checkpointId));
+            return true;
         }
+        return false;
     }
 
     public void openValveAndUnmarkCheckpoint(long expectedCheckpointId) {
