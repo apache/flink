@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-filesystems</artifactId>
+		<version>1.13-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-gs-fs-hadoop</artifactId>
+	<name>Flink : FileSystems : Google Storage FS Hadoop</name>
+
+	<packaging>jar</packaging>
+
+	<!-- need to use a release which includes this patch: https://github.com/apache/hadoop/commit/02cadbd24bf69925078d044701741e2e3fcb4b2f -->
+	<properties>
+		<fs.gs.sdk.version>1.113.14</fs.gs.sdk.version>
+		<fs.gs.connector.version>hadoop3-2.2.0</fs.gs.connector.version>
+		<fs.gs.guava.version>30.1.1-jre</fs.gs.guava.version>
+	</properties>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-fs</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-fs-hadoop-shaded</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Google dependencies require a newer version of guava than comes from flink-fs-hadoop-shaded -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${fs.gs.guava.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+			<version>${fs.gs.sdk.version}</version>
+			<exclusions>
+				<!-- the following are in flink-fs-hadoop-shaded so exclude here -->
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud.bigdataoss</groupId>
+			<artifactId>gcs-connector</artifactId>
+			<version>${fs.gs.connector.version}</version>
+			<exclusions>
+				<!-- the following are in flink-fs-hadoop-shaded so exclude here -->
+				<exclusion>
+					<groupId>commons-logging</groupId>
+					<artifactId>commons-logging</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- for the behavior test suite -->
+		<!-- TODO: add back if needed, or remove -->
+		<!--dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency-->
+
+	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+		  	<!--
+		  		Override the flink-parent dependencyManagement definition for hadoop-common to ensure
+				${fs.hadoopshaded.version} is used for this file system
+			-->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<plugins>
+			<!-- Relocate GS related classes -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes>
+									<include>*:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+
+								<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
+								<relocation>
+									<pattern>org.apache.hadoop</pattern>
+									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+								</relocation>
+
+								<!-- shade dependencies internally used by Hadoop and never exposed downstream -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.commons</shadedPattern>
+								</relocation>
+
+								<!-- shade Guava since we're pulling in a different version from flink-fs-hadoop-shaded -->
+								<relocation>
+									<pattern>com.google.common</pattern>
+									<shadedPattern>org.apache.flink.fs.gs.com.google.common</shadedPattern>
+								</relocation>
+
+								<!-- shade Flink's Hadoop FS adapter classes  -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.fs.hdfs</shadedPattern>
+								</relocation>
+
+								<!-- shade Flink's Hadoop FS utility classes -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.util</shadedPattern>
+								</relocation>
+
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:flink-fs-hadoop-shaded</artifact>
+									<excludes>
+										<!-- exclude Guava classes from flink-fs-hadoop-shaded that we replace -->
+										<exclude>com/google/common/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/maven/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
