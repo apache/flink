@@ -105,7 +105,6 @@ import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStor
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
 
 /** Base class for tests related to unaligned checkpoints. */
 @Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
@@ -170,19 +169,14 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
                 throw e;
             }
-            if (settings.generateCheckpoint) {
-                return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                        .max(Comparator.comparing(Path::toString))
-                        .map(Path::toFile)
-                        .orElseThrow(
-                                () -> new IllegalStateException("Cannot generate checkpoint", e));
-            }
-            throw e;
         } finally {
             miniCluster.after();
         }
         if (settings.generateCheckpoint) {
-            fail("Could not generate checkpoint");
+            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
+                    .max(Comparator.comparing(Path::toString))
+                    .map(Path::toFile)
+                    .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
         }
         return null;
     }
