@@ -1395,38 +1395,6 @@ class TableEnvironmentTest {
       tableResult6.collect())
   }
 
-  @Test
-  def testRemoveSingleAggregateRule(): Unit = {
-    val createTableStmt1 =
-      """
-        |CREATE TABLE foo (
-        |  x int,
-        |  y int
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'true'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(createTableStmt1)
-
-    val createTableStmt2 =
-      """
-        |CREATE TABLE bar (
-        |  i int,
-        |  s string
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'true'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(createTableStmt2)
-
-    val actual = tableEnv.explainSql(
-      "select (select count(x)-1 from foo where foo.y=bar.i) from bar")
-    val expected = TableTestUtil.readFromResource("/explain/testRemoveSingleAggregateRule.out")
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-  }
-
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
