@@ -198,7 +198,7 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // totally late element, should be dropped
+        // late for all assigned windows, should be dropped
         testHarness.processElement(insertRecord("key1", 1, 2999L));
 
         testHarness.processWatermark(new Watermark(5999));
@@ -427,7 +427,7 @@ public class SlicingWindowAggOperatorTest {
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        // totally late element, should be dropped
+        // late for all assigned windows, should be dropped
         testHarness.processElement(insertRecord("key1", 1, 2999L));
 
         testHarness.processWatermark(new Watermark(5999));

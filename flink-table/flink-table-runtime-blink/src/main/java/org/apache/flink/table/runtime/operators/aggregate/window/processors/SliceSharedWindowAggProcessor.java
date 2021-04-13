@@ -46,7 +46,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
 
     private final SliceSharedAssigner sliceSharedAssigner;
     private final WindowIsEmptySupplier emptySupplier;
-    private final SliceMergeTargetGetter mergeTargetGetter = new SliceMergeTargetGetter();
+    private final SliceMergeTargetHelper mergeTargetHelper;
 
     public SliceSharedWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
@@ -64,6 +64,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
                 accSerializer,
                 shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
+        this.mergeTargetHelper = new SliceMergeTargetHelper();
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
 
@@ -125,13 +126,13 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
     }
 
     protected long sliceStateMergeTarget(long sliceToMerge) throws Exception {
-        mergeTargetGetter.mergeTarget = null;
-        sliceSharedAssigner.mergeSlices(sliceToMerge, mergeTargetGetter);
+        mergeTargetHelper.setMergeTarget(null);
+        sliceSharedAssigner.mergeSlices(sliceToMerge, mergeTargetHelper);
 
         // the mergeTarget might be null, which means the merging happens in memory instead of
         // on state, so the slice state to merge into is itself.
-        if (mergeTargetGetter.mergeTarget != null) {
-            return mergeTargetGetter.mergeTarget;
+        if (mergeTargetHelper.getMergeTarget() != null) {
+            return mergeTargetHelper.getMergeTarget();
         } else {
             return sliceToMerge;
         }
@@ -176,7 +177,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         }
     }
 
-    private static final class SliceMergeTargetGetter
+    private static final class SliceMergeTargetHelper
             implements SliceSharedAssigner.MergeCallback, Serializable {
 
         private static final long serialVersionUID = 1L;
@@ -185,6 +186,14 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         @Override
         public void merge(@Nullable Long mergeResult, Iterable<Long> toBeMerged) throws Exception {
             this.mergeTarget = mergeResult;
+        }
+
+        public Long getMergeTarget() {
+            return mergeTarget;
+        }
+
+        public void setMergeTarget(Long mergeTarget) {
+            this.mergeTarget = mergeTarget;
         }
     }
 }
