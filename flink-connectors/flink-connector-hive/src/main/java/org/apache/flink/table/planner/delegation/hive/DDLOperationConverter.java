@@ -37,7 +37,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
@@ -710,7 +709,6 @@ public class DDLOperationConverter {
         if (desc.getDatabaseProperties() != null) {
             props.putAll(desc.getDatabaseProperties());
         }
-        markNonGeneric(props);
         if (desc.getLocationUri() != null) {
             props.put(DATABASE_LOCATION_URI, desc.getLocationUri());
         }
@@ -720,10 +718,6 @@ public class DDLOperationConverter {
                 desc.getName(),
                 catalogDatabase,
                 desc.getIfNotExists());
-    }
-
-    private void markNonGeneric(Map<String, String> props) {
-        props.put(CatalogPropertiesUtil.IS_GENERIC, "false");
     }
 
     private void markHiveConnector(Map<String, String> props) {

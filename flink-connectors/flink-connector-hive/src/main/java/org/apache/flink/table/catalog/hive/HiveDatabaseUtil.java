@@ -43,66 +43,54 @@ public class HiveDatabaseUtil {
 
         Map<String, String> properties = database.getProperties();
 
-        properties.putIfAbsent(CatalogPropertiesUtil.IS_GENERIC, "true");
-
-        boolean isGeneric = Boolean.parseBoolean(properties.get(CatalogPropertiesUtil.IS_GENERIC));
-
-        String dbLocationUri =
-                isGeneric ? null : properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+        String dbLocationUri = properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
 
         return new Database(databaseName, database.getComment(), dbLocationUri, properties);
     }
 
     static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
         Map<String, String> params = hiveDB.getParameters();
-        boolean isGeneric =
-                params != null
-                        && Boolean.parseBoolean(
-                                params.getOrDefault(CatalogPropertiesUtil.IS_GENERIC, "false"));
-        if (isGeneric) {
-            // altering generic DB doesn't merge properties, see CatalogTest::testAlterDb
-            hiveDB.setParameters(newDatabase.getProperties());
-        } else {
-            String opStr = newDatabase.getProperties().remove(ALTER_DATABASE_OP);
-            if (opStr == null) {
-                throw new CatalogException(
-                        ALTER_DATABASE_OP + " property is missing for alter database statement");
-            }
-            String newLocation =
-                    newDatabase.getProperties().remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
-            Map<String, String> newParams = newDatabase.getProperties();
-            SqlAlterHiveDatabase.AlterHiveDatabaseOp op =
-                    SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
-            switch (op) {
-                case CHANGE_PROPS:
-                    if (params == null) {
-                        hiveDB.setParameters(newParams);
-                    } else {
-                        params.putAll(newParams);
-                    }
-                    break;
-                case CHANGE_LOCATION:
-                    hiveDB.setLocationUri(newLocation);
-                    break;
-                case CHANGE_OWNER:
-                    String ownerName = newParams.remove(DATABASE_OWNER_NAME);
-                    String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
-                    hiveDB.setOwnerName(ownerName);
-                    switch (ownerType) {
-                        case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
-                            hiveDB.setOwnerType(PrincipalType.ROLE);
-                            break;
-                        case SqlAlterHiveDatabaseOwner.USER_OWNER:
-                            hiveDB.setOwnerType(PrincipalType.USER);
-                            break;
-                        default:
-                            throw new CatalogException(
-                                    "Unsupported database owner type: " + ownerType);
-                    }
-                    break;
-                default:
-                    throw new CatalogException("Unsupported alter database op:" + opStr);
-            }
+        Map<String, String> newParams = newDatabase.getProperties();
+        String opStr = newParams.remove(ALTER_DATABASE_OP);
+        if (opStr == null) {
+            // by default is to alter db properties
+            opStr = SqlAlterHiveDatabase.AlterHiveDatabaseOp.CHANGE_PROPS.name();
+        }
+        String newLocation = newParams.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+        SqlAlterHiveDatabase.AlterHiveDatabaseOp op =
+                SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
+        switch (op) {
+            case CHANGE_PROPS:
+                if (params == null) {
+                    hiveDB.setParameters(newParams);
+                } else {
+                    params.putAll(newParams);
+                }
+                break;
+            case CHANGE_LOCATION:
+                hiveDB.setLocationUri(newLocation);
+                break;
+            case CHANGE_OWNER:
+                String ownerName = newParams.remove(DATABASE_OWNER_NAME);
+                String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
+                hiveDB.setOwnerName(ownerName);
+                switch (ownerType) {
+                    case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
+                        hiveDB.setOwnerType(PrincipalType.ROLE);
+                        break;
+                    case SqlAlterHiveDatabaseOwner.USER_OWNER:
+                        hiveDB.setOwnerType(PrincipalType.USER);
+                        break;
+                    default:
+                        throw new CatalogException("Unsupported database owner type: " + ownerType);
+                }
+                break;
+            default:
+                throw new CatalogException("Unsupported alter database op:" + opStr);
+        }
+        // is_generic is deprecated, remove it
+        if (hiveDB.getParameters() != null) {
+            hiveDB.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
         }
         return hiveDB;
     }

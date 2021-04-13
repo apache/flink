@@ -148,7 +148,6 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create database db1 comment 'db1 comment'");
         Database db = hiveCatalog.getHiveDatabase("db1");
         assertEquals("db1 comment", db.getDescription());
-        assertTrue(HiveCatalog.isHiveDatabase(db.getParameters()));
 
         String db2Location = warehouse + "/db2_location";
         tableEnv.executeSql(
@@ -166,8 +165,6 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create database db1 with dbproperties('k1'='v1')");
         tableEnv.executeSql("alter database db1 set dbproperties ('k1'='v11','k2'='v2')");
         Database db = hiveCatalog.getHiveDatabase("db1");
-        // there's an extra is_generic property
-        assertEquals(3, db.getParametersSize());
         assertEquals("v11", db.getParameters().get("k1"));
         assertEquals("v2", db.getParameters().get("k2"));
 

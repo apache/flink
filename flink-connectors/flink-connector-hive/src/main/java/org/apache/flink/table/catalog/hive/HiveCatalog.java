@@ -319,13 +319,9 @@ public class HiveCatalog extends AbstractCatalog {
             throws DatabaseNotExistException, CatalogException {
         Database hiveDatabase = getHiveDatabase(databaseName);
 
-        Map<String, String> properties = hiveDatabase.getParameters();
+        Map<String, String> properties = new HashMap<>(hiveDatabase.getParameters());
 
-        boolean isHiveDatabase = isHiveDatabase(properties);
-        if (isHiveDatabase) {
-            properties.put(
-                    SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
-        }
+        properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
 
         return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
     }
@@ -1673,16 +1669,11 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     @VisibleForTesting
-    public static boolean isHiveDatabase(Map<String, String> properties) {
-        return !Boolean.parseBoolean(
-                properties.getOrDefault(CatalogPropertiesUtil.IS_GENERIC, "false"));
-    }
-
     public static boolean isHiveTable(Map<String, String> properties) {
         return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
     }
 
-    public static void disallowChangeIsHiveTable(boolean oldIsHive, boolean newIsHive) {
+    private static void disallowChangeIsHiveTable(boolean oldIsHive, boolean newIsHive) {
         checkArgument(
                 oldIsHive == newIsHive, "Changing whether a table is Hive table is not allowed");
     }
