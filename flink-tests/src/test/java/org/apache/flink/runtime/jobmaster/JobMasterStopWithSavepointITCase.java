@@ -154,7 +154,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
         // verifying that we actually received a synchronous checkpoint
         assertTrue(syncSavepointId.get() > 0);
-        assertThat(getJobStatus(), equalTo(JobStatus.FAILED));
+        assertThat(
+                getJobStatus(), either(equalTo(JobStatus.FAILED)).or(equalTo(JobStatus.FAILING)));
     }
 
     @Test(timeout = 5000)
