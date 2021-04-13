@@ -104,7 +104,7 @@ abstract class CommonPhysicalLookupJoin(
       joinKeyPairs,
       calcOnTemporalTable)
   }
-  // remaining condition the filter joined records (left input record X lookup-ed records)
+  // remaining condition used to filter the joined records (left input record X lookup-ed records)
   val remainingCondition: Option[RexNode] = getRemainingJoinCondition(
     cluster.getRexBuilder,
     input.getRowType,
