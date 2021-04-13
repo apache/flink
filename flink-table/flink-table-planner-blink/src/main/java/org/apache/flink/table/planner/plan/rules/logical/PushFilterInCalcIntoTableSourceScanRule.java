@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Calc;
@@ -119,7 +120,9 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
             RexNode remainingCondition =
                     createRemainingCondition(
                             relBuilder, result.getRemainingFilters(), unconvertedPredicates);
-            programBuilder.addCondition(remainingCondition);
+            RexNode simplifiedRemainingCondition =
+                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), remainingCondition);
+            programBuilder.addCondition(simplifiedRemainingCondition);
         }
 
         RexProgram program = programBuilder.getProgram();

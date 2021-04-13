@@ -75,6 +75,25 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCannotPushDownIn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE name IN ('Alice', 'Bob', 'Dave')]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[OR(=($0, _UTF-16LE'Alice'), =($0, _UTF-16LE'Bob'), =($0, _UTF-16LE'Dave'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[SEARCH($0, Sarg[_UTF-16LE'Alice':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Bob':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Dave':VARCHAR(5) CHARACTER SET "UTF-16LE"]:VARCHAR(5) CHARACTER SET "UTF-16LE")])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCannotPushDownWithVirtualColumn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE price > 10]]>
