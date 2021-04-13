@@ -77,31 +77,63 @@ class StreamTableEnvironmentImpl (
   with org.apache.flink.table.api.bridge.scala.StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
-    fromDataStreamInternal(dataStream.javaStream, null, null)
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    fromStreamInternal(dataStream.javaStream, null, null, ChangelogMode.insertOnly())
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], schema: Schema): Table = {
-    fromDataStreamInternal(dataStream.javaStream, schema, null)
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    Preconditions.checkNotNull(schema, "Schema must not be null.")
+    fromStreamInternal(dataStream.javaStream, schema, null, ChangelogMode.insertOnly())
+  }
+
+  override def fromChangelogStream(dataStream: DataStream[Row]): Table = {
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    fromStreamInternal(dataStream.javaStream, null, null, ChangelogMode.all())
+  }
+
+  override def fromChangelogStream(dataStream: DataStream[Row], schema: Schema): Table = {
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    Preconditions.checkNotNull(schema, "Schema must not be null.")
+    fromStreamInternal(dataStream.javaStream, schema, null, ChangelogMode.all())
+  }
+
+  override def fromChangelogStream(
+      dataStream: DataStream[Row],
+      schema: Schema,
+      changelogMode: ChangelogMode)
+    : Table = {
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    Preconditions.checkNotNull(schema, "Schema must not be null.")
+    fromStreamInternal(dataStream.javaStream, schema, null, changelogMode)
   }
 
   override def createTemporaryView[T](
       path: String,
       dataStream: DataStream[T]): Unit = {
-    createTemporaryView(path, fromDataStreamInternal(dataStream.javaStream, null, path))
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    createTemporaryView(
+      path,
+      fromStreamInternal(dataStream.javaStream, null, path, ChangelogMode.insertOnly()))
   }
 
   override def createTemporaryView[T](
       path: String,
       dataStream: DataStream[T],
       schema: Schema): Unit = {
-    createTemporaryView(path, fromDataStreamInternal(dataStream.javaStream, schema, path))
+    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+    Preconditions.checkNotNull(schema, "Schema must not be null.")
+    createTemporaryView(
+      path,
+      fromStreamInternal(dataStream.javaStream, schema, path, ChangelogMode.insertOnly()))
   }
 
-  private def fromDataStreamInternal[T](
+  private def fromStreamInternal[T](
       dataStream: JDataStream[T],
       @Nullable schema: Schema,
-      @Nullable viewPath: String): Table = {
-    Preconditions.checkNotNull(dataStream, "Data stream must not be null.")
+      @Nullable viewPath: String,
+      changelogMode: ChangelogMode): Table = {
+    Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
     val catalogManager = getCatalogManager
     val schemaResolver = catalogManager.getSchemaResolver
     val operationTreeBuilder = getOperationTreeBuilder
@@ -109,7 +141,7 @@ class StreamTableEnvironmentImpl (
     val unresolvedIdentifier = if (viewPath != null) {
       getParser.parseIdentifier(viewPath)
     } else {
-      UnresolvedIdentifier.of("Unregistered_DataStream_" + dataStream.getId)
+      UnresolvedIdentifier.of("Unregistered_DataStream_Source_" + dataStream.getId)
     }
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
 
@@ -125,7 +157,7 @@ class StreamTableEnvironmentImpl (
         dataStream,
         schemaTranslationResult.getPhysicalDataType,
         schemaTranslationResult.isTopLevelRecord,
-        ChangelogMode.insertOnly(),
+        changelogMode,
         resolvedSchema)
 
     val projections = schemaTranslationResult.getProjections
@@ -147,7 +179,8 @@ class StreamTableEnvironmentImpl (
 
   override def toDataStream(table: Table): DataStream[Row] = {
     Preconditions.checkNotNull(table, "Table must not be null.")
-    val sourceType = table.getResolvedSchema.toSinkRowDataType
+    // include all columns of the query (incl. metadata and computed columns)
+    val sourceType = table.getResolvedSchema.toSourceRowDataType
     toDataStream(table, sourceType)
   }
 
@@ -165,26 +198,72 @@ class StreamTableEnvironmentImpl (
   override def toDataStream[T](table: Table, targetDataType: AbstractDataType[_]): DataStream[T] = {
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetDataType, "Target data type must not be null.")
-    val catalogManager = getCatalogManager
-    val schemaResolver = catalogManager.getSchemaResolver
-    val operationTreeBuilder = getOperationTreeBuilder
 
     val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
       catalogManager.getDataTypeFactory,
       table.getResolvedSchema,
       targetDataType)
 
-    val projections = schemaTranslationResult.getProjections
-    val projectOperation = if (projections == null) {
-      table.getQueryOperation
-    } else {
+    toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly())
+  }
+
+  override def toChangelogStream(table: Table): DataStream[Row] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+
+    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+      table.getResolvedSchema,
+      null)
+
+    toStreamInternal(table, schemaTranslationResult, null)
+  }
+
+  override def toChangelogStream(table: Table, targetSchema: Schema): DataStream[Row] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+    Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
+
+    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+      table.getResolvedSchema,
+      targetSchema)
+
+    toStreamInternal(table, schemaTranslationResult, null)
+  }
+
+  override def toChangelogStream(
+      table: Table,
+      targetSchema: Schema,
+      changelogMode: ChangelogMode)
+    : DataStream[Row] = {
+    Preconditions.checkNotNull(table, "Table must not be null.")
+    Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
+    Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
+
+    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+      table.getResolvedSchema,
+      targetSchema)
+
+    toStreamInternal(table, schemaTranslationResult, changelogMode)
+  }
+
+  private def toStreamInternal[T](
+      table: Table,
+      schemaTranslationResult: ExternalSchemaTranslator.OutputResult,
+      @Nullable changelogMode: ChangelogMode)
+    : DataStream[T] = {
+    val catalogManager = getCatalogManager
+    val schemaResolver = catalogManager.getSchemaResolver
+    val operationTreeBuilder = getOperationTreeBuilder
+
+    val optionalProjections = schemaTranslationResult.getProjections
+    val projectOperation = if (optionalProjections.isPresent) {
+      val projections = optionalProjections.get
       operationTreeBuilder.project(
-        util.Arrays.asList(
-          projections
-            .asScala
-            .map(ApiExpressionUtils.unresolvedRef)
-            .toArray),
+        projections.asScala
+          .map(ApiExpressionUtils.unresolvedRef)
+          .map(_.asInstanceOf[Expression])
+          .asJava,
         table.getQueryOperation)
+    } else {
+      table.getQueryOperation
     }
 
     val resolvedSchema = schemaResolver.resolve(schemaTranslationResult.getSchema)
@@ -195,15 +274,16 @@ class StreamTableEnvironmentImpl (
 
     val modifyOperation = new ExternalModifyOperation(
       objectIdentifier,
-      table.getQueryOperation,
+      projectOperation,
       resolvedSchema,
-      ChangelogMode.insertOnly(),
-      schemaTranslationResult.getPhysicalDataType)
+      changelogMode,
+      schemaTranslationResult.getPhysicalDataType
+        .orElse(resolvedSchema.toPhysicalRowDataType))
 
-    toDataStreamInternal(table, modifyOperation)
+    toStreamInternal(table, modifyOperation)
   }
 
-  private def toDataStreamInternal[T](
+  private def toStreamInternal[T](
       table: Table,
       modifyOperation: ModifyOperation)
     : DataStream[T] = {
@@ -242,7 +322,7 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.APPEND)
-    toDataStreamInternal[T](table, modifyOperation)
+    toStreamInternal[T](table, modifyOperation)
   }
 
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
@@ -252,7 +332,7 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
-    toDataStreamInternal(table, modifyOperation)
+    toStreamInternal(table, modifyOperation)
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {

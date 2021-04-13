@@ -22,8 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.sink.OutputConversionOperator;
 import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
@@ -31,21 +33,38 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
+import javax.annotation.Nullable;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 /** Table sink for connecting to the external {@link DataStream} API. */
 @Internal
-final class ExternalDynamicSink implements DynamicTableSink {
+final class ExternalDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
 
-    private final ChangelogMode changelogMode;
+    private static final String ROWTIME_METADATA_KEY = "rowtime";
+
+    private static final DataType ROWTIME_METADATA_DATA_TYPE = DataTypes.TIMESTAMP_LTZ(3).notNull();
+
+    private final @Nullable ChangelogMode changelogMode;
 
     private final DataType physicalDataType;
 
-    ExternalDynamicSink(ChangelogMode changelogMode, DataType physicalDataType) {
+    // mutable attributes
+
+    private boolean consumeRowtimeMetadata;
+
+    ExternalDynamicSink(@Nullable ChangelogMode changelogMode, DataType physicalDataType) {
         this.changelogMode = changelogMode;
         this.physicalDataType = physicalDataType;
     }
 
     @Override
     public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+        if (changelogMode == null) {
+            return requestedMode;
+        }
         return changelogMode;
     }
 
@@ -73,14 +92,17 @@ final class ExternalDynamicSink implements DynamicTableSink {
                             new OutputConversionOperator(
                                     atomicFieldGetter,
                                     physicalConverter,
-                                    transformationContext.getRowtimeIndex()),
+                                    transformationContext.getRowtimeIndex(),
+                                    consumeRowtimeMetadata),
                             ExternalTypeInfo.of(physicalDataType),
                             input.getParallelism());
                 };
     }
 
     private String generateOperatorName() {
-        return String.format("TableToDataSteam(type=%s)", physicalDataType.toString());
+        return String.format(
+                "TableToDataSteam(type=%s, rowtime=%s)",
+                physicalDataType.toString(), consumeRowtimeMetadata);
     }
 
     @Override
@@ -91,5 +113,15 @@ final class ExternalDynamicSink implements DynamicTableSink {
     @Override
     public String asSummaryString() {
         return generateOperatorName();
+    }
+
+    @Override
+    public Map<String, DataType> listWritableMetadata() {
+        return Collections.singletonMap(ROWTIME_METADATA_KEY, ROWTIME_METADATA_DATA_TYPE);
+    }
+
+    @Override
+    public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
+        consumeRowtimeMetadata = metadataKeys.contains(ROWTIME_METADATA_KEY);
     }
 }
