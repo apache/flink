@@ -36,6 +36,7 @@ public class ChangelogCollectResult extends CollectResultBase implements Changel
         super(tableResult);
         // prepare for changelog
         changeRecordBuffer = new ArrayList<>();
+        retrievalThread.start();
     }
 
     @Override
