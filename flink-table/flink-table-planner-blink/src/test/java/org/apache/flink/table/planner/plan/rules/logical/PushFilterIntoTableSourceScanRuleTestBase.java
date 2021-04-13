@@ -117,4 +117,12 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
                         + "OR\n"
                         + "TIMESTAMPADD(YEAR, 2, b) >= a");
     }
+
+    @Test
+    public void testCannotPushDownIn() {
+        // this test is to avoid filter push down rules throwing exceptions
+        // when dealing with IN expressions, this is because Filter in calcite
+        // requires its condition to be "flat"
+        util.verifyRelPlan("SELECT * FROM MyTable WHERE name IN ('Alice', 'Bob', 'Dave')");
+    }
 }

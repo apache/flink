@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
@@ -108,7 +109,10 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             RexNode remainingCondition =
                     createRemainingCondition(
                             relBuilder, result.getRemainingFilters(), unconvertedPredicates);
-            Filter newFilter = filter.copy(filter.getTraitSet(), newScan, remainingCondition);
+            RexNode simplifiedRemainingCondition =
+                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), remainingCondition);
+            Filter newFilter =
+                    filter.copy(filter.getTraitSet(), newScan, simplifiedRemainingCondition);
             call.transformTo(newFilter);
         }
     }
