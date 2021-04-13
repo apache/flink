@@ -45,7 +45,7 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
 
     private final boolean requiresWrapping;
 
-    private final boolean attachRowtime;
+    private final boolean produceRowtimeMetadata;
 
     private final boolean propagateWatermark;
 
@@ -56,12 +56,12 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
     public InputConversionOperator(
             DataStructureConverter converter,
             boolean requiresWrapping,
-            boolean attachRowtime,
+            boolean produceRowtimeMetadata,
             boolean propagateWatermark,
             boolean isInsertOnly) {
         this.converter = converter;
         this.requiresWrapping = requiresWrapping;
-        this.attachRowtime = attachRowtime;
+        this.produceRowtimeMetadata = produceRowtimeMetadata;
         this.propagateWatermark = propagateWatermark;
         this.isInsertOnly = isInsertOnly;
     }
@@ -124,7 +124,7 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
                             kind));
         }
 
-        if (!attachRowtime) {
+        if (!produceRowtimeMetadata) {
             output.collect(outRecord.replace(payloadRowData));
             return;
         }
