@@ -28,6 +28,8 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+
 import scala.Tuple2;
 
 /**
@@ -108,7 +110,13 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             RexNode remainingCondition =
                     createRemainingCondition(
                             relBuilder, result.getRemainingFilters(), unconvertedPredicates);
-            Filter newFilter = filter.copy(filter.getTraitSet(), newScan, remainingCondition);
+            RexNode simplifiedRemainingCondition = FlinkRexUtil.simplify(
+                    relBuilder.getRexBuilder(),
+                    remainingCondition);
+            Filter newFilter = filter.copy(
+                    filter.getTraitSet(),
+                    newScan,
+                    simplifiedRemainingCondition);
             call.transformTo(newFilter);
         }
     }

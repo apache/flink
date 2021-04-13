@@ -31,6 +31,8 @@ import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
 
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+
 import scala.Tuple2;
 
 /**
@@ -119,7 +121,9 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
             RexNode remainingCondition =
                     createRemainingCondition(
                             relBuilder, result.getRemainingFilters(), unconvertedPredicates);
-            programBuilder.addCondition(remainingCondition);
+            RexNode simplifiedRemainingCondition =
+                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), remainingCondition);
+            programBuilder.addCondition(simplifiedRemainingCondition);
         }
 
         RexProgram program = programBuilder.getProgram();
