@@ -259,7 +259,7 @@ object CodeGenUtils {
     case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
       throw new UnsupportedOperationException(
         s"Unsupported type($t) to generate hash code," +
-            s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL field.")
+            s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
     case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
     case ROW | STRUCTURED_TYPE =>
       val fieldCount = getFieldCount(t)

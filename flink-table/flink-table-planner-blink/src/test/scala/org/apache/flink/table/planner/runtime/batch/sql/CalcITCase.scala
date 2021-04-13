@@ -801,7 +801,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMapTypeGroupBy(): Unit = {
-    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL field")
+    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
     checkResult(
       "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
       Seq()
