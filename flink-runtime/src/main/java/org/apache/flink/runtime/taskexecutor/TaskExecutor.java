@@ -1612,7 +1612,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     freeSlotInternal(activeSlotAllocationID, freeingCause);
                 }
             } catch (SlotNotFoundException e) {
-                log.debug("Could not mark the slot {} inactive.", jobId, e);
+                log.debug("Could not mark the slot {} inactive.", activeSlotAllocationID, e);
             }
         }
 
