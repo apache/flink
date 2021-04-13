@@ -201,7 +201,7 @@ object FlinkLogicalRelFactories {
         rowType: RelDataType,
         tuples: util.List[ImmutableList[RexLiteral]]): RelNode = {
       FlinkLogicalValues.create(
-        cluster, rowType, ImmutableList.copyOf[ImmutableList[RexLiteral]](tuples))
+        cluster, null, rowType, ImmutableList.copyOf[ImmutableList[RexLiteral]](tuples))
     }
   }
 
