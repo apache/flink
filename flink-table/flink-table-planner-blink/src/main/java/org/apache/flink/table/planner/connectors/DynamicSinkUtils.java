@@ -138,7 +138,7 @@ public final class DynamicSinkUtils {
         final ResolvedCatalogTable catalogTable = new ResolvedCatalogTable(unresolvedTable, schema);
         final DynamicTableSink tableSink =
                 new ExternalDynamicSink(
-                        externalModifyOperation.getChangelogMode(),
+                        externalModifyOperation.getChangelogMode().orElse(null),
                         externalModifyOperation.getPhysicalDataType());
         return convertSinkToRel(
                 relBuilder,

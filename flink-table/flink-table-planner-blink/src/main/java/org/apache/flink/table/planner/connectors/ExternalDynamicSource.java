@@ -59,7 +59,7 @@ final class ExternalDynamicSource<E>
 
     // mutable attributes
 
-    private boolean attachRowtime;
+    private boolean produceRowtimeMetadata;
 
     private boolean propagateWatermark;
 
@@ -81,7 +81,7 @@ final class ExternalDynamicSource<E>
         final ExternalDynamicSource<E> copy =
                 new ExternalDynamicSource<>(
                         identifier, dataStream, physicalDataType, isTopLevelRecord, changelogMode);
-        copy.attachRowtime = attachRowtime;
+        copy.produceRowtimeMetadata = produceRowtimeMetadata;
         copy.propagateWatermark = propagateWatermark;
         return copy;
     }
@@ -110,7 +110,7 @@ final class ExternalDynamicSource<E>
                         new InputConversionOperator<>(
                                 physicalConverter,
                                 !isTopLevelRecord,
-                                attachRowtime,
+                                produceRowtimeMetadata,
                                 propagateWatermark,
                                 changelogMode.containsOnly(RowKind.INSERT)),
                         null, // will be filled by the framework
@@ -124,7 +124,7 @@ final class ExternalDynamicSource<E>
                 "DataSteamToTable(stream=%s, type=%s, rowtime=%s, watermark=%s)",
                 identifier.asSummaryString(),
                 physicalDataType.toString(),
-                attachRowtime,
+                produceRowtimeMetadata,
                 propagateWatermark);
     }
 
@@ -135,7 +135,7 @@ final class ExternalDynamicSource<E>
 
     @Override
     public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
-        attachRowtime = metadataKeys.contains(ROWTIME_METADATA_KEY);
+        produceRowtimeMetadata = metadataKeys.contains(ROWTIME_METADATA_KEY);
     }
 
     @Override

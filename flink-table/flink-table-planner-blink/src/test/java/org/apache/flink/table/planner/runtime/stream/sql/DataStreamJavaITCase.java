@@ -38,11 +38,14 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
@@ -288,6 +291,150 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("c", 1000));
     }
 
+    @Test
+    public void testFromAndToChangelogStreamEventTime() throws Exception {
+        final DataStream<Tuple3<Long, Integer, String>> dataStream = getWatermarkedDataStream();
+
+        final DataStream<Row> changelogStream =
+                dataStream
+                        .map(t -> Row.ofKind(RowKind.INSERT, t.f1, t.f2))
+                        .returns(Types.ROW(Types.INT, Types.STRING));
+
+        // derive physical columns and add a rowtime
+        final Table table =
+                tableEnv.fromChangelogStream(
+                        changelogStream,
+                        Schema.newBuilder()
+                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP(3))
+                                .watermark("rowtime", "SOURCE_WATERMARK()")
+                                .build());
+        tableEnv.createTemporaryView("t", table);
+
+        // access and reorder columns
+        final Table reordered = tableEnv.sqlQuery("SELECT f1, rowtime, f0 FROM t");
+
+        // write out the rowtime column with fully declared schema
+        final DataStream<Row> result =
+                tableEnv.toChangelogStream(
+                        reordered,
+                        Schema.newBuilder()
+                                .column("f1", DataTypes.STRING())
+                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .column("f0", DataTypes.INT())
+                                .build());
+
+        // test event time window and field access
+        testResult(
+                result.keyBy(k -> k.getField("f1"))
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .<Row>apply(
+                                (key, window, input, out) -> {
+                                    int sum = 0;
+                                    for (Row row : input) {
+                                        sum += row.<Integer>getFieldAs("f0");
+                                    }
+                                    out.collect(Row.of(key, sum));
+                                })
+                        .returns(Types.ROW(Types.STRING, Types.INT)),
+                Row.of("a", 47),
+                Row.of("c", 1000),
+                Row.of("c", 1000));
+    }
+
+    @Test
+    public void testFromAndToChangelogStreamRetract() throws Exception {
+        final List<Either<Row, Row>> inputOrOutput =
+                Arrays.asList(
+                        input(RowKind.INSERT, "bob", 0),
+                        output(RowKind.INSERT, "bob", 0),
+                        // --
+                        input(RowKind.UPDATE_BEFORE, "bob", 0),
+                        output(RowKind.DELETE, "bob", 0),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "bob", 1),
+                        output(RowKind.INSERT, "bob", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1),
+                        output(RowKind.INSERT, "alice", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1),
+                        output(RowKind.UPDATE_BEFORE, "alice", 1),
+                        output(RowKind.UPDATE_AFTER, "alice", 2),
+                        // --
+                        input(RowKind.UPDATE_BEFORE, "alice", 1),
+                        output(RowKind.UPDATE_BEFORE, "alice", 2),
+                        output(RowKind.UPDATE_AFTER, "alice", 1),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 2),
+                        output(RowKind.UPDATE_BEFORE, "alice", 1),
+                        output(RowKind.UPDATE_AFTER, "alice", 3),
+                        // --
+                        input(RowKind.UPDATE_BEFORE, "alice", 2),
+                        output(RowKind.UPDATE_BEFORE, "alice", 3),
+                        output(RowKind.UPDATE_AFTER, "alice", 1),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 100),
+                        output(RowKind.UPDATE_BEFORE, "alice", 1),
+                        output(RowKind.UPDATE_AFTER, "alice", 101));
+
+        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        tableEnv.createTemporaryView("t", tableEnv.fromChangelogStream(changelogStream));
+
+        final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
+
+        testResult(result.execute(), getOutput(inputOrOutput));
+
+        testResult(tableEnv.toChangelogStream(result), getOutput(inputOrOutput));
+    }
+
+    @Test
+    public void testFromAndToChangelogStreamUpsert() throws Exception {
+        final List<Either<Row, Row>> inputOrOutput =
+                Arrays.asList(
+                        input(RowKind.INSERT, "bob", 0),
+                        output(RowKind.INSERT, "bob", 0),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "bob", 1),
+                        output(RowKind.DELETE, "bob", 0),
+                        output(RowKind.INSERT, "bob", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1),
+                        output(RowKind.INSERT, "alice", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1), // no impact
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 2),
+                        output(RowKind.DELETE, "alice", 1),
+                        output(RowKind.INSERT, "alice", 2),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 100),
+                        output(RowKind.DELETE, "alice", 2),
+                        output(RowKind.INSERT, "alice", 100));
+
+        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        tableEnv.createTemporaryView(
+                "t",
+                tableEnv.fromChangelogStream(
+                        changelogStream,
+                        Schema.newBuilder().primaryKey("f0").build(),
+                        ChangelogMode.upsert()));
+
+        final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
+
+        testResult(result.execute(), getOutput(inputOrOutput));
+
+        testResult(
+                tableEnv.toChangelogStream(
+                        result,
+                        Schema.newBuilder().primaryKey("f0").build(),
+                        ChangelogMode.upsert()),
+                getOutput(inputOrOutput));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
+    // --------------------------------------------------------------------------------------------
+
     private DataStream<Tuple3<Long, Integer, String>> getWatermarkedDataStream() {
         final DataStream<Tuple3<Long, Integer, String>> dataStream =
                 env.fromCollection(
@@ -301,6 +448,25 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         return dataStream.assignTimestampsAndWatermarks(
                 WatermarkStrategy.<Tuple3<Long, Integer, String>>forMonotonousTimestamps()
                         .withTimestampAssigner((ctx) -> (element, recordTimestamp) -> element.f0));
+    }
+
+    private static Either<Row, Row> input(RowKind kind, Object... fields) {
+        return Either.Left(Row.ofKind(kind, fields));
+    }
+
+    private static Row[] getInput(List<Either<Row, Row>> inputOrOutput) {
+        return inputOrOutput.stream().filter(Either::isLeft).map(Either::left).toArray(Row[]::new);
+    }
+
+    private static Either<Row, Row> output(RowKind kind, Object... fields) {
+        return Either.Right(Row.ofKind(kind, fields));
+    }
+
+    private static Row[] getOutput(List<Either<Row, Row>> inputOrOutput) {
+        return inputOrOutput.stream()
+                .filter(Either::isRight)
+                .map(Either::right)
+                .toArray(Row[]::new);
     }
 
     private static void testSchema(Table table, Column... expectedColumns) {
