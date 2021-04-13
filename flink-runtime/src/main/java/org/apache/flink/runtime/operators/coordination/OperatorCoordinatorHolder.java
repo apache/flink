@@ -292,13 +292,15 @@ public class OperatorCoordinatorHolder
                                 () -> {
                                     if (failure != null) {
                                         result.completeExceptionally(failure);
+                                    } else if (eventValve.tryShutValve(checkpointId)) {
+                                        result.complete(success);
                                     } else {
-                                        try {
-                                            eventValve.shutValve(checkpointId);
-                                            result.complete(success);
-                                        } catch (Exception e) {
-                                            result.completeExceptionally(e);
-                                        }
+                                        // if we cannot shut the valve, this means the checkpoint
+                                        // has been aborted before, so the future is already
+                                        // completed exceptionally. but we try to complete it here
+                                        // again, just in case, as a safety net.
+                                        result.completeExceptionally(
+                                                new FlinkException("Cannot shut event valve"));
                                     }
                                 }));
 
