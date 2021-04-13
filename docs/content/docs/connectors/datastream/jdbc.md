@@ -142,7 +142,12 @@ public class JdbcSinkExample {
 
 ## `JdbcSink.exactlyOnceSink`
 
-Since 1.13, Flink JDBC sink supports exactly-once mode. The implementation relies on the JDBC driver support of XA [standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
+Since 1.13, Flink JDBC sink supports exactly-once mode. 
+The implementation relies on the JDBC driver support of XA 
+[standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
+
+Attention: In 1.13, Flink JDBC sink does not support exactly-once mode with MySQL or other databases
+that do not support multiple XA transaction per connection. We will improve the support in FLINK-22239.
 
 To use it, create a sink using `exactlyOnceSink()` method as above and additionally provide:
 - {{< javadoc name="exactly-once options" file="org/apache/flink/connector/jdbc/JdbcExactlyOnceOptions.html" >}}
