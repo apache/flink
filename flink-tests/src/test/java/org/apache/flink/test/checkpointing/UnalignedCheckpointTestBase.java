@@ -172,7 +172,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
             if (settings.generateCheckpoint) {
                 return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                        .min(Comparator.comparing(Path::toString))
+                        .max(Comparator.comparing(Path::toString))
                         .map(Path::toFile)
                         .orElseThrow(
                                 () -> new IllegalStateException("Cannot generate checkpoint", e));
