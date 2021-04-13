@@ -29,7 +29,7 @@ from pyflink.table import Row
 from pyflink.table.types import RowKind
 
 cdef class BaseCoderImpl:
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         pass
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
@@ -41,7 +41,7 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         self._end_message = <char*> malloc(1)
         self._end_message[0] = 0x00
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         cdef is_row_or_tuple = False
         if iter_value:
             if isinstance(iter_value, (tuple, Row)):
@@ -64,7 +64,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
     def __init__(self, flatten_row_coder):
         super(AggregateFunctionRowCoderImpl, self).__init__(flatten_row_coder._field_coders)
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
             for value in iter_value:
                 self._encode_one_row_with_row_kind(
@@ -78,7 +78,7 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
         self._end_message = <char*> malloc(1)
         self._end_message[0] = 0x00
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
             for value in iter_value:
                 self._single_field_coder.encode_to_stream(value, output_stream)
@@ -97,7 +97,7 @@ cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
     def __init__(self, field_coder):
         self._single_field_coder = field_coder
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         for value in iter_value:
             self._single_field_coder.encode_to_stream(value, output_stream)
 
@@ -111,7 +111,7 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
         super(DataStreamMapCoderImpl, self).__init__([field_coder])
         self._single_field_coder = self._field_coders[0]
 
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         coder_type = self._single_field_coder.coder_type()
         type_name = self._single_field_coder.type_name()
         self._encode_field(coder_type, type_name, self._single_field_coder, value)
@@ -210,7 +210,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._init_attribute()
         self.row = [None for _ in range(self._field_count)]
 
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         self._encode_one_row(value, output_stream)
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):

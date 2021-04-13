@@ -22,7 +22,7 @@ cimport libc.stdint
 from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream
 
 cdef class BaseCoderImpl:
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
 cdef unsigned char ROW_KIND_BIT_SIZE
