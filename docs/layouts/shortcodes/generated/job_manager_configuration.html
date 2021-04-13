@@ -18,7 +18,7 @@
             <td><h5>jobmanager.adaptive-scheduler.resource-stabilization-timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
+            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. The timeout starts once sufficient resources for running the job are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <span markdown="span">`scheduler-mode`</span> is configured to <span markdown="span">`REACTIVE`</span>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
