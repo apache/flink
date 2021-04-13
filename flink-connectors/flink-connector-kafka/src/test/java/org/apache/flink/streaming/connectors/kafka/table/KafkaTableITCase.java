@@ -55,7 +55,7 @@ import static org.junit.Assert.fail;
 
 /** Basic IT cases for the Kafka table source and sink. */
 @RunWith(Parameterized.class)
-public class KafkaTableITCase extends KafkaTableITCaseBase {
+public class KafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String AVRO_FORMAT = "avro";

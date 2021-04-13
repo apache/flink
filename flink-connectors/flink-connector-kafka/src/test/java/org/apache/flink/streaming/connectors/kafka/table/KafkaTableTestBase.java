@@ -29,6 +29,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
@@ -38,13 +39,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 /** Base class for Kafka Table IT Cases. */
-public class KafkaTableITCaseBase extends AbstractTestBase {
+public abstract class KafkaTableTestBase extends AbstractTestBase {
 
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
+    private static final int zkTimeoutMills = 30000;
 
     @ClassRule
     public static final KafkaContainer KAFKA_CONTAINER =
@@ -53,14 +54,13 @@ public class KafkaTableITCaseBase extends AbstractTestBase {
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
-    @ClassRule public static final Timeout TIMEOUT = new Timeout(10, TimeUnit.MINUTES);
+    @Rule public final Timeout TIMEOUT = Timeout.seconds(30);
 
-    private final int zkTimeoutMills = 30000;
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
 
     @Before
-    public void setUp() {
+    public void setup() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         tEnv =
                 StreamTableEnvironment.create(

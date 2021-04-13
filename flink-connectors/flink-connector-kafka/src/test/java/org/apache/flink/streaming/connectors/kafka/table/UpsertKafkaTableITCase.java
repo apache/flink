@@ -46,7 +46,7 @@ import static org.junit.Assert.assertThat;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
-public class UpsertKafkaTableITCase extends KafkaTableITCaseBase {
+public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
