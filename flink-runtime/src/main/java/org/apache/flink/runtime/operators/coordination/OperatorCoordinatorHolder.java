@@ -276,23 +276,21 @@ public class OperatorCoordinatorHolder
 
         final CompletableFuture<byte[]> coordinatorCheckpoint = new CompletableFuture<>();
 
-        coordinatorCheckpoint.whenComplete(
-                (success, failure) ->
-                        mainThreadExecutor.execute(
-                                () -> {
-                                    if (failure != null) {
-                                        result.completeExceptionally(failure);
-                                    } else if (eventValve.tryShutValve(checkpointId)) {
-                                        result.complete(success);
-                                    } else {
-                                        // if we cannot shut the valve, this means the checkpoint
-                                        // has been aborted before, so the future is already
-                                        // completed exceptionally. but we try to complete it here
-                                        // again, just in case, as a safety net.
-                                        result.completeExceptionally(
-                                                new FlinkException("Cannot shut event valve"));
-                                    }
-                                }));
+        coordinatorCheckpoint.whenCompleteAsync(
+                (success, failure) -> {
+                    if (failure != null) {
+                        result.completeExceptionally(failure);
+                    } else if (eventValve.tryShutValve(checkpointId)) {
+                        result.complete(success);
+                    } else {
+                        // if we cannot shut the valve, this means the checkpoint
+                        // has been aborted before, so the future is already
+                        // completed exceptionally. but we try to complete it here
+                        // again, just in case, as a safety net.
+                        result.completeExceptionally(new FlinkException("Cannot shut event valve"));
+                    }
+                },
+                mainThreadExecutor);
 
         try {
             eventValve.markForCheckpoint(checkpointId);
