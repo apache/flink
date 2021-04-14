@@ -33,10 +33,12 @@ import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
  * An implementation of {@link WindowCombineFunction} that accumulates input records into the window
@@ -129,7 +131,12 @@ public final class AggRecordsCombiner implements WindowCombineFunction {
 
         // step 5: register timer for current window
         if (isEventTime) {
-            timerService.registerEventTimeWindowTimer(window);
+            long currentWatermark = timerService.currentWatermark();
+            ZoneId shiftTimeZone = timerService.getShiftTimeZone();
+            // the registered window timer should hasn't been triggered
+            if (!isWindowFired(window, currentWatermark, shiftTimeZone)) {
+                timerService.registerEventTimeWindowTimer(window);
+            }
         }
         // we don't need register processing-time timer, because we already register them
         // per-record in AbstractWindowAggProcessor.processElement()

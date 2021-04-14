@@ -110,6 +110,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     @Override
     public void close() throws Exception {
         recordsBuffer.free();
+        combineFunction.close();
     }
 
     // ------------------------------------------------------------------------------------------
