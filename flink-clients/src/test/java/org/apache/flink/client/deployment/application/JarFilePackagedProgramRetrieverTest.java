@@ -85,28 +85,28 @@ public class JarFilePackagedProgramRetrieverTest extends PackagedProgramRetrieve
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(
                                 PROGRAM_ARGUMENTS, CONFIGURATION, testJar)
                         .setUserLibDirectory(userDirHasEntryClass)
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
-        testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(
                                 PROGRAM_ARGUMENTS, CONFIGURATION, testJar)
                         .setUserLibDirectory(userDirHasEntryClass)
                         .setJobClassName(TestJob.class.getCanonicalName())
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
-        testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test

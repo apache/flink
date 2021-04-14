@@ -448,7 +448,7 @@ public class ClassLoaderITCase extends TestLogger {
         final PackagedProgram childFirstProgram =
                 PackagedProgram.newBuilder()
                         .setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
-                        .setUserClassPaths(
+                        .setUserClasspaths(
                                 Collections.singletonList(childResourceDir.toURI().toURL()))
                         .setConfiguration(childFirstConf)
                         .setArguments(testResourceName, childResourceDirName)
@@ -487,7 +487,7 @@ public class ClassLoaderITCase extends TestLogger {
         final PackagedProgram parentFirstProgram =
                 PackagedProgram.newBuilder()
                         .setJarFile(new File(CLASSLOADING_POLICY_JAR_PATH))
-                        .setUserClassPaths(
+                        .setUserClasspaths(
                                 Collections.singletonList(childResourceDir.toURI().toURL()))
                         .setConfiguration(parentFirstConf)
                         .setArguments(testResourceName, "test-classes")

@@ -179,7 +179,7 @@ public abstract class PackagedProgramRetrieverTestBase extends TestLogger {
         assertEquals(jobGraph.getJobID(), jobId);
     }
 
-    protected void testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass(
+    protected void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass(
             PackagedProgramRetriever retrieverUnderTest)
             throws IOException, FlinkException, ProgramInvocationException {
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, CONFIGURATION);
@@ -189,7 +189,7 @@ public abstract class PackagedProgramRetrieverTestBase extends TestLogger {
                 containsInAnyOrder(EXPECTED_URLS.stream().map(URL::toString).toArray()));
     }
 
-    protected void testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass(
+    protected void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass(
             PackagedProgramRetriever retrieverUnderTest)
             throws IOException, FlinkException, ProgramInvocationException {
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, CONFIGURATION);

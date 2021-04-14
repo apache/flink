@@ -843,7 +843,7 @@ public class CliFrontend {
 
         return PackagedProgram.newBuilder()
                 .setJarFile(jarFile)
-                .setUserClassPaths(classpaths)
+                .setUserClasspaths(classpaths)
                 .setEntryPointClassName(entryPointClass)
                 .setConfiguration(configuration)
                 .setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings())

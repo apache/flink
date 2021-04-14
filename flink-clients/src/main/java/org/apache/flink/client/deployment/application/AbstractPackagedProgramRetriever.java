@@ -51,17 +51,17 @@ public abstract class AbstractPackagedProgramRetriever implements PackagedProgra
     private final Configuration configuration;
 
     /** User class paths in relative form to the working directory. */
-    protected final Collection<URL> userClassPaths;
+    protected final Collection<URL> userClasspaths;
 
     AbstractPackagedProgramRetriever(
             String[] programArguments, Configuration configuration, @Nullable File userLibDirectory)
             throws IOException {
         this.programArguments = Preconditions.checkNotNull(programArguments);
         this.configuration = Preconditions.checkNotNull(configuration);
-        this.userClassPaths = discoverUserClassPaths(userLibDirectory);
+        this.userClasspaths = discoverUserClasspaths(userLibDirectory);
     }
 
-    private static Collection<URL> discoverUserClassPaths(@Nullable File jobDir)
+    private static Collection<URL> discoverUserClasspaths(@Nullable File jobDir)
             throws IOException {
         if (jobDir == null) {
             return Collections.emptyList();
@@ -83,7 +83,7 @@ public abstract class AbstractPackagedProgramRetriever implements PackagedProgra
                     PackagedProgram.newBuilder()
                             .setArguments(programArguments)
                             .setConfiguration(configuration)
-                            .setUserClassPaths(new ArrayList<>(userClassPaths));
+                            .setUserClasspaths(new ArrayList<>(userClasspaths));
             return buildPackagedProgram(packagedProgramBuilder);
         } catch (ProgramInvocationException e) {
             throw new FlinkException("Could not load the provided entry point class.", e);

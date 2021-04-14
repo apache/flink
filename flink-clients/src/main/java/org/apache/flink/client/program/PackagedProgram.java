@@ -646,7 +646,7 @@ public class PackagedProgram implements AutoCloseable {
 
         private String[] args = new String[0];
 
-        private List<URL> userClassPaths = Collections.emptyList();
+        private List<URL> userClasspaths = Collections.emptyList();
 
         private Configuration configuration = new Configuration();
 
@@ -657,8 +657,8 @@ public class PackagedProgram implements AutoCloseable {
             return this;
         }
 
-        public Builder setUserClassPaths(List<URL> userClassPaths) {
-            this.userClassPaths = userClassPaths;
+        public Builder setUserClasspaths(List<URL> userClasspaths) {
+            this.userClasspaths = userClasspaths;
             return this;
         }
 
@@ -690,7 +690,7 @@ public class PackagedProgram implements AutoCloseable {
             }
             return new PackagedProgram(
                     jarFile,
-                    userClassPaths,
+                    userClasspaths,
                     entryPointClassName,
                     configuration,
                     savepointRestoreSettings,

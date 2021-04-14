@@ -54,7 +54,7 @@ public final class PackagedProgramRetrieverAdapter {
 
         @Nullable private String jobClassName;
 
-        @Nullable private Supplier<Iterable<File>> jarsOnClassPath;
+        @Nullable private Supplier<Iterable<File>> jarsOnClasspath;
 
         private Builder(String[] programArguments, Configuration configuration, File jarFile) {
             this(programArguments, configuration);
@@ -76,8 +76,8 @@ public final class PackagedProgramRetrieverAdapter {
             return this;
         }
 
-        public Builder setJarsOnClassPath(@Nullable Supplier<Iterable<File>> jarsOnClassPath) {
-            this.jarsOnClassPath = jarsOnClassPath;
+        public Builder setJarsOnClasspath(@Nullable Supplier<Iterable<File>> jarsOnClasspath) {
+            this.jarsOnClasspath = jarsOnClasspath;
             return this;
         }
 
@@ -91,12 +91,12 @@ public final class PackagedProgramRetrieverAdapter {
                 return new JarFilePackagedProgramRetriever(
                         programArguments, configuration, userLibDirectory, jobClassName, jarFile);
             }
-            return new ClassPathPackagedProgramRetriever(
+            return new ClasspathPackagedProgramRetriever(
                     programArguments,
                     configuration,
                     userLibDirectory,
                     jobClassName,
-                    jarsOnClassPath);
+                    jarsOnClasspath);
         }
     }
 }

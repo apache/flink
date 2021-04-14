@@ -19,7 +19,7 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever.JarsOnClassPath;
+import org.apache.flink.client.deployment.application.ClasspathPackagedProgramRetriever.JarsOnClasspath;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.testjar.TestJob;
@@ -40,8 +40,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
-import static org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever.JarsOnClassPath.JAVA_CLASS_PATH;
-import static org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever.JarsOnClassPath.PATH_SEPARATOR;
+import static org.apache.flink.client.deployment.application.ClasspathPackagedProgramRetriever.JarsOnClasspath.JAVA_CLASSPATH;
+import static org.apache.flink.client.deployment.application.ClasspathPackagedProgramRetriever.JarsOnClasspath.PATH_SEPARATOR;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -52,11 +52,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the {@link ClassPathPackagedProgramRetriever}. */
-public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrieverTestBase {
+/** Tests for the {@link ClasspathPackagedProgramRetriever}. */
+public class ClasspathPackagedProgramRetrieverTest extends PackagedProgramRetrieverTestBase {
 
     @Test
-    public void testJobGraphRetrievalFromClassPath()
+    public void testJobGraphRetrievalFromClasspath()
             throws IOException, FlinkException, ProgramInvocationException {
         final int parallelism = 42;
         final JobID jobId = new JobID();
@@ -81,7 +81,7 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
     }
 
     @Test
-    public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClassPath()
+    public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClasspath()
             throws IOException, FlinkException, ProgramInvocationException {
         final File testJar = new File("non-existing");
 
@@ -90,7 +90,7 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
                         // Both a class name is specified and a JAR "is" on the class path
                         // The class name should have precedence.
                         .setJobClassName(TestJob.class.getCanonicalName())
-                        .setJarsOnClassPath(() -> Collections.singleton(testJar))
+                        .setJarsOnClasspath(() -> Collections.singleton(testJar))
                         .build();
 
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, CONFIGURATION);
@@ -104,7 +104,7 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PROGRAM_ARGUMENTS, CONFIGURATION)
                         .setUserLibDirectory(userDirHasNotEntryClass)
-                        .setJarsOnClassPath(() -> Collections.singleton(testJar))
+                        .setJarsOnClasspath(() -> Collections.singleton(testJar))
                         .build();
         try {
             retrieveJobGraph(retrieverUnderTest, CONFIGURATION);
@@ -124,7 +124,7 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
                 PackagedProgramRetrieverAdapter.newBuilder(PROGRAM_ARGUMENTS, CONFIGURATION)
                         .setUserLibDirectory(userDirHasNotEntryClass)
                         .setJobClassName(TestJobInfo.JOB_CLASS)
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
         try {
             retrieveJobGraph(retrieverUnderTest, CONFIGURATION);
@@ -138,15 +138,15 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
     }
 
     @Test
-    public void testJarFromClassPathSupplier() throws IOException {
+    public void testJarFromClasspathSupplier() throws IOException {
         final File file1 = temporaryFolder.newFile();
         final File file2 = temporaryFolder.newFile();
         final File directory = temporaryFolder.newFolder();
 
         // Mock java.class.path property. The empty strings are important as the shell scripts
         // that prepare the Flink class path often have such entries.
-        final String classPath =
-                javaClassPath(
+        final String classpath =
+                javaClasspath(
                         "",
                         "",
                         "",
@@ -158,14 +158,14 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
                         "",
                         "");
 
-        Iterable<File> jarFiles = setClassPathAndGetJarsOnClassPath(classPath);
+        Iterable<File> jarFiles = setClasspathAndGetJarsOnClasspath(classpath);
 
         assertThat(jarFiles, contains(file1, file2));
     }
 
     @Test
-    public void testJarFromClassPathSupplierSanityCheck() {
-        Iterable<File> jarFiles = JarsOnClassPath.INSTANCE.get();
+    public void testJarFromClasspathSupplierSanityCheck() {
+        Iterable<File> jarFiles = JarsOnClasspath.INSTANCE.get();
 
         // Junit executes this test, so it should be returned as part of JARs on the class path
         assertThat(jarFiles, hasItem(hasProperty("name", containsString("junit"))));
@@ -182,26 +182,26 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PROGRAM_ARGUMENTS, CONFIGURATION)
                         .setUserLibDirectory(userDirHasEntryClass)
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
-        testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PROGRAM_ARGUMENTS, CONFIGURATION)
                         .setUserLibDirectory(userDirHasEntryClass)
                         .setJobClassName(TestJobInfo.JOB_CLASS)
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
-        testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test
@@ -219,19 +219,19 @@ public class ClassPathPackagedProgramRetrieverTest extends PackagedProgramRetrie
                         instanceof FlinkUserCodeClassLoaders.ParentFirstClassLoader);
     }
 
-    private static String javaClassPath(String... entries) {
+    private static String javaClasspath(String... entries) {
         String pathSeparator = System.getProperty(PATH_SEPARATOR);
         return String.join(pathSeparator, entries);
     }
 
-    private static Iterable<File> setClassPathAndGetJarsOnClassPath(String classPath) {
-        final String originalClassPath = System.getProperty(JAVA_CLASS_PATH);
+    private static Iterable<File> setClasspathAndGetJarsOnClasspath(String classpath) {
+        final String originalClasspath = System.getProperty(JAVA_CLASSPATH);
         try {
-            System.setProperty(JAVA_CLASS_PATH, classPath);
-            return JarsOnClassPath.INSTANCE.get();
+            System.setProperty(JAVA_CLASSPATH, classpath);
+            return JarsOnClasspath.INSTANCE.get();
         } finally {
             // Reset property
-            System.setProperty(JAVA_CLASS_PATH, originalClassPath);
+            System.setProperty(JAVA_CLASSPATH, originalClasspath);
         }
     }
 }

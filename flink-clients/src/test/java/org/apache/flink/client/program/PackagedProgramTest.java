@@ -62,7 +62,7 @@ public class PackagedProgramTest {
     @Test
     public void testNotThrowExceptionWhenJarFileIsNull() throws Exception {
         PackagedProgram.newBuilder()
-                .setUserClassPaths(
+                .setUserClasspaths(
                         Collections.singletonList(
                                 new File(CliFrontendTestUtils.getTestJarPath()).toURI().toURL()))
                 .setEntryPointClassName(TEST_JAR_MAIN_CLASS);

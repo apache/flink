@@ -476,7 +476,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
         final PackagedProgram program =
                 PackagedProgram.newBuilder()
-                        .setUserClassPaths(
+                        .setUserClasspaths(
                                 Collections.singletonList(
                                         new File(CliFrontendTestUtils.getTestJarPath())
                                                 .toURI()
@@ -722,7 +722,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
         try {
             return PackagedProgram.newBuilder()
-                    .setUserClassPaths(
+                    .setUserClasspaths(
                             Collections.singletonList(
                                     new File(CliFrontendTestUtils.getTestJarPath())
                                             .toURI()

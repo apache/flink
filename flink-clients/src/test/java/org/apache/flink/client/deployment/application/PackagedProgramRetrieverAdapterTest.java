@@ -49,12 +49,12 @@ public class PackagedProgramRetrieverAdapterTest extends TestLogger {
     private static final Configuration CONFIGURATION = new Configuration();
 
     @Test
-    public void testBuildClassPathPackagedProgramRetriever() throws IOException, FlinkException {
+    public void testBuildClasspathPackagedProgramRetriever() throws IOException, FlinkException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PROGRAM_ARGUMENTS, CONFIGURATION)
                         .setJobClassName(TestJob.class.getCanonicalName())
                         .build();
-        assertTrue(retrieverUnderTest instanceof ClassPathPackagedProgramRetriever);
+        assertTrue(retrieverUnderTest instanceof ClasspathPackagedProgramRetriever);
 
         final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
         assertArrayEquals(PROGRAM_ARGUMENTS, packagedProgram.getArguments());

@@ -107,7 +107,7 @@ public class PackagedProgramUtilsPipelineTest {
 
         PackagedProgram packagedProgram =
                 PackagedProgram.newBuilder()
-                        .setUserClassPaths(userUrls)
+                        .setUserClasspaths(userUrls)
                         .setEntryPointClassName(testParameter.entryClass().getName())
                         .build();
 

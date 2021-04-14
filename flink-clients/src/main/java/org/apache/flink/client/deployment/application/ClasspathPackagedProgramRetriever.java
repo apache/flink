@@ -49,41 +49,41 @@ import java.util.stream.Collectors;
  * scanning the classpath for the job class.
  */
 @Internal
-public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRetriever {
+public class ClasspathPackagedProgramRetriever extends AbstractPackagedProgramRetriever {
 
     private static final Logger LOG =
-            LoggerFactory.getLogger(ClassPathPackagedProgramRetriever.class);
+            LoggerFactory.getLogger(ClasspathPackagedProgramRetriever.class);
 
-    private final Supplier<Iterable<File>> jarsOnClassPath;
+    private final Supplier<Iterable<File>> jarsOnClasspath;
 
     @Nullable private final File userLibDirectory;
 
     @Nullable private final String jobClassName;
 
-    ClassPathPackagedProgramRetriever(
+    ClasspathPackagedProgramRetriever(
             String[] programArguments,
             Configuration configuration,
             @Nullable File userLibDirectory,
             @Nullable String jobClassName,
-            @Nullable Supplier<Iterable<File>> jarsOnClassPath)
+            @Nullable Supplier<Iterable<File>> jarsOnClasspath)
             throws IOException {
         super(programArguments, configuration, userLibDirectory);
         this.userLibDirectory = userLibDirectory;
         this.jobClassName = jobClassName;
-        this.jarsOnClassPath = jarsOnClassPath == null ? JarsOnClassPath.INSTANCE : jarsOnClassPath;
+        this.jarsOnClasspath = jarsOnClasspath == null ? JarsOnClasspath.INSTANCE : jarsOnClasspath;
     }
 
     @Override
     public PackagedProgram buildPackagedProgram(PackagedProgram.Builder packagedProgramBuilder)
             throws ProgramInvocationException, FlinkException {
-        final String entryClass = getJobClassNameOrScanClassPath();
+        final String entryClass = getJobClassNameOrScanClasspath();
         return packagedProgramBuilder.setEntryPointClassName(entryClass).build();
     }
 
-    private String getJobClassNameOrScanClassPath() throws FlinkException {
+    private String getJobClassNameOrScanClasspath() throws FlinkException {
         if (jobClassName != null) {
             // check that we find the entry point class in the user lib directory.
-            if (userLibDirectory != null && !userClassPathContainsJobClass(jobClassName)) {
+            if (userLibDirectory != null && !userClasspathContainsJobClass(jobClassName)) {
                 throw new FlinkException(
                         String.format(
                                 "Could not find the provided job class (%s) in the user lib directory (%s).",
@@ -93,7 +93,7 @@ public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRe
         }
 
         try {
-            return scanClassPathForJobJar();
+            return scanClasspathForJobJar();
         } catch (IOException | NoSuchElementException | IllegalArgumentException e) {
             throw new FlinkException(
                     "Failed to find job JAR on class path. Please provide the job class name explicitly.",
@@ -101,9 +101,9 @@ public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRe
         }
     }
 
-    private boolean userClassPathContainsJobClass(String jobClassName) {
-        for (URL userClassPath : userClassPaths) {
-            try (final JarFile jarFile = new JarFile(userClassPath.getFile())) {
+    private boolean userClasspathContainsJobClass(String jobClassName) {
+        for (URL userClasspath : userClasspaths) {
+            try (final JarFile jarFile = new JarFile(userClasspath.getFile())) {
                 if (jarContainsJobClass(jobClassName, jarFile)) {
                     return true;
                 }
@@ -112,7 +112,7 @@ public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRe
                         e,
                         String.format(
                                 "Failed to open user class path %s. Make sure that all files on the user class path can be accessed.",
-                                userClassPath));
+                                userClasspath));
             }
         }
         return false;
@@ -130,15 +130,15 @@ public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRe
                 .anyMatch(name -> name.equals(jobClassName));
     }
 
-    private String scanClassPathForJobJar() throws IOException {
+    private String scanClasspathForJobJar() throws IOException {
         final Iterable<File> jars;
         if (userLibDirectory == null) {
             LOG.info("Scanning system class path for job JAR");
-            jars = jarsOnClassPath.get();
+            jars = jarsOnClasspath.get();
         } else {
             LOG.info("Scanning user class path for job JAR");
             jars =
-                    userClassPaths.stream()
+                    userClasspaths.stream()
                             .map(url -> new File(url.getFile()))
                             .collect(Collectors.toList());
         }
@@ -150,20 +150,20 @@ public class ClassPathPackagedProgramRetriever extends AbstractPackagedProgramRe
     }
 
     @VisibleForTesting
-    enum JarsOnClassPath implements Supplier<Iterable<File>> {
+    enum JarsOnClasspath implements Supplier<Iterable<File>> {
         INSTANCE;
 
-        static final String JAVA_CLASS_PATH = "java.class.path";
+        static final String JAVA_CLASSPATH = "java.class.path";
         static final String PATH_SEPARATOR = "path.separator";
         static final String DEFAULT_PATH_SEPARATOR = ":";
 
         @Override
         public Iterable<File> get() {
-            String classPath = System.getProperty(JAVA_CLASS_PATH, "");
+            String classpath = System.getProperty(JAVA_CLASSPATH, "");
             String pathSeparator = System.getProperty(PATH_SEPARATOR, DEFAULT_PATH_SEPARATOR);
 
-            return Arrays.stream(classPath.split(pathSeparator))
-                    .filter(JarsOnClassPath::notNullAndNotEmpty)
+            return Arrays.stream(classpath.split(pathSeparator))
+                    .filter(JarsOnClasspath::notNullAndNotEmpty)
                     .map(File::new)
                     .filter(File::isFile)
                     .collect(Collectors.toList());

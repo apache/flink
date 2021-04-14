@@ -122,34 +122,34 @@ public class PythonBasedPackagedProgramRetrieverTest extends PackagedProgramRetr
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PYTHON_ARGUMENTS, CONFIGURATION, testJar)
                         .setUserLibDirectory(userDirHasEntryClass)
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
 
         mockGetPythonJar();
         mockGetPipelineFromProgram();
 
-        testRetrieveCorrectUserClassPathsWithoutSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithoutSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test
-    public void testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass()
+    public void testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass()
             throws IOException, FlinkException, ProgramInvocationException {
         final PackagedProgramRetriever retrieverUnderTest =
                 PackagedProgramRetrieverAdapter.newBuilder(PYTHON_ARGUMENTS, CONFIGURATION, testJar)
                         .setUserLibDirectory(userDirHasEntryClass)
                         .setJobClassName(TestJob.class.getCanonicalName())
-                        .setJarsOnClassPath(Collections::emptyList)
+                        .setJarsOnClasspath(Collections::emptyList)
                         .build();
 
         mockGetPythonJar();
         mockGetPipelineFromProgram();
 
-        testRetrieveCorrectUserClassPathsWithSpecifiedEntryClass(retrieverUnderTest);
+        testRetrieveCorrectUserClasspathsWithSpecifiedEntryClass(retrieverUnderTest);
     }
 
     @Test
