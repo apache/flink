@@ -78,11 +78,11 @@ SET execution.runtime-mode = batch;
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv
 FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str)
 GROUP BY id;
-+-------------+----------------------+----------------------+
-|          id |                  cnt |                   uv |
-+-------------+----------------------+----------------------+
-|           1 |                    1 |                    1 |
-|           2 |                    2 |                    1 |
-+-------------+----------------------+----------------------+
-Received a total of 2 rows
++----+-----+----+
+| id | cnt | uv |
++----+-----+----+
+|  1 |   1 |  1 |
+|  2 |   2 |  1 |
++----+-----+----+
+2 rows in set
 !ok
