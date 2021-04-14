@@ -1215,13 +1215,13 @@ public class TaskExecutorTest extends TestLogger {
             offerSlotsLatch.await();
 
             firstOfferResponseFuture.complete(Collections.singletonList(slotOffer1));
-            firstOfferResponseFuture.complete(Collections.singletonList(slotOffer2));
+            secondOfferResponseFuture.complete(Collections.singletonList(slotOffer2));
 
             assertThat(
-                    threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId),
+                    threadSafeTaskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId),
                     contains(slotOffer1.getAllocationId()));
             assertThat(
-                    threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId2),
+                    threadSafeTaskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId2),
                     contains(slotOffer2.getAllocationId()));
         } finally {
             RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
