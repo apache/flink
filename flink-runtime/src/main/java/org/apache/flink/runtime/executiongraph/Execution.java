@@ -1176,6 +1176,8 @@ public class Execution
      */
     public CompletableFuture<Acknowledge> sendOperatorEvent(
             OperatorID operatorId, SerializedValue<OperatorEvent> event) {
+
+        assertRunningInJobMasterMainThread();
         final LogicalSlot slot = assignedResource;
 
         if (slot != null && getState() == RUNNING) {
