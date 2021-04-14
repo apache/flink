@@ -33,9 +33,11 @@ import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
  * An implementation of {@link WindowCombineFunction} that accumulates local accumulators records
@@ -116,7 +118,12 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         accState.update(window, stateAcc);
 
         // step 3: register timer for current window
-        timerService.registerEventTimeWindowTimer(window);
+        long currentWatermark = timerService.currentWatermark();
+        ZoneId shiftTimeZone = timerService.getShiftTimeZone();
+        // the registered window timer should hasn't been triggered
+        if (!isWindowFired(window, currentWatermark, shiftTimeZone)) {
+            timerService.registerEventTimeWindowTimer(window);
+        }
     }
 
     @Override
@@ -137,17 +144,14 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         private final GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler;
         private final GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler;
         private final TypeSerializer<RowData> keySerializer;
-        private final TypeSerializer<RowData> recordSerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler,
                 GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler,
-                TypeSerializer<RowData> keySerializer,
-                TypeSerializer<RowData> recordSerializer) {
+                TypeSerializer<RowData> keySerializer) {
             this.genLocalAggsHandler = genLocalAggsHandler;
             this.genGlobalAggsHandler = genGlobalAggsHandler;
             this.keySerializer = keySerializer;
-            this.recordSerializer = recordSerializer;
         }
 
         @Override

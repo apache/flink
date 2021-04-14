@@ -166,6 +166,11 @@ public final class SliceAssigners {
             return start + size;
         }
 
+        @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            return sliceEnd;
+        }
+
         public long getWindowStart(long windowEnd) {
             return windowEnd - size;
         }
@@ -229,6 +234,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            return sliceEnd - sliceSize + size;
+        }
+
+        @Override
         public long getWindowStart(long windowEnd) {
             return windowEnd - size;
         }
@@ -252,7 +262,7 @@ public final class SliceAssigners {
             // the iterable to list all the slices of the triggered window
             Iterable<Long> toBeMerged =
                     new HoppingSlicesIterable(sliceEnd, sliceSize, numSlicesPerWindow);
-            // null namespace means use heap data views, instead of state state views
+            // null namespace means use heap data views, instead of state data views
             callback.merge(null, toBeMerged);
         }
 
@@ -308,6 +318,12 @@ public final class SliceAssigners {
         public long assignSliceEnd(long timestamp) {
             long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, step);
             return start + step;
+        }
+
+        @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            long windowStart = getWindowStart(sliceEnd);
+            return windowStart + maxSize;
         }
 
         @Override
@@ -389,6 +405,14 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            // we shouldn't use innerAssigner.getLastWindowEnd here,
+            // because WindowedSliceAssigner is slice unshared, an attached window can't be
+            // shared with other windows and the last window should be itself.
+            return sliceEnd;
+        }
+
+        @Override
         public long getWindowStart(long windowEnd) {
             return innerAssigner.getWindowStart(windowEnd);
         }
@@ -434,6 +458,11 @@ public final class SliceAssigners {
         public Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty) {
             return innerSharedAssigner.nextTriggerWindow(windowEnd, isWindowEmpty);
         }
+
+        @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            return innerAssigner.getLastWindowEnd(sliceEnd);
+        }
     }
 
     /**
@@ -447,6 +476,14 @@ public final class SliceAssigners {
 
         public SlicedUnsharedSliceAssigner(int sliceEndIndex, SliceAssigner innerAssigner) {
             super(sliceEndIndex, innerAssigner);
+        }
+
+        @Override
+        public long getLastWindowEnd(long sliceEnd) {
+            // we shouldn't use innerAssigner.getLastWindowEnd here,
+            // because SlicedUnsharedSliceAssigner is slice unshared, an attached unshared slice
+            // can't be shared with other windows and the last window should be itself.
+            return sliceEnd;
         }
     }
 

@@ -28,6 +28,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.TimeZone;
 
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+
 /** Time util to deals window start and end in different timezone. */
 @Internal
 public class TimeWindowUtil {
@@ -179,5 +181,31 @@ public class TimeWindowUtil {
         }
         long windowTriggerTime = toEpochMillsForTimer(windowEnd - 1, shiftTimeZone);
         return currentProgress >= windowTriggerTime;
+    }
+
+    /** Method to get the next watermark to trigger window. */
+    public static long getNextTriggerWatermark(
+            long currentWatermark, long interval, ZoneId shiftTimezone, boolean useDayLightSaving) {
+        if (currentWatermark == Long.MAX_VALUE) {
+            return currentWatermark;
+        }
+
+        long triggerWatermark;
+        // consider the DST timezone
+        if (useDayLightSaving) {
+            long utcWindowStart =
+                    getWindowStartWithOffset(
+                            toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
+            triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
+        } else {
+            long start = getWindowStartWithOffset(currentWatermark, 0L, interval);
+            triggerWatermark = start + interval - 1;
+        }
+
+        if (triggerWatermark > currentWatermark) {
+            return triggerWatermark;
+        } else {
+            return triggerWatermark + interval;
+        }
     }
 }

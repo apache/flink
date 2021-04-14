@@ -139,8 +139,7 @@ public class SlicingWindowAggOperatorBuilder {
                     new GlobalAggAccCombiner.Factory(
                             localGeneratedAggregateFunction,
                             globalGeneratedAggregateFunction,
-                            keySerializer,
-                            inputSerializer);
+                            keySerializer);
         } else {
             combinerFactory =
                     new AggRecordsCombiner.Factory(

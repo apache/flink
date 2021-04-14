@@ -60,4 +60,9 @@ public final class SliceUnsharedWindowAggProcessor extends AbstractWindowAggProc
         RowData aggResult = aggregator.getValue(windowEnd);
         collect(aggResult);
     }
+
+    @Override
+    protected long sliceStateMergeTarget(long sliceToMerge) throws Exception {
+        return sliceToMerge;
+    }
 }
