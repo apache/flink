@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
@@ -29,6 +30,7 @@ import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.jline.terminal.Terminal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +40,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.function.Supplier;
+
+import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two modes: a gateway and
@@ -60,13 +65,15 @@ public class SqlClient {
 
     private final boolean isEmbedded;
     private final CliOptions options;
+    private final Supplier<Terminal> terminalFactory;
 
     public static final String MODE_EMBEDDED = "embedded";
     public static final String MODE_GATEWAY = "gateway";
 
-    public SqlClient(boolean isEmbedded, CliOptions options) {
+    public SqlClient(boolean isEmbedded, CliOptions options, Supplier<Terminal> terminalFactory) {
         this.isEmbedded = isEmbedded;
         this.options = options;
+        this.terminalFactory = terminalFactory;
     }
 
     private void start() {
@@ -123,7 +130,7 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
+        try (CliClient cli = new CliClient(terminalFactory, sessionId, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
                 boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
                 if (!success) {
@@ -151,6 +158,11 @@ public class SqlClient {
     // --------------------------------------------------------------------------------------------
 
     public static void main(String[] args) {
+        startClient(args, DEFAULT_TERMINAL_FACTORY);
+    }
+
+    @VisibleForTesting
+    protected static void startClient(String[] args, Supplier<Terminal> terminalFactory) {
         final String mode;
         final String[] modeArgs;
         if (args.length < 1 || args[0].startsWith("-")) {
@@ -171,7 +183,7 @@ public class SqlClient {
                     CliOptionsParser.printHelpEmbeddedModeClient();
                 } else {
                     try {
-                        final SqlClient client = new SqlClient(true, options);
+                        final SqlClient client = new SqlClient(true, options, terminalFactory);
                         client.start();
                     } catch (SqlClientException e) {
                         // make space in terminal
