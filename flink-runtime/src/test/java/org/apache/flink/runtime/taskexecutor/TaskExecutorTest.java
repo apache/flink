@@ -1096,16 +1096,14 @@ public class TaskExecutorTest extends TestLogger {
                     assertThat(
                             threadSafeTaskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId),
                             empty());
-                    secondOfferResponseFuture.completeExceptionally(
-                            new RuntimeException("Test exception"));
+                    secondOfferResponseFuture.complete(Collections.emptyList());
                     assertThat(threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId), empty());
                     return;
                 case REJECT_THEN_ACCEPT:
                     // fail the first offer, but accept both slots for the second offer
                     // in the past the rejection of the first offer freed the slot; when the slot is
                     // accepted from the second offer the activation of said slot then failed
-                    firstOfferResponseFuture.completeExceptionally(
-                            new RuntimeException("Test exception"));
+                    firstOfferResponseFuture.complete(Collections.emptyList());
                     secondOfferResponseFuture.complete(Arrays.asList(slotOffer1, slotOffer2));
                     assertThat(
                             threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId),
