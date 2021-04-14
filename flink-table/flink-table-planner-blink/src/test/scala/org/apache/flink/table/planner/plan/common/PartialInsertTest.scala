@@ -73,6 +73,49 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
     util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e")
   }
+
+  @Test
+  def testPartialInsertWithUnion(): Unit = {
+    testPartialInsertWithSetOperator("UNION")
+  }
+
+  @Test
+  def testPartialInsertWithUnionAll(): Unit = {
+    testPartialInsertWithSetOperator("UNION ALL")
+  }
+
+  @Test
+  def testPartialInsertWithIntersectAll(): Unit = {
+    testPartialInsertWithSetOperator("INTERSECT ALL")
+  }
+
+  @Test
+  def testPartialInsertWithExceptAll(): Unit = {
+    testPartialInsertWithSetOperator("EXCEPT ALL")
+  }
+
+  private def testPartialInsertWithSetOperator(operator: String): Unit = {
+    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+        "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e " +
+        operator + " " +
+        "SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ")
+  }
+
+  @Test
+  def testPartialInsertWithUnionAllNested(): Unit = {
+    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+        "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e " +
+        "UNION ALL " +
+        "SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e " +
+        "UNION ALL " +
+        "SELECT e,a,123,456,c,d FROM MyTable GROUP BY a,b,c,d,e ")
+  }
+
+  @Test
+  def testPartialInsertWithOrderBy(): Unit = {
+    util.verifyRelPlanInsert("INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+        "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d")
+  }
 }
 
 object PartialInsertTest {
