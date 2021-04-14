@@ -156,12 +156,12 @@ public class CliClientITCase extends AbstractTestBase {
         try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
                 CliClient client =
                         new CliClient(
-                                terminal,
+                                () -> terminal,
                                 sessionId,
                                 executor,
                                 historyPath,
                                 HideSqlStatement.INSTANCE)) {
-            client.executeInteractive();
+            client.executeInInteractiveMode();
             String output = new String(outputStream.toByteArray());
             return normalizeOutput(output);
         }
