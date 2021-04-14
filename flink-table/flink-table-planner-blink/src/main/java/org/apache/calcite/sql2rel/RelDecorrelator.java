@@ -118,11 +118,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-/**
- * Copied to fix CALCITE-4333, should be removed for the next Calcite upgrade.
- *
- * <p>Changes: Line 671 ~ Line 681, Line 430 ~ Line 441.
- */
+/** Copied to fix calcite issues. */
 public class RelDecorrelator implements ReflectiveVisitor {
     // ~ Static fields/initializers ---------------------------------------------
 
@@ -439,6 +435,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
             return null;
         }
 
+        // BEGIN FLINK MODIFICATION
+        // Reason: to de-correlate sort rel when its parent is not a correlate
+        // Should be removed after CALCITE-4333 is fixed
         final RelNode newInput = frame.r;
 
         Mappings.TargetMapping mapping =
@@ -452,6 +451,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         final int offset = rel.offset == null ? -1 : RexLiteral.intValue(rel.offset);
         final int fetch = rel.fetch == null ? -1 : RexLiteral.intValue(rel.fetch);
+        // END FLINK MODIFICATION
 
         final RelNode newSort =
                 relBuilder
@@ -685,6 +685,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     public Frame getInvoke(RelNode r, RelNode parent) {
         final Frame frame = dispatcher.invoke(r);
+        // BEGIN FLINK MODIFICATION
+        // Reason: to de-correlate sort rel when its parent is not a correlate
+        // Should be removed after CALCITE-4333 is fixed
         if (frame != null && parent instanceof Correlate && r instanceof Sort) {
             Sort sort = (Sort) r;
             // Can not decorrelate if the sort has per-correlate-key attributes like
@@ -696,6 +699,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 return null;
             }
         }
+        // END FLINK MODIFICATION
         if (frame != null) {
             map.put(r, frame);
         }
@@ -1869,12 +1873,15 @@ public class RelDecorrelator implements ReflectiveVisitor {
                 return;
             }
 
+            // BEGIN FLINK MODIFICATION
+            // Reason: fix the nullability mismatch issue
             final RelBuilder relBuilder = call.builder();
             final boolean nullable = singleAggregate.getAggCallList().get(0).getType().isNullable();
             final RelDataType type =
                     relBuilder
                             .getTypeFactory()
                             .createTypeWithNullability(projExprs.get(0).getType(), nullable);
+            // END FLINK MODIFICATION
             final RexNode cast = relBuilder.getRexBuilder().makeCast(type, projExprs.get(0));
             relBuilder.push(aggregate).project(cast);
             call.transformTo(relBuilder.build());
