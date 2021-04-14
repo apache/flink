@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
@@ -74,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.TableResultImpl.TABLE_RESULT_OK;
@@ -110,6 +110,8 @@ public class CliClient implements AutoCloseable {
 
     private final @Nullable MaskingCallback inputTransformer;
 
+    private final Supplier<Terminal> terminalCreator;
+
     private Terminal terminal;
 
     private boolean isRunning;
@@ -127,13 +129,13 @@ public class CliClient implements AutoCloseable {
      * using {@link #close()}.
      */
     @VisibleForTesting
-    CliClient(
-            Terminal terminal,
+    public CliClient(
+            Supplier<Terminal> terminalCreator,
             String sessionId,
             Executor executor,
             Path historyFilePath,
             @Nullable MaskingCallback inputTransformer) {
-        this.terminal = terminal;
+        this.terminalCreator = terminalCreator;
         this.sessionId = sessionId;
         this.executor = executor;
         this.inputTransformer = inputTransformer;
@@ -154,7 +156,7 @@ public class CliClient implements AutoCloseable {
      * afterwards using {@link #close()}.
      */
     public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(null, sessionId, executor, historyFilePath, null);
+        this(TerminalUtils::createDefaultTerminal, sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -208,9 +210,8 @@ public class CliClient implements AutoCloseable {
 
     /** Opens the interactive CLI shell. */
     public void executeInInteractiveMode() {
-        terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
-
         try {
+            terminal = terminalCreator.get();
             executeInteractive();
         } finally {
             closeTerminal();
@@ -219,7 +220,7 @@ public class CliClient implements AutoCloseable {
 
     public void executeInNonInteractiveMode(String content) {
         try {
-            terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
+            terminal = terminalCreator.get();
             executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
         } finally {
             closeTerminal();
@@ -254,8 +255,7 @@ public class CliClient implements AutoCloseable {
      * Execute statement from the user input and prints status information and/or errors on the
      * terminal.
      */
-    @VisibleForTesting
-    void executeInteractive() {
+    private void executeInteractive() {
         isRunning = true;
         LineReader lineReader = createLineReader(terminal);
 
@@ -297,8 +297,7 @@ public class CliClient implements AutoCloseable {
      *
      * @param content SQL file content
      */
-    @VisibleForTesting
-    boolean executeFile(String content, ExecutionMode mode) {
+    private boolean executeFile(String content, ExecutionMode mode) {
         terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EXECUTE_FILE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
@@ -648,7 +647,7 @@ public class CliClient implements AutoCloseable {
         if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
             String msg = "Command history file path: " + historyFilePath;
             // print it in the command line as well as log file
-            System.out.println(msg);
+            terminal.writer().println(msg);
             LOG.info(msg);
             lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
         } else {
@@ -658,11 +657,4 @@ public class CliClient implements AutoCloseable {
         }
         return lineReader;
     }
-
-    /**
-     * Internal flag to use {@link System#in} and {@link System#out} stream to construct {@link
-     * Terminal} for tests. This allows tests can easily mock input stream when startup {@link
-     * SqlClient}.
-     */
-    protected static boolean useSystemInOutStream = false;
 }

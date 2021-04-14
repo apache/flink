@@ -47,16 +47,17 @@ public class TerminalUtils {
         }
     }
 
-    public static Terminal createDefaultTerminal(boolean useSystemInOutStream) {
+    public static Terminal createDummyTerminal(InputStream in, OutputStream out) {
         try {
-            if (useSystemInOutStream) {
-                return TerminalBuilder.builder()
-                        .name(CliStrings.CLI_NAME)
-                        .streams(System.in, System.out)
-                        .build();
-            } else {
-                return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
-            }
+            return new DumbTerminal(in, out);
+        } catch (IOException e) {
+            throw new SqlClientException("Unable to create dummy terminal.", e);
+        }
+    }
+
+    public static Terminal createDefaultTerminal() {
+        try {
+            return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
         } catch (IOException e) {
             throw new SqlClientException("Error opening command line interface.", e);
         }

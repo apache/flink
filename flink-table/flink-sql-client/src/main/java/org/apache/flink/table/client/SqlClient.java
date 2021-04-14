@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
@@ -38,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.function.BiFunction;
 
 /**
  * SQL Client for submitting SQL statements. The client can be executed in two modes: a gateway and
@@ -123,7 +125,7 @@ public class SqlClient {
                             CliOptionsParser.OPTION_FILE.getOpt()));
         }
 
-        try (CliClient cli = new CliClient(sessionId, executor, historyFilePath)) {
+        try (CliClient cli = createCliClient(sessionId, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
                 boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
                 if (!success) {
@@ -151,6 +153,11 @@ public class SqlClient {
     // --------------------------------------------------------------------------------------------
 
     public static void main(String[] args) {
+        startClient(args, SqlClient::new);
+    }
+
+    protected static void startClient(
+            String[] args, BiFunction<Boolean, CliOptions, SqlClient> clientCreator) {
         final String mode;
         final String[] modeArgs;
         if (args.length < 1 || args[0].startsWith("-")) {
@@ -171,7 +178,7 @@ public class SqlClient {
                     CliOptionsParser.printHelpEmbeddedModeClient();
                 } else {
                     try {
-                        final SqlClient client = new SqlClient(true, options);
+                        final SqlClient client = clientCreator.apply(true, options);
                         client.start();
                     } catch (SqlClientException e) {
                         // make space in terminal
@@ -237,5 +244,10 @@ public class SqlClient {
             throw new SqlExecutionException(
                     String.format("Fail to read content from the %s.", file.getPath()), e);
         }
+    }
+
+    @VisibleForTesting
+    protected CliClient createCliClient(String sessionId, Executor executor, Path historyFilePath) {
+        return new CliClient(sessionId, executor, historyFilePath);
     }
 }

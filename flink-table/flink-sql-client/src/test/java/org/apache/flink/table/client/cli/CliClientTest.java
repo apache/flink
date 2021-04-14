@@ -137,8 +137,9 @@ public class CliClientTest extends TestLogger {
         try (Terminal terminal =
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
-                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            client.executeInteractive();
+                        new CliClient(
+                                () -> terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            client.executeInInteractiveMode();
             List<String> content = Files.readAllLines(historyFilePath);
             assertEquals(2, content.size());
             assertTrue(content.get(0).contains("help"));
@@ -273,17 +274,12 @@ public class CliClientTest extends TestLogger {
 
         try (CliClient client =
                 new CliClient(
-                        TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDummyTerminal(outputStream),
                         sessionId,
                         mockExecutor,
                         historyFilePath,
                         null)) {
-            Thread thread =
-                    new Thread(
-                            () ->
-                                    client.executeFile(
-                                            content,
-                                            CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION));
+            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(content));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -356,12 +352,14 @@ public class CliClientTest extends TestLogger {
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
-                        TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDummyTerminal(outputStream),
                         sessionId,
                         executor,
                         historyTempFile(),
                         null)) {
-            client.executeFile(content, CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
+            //            client.executeFile(content,
+            // CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
+            client.executeInNonInteractiveMode(content);
         }
         return outputStream.toString();
     }
