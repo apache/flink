@@ -204,7 +204,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session 
 ### Flink Job Cluster
 
 * **Cluster Lifecycle**: in a Flink Job Cluster, the available cluster manager
-  (like YARN or Kubernetes) is used to spin up a cluster for each submitted job
+  (like YARN) is used to spin up a cluster for each submitted job
   and this cluster is available to that job only. Here, the client first
   requests resources from the cluster manager to start the JobManager and
   submits the job to the Dispatcher running inside this process. TaskManagers
@@ -221,6 +221,9 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session 
 
 {{< hint info >}}
 Formerly, a Flink Job Cluster was also known as a Flink Cluster in `job (or per-job) mode`.
+{{< /hint >}}
+{{< hint info >}}
+Kubernetes doesn't support Flink Job Cluster. See details in [Standalone Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#per-job-cluster-mode) and [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#per-job-cluster-mode).
 {{< /hint >}}
 
 ### Flink Application Cluster
