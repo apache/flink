@@ -292,6 +292,8 @@ public class RescalingITCase extends TestLogger {
             JobGraph jobGraph =
                     createJobGraphWithOperatorState(
                             parallelism, maxParallelism, OperatorCheckpointMethod.NON_PARTITIONED);
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
 
             final JobID jobID = jobGraph.getJobID();
 
@@ -305,8 +307,9 @@ public class RescalingITCase extends TestLogger {
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
-
             while (!getRunningJobs(client).isEmpty()) {
                 Thread.sleep(50);
             }
@@ -365,6 +368,8 @@ public class RescalingITCase extends TestLogger {
 
             final JobID jobID = jobGraph.getJobID();
 
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
             client.submitJob(jobGraph).get();
 
             // wait til the sources have emitted numberElements for each key and completed a
@@ -399,6 +404,8 @@ public class RescalingITCase extends TestLogger {
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
 
             while (!getRunningJobs(client).isEmpty()) {
@@ -507,6 +514,8 @@ public class RescalingITCase extends TestLogger {
         try {
             JobGraph jobGraph =
                     createJobGraphWithOperatorState(parallelism, maxParallelism, checkpointMethod);
+            // make sure the job does not finish before we take the savepoint
+            StateSourceBase.canFinishLatch = new CountDownLatch(1);
 
             final JobID jobID = jobGraph.getJobID();
 
@@ -526,8 +535,9 @@ public class RescalingITCase extends TestLogger {
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
+            // we took a savepoint, the job can finish now
+            StateSourceBase.canFinishLatch.countDown();
             client.cancel(jobID).get();
-
             while (!getRunningJobs(client).isEmpty()) {
                 Thread.sleep(50);
             }
@@ -851,6 +861,7 @@ public class RescalingITCase extends TestLogger {
 
         private static final long serialVersionUID = 7512206069681177940L;
         private static CountDownLatch workStartedLatch = new CountDownLatch(1);
+        private static CountDownLatch canFinishLatch = new CountDownLatch(0);
 
         protected volatile int counter = 0;
         protected volatile boolean running = true;
@@ -875,6 +886,8 @@ public class RescalingITCase extends TestLogger {
                     break;
                 }
             }
+
+            canFinishLatch.await();
         }
 
         @Override
