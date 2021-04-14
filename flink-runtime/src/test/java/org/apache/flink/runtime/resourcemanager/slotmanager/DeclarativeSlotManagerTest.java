@@ -1376,7 +1376,6 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
     @Test
     public void testReclaimInactiveSlotsOnEmptyRequirements() throws Exception {
-        final SlotTracker slotTracker = new DefaultSlotTracker();
 
         final CompletableFuture<JobID> freeInactiveSlotsJobIdFuture = new CompletableFuture<>();
 
@@ -1387,7 +1386,6 @@ public class DeclarativeSlotManagerTest extends TestLogger {
 
         try (final DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
-                        .setSlotTracker(slotTracker)
                         .buildAndStart(
                                 ResourceManagerId.generate(),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
