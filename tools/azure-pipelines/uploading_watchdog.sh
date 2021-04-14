@@ -53,7 +53,11 @@ function timeout_watchdog() {
   print_stacktraces | tee "$DEBUG_FILES_OUTPUT_DIR/jps-traces.0"
 
   # final stack trace and kill processes 1 min before timeout
-  sleep $(($REAL_END_SECONDS - $(date +"%s") - $KILL_SECONDS_BEFORE_TIMEOUT))
+  local secondsToKill=$(($REAL_END_SECONDS - $(date +"%s") - $KILL_SECONDS_BEFORE_TIMEOUT))
+  if [[ $secondsToKill -lt 0 ]]; then
+    secondsToKill=0
+  fi
+  sleep $(secondsToKill)
   print_stacktraces | tee "$DEBUG_FILES_OUTPUT_DIR/jps-traces.1"
 
   echo "============================="
