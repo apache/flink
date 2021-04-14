@@ -199,6 +199,8 @@ abstract class CommonPhysicalLookupJoin(
         .filter(k => k.isInstanceOf[FieldRefLookupKey])
         .map(k => k.asInstanceOf[FieldRefLookupKey].index)
     val joinPairs = joinInfo.pairs().asScala.toArray
+    // right lookup key index of temporal table may be duplicated in joinPairs,
+    // we should filter the key-pair by checking left key index.
     val remainingPairs = joinPairs.filter(p => !leftKeyIndexes.contains(p.source))
     val joinRowType = getRowType
     // convert remaining pairs to RexInputRef tuple for building SqlStdOperatorTable.EQUALS calls
