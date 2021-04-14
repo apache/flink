@@ -35,11 +35,11 @@ public class TerminalUtils {
         // do not instantiate
     }
 
-    public static Terminal createDummyTerminal() {
-        return createDummyTerminal(new MockOutputStream());
+    public static Terminal createDumbTerminal() {
+        return createDumbTerminal(new MockOutputStream());
     }
 
-    public static Terminal createDummyTerminal(OutputStream out) {
+    public static Terminal createDumbTerminal(OutputStream out) {
         try {
             return new DumbTerminal(new MockInputStream(), out);
         } catch (IOException e) {
@@ -47,16 +47,17 @@ public class TerminalUtils {
         }
     }
 
-    public static Terminal createDefaultTerminal(boolean useSystemInOutStream) {
+    public static Terminal createDumbTerminal(InputStream in, OutputStream out) {
         try {
-            if (useSystemInOutStream) {
-                return TerminalBuilder.builder()
-                        .name(CliStrings.CLI_NAME)
-                        .streams(System.in, System.out)
-                        .build();
-            } else {
-                return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
-            }
+            return new DumbTerminal(in, out);
+        } catch (IOException e) {
+            throw new SqlClientException("Unable to create dummy terminal.", e);
+        }
+    }
+
+    public static Terminal createDefaultTerminal() {
+        try {
+            return TerminalBuilder.builder().name(CliStrings.CLI_NAME).build();
         } catch (IOException e) {
             throw new SqlClientException("Error opening command line interface.", e);
         }
