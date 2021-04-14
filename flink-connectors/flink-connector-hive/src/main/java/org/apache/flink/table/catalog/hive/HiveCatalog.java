@@ -23,6 +23,8 @@ import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
+import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
+import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
@@ -116,6 +118,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
@@ -334,7 +339,12 @@ public class HiveCatalog extends AbstractCatalog {
                 !isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
         checkNotNull(database, "database cannot be null");
 
-        Database hiveDatabase = HiveDatabaseUtil.instantiateHiveDatabase(databaseName, database);
+        Map<String, String> properties = database.getProperties();
+
+        String dbLocationUri = properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+
+        Database hiveDatabase =
+                new Database(databaseName, database.getComment(), dbLocationUri, properties);
 
         try {
             client.createDatabase(hiveDatabase);
@@ -369,7 +379,7 @@ public class HiveCatalog extends AbstractCatalog {
         }
 
         try {
-            client.alterDatabase(databaseName, HiveDatabaseUtil.alterDatabase(hiveDB, newDatabase));
+            client.alterDatabase(databaseName, alterDatabase(hiveDB, newDatabase));
         } catch (TException e) {
             throw new CatalogException(
                     String.format("Failed to alter database %s", databaseName), e);
@@ -799,7 +809,7 @@ public class HiveCatalog extends AbstractCatalog {
                 .filter(e -> e.getKey().startsWith(FLINK_PROPERTY_PREFIX))
                 .collect(
                         Collectors.toMap(
-                                e -> e.getKey().replaceFirst(FLINK_PROPERTY_PREFIX, ""),
+                                e -> e.getKey().substring(FLINK_PROPERTY_PREFIX.length()),
                                 e -> e.getValue()));
     }
 
@@ -1735,5 +1745,52 @@ public class HiveCatalog extends AbstractCatalog {
     @VisibleForTesting
     public static boolean isEmbeddedMetastore(HiveConf hiveConf) {
         return isNullOrWhitespaceOnly(hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS));
+    }
+
+    private static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
+        Map<String, String> params = hiveDB.getParameters();
+        Map<String, String> newParams = newDatabase.getProperties();
+        String opStr = newParams.remove(ALTER_DATABASE_OP);
+        if (opStr == null) {
+            // by default is to alter db properties
+            opStr = SqlAlterHiveDatabase.AlterHiveDatabaseOp.CHANGE_PROPS.name();
+        }
+        String newLocation = newParams.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+        SqlAlterHiveDatabase.AlterHiveDatabaseOp op =
+                SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
+        switch (op) {
+            case CHANGE_PROPS:
+                if (params == null) {
+                    hiveDB.setParameters(newParams);
+                } else {
+                    params.putAll(newParams);
+                }
+                break;
+            case CHANGE_LOCATION:
+                hiveDB.setLocationUri(newLocation);
+                break;
+            case CHANGE_OWNER:
+                String ownerName = newParams.remove(DATABASE_OWNER_NAME);
+                String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
+                hiveDB.setOwnerName(ownerName);
+                switch (ownerType) {
+                    case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
+                        hiveDB.setOwnerType(PrincipalType.ROLE);
+                        break;
+                    case SqlAlterHiveDatabaseOwner.USER_OWNER:
+                        hiveDB.setOwnerType(PrincipalType.USER);
+                        break;
+                    default:
+                        throw new CatalogException("Unsupported database owner type: " + ownerType);
+                }
+                break;
+            default:
+                throw new CatalogException("Unsupported alter database op:" + opStr);
+        }
+        // is_generic is deprecated, remove it
+        if (hiveDB.getParameters() != null) {
+            hiveDB.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
+        }
+        return hiveDB;
     }
 }

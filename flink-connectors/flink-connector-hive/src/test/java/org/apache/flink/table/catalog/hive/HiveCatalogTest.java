@@ -37,6 +37,8 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -106,7 +108,7 @@ public class HiveCatalogTest {
         Map<String, String> properties =
                 new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(true));
+        properties.put(CONNECTOR.key(), "jdbc");
         properties.put("url", "jdbc:clickhouse://host:port/testUrl1");
         properties.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
 
