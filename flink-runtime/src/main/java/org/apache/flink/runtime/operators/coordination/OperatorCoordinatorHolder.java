@@ -252,10 +252,7 @@ public class OperatorCoordinatorHolder
         }
 
         eventValve.openValveAndUnmarkCheckpoint();
-
-        if (context != null) {
-            context.resetFailed();
-        }
+        context.resetFailed();
 
         // when initial savepoints are restored, this call comes before the mainThreadExecutor
         // is available, which is needed to set up these gateways. So during the initial restore,
