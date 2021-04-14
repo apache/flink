@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -96,66 +95,6 @@ public class CheckpointFailureManagerITCase extends TestLogger {
         }
         // assert that the job only failed once.
         assertEquals(1, StringGeneratingSourceFunction.INITIALIZE_TIMES.get());
-    }
-
-    @Test
-    public void testSourceFailureTriggerJobFailed() throws Exception {
-        // given: Environment with failed source and no restart strategy.
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(2000L);
-        env.setRestartStrategy(RestartStrategies.noRestart());
-        env.addSource(new FailedSource()).addSink(new DiscardingSink<>());
-        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-        try {
-            // when: Execute job once.
-            submitJobAndWaitForResult(
-                    cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
-        } catch (JobExecutionException jobException) {
-            Optional<RuntimeException> throwable =
-                    findThrowable(jobException, RuntimeException.class);
-
-            // then: Job failed with expected exception.
-            assertTrue(throwable.isPresent());
-            assertEquals(FailedSource.SOURCE_FAILED_MSG, throwable.get().getMessage());
-        }
-        // and: Job failed only once.
-        assertEquals(1, FailedSource.INITIALIZE_TIMES.get());
-    }
-
-    private static class FailedSource extends RichParallelSourceFunction<String>
-            implements CheckpointedFunction {
-
-        public static final AtomicInteger INITIALIZE_TIMES = new AtomicInteger(0);
-        public static final String SOURCE_FAILED_MSG = "source failed";
-
-        private volatile boolean running;
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            running = true;
-        }
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            while (running) {
-                ctx.collect("test");
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            throw new RuntimeException(SOURCE_FAILED_MSG);
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {
-            INITIALIZE_TIMES.incrementAndGet();
-        }
     }
 
     private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
