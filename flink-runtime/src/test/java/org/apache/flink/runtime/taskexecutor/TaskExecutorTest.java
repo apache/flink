@@ -146,6 +146,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createDefaultTimerService;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createTotalResourceProfile;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -192,6 +193,7 @@ public class TaskExecutorTest extends TestLogger {
     private UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
     private JobID jobId;
+    private JobID jobId2;
 
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
@@ -200,6 +202,7 @@ public class TaskExecutorTest extends TestLogger {
     private SettableLeaderRetrievalService resourceManagerLeaderRetriever;
 
     private SettableLeaderRetrievalService jobManagerLeaderRetriever;
+    private SettableLeaderRetrievalService jobManagerLeaderRetriever2;
 
     private NettyShuffleEnvironment nettyShuffleEnvironment;
 
@@ -214,14 +217,17 @@ public class TaskExecutorTest extends TestLogger {
 
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
         jobId = new JobID();
+        jobId2 = new JobID();
 
         testingFatalErrorHandler = new TestingFatalErrorHandler();
 
         haServices = new TestingHighAvailabilityServices();
         resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
         jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
+        jobManagerLeaderRetriever2 = new SettableLeaderRetrievalService();
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
         haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+        haServices.setJobMasterLeaderRetriever(jobId2, jobManagerLeaderRetriever2);
 
         nettyShuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
     }
@@ -1116,6 +1122,112 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testSlotOfferCounterIsSeparatedByJob() throws Exception {
+        final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+        final TestingResourceManagerGateway resourceManagerGateway =
+                createRmWithTmRegisterAndNotifySlotHooks(
+                        new InstanceID(), taskExecutorIsRegistered, new CompletableFuture<>());
+
+        final CompletableFuture<Collection<SlotOffer>> firstOfferResponseFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<SlotOffer>> secondOfferResponseFuture =
+                new CompletableFuture<>();
+
+        final Queue<CompletableFuture<Collection<SlotOffer>>> slotOfferResponses =
+                new ArrayDeque<>(
+                        Arrays.asList(firstOfferResponseFuture, secondOfferResponseFuture));
+
+        final MultiShotLatch offerSlotsLatch = new MultiShotLatch();
+        final TestingJobMasterGateway jobMasterGateway1 =
+                new TestingJobMasterGatewayBuilder()
+                        .setAddress("jm1")
+                        .setOfferSlotsFunction(
+                                (resourceID, slotOffers) -> {
+                                    offerSlotsLatch.trigger();
+                                    return slotOfferResponses.remove();
+                                })
+                        .build();
+        final TestingJobMasterGateway jobMasterGateway2 =
+                new TestingJobMasterGatewayBuilder()
+                        .setAddress("jm2")
+                        .setOfferSlotsFunction(
+                                (resourceID, slotOffers) -> {
+                                    offerSlotsLatch.trigger();
+                                    return slotOfferResponses.remove();
+                                })
+                        .build();
+
+        rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+        rpc.registerGateway(jobMasterGateway1.getAddress(), jobMasterGateway1);
+        rpc.registerGateway(jobMasterGateway2.getAddress(), jobMasterGateway2);
+
+        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(2);
+        final TaskManagerServices taskManagerServices =
+                createTaskManagerServicesWithTaskSlotTable(taskSlotTable);
+        final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
+
+        final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable =
+                new ThreadSafeTaskSlotTable<>(
+                        taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
+
+        final SlotOffer slotOffer1 = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
+        final SlotOffer slotOffer2 = new SlotOffer(new AllocationID(), 1, ResourceProfile.ANY);
+
+        try {
+            taskExecutor.start();
+            taskExecutor.waitUntilStarted();
+
+            final TaskExecutorGateway tmGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            // wait until task executor registered at the RM
+            taskExecutorIsRegistered.await();
+
+            // notify job leader to start slot offering
+            jobManagerLeaderRetriever.notifyListener(
+                    jobMasterGateway1.getAddress(), jobMasterGateway1.getFencingToken().toUUID());
+            jobManagerLeaderRetriever2.notifyListener(
+                    jobMasterGateway2.getAddress(), jobMasterGateway2.getFencingToken().toUUID());
+
+            // request the first slot
+            requestSlot(
+                    tmGateway,
+                    slotOffer1.getAllocationId(),
+                    slotOffer1.getSlotIndex(),
+                    jobId,
+                    resourceManagerGateway.getFencingToken(),
+                    jobMasterGateway1.getAddress());
+
+            // wait until first slot offer as arrived
+            offerSlotsLatch.await();
+
+            // request second slot, triggering another offer containing both slots
+            requestSlot(
+                    tmGateway,
+                    slotOffer2.getAllocationId(),
+                    slotOffer2.getSlotIndex(),
+                    jobId2,
+                    resourceManagerGateway.getFencingToken(),
+                    jobMasterGateway2.getAddress());
+
+            // wait until second slot offer as arrived
+            offerSlotsLatch.await();
+
+            firstOfferResponseFuture.complete(Collections.singletonList(slotOffer1));
+            firstOfferResponseFuture.complete(Collections.singletonList(slotOffer2));
+
+            assertThat(
+                    threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId),
+                    contains(slotOffer1.getAllocationId()));
+            assertThat(
+                    threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId2),
+                    contains(slotOffer2.getAllocationId()));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
+    }
+
     /** This tests task executor receive SubmitTask before OfferSlot response. */
     @Test
     public void testSubmitTaskBeforeAcceptSlot() throws Exception {
@@ -1268,6 +1380,22 @@ public class TaskExecutorTest extends TestLogger {
             TaskExecutorGateway tmGateway,
             AllocationID allocationId,
             int slotIndex,
+            ResourceManagerId resourceManagerId,
+            String jobMasterGatewayAddress) {
+        requestSlot(
+                tmGateway,
+                allocationId,
+                slotIndex,
+                jobId,
+                resourceManagerId,
+                jobMasterGatewayAddress);
+    }
+
+    private void requestSlot(
+            TaskExecutorGateway tmGateway,
+            AllocationID allocationId,
+            int slotIndex,
+            JobID jobId,
             ResourceManagerId resourceManagerId,
             String jobMasterGatewayAddress) {
 

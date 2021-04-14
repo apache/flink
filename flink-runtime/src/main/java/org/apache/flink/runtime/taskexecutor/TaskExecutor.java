@@ -225,7 +225,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final TaskSlotTable<Task> taskSlotTable;
 
-    private int offerCounter = 0;
+    private final Map<JobID, UUID> currentSlotOfferPerJob = new HashMap<>();
 
     private final JobTable jobTable;
 
@@ -1471,7 +1471,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 reservedSlots.add(offer);
             }
 
-            final int offerId = ++offerCounter;
+            final UUID slotOfferId = UUID.randomUUID();
+            currentSlotOfferPerJob.put(jobId, slotOfferId);
 
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
                     jobMasterGateway.offerSlots(
@@ -1481,7 +1482,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(
-                            jobId, jobMasterGateway, jobMasterId, reservedSlots, offerId),
+                            jobId, jobMasterGateway, jobMasterId, reservedSlots, slotOfferId),
                     getMainThreadExecutor());
         } else {
             log.debug("There are no unassigned slots for the job {}.", jobId);
@@ -1494,10 +1495,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             JobMasterGateway jobMasterGateway,
             JobMasterId jobMasterId,
             Collection<SlotOffer> offeredSlots,
-            int offerId) {
+            UUID offerId) {
         return (Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
             // check if this is the latest offer
-            if (offerId != offerCounter) {
+            if (offerId != currentSlotOfferPerJob.get(jobId)) {
                 // If this offer is outdated then it can be safely ignored.
                 // If the response for a given slot is identical in both offers (accepted/rejected),
                 // then this is naturally the case since the end-result is the same.
@@ -1788,6 +1789,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         job -> {
                             closeJob(job, cause);
                         });
+        currentSlotOfferPerJob.remove(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
