@@ -24,8 +24,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.SerializedValue;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,22 +41,27 @@ import java.util.stream.Collectors;
 public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     public static EventReceivingTasks createForNotYetRunningTasks() {
-        return new EventReceivingTasks(false, null);
+        return new EventReceivingTasks(false, CompletableFuture.completedFuture(Acknowledge.get()));
     }
 
     public static EventReceivingTasks createForRunningTasks() {
-        return new EventReceivingTasks(true, null);
+        return new EventReceivingTasks(true, CompletableFuture.completedFuture(Acknowledge.get()));
     }
 
     public static EventReceivingTasks createForRunningTasksFailingRpcs(Throwable rpcException) {
-        return new EventReceivingTasks(true, rpcException);
+        return new EventReceivingTasks(true, FutureUtils.completedExceptionally(rpcException));
+    }
+
+    public static EventReceivingTasks createForRunningTasksWithRpcResult(
+            CompletableFuture<Acknowledge> result) {
+        return new EventReceivingTasks(true, result);
     }
 
     // ------------------------------------------------------------------------
 
     final ArrayList<EventWithSubtask> events = new ArrayList<>();
 
-    @Nullable private final Throwable eventSendingFailureCause;
+    private final CompletableFuture<Acknowledge> eventSendingResult;
 
     private final Map<Integer, TestSubtaskAccess> subtasks = new HashMap<>();
 
@@ -66,9 +69,9 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     private EventReceivingTasks(
             final boolean createdTasksAreRunning,
-            @Nullable final Throwable eventSendingFailureCause) {
+            final CompletableFuture<Acknowledge> eventSendingResult) {
         this.createdTasksAreRunning = createdTasksAreRunning;
-        this.eventSendingFailureCause = eventSendingFailureCause;
+        this.eventSendingResult = eventSendingResult;
     }
 
     // ------------------------------------------------------------------------
@@ -123,10 +126,7 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     Callable<CompletableFuture<Acknowledge>> createSendAction(OperatorEvent event, int subtask) {
         return () -> {
             events.add(new EventWithSubtask(event, subtask));
-
-            return eventSendingFailureCause == null
-                    ? CompletableFuture.completedFuture(Acknowledge.get())
-                    : FutureUtils.completedExceptionally(eventSendingFailureCause);
+            return eventSendingResult;
         };
     }
 
@@ -207,6 +207,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
         }
 
         @Override
+        public String subtaskName() {
+            return "test_task-" + subtaskIndex + " #: " + executionAttemptId;
+        }
+
+        @Override
         public CompletableFuture<?> hasSwitchedToRunning() {
             return running;
         }
@@ -218,6 +223,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
         void switchToRunning() {
             running.complete(null);
+        }
+
+        @Override
+        public void triggerTaskFailover(Throwable cause) {
+            // ignore this in the tests
         }
     }
 }

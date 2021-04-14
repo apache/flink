@@ -24,6 +24,8 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -35,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -113,11 +117,15 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class OperatorCoordinatorHolder
         implements OperatorCoordinatorCheckpointContext, AutoCloseable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(OperatorCoordinatorHolder.class);
+
     private final OperatorCoordinator coordinator;
     private final OperatorID operatorId;
     private final LazyInitializedCoordinatorContext context;
     private final SubtaskAccess.SubtaskAccessFactory taskAccesses;
     private final OperatorEventValve eventValve;
+    private final IncompleteFuturesTracker unconfirmedEvents;
+    private final EventSender eventSender;
 
     private final int operatorParallelism;
     private final int operatorMaxParallelism;
@@ -140,7 +148,9 @@ public class OperatorCoordinatorHolder
         this.operatorParallelism = operatorParallelism;
         this.operatorMaxParallelism = operatorMaxParallelism;
 
+        this.unconfirmedEvents = new IncompleteFuturesTracker();
         this.eventValve = new OperatorEventValve();
+        this.eventSender = new ValveAndTrackerSender(eventValve, unconfirmedEvents);
     }
 
     public void lazyInitialize(
@@ -227,8 +237,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> checkpointCoordinatorInternal(checkpointId, result));
     }
 
@@ -237,8 +246,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> coordinator.notifyCheckpointComplete(checkpointId));
     }
 
@@ -247,8 +255,7 @@ public class OperatorCoordinatorHolder
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
         // we can remove the delegation once the checkpoint coordinator runs fully in the
-        // scheduler's
-        // main thread executor
+        // scheduler's main thread executor
         mainThreadExecutor.execute(() -> coordinator.notifyCheckpointAborted(checkpointId));
     }
 
@@ -288,7 +295,7 @@ public class OperatorCoordinatorHolder
                     if (failure != null) {
                         result.completeExceptionally(failure);
                     } else if (eventValve.tryShutValve(checkpointId)) {
-                        result.complete(success);
+                        completeCheckpointOnceEventsAreDone(checkpointId, result, success);
                     } else {
                         // if we cannot shut the valve, this means the checkpoint
                         // has been aborted before, so the future is already
@@ -307,6 +314,43 @@ public class OperatorCoordinatorHolder
             result.completeExceptionally(t);
             globalFailureHandler.accept(t);
         }
+    }
+
+    private void completeCheckpointOnceEventsAreDone(
+            final long checkpointId,
+            final CompletableFuture<byte[]> checkpointFuture,
+            final byte[] checkpointResult) {
+
+        final Collection<CompletableFuture<?>> pendingEvents =
+                unconfirmedEvents.getCurrentIncompleteAndReset();
+        if (pendingEvents.isEmpty()) {
+            checkpointFuture.complete(checkpointResult);
+            return;
+        }
+
+        LOG.info(
+                "Coordinator checkpoint {} for coordinator {} is awaiting {} pending events",
+                checkpointId,
+                operatorId,
+                pendingEvents.size());
+
+        final CompletableFuture<?> conjunct = FutureUtils.waitForAll(pendingEvents);
+        conjunct.whenComplete(
+                (success, failure) -> {
+                    if (failure == null) {
+                        checkpointFuture.complete(checkpointResult);
+                    } else {
+                        // if we reach this situation, then anyways the checkpoint cannot
+                        // complete because
+                        // (a) the target task really is down
+                        // (b) we have a potentially lost RPC message and need to
+                        //     do a task failover for the receiver to restore consistency
+                        checkpointFuture.completeExceptionally(
+                                new FlinkException(
+                                        "Failing OperatorCoordinator checkpoint because some OperatorEvents "
+                                                + "before this checkpoint barrier were not received by the target tasks."));
+                    }
+                });
     }
 
     // ------------------------------------------------------------------------
@@ -346,7 +390,7 @@ public class OperatorCoordinatorHolder
         final SubtaskAccess sta = taskAccesses.getAccessForSubtask(subtask);
 
         final OperatorCoordinator.SubtaskGateway gateway =
-                new SubtaskGatewayImpl(sta, eventValve, mainThreadExecutor);
+                new SubtaskGatewayImpl(sta, eventSender, mainThreadExecutor);
 
         // We need to do this synchronously here, otherwise we violate the contract that
         // 'subtaskFailed()' will never overtake 'subtaskReady()'.
@@ -530,6 +574,27 @@ public class OperatorCoordinatorHolder
         @Override
         public ClassLoader getUserCodeClassloader() {
             return userCodeClassLoader;
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private static final class ValveAndTrackerSender implements EventSender {
+
+        private final OperatorEventValve valve;
+        private final IncompleteFuturesTracker tracker;
+
+        ValveAndTrackerSender(OperatorEventValve valve, IncompleteFuturesTracker tracker) {
+            this.valve = valve;
+            this.tracker = tracker;
+        }
+
+        @Override
+        public void sendEvent(
+                Callable<CompletableFuture<Acknowledge>> sendAction,
+                CompletableFuture<Acknowledge> result) {
+            valve.sendEvent(sendAction, result);
+            tracker.trackFutureWhileIncomplete(result);
         }
     }
 }

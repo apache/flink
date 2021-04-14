@@ -81,6 +81,11 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
     }
 
     @Override
+    public String subtaskName() {
+        return taskExecution.getVertexWithAttempt();
+    }
+
+    @Override
     public CompletableFuture<?> hasSwitchedToRunning() {
         return taskExecution.getInitializingOrRunningFuture();
     }
@@ -88,6 +93,11 @@ final class ExecutionSubtaskAccess implements SubtaskAccess {
     @Override
     public boolean isStillRunning() {
         return taskExecution.getState() == ExecutionState.RUNNING;
+    }
+
+    @Override
+    public void triggerTaskFailover(Throwable cause) {
+        taskExecution.fail(cause);
     }
 
     // ------------------------------------------------------------------------
