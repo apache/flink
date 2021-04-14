@@ -54,7 +54,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
-    @Rule public final Timeout TIMEOUT = Timeout.seconds(30);
+    @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
