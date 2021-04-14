@@ -267,15 +267,22 @@ object PreValidateReWriter {
     SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
   }
 
+  /**
+   * Reorder sourceList to targetPosition. For example:
+   * - sourceList(f0, f1, f2).
+   * - targetPosition(1, 2, 0).
+   * - Output(f1, f2, f0).
+   *
+   * @param sourceList input fields.
+   * @param targetPosition reorder mapping.
+   * @return reorder fields.
+   */
   private def reorder(
       sourceList: util.ArrayList[SqlNode],
       targetPosition: util.List[Int]): util.ArrayList[SqlNode] = {
-    val targetList = new Array[SqlNode](sourceList.size())
-    0 until sourceList.size() foreach {
-      idx => targetList(targetPosition.get(idx)) = sourceList.get(idx)
-    }
-    new util.ArrayList[SqlNode](targetList.toList)
+    new util.ArrayList[SqlNode](targetPosition.map(sourceList.get))
   }
+
   /**
     * Derives a physical row-type for INSERT and UPDATE operations.
     *
