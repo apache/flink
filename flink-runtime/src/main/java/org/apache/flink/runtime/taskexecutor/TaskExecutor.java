@@ -225,6 +225,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final TaskSlotTable<Task> taskSlotTable;
 
+    private int offerCounter = 0;
+
     private final JobTable jobTable;
 
     private final JobLeaderService jobLeaderService;
@@ -1469,6 +1471,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 reservedSlots.add(offer);
             }
 
+            final int offerId = ++offerCounter;
+
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
                     jobMasterGateway.offerSlots(
                             getResourceID(),
@@ -1476,7 +1480,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskManagerConfiguration.getRpcTimeout());
 
             acceptedSlotsFuture.whenCompleteAsync(
-                    handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
+                    handleAcceptedSlotOffers(
+                            jobId, jobMasterGateway, jobMasterId, reservedSlots, offerId),
                     getMainThreadExecutor());
         } else {
             log.debug("There are no unassigned slots for the job {}.", jobId);
@@ -1488,8 +1493,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             JobID jobId,
             JobMasterGateway jobMasterGateway,
             JobMasterId jobMasterId,
-            Collection<SlotOffer> offeredSlots) {
+            Collection<SlotOffer> offeredSlots,
+            int offerId) {
         return (Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
+            // check if this is the latest offer
+            if (offerId != offerCounter) {
+                // If this offer is outdated then it can be safely ignored.
+                // If the response for a given slot is identical in both offers (accepted/rejected),
+                // then this is naturally the case since the end-result is the same.
+                // If the responses differ, then there are 2 cases to consider:
+                // 1) initially rejected, later accepted
+                //   This can happen when the resource requirements of a job increases between
+                //   offers.
+                //   In this case the first response MUST be ignored, so that
+                //   the the slot can be properly activated when the second response arrives.
+                // 2) initially accepted, later rejected
+                //   This can happen when the resource requirements of a job decrease between
+                //   offers.
+                //   In this case the first response MAY be ignored, because the job no longer
+                //   requires the slot (and already has initiated steps to free it) and we can thus
+                //   assume that any in-flight task submissions are no longer relevant for the job
+                //   execution.
+
+                log.debug(
+                        "Discard offer slot response since there is a newer offer for the job {}.",
+                        jobId);
+                return;
+            }
+
             if (throwable != null) {
                 if (throwable instanceof TimeoutException) {
                     log.info(
