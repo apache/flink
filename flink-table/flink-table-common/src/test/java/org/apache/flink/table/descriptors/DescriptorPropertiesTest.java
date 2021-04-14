@@ -307,8 +307,7 @@ public class DescriptorPropertiesTest {
         try {
             properties.validateInt("hello2", false, 1, 3);
         } catch (Exception e) {
-            Optional<Throwable> throwable =
-                    ExceptionUtils.findThrowableWithMessage(e, "between");
+            Optional<Throwable> throwable = ExceptionUtils.findThrowableWithMessage(e, "between");
             assertTrue(throwable.isPresent());
             return;
         }
