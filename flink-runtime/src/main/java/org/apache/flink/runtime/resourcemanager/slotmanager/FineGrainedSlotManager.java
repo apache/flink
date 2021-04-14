@@ -257,6 +257,12 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public void clearResourceRequirements(JobID jobId) {
+        jobMasterTargetAddresses.remove(jobId);
+        resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
+    }
+
+    @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         checkInit();
         LOG.debug(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -42,12 +43,18 @@ public class TestingSlotManager implements SlotManager {
 
     private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
     private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
+    private final Consumer<ResourceRequirements> processRequirementsConsumer;
+    private final Consumer<JobID> clearRequirementsConsumer;
 
     TestingSlotManager(
             Consumer<Boolean> setFailUnfulfillableRequestConsumer,
-            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
+            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier,
+            Consumer<ResourceRequirements> processRequirementsConsumer,
+            Consumer<JobID> clearRequirementsConsumer) {
         this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
         this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+        this.processRequirementsConsumer = processRequirementsConsumer;
+        this.clearRequirementsConsumer = clearRequirementsConsumer;
     }
 
     @Override
@@ -115,7 +122,14 @@ public class TestingSlotManager implements SlotManager {
     public void suspend() {}
 
     @Override
-    public void processResourceRequirements(ResourceRequirements resourceRequirements) {}
+    public void clearResourceRequirements(JobID jobId) {
+        clearRequirementsConsumer.accept(jobId);
+    }
+
+    @Override
+    public void processResourceRequirements(ResourceRequirements resourceRequirements) {
+        processRequirementsConsumer.accept(resourceRequirements);
+    }
 
     @Override
     public boolean registerSlotRequest(SlotRequest slotRequest) {

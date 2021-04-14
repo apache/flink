@@ -1375,8 +1375,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
     }
 
     @Test
-    public void testReclaimInactiveSlotsOnEmptyRequirements() throws Exception {
-
+    public void testReclaimInactiveSlotsOnClearRequirements() throws Exception {
         final CompletableFuture<JobID> freeInactiveSlotsJobIdFuture = new CompletableFuture<>();
 
         final TestingTaskExecutorGateway taskExecutorGateway =
@@ -1405,13 +1404,49 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             slotManager.processResourceRequirements(createResourceRequirements(jobId, 2));
             assertThat(freeInactiveSlotsJobIdFuture.isDone(), is(false));
 
-            // decrease requirements, which should not trigger slots being reclaimed
-            slotManager.processResourceRequirements(createResourceRequirements(jobId, 1));
+            // set requirements to 0, which should not trigger slots being reclaimed
+            slotManager.processResourceRequirements(ResourceRequirements.empty(jobId, "foobar"));
             assertThat(freeInactiveSlotsJobIdFuture.isDone(), is(false));
 
             // clear requirements, which should trigger slots being reclaimed
-            slotManager.processResourceRequirements(ResourceRequirements.empty(jobId, "foobar"));
+            slotManager.clearResourceRequirements(jobId);
             assertThat(freeInactiveSlotsJobIdFuture.get(), is(jobId));
+        }
+    }
+
+    @Test
+    public void testClearRequirementsClearsResourceTracker() throws Exception {
+        final ResourceTracker resourceTracker = new DefaultResourceTracker();
+
+        final CompletableFuture<JobID> freeInactiveSlotsJobIdFuture = new CompletableFuture<>();
+
+        final TestingTaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setFreeInactiveSlotsConsumer(freeInactiveSlotsJobIdFuture::complete)
+                        .createTestingTaskExecutorGateway();
+
+        try (final DeclarativeSlotManager slotManager =
+                createDeclarativeSlotManagerBuilder()
+                        .setResourceTracker(resourceTracker)
+                        .buildAndStart(
+                                ResourceManagerId.generate(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new TestingResourceActionsBuilder().build())) {
+
+            final JobID jobId = new JobID();
+
+            final TaskExecutorConnection taskExecutionConnection =
+                    createTaskExecutorConnection(taskExecutorGateway);
+            final SlotReport slotReport =
+                    createSlotReportWithAllocatedSlots(
+                            taskExecutionConnection.getResourceID(), jobId, 1);
+            slotManager.registerTaskManager(
+                    taskExecutionConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
+
+            slotManager.processResourceRequirements(createResourceRequirements(jobId, 2));
+            slotManager.clearResourceRequirements(jobId);
+
+            assertThat(resourceTracker.getMissingResources().keySet(), empty());
         }
     }
 

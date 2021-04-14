@@ -246,6 +246,14 @@ public class DeclarativeSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public void clearResourceRequirements(JobID jobId) {
+        checkInit();
+        maybeReclaimInactiveSlots(jobId);
+        jobMasterTargetAddresses.remove(jobId);
+        resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
+    }
+
+    @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         checkInit();
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
@@ -257,11 +265,7 @@ public class DeclarativeSlotManager implements SlotManager {
                     resourceRequirements.getResourceRequirements());
         }
 
-        if (resourceRequirements.getResourceRequirements().isEmpty()) {
-            jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
-
-            maybeReclaimInactiveSlots(resourceRequirements.getJobId());
-        } else {
+        if (!resourceRequirements.getResourceRequirements().isEmpty()) {
             jobMasterTargetAddresses.put(
                     resourceRequirements.getJobId(), resourceRequirements.getTargetAddress());
         }
