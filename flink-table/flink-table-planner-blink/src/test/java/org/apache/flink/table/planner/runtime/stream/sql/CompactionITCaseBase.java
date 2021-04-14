@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -81,7 +82,8 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
                                                             Types.INT, Types.STRING, Types.STRING
                                                         },
                                                         new String[] {"a", "b", "c"})))
-                        .rebalance(); // rebalance to parallel tasks
+                        .filter((FilterFunction<Row>) value -> true)
+                        .setParallelism(3); // to parallel tasks
 
         tEnv().createTemporaryView("my_table", stream);
     }
@@ -103,9 +105,13 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
     }
 
     public void innerTestNonPartition(int parallelism) throws Exception {
-        env().setParallelism(parallelism);
         createTable(resultPath);
-        tEnv().executeSql("insert into sink_table select * from my_table").await();
+        String sql =
+                String.format(
+                        "insert into sink_table /*+ OPTIONS('sink.parallelism' = '%d') */"
+                                + " select * from my_table",
+                        parallelism);
+        tEnv().executeSql(sql).await();
 
         assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
