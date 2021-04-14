@@ -162,7 +162,7 @@ jobs:
     displayName: Upload Logs
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
-      artifact: logs-$(DEBUG_FILES_NAME)
+      artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
 - job: e2e_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
@@ -243,4 +243,4 @@ jobs:
       displayName: Upload Logs
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
-        artifact: logs-$(DEBUG_FILES_NAME)
+        artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
