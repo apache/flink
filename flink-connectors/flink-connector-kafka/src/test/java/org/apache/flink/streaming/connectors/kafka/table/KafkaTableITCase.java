@@ -18,17 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
@@ -61,7 +55,7 @@ import static org.junit.Assert.fail;
 
 /** Basic IT cases for the Kafka table source and sink. */
 @RunWith(Parameterized.class)
-public class KafkaTableITCase extends KafkaTestBaseWithFlink {
+public class KafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String AVRO_FORMAT = "avro";
@@ -85,21 +79,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         };
     }
 
-    protected StreamExecutionEnvironment env;
-    protected StreamTableEnvironment tEnv;
-
     @Before
-    public void setup() {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                // Watermark is only supported in blink planner
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+    public void before() {
         // we have to use single parallelism,
         // because we will count the messages in sink to terminate the job
         env.setParallelism(1);
@@ -113,8 +94,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable;
         if (!isLegacyConnector) {
@@ -243,8 +224,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
                         + "  'scan.startup.mode' = 'earliest-offset',\n"
                         + "  %s\n"
                         + ")";
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
         List<String> currencies = Arrays.asList("Euro", "Dollar", "Yen", "Dummy");
         List<String> topics =
                 currencies.stream()
@@ -316,7 +297,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         assertEquals(expected, TestingSinkFunction.rows);
 
         // ------------- cleanup -------------------
-        topics.forEach(KafkaTestBase::deleteTestTopic);
+        topics.forEach(super::deleteTestTopic);
     }
 
     @Test
@@ -330,8 +311,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable =
                 String.format(
@@ -430,8 +411,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // k_user_id and user_id have different data types to verify the correct mapping,
         // fields are reordered on purpose
@@ -514,8 +495,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // compared to the partial value test we cannot support both k_user_id and user_id in a full
         // value due to duplicate names after key prefix stripping,
@@ -605,8 +586,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(productTopic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // create order table and set initial values
         final String orderTableDDL =
@@ -741,8 +722,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable =
                 String.format(
@@ -834,8 +815,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
         tEnv.getConfig()
                 .getConfiguration()
                 .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
