@@ -237,7 +237,7 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation of the blink planner in streaming mode. For batch mode or windowed aggregation, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation of the blink planner in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
@@ -270,6 +270,8 @@ from pyflink.common import Row
 from pyflink.table import AggregateFunction, DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import call
 from pyflink.table.udf import udaf
+from pyflink.table.expressions import col, lit
+from pyflink.table.window import Tumble
 
 
 class WeightedAvg(AggregateFunction):
@@ -329,6 +331,18 @@ table_env.create_temporary_view("source", t)
 result = table_env.sql_query(
     "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
 print(result)
+
+# use the general Python aggregate function in GroupBy Window Aggregation
+tumble_window = Tumble.over(lit(1).hours) \
+            .on(col("rowtime")) \
+            .alias("w")
+
+result = t.window(tumble_window) \
+        .group_by(col('w'), col('name')) \
+        .select("w.start, w.end, weighted_avg(value, count)") \
+        .to_pandas()
+print(result)
+
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -349,6 +363,7 @@ by Flink's checkpointing mechanism and are restored in case of failover to ensur
 
 - `retract(...)` is required when there are operations that could generate retraction messages before the current aggregation operation, e.g. group aggregate, outer join. \
 This method is optional, but it is strongly recommended to be implemented to ensure the UDAF can be used in any use case.
+- `merge(...)` is required for session window ang hop window aggregations.
 - `get_result_type()` and `get_accumulator_type()` is required if the result type and accumulator type would not be specified in the `udaf` decorator.
 
 ### ListView and MapView
