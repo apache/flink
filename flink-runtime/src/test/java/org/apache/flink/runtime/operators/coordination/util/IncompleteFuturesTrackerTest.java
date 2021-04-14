@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -40,7 +41,7 @@ public class IncompleteFuturesTrackerTest {
 
         tracker.trackFutureWhileIncomplete(future);
 
-        assertThat(tracker.getTrackedFutures(), contains(future));
+        assertThat(tracker.getCurrentIncompleteAndReset(), contains(future));
     }
 
     @Test
@@ -51,7 +52,7 @@ public class IncompleteFuturesTrackerTest {
         tracker.trackFutureWhileIncomplete(future);
         future.complete(null);
 
-        assertThat(tracker.getTrackedFutures(), not(contains(future)));
+        assertThat(tracker.getCurrentIncompleteAndReset(), not(contains(future)));
     }
 
     @Test
@@ -62,7 +63,7 @@ public class IncompleteFuturesTrackerTest {
         future.complete(null);
         tracker.trackFutureWhileIncomplete(future);
 
-        assertThat(tracker.getTrackedFutures(), not(contains(future)));
+        assertThat(tracker.getCurrentIncompleteAndReset(), not(contains(future)));
     }
 
     @Test
@@ -101,5 +102,16 @@ public class IncompleteFuturesTrackerTest {
         } catch (ExecutionException e) {
             assertSame(expectedException, e.getCause());
         }
+    }
+
+    @Test
+    public void testResetClearsTrackedFutures() {
+        final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
+
+        final CompletableFuture<?> future = new CompletableFuture<>();
+        tracker.trackFutureWhileIncomplete(future);
+        tracker.getCurrentIncompleteAndReset();
+
+        assertThat(tracker.getCurrentIncompleteAndReset(), empty());
     }
 }

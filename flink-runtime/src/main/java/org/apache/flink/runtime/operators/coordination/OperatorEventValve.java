@@ -40,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
  * that, one can register a "main thread executor" (as used by the mailbox components like RPC
  * components) via {@link #setMainThreadExecutorForValidation(ComponentMainThreadExecutor)}.
  */
-final class OperatorEventValve {
+final class OperatorEventValve implements EventSender {
 
     private static final long NO_CHECKPOINT = Long.MIN_VALUE;
 
@@ -55,7 +55,7 @@ final class OperatorEventValve {
     @Nullable private ComponentMainThreadExecutor mainThreadExecutor;
 
     /** Constructs a new OperatorEventValve. */
-    public OperatorEventValve() {
+    OperatorEventValve() {
         this.currentCheckpointId = NO_CHECKPOINT;
         this.lastCheckpointId = Long.MIN_VALUE;
     }
@@ -82,6 +82,7 @@ final class OperatorEventValve {
      * <p>This method makes no assumptions and gives no guarantees from which thread the result
      * future gets completed.
      */
+    @Override
     public void sendEvent(
             Callable<CompletableFuture<Acknowledge>> sendAction,
             CompletableFuture<Acknowledge> result) {
@@ -172,7 +173,7 @@ final class OperatorEventValve {
         }
     }
 
-    private static void callSendAction(
+    private void callSendAction(
             Callable<CompletableFuture<Acknowledge>> sendAction,
             CompletableFuture<Acknowledge> result) {
         try {

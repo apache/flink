@@ -22,6 +22,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -286,6 +287,23 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                 globalFailure);
         // Reset global failure to null to make the after method check happy.
         globalFailure = null;
+    }
+
+    @Test
+    public void checkpointCompletionWaitsForEventFutures() throws Exception {
+        final CompletableFuture<Acknowledge> ackFuture = new CompletableFuture<>();
+        final EventReceivingTasks tasks =
+                EventReceivingTasks.createForRunningTasksWithRpcResult(ackFuture);
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
+
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0));
+
+        final CompletableFuture<?> checkpointFuture = triggerAndCompleteCheckpoint(holder, 22L);
+        assertFalse(checkpointFuture.isDone());
+
+        ackFuture.complete(Acknowledge.get());
+        assertTrue(checkpointFuture.isDone());
     }
 
     /**

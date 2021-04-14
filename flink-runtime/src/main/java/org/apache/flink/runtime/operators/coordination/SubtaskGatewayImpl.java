@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
 
@@ -34,14 +36,17 @@ import java.util.concurrent.Executor;
  */
 class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
 
+    private static final String EVENT_LOSS_ERROR_MESSAGE =
+            "An OperatorEvent from an OperatorCoordinator to a task was lost. "
+                    + "Triggering task failover to ensure consistency. Event: '%s', targetTask: %s";
+
     private final SubtaskAccess subtaskAccess;
-    private final OperatorEventValve valve;
+    private final EventSender sender;
     private final Executor sendingExecutor;
 
-    SubtaskGatewayImpl(
-            SubtaskAccess subtaskAccess, OperatorEventValve valve, Executor sendingExecutor) {
+    SubtaskGatewayImpl(SubtaskAccess subtaskAccess, EventSender sender, Executor sendingExecutor) {
         this.subtaskAccess = subtaskAccess;
-        this.valve = valve;
+        this.sender = sender;
         this.sendingExecutor = sendingExecutor;
     }
 
@@ -64,7 +69,22 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
                 subtaskAccess.createEventSendAction(serializedEvent);
 
         final CompletableFuture<Acknowledge> result = new CompletableFuture<>();
-        sendingExecutor.execute(() -> valve.sendEvent(sendAction, result));
+        FutureUtils.assertNoException(
+                result.handleAsync(
+                        (success, failure) -> {
+                            if (failure != null && subtaskAccess.isStillRunning()) {
+                                String msg =
+                                        String.format(
+                                                EVENT_LOSS_ERROR_MESSAGE,
+                                                evt,
+                                                subtaskAccess.subtaskName());
+                                subtaskAccess.triggerTaskFailover(new FlinkException(msg));
+                            }
+                            return null;
+                        },
+                        sendingExecutor));
+
+        sendingExecutor.execute(() -> sender.sendEvent(sendAction, result));
         return result;
     }
 
