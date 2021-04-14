@@ -1055,8 +1055,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             jmResourceIdRegistrations.remove(jobManagerResourceId);
 
             if (resourceRequirementHandling == ResourceRequirementHandling.CLEAR) {
-                slotManager.processResourceRequirements(
-                        ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+                slotManager.clearResourceRequirements(jobId);
             }
 
             // tell the job manager about the disconnect

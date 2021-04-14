@@ -394,6 +394,9 @@ public class SlotManagerImpl implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public void clearResourceRequirements(JobID jobId) {}
+
+    @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         // no-op; don't throw an UnsupportedOperationException here because there are code paths
         // where the resource
