@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.scala.DataStream;
-import org.apache.flink.table.planner.runtime.utils.ParallelFiniteTestSource;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -73,14 +74,16 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
 
         DataStream<Row> stream =
                 new DataStream<>(
-                        env().getJavaEnv()
-                                .addSource(
-                                        new ParallelFiniteTestSource<>(rows),
-                                        new RowTypeInfo(
-                                                new TypeInformation[] {
-                                                    Types.INT, Types.STRING, Types.STRING
-                                                },
-                                                new String[] {"a", "b", "c"})));
+                                env().getJavaEnv()
+                                        .addSource(
+                                                new FiniteTestSource<>(rows),
+                                                new RowTypeInfo(
+                                                        new TypeInformation[] {
+                                                            Types.INT, Types.STRING, Types.STRING
+                                                        },
+                                                        new String[] {"a", "b", "c"})))
+                        .filter((FilterFunction<Row>) value -> true)
+                        .setParallelism(3); // to parallel tasks
 
         tEnv().createTemporaryView("my_table", stream);
     }
@@ -102,9 +105,13 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
     }
 
     public void innerTestNonPartition(int parallelism) throws Exception {
-        env().setParallelism(parallelism);
         createTable(resultPath);
-        tEnv().executeSql("insert into sink_table select * from my_table").await();
+        String sql =
+                String.format(
+                        "insert into sink_table /*+ OPTIONS('sink.parallelism' = '%d') */"
+                                + " select * from my_table",
+                        parallelism);
+        tEnv().executeSql(sql).await();
 
         assertIterator(tEnv().executeSql("select * from sink_table").collect());
 
