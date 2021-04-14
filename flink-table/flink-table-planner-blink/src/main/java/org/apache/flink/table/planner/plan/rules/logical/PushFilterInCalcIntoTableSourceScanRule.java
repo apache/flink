@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Calc;
@@ -30,8 +31,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
-
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import scala.Tuple2;
 

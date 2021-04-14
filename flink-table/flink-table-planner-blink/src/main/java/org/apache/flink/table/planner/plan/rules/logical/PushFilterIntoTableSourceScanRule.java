@@ -21,14 +21,13 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
-
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import scala.Tuple2;
 
