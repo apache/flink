@@ -46,6 +46,12 @@ Starting with Flink 1.13, Flame Graphs are natively supported in Flink. In order
 Operator's On-CPU Flame Graph
 {{% /center %}}
 
+{{< hint warning >}}
+
+Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in `conf/flink-conf.yaml`. We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
+
+{{< /hint >}}
+
 Apart from the On-CPU Flame Graphs, [Off-CPU](http://www.brendangregg.com/FlameGraphs/offcpuflamegraphs.html) and Mixed visualizations are available and can be switched between by using the selector at the top of the pane:
 
 {{< img src="/fig/flame_graph_selector.png" class="img-fluid" width="30%" >}}
