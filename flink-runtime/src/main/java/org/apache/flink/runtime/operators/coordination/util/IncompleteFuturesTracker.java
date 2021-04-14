@@ -18,15 +18,12 @@
 
 package org.apache.flink.runtime.operators.coordination.util;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -64,6 +61,22 @@ public final class IncompleteFuturesTracker {
         future.whenComplete((success, failure) -> removeFromSet(future));
     }
 
+    public Collection<CompletableFuture<?>> getCurrentIncompleteAndReset() {
+        lock.lock();
+        try {
+            if (incompleteFutures.isEmpty()) {
+                return Collections.emptySet();
+            }
+
+            final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(incompleteFutures);
+            incompleteFutures.clear();
+            return futures;
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void failAllFutures(Throwable cause) {
         final Collection<CompletableFuture<?>> futuresToFail;
 
@@ -94,10 +107,5 @@ public final class IncompleteFuturesTracker {
         } finally {
             lock.unlock();
         }
-    }
-
-    @VisibleForTesting
-    Set<CompletableFuture<?>> getTrackedFutures() {
-        return Collections.unmodifiableSet(incompleteFutures);
     }
 }

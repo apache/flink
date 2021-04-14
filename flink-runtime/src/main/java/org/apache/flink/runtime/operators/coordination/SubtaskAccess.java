@@ -56,6 +56,12 @@ interface SubtaskAccess {
     ExecutionAttemptID currentAttempt();
 
     /**
+     * Gets a descriptive name of the operator's subtask , including name, subtask-id, parallelism,
+     * and execution attempt.
+     */
+    String subtaskName();
+
+    /**
      * The future returned here completes once the target subtask is in a running state. As running
      * state classify the states {@link ExecutionState#RUNNING} and {@link
      * ExecutionState#INITIALIZING}.
@@ -67,6 +73,11 @@ interface SubtaskAccess {
      * for details.
      */
     boolean isStillRunning();
+
+    /**
+     * Triggers a failover for the subtaks execution attempt that this access instance is bound to.
+     */
+    void triggerTaskFailover(Throwable cause);
 
     // ------------------------------------------------------------------------
 

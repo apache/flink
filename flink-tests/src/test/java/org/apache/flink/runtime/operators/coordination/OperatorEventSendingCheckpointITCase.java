@@ -53,7 +53,6 @@ import org.apache.flink.util.function.TriFunction;
 import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -107,7 +106,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
      * event was lost and trigger recovery to prevent data loss. Data loss would manifest in a
      * stalled test, because we could wait forever to collect the required number of events back.
      */
-    @Ignore // ignore for now, because this test fails due to FLINK-21996
     @Test
     public void testOperatorEventLostNoReaderFailure() throws Exception {
         final int[] eventsToLose = new int[] {2, 4, 6};
@@ -125,7 +123,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
      * (which is after the second successful event delivery, the fourth event), there is
      * additionally a failure on the reader that triggers recovery.
      */
-    @Ignore // ignore for now, because this test fails due to FLINK-21996
     @Test
     public void testOperatorEventLostWithReaderFailure() throws Exception {
         final int[] eventsToLose = new int[] {1, 3};
@@ -224,6 +221,8 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
                                 });
 
         final List<Long> sequence = numbers.executeAndCollect(numElements);
+        // the recovery may change the order of splits, so the sequence might be out-of-order
+        sequence.sort(Long::compareTo);
 
         final List<Long> expectedSequence =
                 LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList());
