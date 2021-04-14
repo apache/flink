@@ -1228,6 +1228,72 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
+    /**
+     * Tests that freeing an inactive slot is a legal operation that does not throw an exception.
+     */
+    @Test
+    public void testFreeingInactiveSlotDoesNotFail() throws Exception {
+        final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+        final TestingResourceManagerGateway resourceManagerGateway =
+                createRmWithTmRegisterAndNotifySlotHooks(
+                        new InstanceID(), taskExecutorIsRegistered, new CompletableFuture<>());
+
+        rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
+
+        final MultiShotLatch offerSlotsLatch = new MultiShotLatch();
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setOfferSlotsFunction(
+                                (resourceID, slotOffers) -> {
+                                    offerSlotsLatch.trigger();
+                                    return new CompletableFuture<>();
+                                })
+                        .build();
+
+        rpc.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TaskExecutorLocalStateStoresManager localStateStoresManager =
+                createTaskExecutorLocalStateStoresManager();
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
+                        .setTaskSlotTable(taskSlotTable)
+                        .setTaskStateManager(localStateStoresManager)
+                        .build();
+
+        final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
+
+        try {
+            taskExecutor.start();
+            taskExecutor.waitUntilStarted();
+
+            final TaskExecutorGateway tmGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            taskExecutorIsRegistered.await();
+
+            jobManagerLeaderRetriever.notifyListener(
+                    jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+            final AllocationID allocationId = new AllocationID();
+
+            requestSlot(
+                    tmGateway,
+                    allocationId,
+                    0,
+                    jobId,
+                    resourceManagerGateway.getFencingToken(),
+                    jobMasterGateway.getAddress());
+
+            offerSlotsLatch.await();
+
+            tmGateway.freeSlot(allocationId, new RuntimeException("test exception"), timeout).get();
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
+    }
+
     /** This tests task executor receive SubmitTask before OfferSlot response. */
     @Test
     public void testSubmitTaskBeforeAcceptSlot() throws Exception {
