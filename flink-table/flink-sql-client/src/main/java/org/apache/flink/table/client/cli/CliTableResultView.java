@@ -79,7 +79,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 
     @Override
     protected int computeColumnWidth(int idx) {
-        return MAX_COLUMN_WIDTH;
+        return PrintUtils.MAX_COLUMN_WIDTH;
     }
 
     @Override
@@ -271,7 +271,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
                         s -> {
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);
+                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
                             schemaHeader.style(AttributedStyle.DEFAULT);
                         });
 

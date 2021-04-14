@@ -120,11 +120,11 @@ SHOW FULL MODULES;
 
 # use hive built-in function after loading hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
-+----+----------------------+
-| op |               EXPR$0 |
-+----+----------------------+
-| +I |           www.apache |
-+----+----------------------+
++----+--------------------------------+
+| op |                         EXPR$0 |
++----+--------------------------------+
+| +I |                     www.apache |
++----+--------------------------------+
 Received a total of 1 row
 !ok
 

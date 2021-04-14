@@ -49,17 +49,17 @@ INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), 
 !info
 
 SELECT * FROM StreamingTable;
-+----+-------------+----------------------+
-| op |          id |                  str |
-+----+-------------+----------------------+
-| +I |           1 |          Hello World |
-| +I |           2 |                   Hi |
-| +I |           2 |                   Hi |
-| +I |           3 |                Hello |
-| +I |           3 |                World |
-| +I |           4 |                  ADD |
-| +I |           5 |                 LINE |
-+----+-------------+----------------------+
++----+-------------+--------------------------------+
+| op |          id |                            str |
++----+-------------+--------------------------------+
+| +I |           1 |                    Hello World |
+| +I |           2 |                             Hi |
+| +I |           2 |                             Hi |
+| +I |           3 |                          Hello |
+| +I |           3 |                          World |
+| +I |           4 |                            ADD |
+| +I |           5 |                           LINE |
++----+-------------+--------------------------------+
 Received a total of 7 rows
 !ok
 
@@ -89,16 +89,16 @@ INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 
 !info
 
 SELECT * FROM BatchTable;
-+-------------+----------------------+
-|          id |                  str |
-+-------------+----------------------+
-|           1 |          Hello World |
-|           2 |                   Hi |
-|           2 |                   Hi |
-|           3 |                Hello |
-|           3 |                World |
-|           4 |                  ADD |
-|           5 |                 LINE |
-+-------------+----------------------+
++-------------+--------------------------------+
+|          id |                            str |
++-------------+--------------------------------+
+|           1 |                    Hello World |
+|           2 |                             Hi |
+|           2 |                             Hi |
+|           3 |                          Hello |
+|           3 |                          World |
+|           4 |                            ADD |
+|           5 |                           LINE |
++-------------+--------------------------------+
 Received a total of 7 rows
 !ok

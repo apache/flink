@@ -41,8 +41,6 @@ import java.util.stream.Stream;
 /** Print result in tableau mode. */
 public class CliTableauResultView implements AutoCloseable {
 
-    private static final int DEFAULT_COLUMN_WIDTH = 20;
-
     private final Terminal terminal;
     private final Executor sqlExecutor;
     private final String sessionId;
@@ -129,14 +127,14 @@ public class CliTableauResultView implements AutoCloseable {
             colWidths =
                     PrintUtils.columnWidthsByType(
                             columns,
-                            DEFAULT_COLUMN_WIDTH,
+                            PrintUtils.MAX_COLUMN_WIDTH,
                             PrintUtils.NULL_COLUMN,
                             PrintUtils.ROW_KIND_COLUMN);
         } else {
             fieldNames = columns.stream().map(Column::getName).toArray(String[]::new);
             colWidths =
                     PrintUtils.columnWidthsByType(
-                            columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
+                            columns, PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
         }
 
         String borderline = PrintUtils.genBorderLine(colWidths);
