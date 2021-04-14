@@ -315,6 +315,44 @@ revenue.to_pandas()
 0  Jack       30
 ```
 
+Table API 也支持 [行操作]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations)的 API, 这些行操作包括 [Map Operation]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations), 
+[FlatMap Operation]({{< ref "docs/dev/table/tableapi" >}}#flatmap), [Aggregate Operation]({{< ref "docs/dev/table/tableapi" >}}#aggregate) 和 [FlatAggregate Operation]({{< ref "docs/dev/table/tableapi" >}}#flataggregate).
+
+以下示例展示了一个简单的 Table API 基于行操作的查询
+
+```python
+
+# 通过 batch table environment 来执行查询
+from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+import pandas as pd
+
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(env_settings)
+
+orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
+                                 ['name', 'country', 'revenue'])
+
+map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
+                    result_type=DataTypes.ROW(
+                                [DataTypes.FIELD("name", DataTypes.STRING()),
+                                 DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
+                    func_type="pandas")
+
+orders.map(map_function).alias('name', 'revenue').to_pandas()
+
+```
+
+结果为：
+
+```text
+   name  revenue
+0  Jack      100
+1  Rose      300
+2  Jack      200
+```
+
 ### SQL 查询
 
 Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
