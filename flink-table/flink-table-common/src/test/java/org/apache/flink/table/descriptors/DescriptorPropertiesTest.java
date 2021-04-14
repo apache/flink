@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.LogicalTypeParserTest;
-
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
@@ -38,7 +37,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link DescriptorProperties}. */
 public class DescriptorPropertiesTest {
