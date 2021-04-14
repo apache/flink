@@ -785,7 +785,7 @@ public class HiveCatalog extends AbstractCatalog {
                                         || e.getKey().equals(CatalogPropertiesUtil.IS_GENERIC))
                 .collect(
                         Collectors.toMap(
-                                e -> e.getKey().replace(FLINK_PROPERTY_PREFIX, ""),
+                                e -> e.getKey().replaceFirst(FLINK_PROPERTY_PREFIX, ""),
                                 e -> e.getValue()));
     }
 
