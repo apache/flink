@@ -1516,7 +1516,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 //   execution.
 
                 log.debug(
-                        "Discard offer slot response since there is a newer offer for the job {}.",
+                        "Discard slot offer response since there is a newer offer for the job {}.",
                         jobId);
                 return;
             }
@@ -1571,7 +1571,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 } else {
                     // discard the response since there is a new leader for the job
                     log.debug(
-                            "Discard offer slot response since there is a new leader "
+                            "Discard slot offer response since there is a new leader "
                                     + "for the job {}.",
                             jobId);
                 }
