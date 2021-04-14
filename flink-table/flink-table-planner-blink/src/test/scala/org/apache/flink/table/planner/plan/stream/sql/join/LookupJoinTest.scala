@@ -466,6 +466,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
+  @Test
+  def testJoinTemporalTableWithMultiConditionOnSameDimField(): Unit = {
+    val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {
