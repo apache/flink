@@ -2153,10 +2153,11 @@ The row-based operations generate outputs with multiple columns.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
-
 {{< tabs "map" >}}
 {{< tab "Java" >}}
+
+Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+
 ```java
 public class MyMapFunction extends ScalarFunction {
     public Row eval(String a) {
@@ -2177,6 +2178,9 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+
 ```scala
 class MyMapFunction extends ScalarFunction {
   def eval(a: String): Row = {
@@ -2193,7 +2197,32 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a map operation with a python [general scalar function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions). The output will be flattened if the output type is a composite type.
+
+```python
+from pyflink.common import Row
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+def map_function(a: Row) -> Row:
+    return Row(a[0] + 1, a[1] * a[1])
+
+# map operation with a python general scalar function
+func = udf(map_function, result_type=DataTypes.ROW(
+                                     [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                      DataTypes.FIELD("b", DataTypes.BIGINT()))]))
+table = input.map(map_function).alias('a', 'b')
+
+# map operation with a python vectorized scalar function
+pandas_func = udf(lambda x: x * 2, result_type=DataTypes.ROW(
+                                                    [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                                    DataTypes.FIELD("b", DataTypes.BIGINT()))]),
+                  func_type='pandas')
+
+table = input.map(pandas_func).alias('a', 'b')
+```
+
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2201,10 +2230,11 @@ Currently not supported in Python Table API.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Performs a `flatMap` operation with a table function.
-
 {{< tabs "flatmap" >}}
 {{< tab "Java" >}}
+
+Performs a `flatMap` operation with a table function.
+
 ```java
 public class MyFlatMapFunction extends TableFunction<Row> {
 
@@ -2231,6 +2261,9 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs a `flatMap` operation with a python table function.
+
 ```scala
 class MyFlatMapFunction extends TableFunction[Row] {
   def eval(str: String): Unit = {
@@ -2255,7 +2288,21 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions).
+
+```python
+from pyflink.table.udf import udtf
+from pyflink.table import DataTypes
+from pyflink.common import Row
+
+@udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+def split(x: Row) -> Row:
+    for s in x[1].split(","):
+        yield x[0], s
+
+input.flat_map(split)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2263,10 +2310,11 @@ Currently not supported in Python Table API.
 
 {{< label Batch >}} {{< label Streaming >}} {{< label Result Updating >}}
 
-Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
-
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
+
+Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
 ```java
 public class MyMinMaxAcc {
     public int min = 0;
@@ -2314,6 +2362,9 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
 
@@ -2352,7 +2403,70 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs an aggregate operation with a python [general aggregate function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions). You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
+```python
+from pyflink.common import Row
+from pyflink.table import DataTypes
+from pyflink.table.udf import AggregateFunction, udaf
+
+class CountAndSumAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
+        from pyflink.common import Row
+        return Row(accumulator[0], accumulator[1])
+
+    def create_accumulator(self):
+        from pyflink.common import Row
+        return Row(0, 0)
+
+    def accumulate(self, accumulator, *args):
+        accumulator[0] += 1
+        accumulator[1] += args[0][1]
+
+    def retract(self, accumulator, *args):
+        accumulator[0] -= 1
+        accumulator[1] -= args[0][1]
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            accumulator[0] += other_acc[0]
+            accumulator[1] += other_acc[1]
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())])
+
+function = CountAndSumAggregateFunction()
+agg = udaf(function,
+           result_type=function.get_result_type(),
+           accumulator_type=function.get_accumulator_type(),
+           name=str(function.__class__.__name__))
+
+# aggregate with a python general aggregate function
+result = t.group_by(t.a) \
+    .aggregate(agg.alias("c", "d")) \
+    .select("a, c, d")
+    
+# aggregate with a python vectorized aggregate function
+pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
+                   result_type=DataTypes.ROW(
+                       [DataTypes.FIELD("a", DataTypes.FLOAT()),
+                        DataTypes.FIELD("b", DataTypes.INT())]),
+                   func_type="pandas")
+t.select(t.b) \
+    .aggregate(pandas_udaf.alias("a", "b")) \
+    .select("a, b")
+
+```
+
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2388,18 +2502,37 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import AggregateFunction, udaf
+
+pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
+                   result_type=DataTypes.ROW(
+                       [DataTypes.FIELD("a", DataTypes.FLOAT()),
+                        DataTypes.FIELD("b", DataTypes.INT())]),
+                   func_type="pandas")
+tumble_window = Tumble.over(expr.lit(1).hours) \
+    .on(expr.col("rowtime")) \
+    .alias("w")
+t.select(t.b, t.rowtime) \
+    .window(tumble_window) \
+    .group_by("w") \
+    .aggregate(pandas_udaf.alias("d", "e")) \
+    .select("w.rowtime, d, e")
+```
 {{< /tab >}}
 {{< /tabs >}}
 
 #### FlatAggregate
 
+{{< tabs "flataggregate" >}}
+{{< tab "Java" >}}
+
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
 Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
 
-{{< tabs "flataggregate" >}}
-{{< tab "Java" >}}
 ```java
 /**
  * Accumulator for Top2.
@@ -2459,6 +2592,11 @@ Table result = orders
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
+
+Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+
 ```scala
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -2522,7 +2660,61 @@ val result = orders
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a flat_aggregate operation with a python general [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions)
+
+Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flat_aggregate" with a select statement. And the select statement does not support aggregate functions.
+
+```python
+from pyflink.common import Row
+from pyflink.table.udf import TableAggregateFunction, udtaf
+from pyflink.table import DataTypes
+
+class Top2(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        yield Row(accumulator[0])
+        yield Row(accumulator[1])
+
+    def create_accumulator(self):
+        return [None, None]
+
+    def accumulate(self, accumulator, *args):
+        if args[0][0] is not None:
+            if accumulator[0] is None or args[0][0] > accumulator[0]:
+                accumulator[1] = accumulator[0]
+                accumulator[0] = args[0][0]
+            elif accumulator[1] is None or args[0][0] > accumulator[1]:
+                accumulator[1] = args[0][0]
+
+    def retract(self, accumulator, *args):
+        accumulator[0] = accumulator[0] - 1
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            self.accumulate(accumulator, other_acc[0])
+            self.accumulate(accumulator, other_acc[1])
+
+    def get_accumulator_type(self):
+        return DataTypes.ARRAY(DataTypes.BIGINT())
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+
+mytop = udtaf(Top2())
+t = t_env.from_elements([(1, 'Hi', 'Hello'),
+                              (3, 'Hi', 'hi'),
+                              (5, 'Hi2', 'hi'),
+                              (7, 'Hi', 'Hello'),
+                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+result = t.select(t.a, t.c) \
+    .group_by(t.c) \
+    .flat_aggregate(mytop) \
+    .select(t.a) \
+    .flat_aggregate(mytop.alias("b"))
+
+```
 {{< /tab >}}
 {{< /tabs >}}
 
