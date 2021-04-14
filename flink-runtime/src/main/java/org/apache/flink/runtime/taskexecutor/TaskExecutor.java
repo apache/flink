@@ -1498,7 +1498,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             UUID offerId) {
         return (Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
             // check if this is the latest offer
-            if (offerId != currentSlotOfferPerJob.get(jobId)) {
+            if (!offerId.equals(currentSlotOfferPerJob.get(jobId))) {
                 // If this offer is outdated then it can be safely ignored.
                 // If the response for a given slot is identical in both offers (accepted/rejected),
                 // then this is naturally the case since the end-result is the same.
