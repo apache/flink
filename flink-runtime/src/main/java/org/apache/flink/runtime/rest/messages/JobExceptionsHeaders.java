@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
@@ -78,8 +78,8 @@ public class JobExceptionsHeaders
                         + "out through the GET parameter. The backend collects only a specific amount "
                         + "of most recent exceptions per job. This can be configured through %s in the "
                         + "Flink configuration. The following first-level members are deprecated: "
-                        + "'root-exception', 'timestamp', 'timestamp', 'truncated'. Use the data provided "
+                        + "'root-exception', 'timestamp', 'all-exceptions', and 'truncated'. Use the data provided "
                         + "through 'exceptionHistory', instead.",
-                JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE.key());
+                WebOptions.MAX_EXCEPTION_HISTORY_SIZE.key());
     }
 }

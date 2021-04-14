@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -1130,7 +1130,7 @@ public class DefaultSchedulerTest extends TestLogger {
     public void testExceptionHistoryTruncation() {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
 
-        configuration.set(JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE, 1);
+        configuration.set(WebOptions.MAX_EXCEPTION_HISTORY_SIZE, 1);
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
         final ExecutionAttemptID attemptId0 =
