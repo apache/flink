@@ -1234,9 +1234,11 @@ public class TaskExecutorTest extends TestLogger {
     @Test
     public void testFreeingInactiveSlotDoesNotFail() throws Exception {
         final OneShotLatch taskExecutorIsRegistered = new OneShotLatch();
+        final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture =
+                new CompletableFuture<>();
         final TestingResourceManagerGateway resourceManagerGateway =
                 createRmWithTmRegisterAndNotifySlotHooks(
-                        new InstanceID(), taskExecutorIsRegistered, new CompletableFuture<>());
+                        new InstanceID(), taskExecutorIsRegistered, availableSlotFuture);
 
         rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 
@@ -1264,6 +1266,10 @@ public class TaskExecutorTest extends TestLogger {
 
         final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
 
+        final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable =
+                new ThreadSafeTaskSlotTable<>(
+                        taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
+
         try {
             taskExecutor.start();
             taskExecutor.waitUntilStarted();
@@ -1289,6 +1295,9 @@ public class TaskExecutorTest extends TestLogger {
             offerSlotsLatch.await();
 
             tmGateway.freeSlot(allocationId, new RuntimeException("test exception"), timeout).get();
+
+            assertThat(availableSlotFuture.get().f2, is(allocationId));
+            assertThat(threadSafeTaskSlotTable.getAllocationIdsPerJob(jobId), empty());
         } finally {
             RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
         }
