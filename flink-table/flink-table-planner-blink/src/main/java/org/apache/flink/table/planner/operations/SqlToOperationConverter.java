@@ -381,7 +381,11 @@ public class SqlToOperationConverter {
             SqlTableConstraint constraint =
                     ((SqlAlterTableAddConstraint) sqlAlterTable).getConstraint();
             validateTableConstraint(constraint);
-            TableSchema oriSchema = baseTable.getSchema();
+            TableSchema oriSchema =
+                    TableSchema.fromResolvedSchema(
+                            baseTable
+                                    .getUnresolvedSchema()
+                                    .resolve(catalogManager.getSchemaResolver()));
             // Sanity check for constraint.
             TableSchema.Builder builder = TableSchemaUtils.builderWithGivenSchema(oriSchema);
             if (constraint.getConstraintName().isPresent()) {
@@ -399,7 +403,11 @@ public class SqlToOperationConverter {
             SqlAlterTableDropConstraint dropConstraint =
                     ((SqlAlterTableDropConstraint) sqlAlterTable);
             String constraintName = dropConstraint.getConstraintName().getSimple();
-            TableSchema oriSchema = baseTable.getSchema();
+            TableSchema oriSchema =
+                    TableSchema.fromResolvedSchema(
+                            baseTable
+                                    .getUnresolvedSchema()
+                                    .resolve(catalogManager.getSchemaResolver()));
             if (!oriSchema
                     .getPrimaryKey()
                     .filter(pk -> pk.getName().equals(constraintName))

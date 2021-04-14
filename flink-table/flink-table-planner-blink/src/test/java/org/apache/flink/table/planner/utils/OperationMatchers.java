@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
@@ -115,18 +116,17 @@ public class OperationMatchers {
     }
 
     /**
-     * Checks that the schema of {@link CreateTableOperation} is equal to the given {@link
-     * TableSchema}.
+     * Checks that the schema of {@link CreateTableOperation} is equal to the given {@link Schema}.
      *
      * @param schema TableSchema that the {@link CreateTableOperation} should have
      * @see #isCreateTableOperation(Matcher[])
      */
-    public static Matcher<CreateTableOperation> withSchema(TableSchema schema) {
-        return new FeatureMatcher<CreateTableOperation, TableSchema>(
-                equalTo(schema), "table schema of the derived table", "table schema") {
+    public static Matcher<CreateTableOperation> withSchema(Schema schema) {
+        return new FeatureMatcher<CreateTableOperation, Schema>(
+                equalTo(schema), "schema of the derived table", "schema") {
             @Override
-            protected TableSchema featureValueOf(CreateTableOperation actual) {
-                return actual.getCatalogTable().getSchema();
+            protected Schema featureValueOf(CreateTableOperation actual) {
+                return actual.getCatalogTable().getUnresolvedSchema();
             }
         };
     }
