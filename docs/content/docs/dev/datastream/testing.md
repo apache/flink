@@ -442,6 +442,16 @@ public class ExampleIntegrationTest {
                  .setNumberTaskManagers(1)
                  .build());
 
+    @Before
+    public void init() {
+        flinkCluster.before();
+    }
+
+    @After
+    public void tearDown() {
+        flinkCluster.after();
+    }
+
     @Test
     public void testIncrementPipeline() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
