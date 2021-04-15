@@ -754,11 +754,10 @@ class InternalSynchronousMapRuntimeState(object):
     def contains(self, map_key):
         if self._is_empty:
             return False
-        try:
-            self.get(map_key)
-            return True
-        except KeyError:
+        if self.get(map_key) is None:
             return False
+        else:
+            return True
 
     def is_empty(self):
         if self._is_empty is None:
