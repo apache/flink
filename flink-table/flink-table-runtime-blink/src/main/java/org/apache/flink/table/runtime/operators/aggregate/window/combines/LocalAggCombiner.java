@@ -19,14 +19,13 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.UnsupportedStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.util.Collector;
 
@@ -35,18 +34,15 @@ import java.util.Iterator;
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 
 /**
- * An implementation of {@link WindowCombineFunction} that accumulates input records into local
+ * An implementation of {@link RecordsCombiner} that accumulates input records into local
  * accumulators.
  *
  * <p>Note: this only supports event-time window.
  */
-public final class LocalAggRecordsCombiner implements WindowCombineFunction {
+public class LocalAggCombiner implements RecordsCombiner {
 
     /** Function used to handle all aggregates. */
     private final NamespaceAggsHandleFunction<Long> aggregator;
-
-    /** Serializer to copy key if required. */
-    private final TypeSerializer<RowData> keySerializer;
 
     /** The output to emit combined accumulator result. */
     private final Collector<RowData> collector;
@@ -63,19 +59,16 @@ public final class LocalAggRecordsCombiner implements WindowCombineFunction {
      */
     private final GenericRowData windowRow = new GenericRowData(1);
 
-    public LocalAggRecordsCombiner(
-            NamespaceAggsHandleFunction<Long> aggregator,
-            TypeSerializer<RowData> keySerializer,
-            Collector<RowData> collector) {
+    public LocalAggCombiner(
+            NamespaceAggsHandleFunction<Long> aggregator, Collector<RowData> collector) {
         this.aggregator = aggregator;
-        this.keySerializer = keySerializer;
         this.collector = collector;
     }
 
     @Override
     public void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception {
-        // always copy key because we will merge record into memory acc
-        final RowData key = keySerializer.copy(windowKey.getKey());
+        // always not copy key/value because they are not cached.
+        final RowData key = windowKey.getKey();
         final Long window = windowKey.getWindow();
 
         // step 1: create an empty accumulator
@@ -116,28 +109,24 @@ public final class LocalAggRecordsCombiner implements WindowCombineFunction {
     // Factory
     // ----------------------------------------------------------------------------------------
 
-    /** Factory to create {@link LocalAggRecordsCombiner}. */
-    public static final class Factory implements WindowCombineFunction.LocalFactory {
+    /** Factory to create {@link LocalAggCombiner}. */
+    public static final class Factory implements RecordsCombiner.LocalFactory {
 
         private static final long serialVersionUID = 1L;
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
-        private final TypeSerializer<RowData> keySerializer;
 
-        public Factory(
-                GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
-                TypeSerializer<RowData> keySerializer) {
+        public Factory(GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler) {
             this.genAggsHandler = genAggsHandler;
-            this.keySerializer = keySerializer;
         }
 
         @Override
-        public WindowCombineFunction create(
+        public RecordsCombiner createRecordsCombiner(
                 RuntimeContext runtimeContext, Collector<RowData> collector) throws Exception {
             final NamespaceAggsHandleFunction<Long> aggregator =
                     genAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
             aggregator.open(new UnsupportedStateDataViewStore(runtimeContext));
-            return new LocalAggRecordsCombiner(aggregator, keySerializer, collector);
+            return new LocalAggCombiner(aggregator, collector);
         }
     }
 }

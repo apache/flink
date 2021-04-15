@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.Records
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.window.combines.TopNRecordsCombiner;
 import org.apache.flink.table.runtime.operators.rank.window.processors.WindowRankProcessor;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
@@ -136,22 +136,17 @@ public class WindowRankOperatorBuilder {
                 windowEndIndex >= 0,
                 String.format(
                         "Illegal window end index %s, it should not be negative!", windowEndIndex));
-        final WindowBuffer.Factory bufferFactory =
-                new RecordsWindowBuffer.Factory(keySerializer, inputSerializer);
-        final WindowCombineFunction.Factory combinerFactory =
+        final RecordsCombiner.Factory combinerFactory =
                 new TopNRecordsCombiner.Factory(
-                        generatedSortKeyComparator,
-                        sortKeySelector,
-                        keySerializer,
-                        inputSerializer,
-                        rankEnd);
+                        generatedSortKeyComparator, sortKeySelector, inputSerializer, rankEnd);
+        final WindowBuffer.Factory bufferFactory =
+                new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
         final SlicingWindowProcessor<Long> windowProcessor =
                 new WindowRankProcessor(
                         inputSerializer,
                         generatedSortKeyComparator,
                         sortKeySelector.getProducedType().toSerializer(),
                         bufferFactory,
-                        combinerFactory,
                         rankStart,
                         rankEnd,
                         outputRankNumber,

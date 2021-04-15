@@ -253,7 +253,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
                 expected.add(entry.copy());
             }
         }
-        KeyValueIterator<K, BinaryRowData> iter = table.getEntryIterator();
+        KeyValueIterator<K, BinaryRowData> iter = table.getEntryIterator(false);
         while (iter.advanceNext()) {
             actualKeys.add(keySerializer.copy(iter.getKey()));
             actualValues.add(iter.getValue().copy());

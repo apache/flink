@@ -30,7 +30,6 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
@@ -59,7 +58,6 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
     private final TypeSerializer<RowData> sortKeySerializer;
 
     private final WindowBuffer.Factory bufferFactory;
-    private final WindowCombineFunction.Factory combineFactory;
     private final TypeSerializer<RowData> inputSerializer;
     private final long rankStart;
     private final long rankEnd;
@@ -88,7 +86,6 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
             GeneratedRecordComparator genSortKeyComparator,
             TypeSerializer<RowData> sortKeySerializer,
             WindowBuffer.Factory bufferFactory,
-            WindowCombineFunction.Factory combineFactory,
             long rankStart,
             long rankEnd,
             boolean outputRankNumber,
@@ -98,7 +95,6 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.generatedSortKeyComparator = genSortKeyComparator;
         this.sortKeySerializer = sortKeySerializer;
         this.bufferFactory = bufferFactory;
-        this.combineFactory = combineFactory;
         this.rankStart = rankStart;
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
@@ -127,19 +123,16 @@ public final class WindowRankProcessor implements SlicingWindowProcessor<Long> {
         this.windowState =
                 new WindowMapState<>(
                         (InternalMapState<RowData, Long, RowData, List<RowData>>) state);
-        final WindowCombineFunction combineFunction =
-                combineFactory.create(
-                        ctx.getRuntimeContext(),
-                        windowTimerService,
-                        ctx.getKeyedStateBackend(),
-                        windowState,
-                        true);
         this.windowBuffer =
                 bufferFactory.create(
                         ctx.getOperatorOwner(),
                         ctx.getMemoryManager(),
                         ctx.getMemorySize(),
-                        combineFunction,
+                        ctx.getRuntimeContext(),
+                        windowTimerService,
+                        ctx.getKeyedStateBackend(),
+                        windowState,
+                        true,
                         shiftTimeZone);
 
         this.reuseOutput = new JoinedRowData();
