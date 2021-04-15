@@ -114,8 +114,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final long rootCauseTimestamp = System.currentTimeMillis();
 
         final ExecutionGraphInfo executionGraphInfo =
-                createExecutionGraphInfo(
-                        RootExceptionHistoryEntry.fromGlobalFailure(rootCause, rootCauseTimestamp));
+                createExecutionGraphInfo(fromGlobalFailure(rootCause, rootCauseTimestamp));
         final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
                 createRequest(executionGraphInfo.getJobId(), 10);
         final JobExceptionsInfoWithHistory response =
@@ -134,14 +133,14 @@ public class JobExceptionsHandlerTest extends TestLogger {
     @Test
     public void testWithExceptionHistory() throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =
-                RootExceptionHistoryEntry.fromGlobalFailure(
-                        new RuntimeException("exception #0"), System.currentTimeMillis());
+                fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
         final RootExceptionHistoryEntry otherFailure =
-                RootExceptionHistoryEntry.fromLocalFailure(
+                new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
                         "task name",
-                        new LocalTaskManagerLocation());
+                        new LocalTaskManagerLocation(),
+                        Collections.emptySet());
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
@@ -168,14 +167,14 @@ public class JobExceptionsHandlerTest extends TestLogger {
     public void testWithExceptionHistoryWithTruncationThroughParameter()
             throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =
-                RootExceptionHistoryEntry.fromGlobalFailure(
-                        new RuntimeException("exception #0"), System.currentTimeMillis());
+                fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
         final RootExceptionHistoryEntry otherFailure =
-                RootExceptionHistoryEntry.fromLocalFailure(
+                new RootExceptionHistoryEntry(
                         new RuntimeException("exception #1"),
                         System.currentTimeMillis(),
                         "task name",
-                        new LocalTaskManagerLocation());
+                        new LocalTaskManagerLocation(),
+                        Collections.emptySet());
 
         final ExecutionGraphInfo executionGraphInfo =
                 createExecutionGraphInfo(rootCause, otherFailure);
@@ -264,11 +263,12 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final long failureTimestamp = System.currentTimeMillis();
         final List<RootExceptionHistoryEntry> exceptionHistory =
                 Collections.singletonList(
-                        RootExceptionHistoryEntry.fromLocalFailure(
+                        new RootExceptionHistoryEntry(
                                 failureCause,
                                 failureTimestamp,
                                 "test task #1",
-                                new LocalTaskManagerLocation()));
+                                new LocalTaskManagerLocation(),
+                                Collections.emptySet()));
         return new ExecutionGraphInfo(
                 new ArchivedExecutionGraphBuilder()
                         .setFailureCause(new ErrorInfo(failureCause, failureTimestamp))
@@ -355,6 +355,10 @@ public class JobExceptionsHandlerTest extends TestLogger {
                 new JobExceptionsMessageParameters(),
                 pathParameters,
                 queryParameters);
+    }
+
+    private static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
+        return new RootExceptionHistoryEntry(cause, timestamp, null, null, Collections.emptySet());
     }
 
     // -------- factory methods for instantiating new Matchers --------

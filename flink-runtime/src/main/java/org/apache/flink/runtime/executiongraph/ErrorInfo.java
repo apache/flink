@@ -49,12 +49,20 @@ public class ErrorInfo implements Serializable {
      */
     public static ErrorInfo createErrorInfoWithNullableCause(
             @Nullable Throwable exception, long timestamp) {
-        return new ErrorInfo(
-                exception != null
-                        ? exception
-                        : new FlinkException(
-                                "Unknown cause for Execution failure (this might be caused by FLINK-21376)."),
-                timestamp);
+        return new ErrorInfo(handleMissingThrowable(exception), timestamp);
+    }
+
+    /**
+     * Utility method to cover FLINK-21376.
+     *
+     * @param throwable The actual exception.
+     * @return a {@link FlinkException} if no exception was passed.
+     */
+    public static Throwable handleMissingThrowable(@Nullable Throwable throwable) {
+        return throwable != null
+                ? throwable
+                : new FlinkException(
+                        "Unknown cause for Execution failure (this might be caused by FLINK-21376).");
     }
 
     public ErrorInfo(@Nonnull Throwable exception, long timestamp) {

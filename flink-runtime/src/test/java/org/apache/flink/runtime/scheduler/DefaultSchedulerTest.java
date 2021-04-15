@@ -1207,15 +1207,14 @@ public class DefaultSchedulerTest extends TestLogger {
                                 executionVertex1.getCurrentAssignedResourceLocation())));
 
         final RootExceptionHistoryEntry entry1 = actualExceptionHistory.next();
-        assertThat(entry1.getConcurrentExceptions(), IsEmptyIterable.emptyIterable());
-        FlinkException expectedFailure =
-                new FlinkException(
-                        "This is a workaround for FLINK-22276: The actual failure was cleaned up already.");
         assertThat(
-                entry1.getException()
-                        .deserializeError(ClassLoader.getSystemClassLoader())
-                        .getMessage(),
-                is(expectedFailure.getMessage()));
+                entry1,
+                is(
+                        ExceptionHistoryEntryMatcher.matchesFailure(
+                                exception1,
+                                updateStateTriggeringRestartTimestamp1,
+                                executionVertex1.getTaskNameWithSubtaskIndex(),
+                                executionVertex1.getCurrentAssignedResourceLocation())));
         assertThat(entry1.getConcurrentExceptions(), IsEmptyIterable.emptyIterable());
     }
 
