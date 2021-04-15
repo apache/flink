@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -220,10 +221,6 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
         super.open(configuration);
         xidGenerator.open();
         xaFacade.open();
-        outputFormat.setRuntimeContext(getRuntimeContext());
-        outputFormat.open(
-                getRuntimeContext().getIndexOfThisSubtask(),
-                getRuntimeContext().getNumberOfParallelSubtasks());
         hangingXids = new LinkedList<>(xaGroupOps.failOrRollback(hangingXids).getForRetry());
         commitUpToCheckpoint(Optional.empty());
         if (options.isDiscoverAndRollbackOnRecovery()) {
@@ -234,6 +231,11 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
             xaGroupOps.recoverAndRollback();
         }
         beginTx(0L);
+        outputFormat.setRuntimeContext(getRuntimeContext());
+        // open format only after starting the transaction so it gets a ready to  use connection
+        outputFormat.open(
+                getRuntimeContext().getIndexOfThisSubtask(),
+                getRuntimeContext().getNumberOfParallelSubtasks());
     }
 
     @Override
@@ -264,7 +266,7 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
         if (currentXid != null && xaFacade.isOpen()) {
             try {
                 LOG.debug("remove current transaction before closing, xid={}", currentXid);
-                xaFacade.failOrRollback(currentXid);
+                xaFacade.failAndRollback(currentXid);
             } catch (Exception e) {
                 LOG.warn("unable to fail/rollback current transaction, xid={}", currentXid, e);
             }
@@ -292,16 +294,22 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                     "empty XA transaction (skip), xid: {}, checkpoint {}",
                     currentXid,
                     checkpointId);
+        } catch (Exception e) {
+            ExceptionUtils.rethrowIOException(e);
         }
         currentXid = null;
     }
 
     /** @param checkpointId to associate with the new transaction. */
-    private void beginTx(long checkpointId) {
+    private void beginTx(long checkpointId) throws Exception {
         Preconditions.checkState(currentXid == null, "currentXid not null");
         currentXid = xidGenerator.generateXid(getRuntimeContext(), checkpointId);
         hangingXids.offerLast(currentXid);
         xaFacade.start(currentXid);
+        if (checkpointId > 0) {
+            // associate outputFormat with a new connection that might have been opened in start()
+            outputFormat.updateExecutor(false);
+        }
     }
 
     private void commitUpToCheckpoint(Optional<Long> checkpointInclusive) {
