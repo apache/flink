@@ -28,8 +28,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,32 +67,8 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
             throws IOException {
         List<HiveSourceSplit> hiveSplits = new ArrayList<>();
         for (HiveTablePartition partition : partitions) {
-            StorageDescriptor sd = partition.getStorageDescriptor();
-            org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
-            FileSystem fs = inputPath.getFileSystem(jobConf);
-            // it's possible a partition exists in metastore but the data has been removed
-            if (!fs.exists(inputPath)) {
-                continue;
-            }
-            InputFormat format;
-            try {
-                format =
-                        (InputFormat)
-                                Class.forName(
-                                                sd.getInputFormat(),
-                                                true,
-                                                Thread.currentThread().getContextClassLoader())
-                                        .newInstance();
-            } catch (Exception e) {
-                throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
-            }
-            ReflectionUtils.setConf(format, jobConf);
-            jobConf.set(INPUT_DIR, sd.getLocation());
-            // TODO: we should consider how to calculate the splits according to minNumSplits in the
-            // future.
-            org.apache.hadoop.mapred.InputSplit[] splitArray =
-                    format.getSplits(jobConf, minNumSplits);
-            for (org.apache.hadoop.mapred.InputSplit inputSplit : splitArray) {
+            for (InputSplit inputSplit :
+                    createMRSplits(minNumSplits, partition.getStorageDescriptor(), jobConf)) {
                 Preconditions.checkState(
                         inputSplit instanceof FileSplit,
                         "Unsupported InputSplit type: " + inputSplit.getClass().getName());
@@ -99,6 +77,34 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         }
 
         return hiveSplits;
+    }
+
+    public static InputSplit[] createMRSplits(
+            int minNumSplits, StorageDescriptor sd, JobConf jobConf) throws IOException {
+        org.apache.hadoop.fs.Path inputPath = new org.apache.hadoop.fs.Path(sd.getLocation());
+        FileSystem fs = inputPath.getFileSystem(jobConf);
+        // it's possible a partition exists in metastore but the data has been removed
+        if (!fs.exists(inputPath)) {
+            return new InputSplit[0];
+        }
+        InputFormat format;
+        try {
+            format =
+                    (InputFormat)
+                            Class.forName(
+                                            sd.getInputFormat(),
+                                            true,
+                                            Thread.currentThread().getContextClassLoader())
+                                    .newInstance();
+        } catch (Exception e) {
+            throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
+        }
+        ReflectionUtils.setConf(format, jobConf);
+        // need to escape comma in the location path
+        jobConf.set(INPUT_DIR, StringUtils.escapeString(sd.getLocation()));
+        // TODO: we should consider how to calculate the splits according to minNumSplits in the
+        // future.
+        return format.getSplits(jobConf, minNumSplits);
     }
 
     public static int getNumFiles(List<HiveTablePartition> partitions, JobConf jobConf)

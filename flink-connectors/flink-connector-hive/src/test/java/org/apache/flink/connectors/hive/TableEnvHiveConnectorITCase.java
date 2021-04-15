@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,8 +41,11 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -66,6 +70,8 @@ public class TableEnvHiveConnectorITCase {
                 HiveMetastoreClientFactory.create(
                         hiveCatalog.getHiveConf(), HiveShimLoader.getHiveVersion());
     }
+
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test
     public void testDefaultPartitionName() throws Exception {
@@ -439,6 +445,47 @@ public class TableEnvHiveConnectorITCase {
         } finally {
             tableEnv.executeSql("drop table src");
             tableEnv.executeSql("drop table dest");
+        }
+    }
+
+    @Test
+    public void testLocationWithComma() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        File location = tempFolder.newFolder(",tbl1,location,");
+        try {
+            // test table location
+            tableEnv.executeSql(
+                    String.format(
+                            "create table tbl1 (x int) location '%s'", location.getAbsolutePath()));
+            tableEnv.executeSql("insert into tbl1 values (1),(2)").await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl1").collect());
+            assertEquals("[+I[1], +I[2]]", results.toString());
+            // test partition location
+            tableEnv.executeSql("create table tbl2 (x int) partitioned by (p string)");
+            location = tempFolder.newFolder(",");
+            tableEnv.executeSql(
+                    String.format(
+                            "alter table tbl2 add partition (p='a') location '%s'",
+                            location.getAbsolutePath()));
+            tableEnv.executeSql("insert into tbl2 partition (p='a') values (1),(2)").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl2").collect());
+            assertEquals("[+I[1, a], +I[2, a]]", results.toString());
+
+            tableEnv.executeSql("insert into tbl2 partition (p) values (3,'b ,')").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl2 where p='b ,'").collect());
+            assertEquals("[+I[3, b ,]]", results.toString());
+        } finally {
+            if (location != null) {
+                IOUtils.deleteFileQuietly(location.toPath());
+            }
+            tableEnv.executeSql("drop table if exists tbl1");
+            tableEnv.executeSql("drop table if exists tbl2");
         }
     }
 
