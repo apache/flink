@@ -148,7 +148,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final long timestamp = System.currentTimeMillis();
 
         final CheckpointMetaData checkpointMetaData =
-                new CheckpointMetaData(checkpointId, timestamp);
+                new CheckpointMetaData(checkpointId, timestamp, timestamp);
 
         super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
     }
