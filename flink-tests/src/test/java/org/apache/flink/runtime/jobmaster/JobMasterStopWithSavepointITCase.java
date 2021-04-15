@@ -377,6 +377,11 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
             return CompletableFuture.completedFuture(null);
         }
+
+        @Override
+        protected void finishTask() {
+            mailboxProcessor.allActionsCompleted();
+        }
     }
 
     /** A {@link StreamTask} that simply waits to be terminated normally. */
