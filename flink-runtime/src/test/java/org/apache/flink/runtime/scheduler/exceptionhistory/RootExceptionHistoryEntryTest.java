@@ -28,29 +28,27 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertThat;
 
-/** {@code ExceptionHistoryEntryExtractorTest} tests {@link ExceptionHistoryEntryExtractor}. */
-public class ExceptionHistoryEntryExtractorTest extends TestLogger {
-
-    private final ExceptionHistoryEntryExtractor testInstance =
-            new ExceptionHistoryEntryExtractor();
+/**
+ * {@code RootExceptionHistoryEntryTest} tests the creation of {@link RootExceptionHistoryEntry}.
+ */
+public class RootExceptionHistoryEntryTest extends TestLogger {
 
     private ExecutionGraph executionGraph;
 
@@ -64,65 +62,8 @@ public class ExceptionHistoryEntryExtractorTest extends TestLogger {
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrongExecutionVertexIdOfFailingVertex() {
-        testInstance.extractLocalFailure(
-                executionGraph.getAllVertices(),
-                new ExecutionVertexID(new JobVertexID(), 0),
-                Collections.emptyList());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrongSubtaskIndexOfFailingVertex() {
-        final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
-        triggerFailure(rootExecutionVertex, new RuntimeException("Expected root cause"));
-        testInstance.extractLocalFailure(
-                executionGraph.getAllVertices(),
-                new ExecutionVertexID(
-                        rootExecutionVertex.getID().getJobVertexId(), Integer.MAX_VALUE),
-                Collections.emptyList());
-    }
-
-    @Ignore // disabled due to FLINK-22276 workaround in ExceptionHistoryEntryExtractor
-    @Test(expected = IllegalArgumentException.class)
-    public void testRootExecutionVertexIdNotFailed() {
-        final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
-        testInstance.extractLocalFailure(
-                executionGraph.getAllVertices(),
-                rootExecutionVertex.getID(),
-                Collections.emptyList());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrongExecutionVertexIdOfConcurrentlyFailedVertex() {
-        final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
-        triggerFailure(rootExecutionVertex, new RuntimeException("Expected root cause"));
-        testInstance.extractLocalFailure(
-                executionGraph.getAllVertices(),
-                rootExecutionVertex.getID(),
-                Collections.singleton(new ExecutionVertexID(new JobVertexID(), 0)));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrongSubtaskIndexOfConcurrentlyFailedVertex() {
-        final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
-        triggerFailure(rootExecutionVertex, new RuntimeException("Expected root cause"));
-        final ExecutionVertex concurrentlyFailedExecutionVertex = extractExecutionVertex(1);
-        triggerFailure(
-                concurrentlyFailedExecutionVertex,
-                new RuntimeException("Expected concurrent failure"));
-
-        testInstance.extractLocalFailure(
-                executionGraph.getAllVertices(),
-                rootExecutionVertex.getID(),
-                Collections.singleton(
-                        new ExecutionVertexID(
-                                concurrentlyFailedExecutionVertex.getJobvertexId(),
-                                Integer.MAX_VALUE)));
-    }
-
     @Test
-    public void extractLocalFailure() {
+    public void testFromFailureHandlingResultSnapshot() {
         final Throwable rootException = new RuntimeException("Expected root failure");
         final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
         final long rootTimestamp = triggerFailure(rootExecutionVertex, rootException);
@@ -132,15 +73,15 @@ public class ExceptionHistoryEntryExtractorTest extends TestLogger {
         final long concurrentExceptionTimestamp =
                 triggerFailure(concurrentlyFailedExecutionVertex, concurrentException);
 
-        final ExecutionVertex notFailedExecutionVertex = extractExecutionVertex(2);
-
+        final FailureHandlingResultSnapshot snapshot =
+                new FailureHandlingResultSnapshot(
+                        rootExecutionVertex.getCurrentExecutionAttempt(),
+                        rootException,
+                        rootTimestamp,
+                        Collections.singleton(
+                                concurrentlyFailedExecutionVertex.getCurrentExecutionAttempt()));
         final RootExceptionHistoryEntry actualEntry =
-                testInstance.extractLocalFailure(
-                        executionGraph.getAllVertices(),
-                        rootExecutionVertex.getID(),
-                        Arrays.asList(
-                                concurrentlyFailedExecutionVertex.getID(),
-                                notFailedExecutionVertex.getID()));
+                RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(snapshot);
 
         assertThat(
                 actualEntry,
@@ -161,7 +102,7 @@ public class ExceptionHistoryEntryExtractorTest extends TestLogger {
     }
 
     @Test
-    public void extractGlobalFailure() {
+    public void testFromGlobalFailure() {
         final Throwable concurrentException0 =
                 new RuntimeException("Expected concurrent failure #0");
         final ExecutionVertex concurrentlyFailedExecutionVertex0 = extractExecutionVertex(0);
@@ -177,15 +118,21 @@ public class ExceptionHistoryEntryExtractorTest extends TestLogger {
         final Throwable rootCause = new Exception("Expected root failure");
         final long rootTimestamp = System.currentTimeMillis();
         final RootExceptionHistoryEntry actualEntry =
-                testInstance.extractGlobalFailure(
-                        executionGraph.getAllExecutionVertices(), rootCause, rootTimestamp);
+                RootExceptionHistoryEntry.fromGlobalFailure(
+                        rootCause,
+                        rootTimestamp,
+                        StreamSupport.stream(
+                                        executionGraph.getAllExecutionVertices().spliterator(),
+                                        false)
+                                .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                .collect(Collectors.toSet()));
 
         assertThat(
                 actualEntry,
                 ExceptionHistoryEntryMatcher.matchesGlobalFailure(rootCause, rootTimestamp));
         assertThat(
                 actualEntry.getConcurrentExceptions(),
-                IsIterableContainingInOrder.contains(
+                IsIterableContainingInAnyOrder.containsInAnyOrder(
                         ExceptionHistoryEntryMatcher.matchesFailure(
                                 concurrentException0,
                                 concurrentExceptionTimestamp0,
