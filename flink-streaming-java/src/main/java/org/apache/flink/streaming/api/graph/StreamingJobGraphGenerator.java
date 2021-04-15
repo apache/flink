@@ -1313,7 +1313,7 @@ public class StreamingJobGraphGenerator {
                                 .setTolerableCheckpointFailureNumber(
                                         cfg.getTolerableCheckpointFailureNumber())
                                 .setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
-                                .setAlignmentTimeout(cfg.getAlignmentTimeout())
+                                .setAlignmentTimeout(cfg.getAlignmentTimeout().toMillis())
                                 .build(),
                         serializedStateBackend,
                         serializedCheckpointStorage,

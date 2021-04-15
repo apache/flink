@@ -744,7 +744,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
-            env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
+            env.getCheckpointConfig().setAlignmentTimeout(Duration.ofMillis(alignmentTimeout));
             env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout.toMillis());
             env.getCheckpointConfig()
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);

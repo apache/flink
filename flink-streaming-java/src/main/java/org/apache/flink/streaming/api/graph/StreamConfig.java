@@ -46,6 +46,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -459,14 +460,12 @@ public class StreamConfig implements Serializable {
         return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
     }
 
-    public long getAlignmentTimeout() {
-        return config.getLong(
-                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(),
-                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis());
+    public Duration getAlignmentTimeout() {
+        return config.get(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT);
     }
 
-    public void setAlignmentTimeout(long alignmentTimeout) {
-        config.setLong(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(), alignmentTimeout);
+    public void setAlignmentTimeout(Duration alignmentTimeout) {
+        config.set(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT, alignmentTimeout);
     }
 
     public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
