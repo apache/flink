@@ -39,14 +39,24 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
     private final XADataSource xaDataSource;
     private final String table;
     private final String dbUrl;
+    private final String user;
+    private final String pass;
     private final XaFacade xaFacade;
 
     JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, String table) throws Exception {
+        this(xaDataSource, dbUrl, table, "", "");
+    }
+
+    JdbcXaFacadeTestHelper(
+            XADataSource xaDataSource, String dbUrl, String table, String user, String pass)
+            throws Exception {
         this.xaDataSource = xaDataSource;
         this.dbUrl = dbUrl;
         this.table = table;
         this.xaFacade = XaFacadeImpl.fromXaDataSource(this.xaDataSource);
         this.xaFacade.open();
+        this.user = user;
+        this.pass = pass;
     }
 
     void assertPreparedTxCountEquals(int expected) {
@@ -77,7 +87,7 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
 
     private List<Integer> getInsertedIds() throws SQLException {
         List<Integer> dbContents = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection(dbUrl)) {
+        try (Connection connection = DriverManager.getConnection(dbUrl, user, pass)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
             try (Statement st = connection.createStatement()) {

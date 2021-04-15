@@ -87,7 +87,7 @@ class XaGroupOpsImpl implements XaGroupOps {
         }
         for (Xid x : xids) {
             try {
-                xaFacade.failOrRollback(x);
+                xaFacade.failAndRollback(x);
                 result.succeeded(x);
             } catch (TransientXaException e) {
                 LOG.info("unable to fail/rollback transaction, xid={}: {}", x, e.getMessage());
