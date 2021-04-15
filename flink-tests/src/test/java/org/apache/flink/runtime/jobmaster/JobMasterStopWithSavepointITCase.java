@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -313,20 +315,15 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private void waitForJob() throws Exception {
-        for (int i = 0; i < 60; i++) {
-            try {
-                final JobStatus jobStatus =
-                        clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-                assertThat(jobStatus.isGloballyTerminalState(), equalTo(false));
-                if (jobStatus == JobStatus.RUNNING) {
-                    return;
-                }
-            } catch (ExecutionException ignored) {
-                // JobManagerRunner is not yet registered in Dispatcher
-            }
-            Thread.sleep(1000);
-        }
-        throw new AssertionError("Job did not become running within timeout.");
+        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+        JobID jobID = jobGraph.getJobID();
+        CommonTestUtils.waitForAllTaskRunning(
+                () ->
+                        miniClusterResource
+                                .getMiniCluster()
+                                .getExecutionGraph(jobID)
+                                .get(60, TimeUnit.SECONDS),
+                deadline);
     }
 
     /**
