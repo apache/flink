@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -59,7 +59,9 @@ public class SqlCreateHiveView extends SqlCreateView {
         HiveDDLUtils.unescapeProperties(properties);
         originPropList = new SqlNodeList(properties.getList(), properties.getParserPosition());
         // mark it as a hive view
-        properties.add(HiveDDLUtils.toTableOption(CatalogPropertiesUtil.IS_GENERIC, "false", pos));
+        properties.add(
+                HiveDDLUtils.toTableOption(
+                        FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER, pos));
     }
 
     @Override

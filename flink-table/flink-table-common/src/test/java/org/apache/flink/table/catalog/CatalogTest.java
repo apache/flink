@@ -203,12 +203,14 @@ public abstract class CatalogTest {
         CatalogDatabase newDb = createAnotherDb();
         catalog.alterDatabase(db1, newDb, false);
 
-        assertFalse(
+        Map<String, String> mergedProps = new HashMap<>(db.getProperties());
+        mergedProps.putAll(newDb.getProperties());
+
+        assertTrue(
                 catalog.getDatabase(db1)
                         .getProperties()
                         .entrySet()
-                        .containsAll(db.getProperties().entrySet()));
-        CatalogTestUtil.checkEquals(newDb, catalog.getDatabase(db1));
+                        .containsAll(mergedProps.entrySet()));
     }
 
     @Test
