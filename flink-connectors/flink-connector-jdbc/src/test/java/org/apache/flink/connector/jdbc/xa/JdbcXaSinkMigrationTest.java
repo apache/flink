@@ -90,7 +90,9 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
                 new JdbcXaFacadeTestHelper(
                         JdbcXaSinkDerbyTest.derbyXaDs(),
                         getDbMetadata().getUrl(),
-                        JdbcTestFixture.INPUT_TABLE)) {
+                        JdbcTestFixture.INPUT_TABLE,
+                        getDbMetadata().getUser(),
+                        getDbMetadata().getPassword())) {
             h.assertDbContentsEquals(CP0);
         }
     }
@@ -178,7 +180,9 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
                 new JdbcXaFacadeTestHelper(
                         derbyXaDs(),
                         JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl(),
-                        JdbcTestFixture.INPUT_TABLE)) {
+                        JdbcTestFixture.INPUT_TABLE,
+                        JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUser(),
+                        JdbcTestFixture.DERBY_EBOOKSHOP_DB.getPassword())) {
             xa.cancelAllTx();
         }
     }
