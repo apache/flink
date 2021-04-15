@@ -784,7 +784,7 @@ public class RescalingITCase extends TestLogger {
 
         private static final long serialVersionUID = 5273172591283191348L;
 
-        private static volatile CountDownLatch workCompletedLatch = new CountDownLatch(1);
+        private static CountDownLatch workCompletedLatch = new CountDownLatch(1);
 
         private transient ValueState<Integer> counter;
         private transient ValueState<Integer> sum;
@@ -851,7 +851,7 @@ public class RescalingITCase extends TestLogger {
     private static class StateSourceBase extends RichParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 7512206069681177940L;
-        private static volatile CountDownLatch workStartedLatch = new CountDownLatch(1);
+        private static CountDownLatch workStartedLatch = new CountDownLatch(1);
 
         protected volatile int counter = 0;
         protected volatile boolean running = true;
