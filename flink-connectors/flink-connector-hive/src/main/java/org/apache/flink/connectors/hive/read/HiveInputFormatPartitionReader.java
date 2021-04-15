@@ -97,11 +97,13 @@ public class HiveInputFormatPartitionReader
 
     private boolean hasNext() throws IOException {
         if (inputSplits.length > 0) {
-            if (hiveTableInputFormat.reachedEnd() && readingSplitId == inputSplits.length - 1) {
-                return false;
-            } else if (hiveTableInputFormat.reachedEnd()) {
-                readingSplitId++;
-                hiveTableInputFormat.open(inputSplits[readingSplitId]);
+            while (hiveTableInputFormat.reachedEnd()) {
+                if (readingSplitId == inputSplits.length - 1) {
+                    return false;
+                } else {
+                    readingSplitId++;
+                    hiveTableInputFormat.open(inputSplits[readingSplitId]);
+                }
             }
             return true;
         }
