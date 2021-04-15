@@ -2462,9 +2462,8 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
-    public static class FailedSource extends RichParallelSourceFunction<String>
+    private static class FailedSource extends RichParallelSourceFunction<String>
             implements CheckpointedFunction {
-
         private static CountDownLatch runningLatch = null;
 
         private volatile boolean running;
