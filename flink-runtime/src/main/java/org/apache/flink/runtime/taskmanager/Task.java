@@ -1285,7 +1285,8 @@ public class Task
 
         final AbstractInvokable invokable = this.invokable;
         final CheckpointMetaData checkpointMetaData =
-                new CheckpointMetaData(checkpointID, checkpointTimestamp);
+                new CheckpointMetaData(
+                        checkpointID, checkpointTimestamp, System.currentTimeMillis());
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
