@@ -327,9 +327,9 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether Unaligned Checkpoints are forced, despite iteration feedback.
+     * Checks whether unaligned checkpoints are forced, despite iteration feedback.
      *
-     * @return True, if Unaligned Checkpoints are forced, false otherwise.
+     * @return True, if unaligned checkpoints are forced, false otherwise.
      */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
@@ -337,10 +337,10 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether Unaligned Checkpoints are forced, despite currently non-checkpointable
-     * iteration feedback.
+     * Checks whether unaligned checkpoints are forced, despite currently non-checkpointable
+     * iteration feedback or custom partitioners.
      *
-     * @param forceUnalignedCheckpoints The flag to force checkpointing.
+     * @param forceUnalignedCheckpoints The flag to force unaligned checkpoints.
      */
     @PublicEvolving
     public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {

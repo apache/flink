@@ -18,6 +18,7 @@
 from enum import Enum
 from typing import Optional
 
+from pyflink.common import Duration
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
@@ -329,6 +330,51 @@ class CheckpointConfig(object):
         """
         self.enable_unaligned_checkpoints(False)
         return self
+
+    def set_alignment_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+        """
+        Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
+
+        If ``alignment_timeout`` has value equal to ``0``, checkpoints will always start unaligned.
+        If ``alignment_timeout`` has value greater then ``0``, checkpoints will start aligned. If
+        during checkpointing, checkpoint start delay exceeds this ``alignment_timeout``, alignment
+        will timeout and checkpoint will start working as unaligned checkpoint.
+
+        :param alignment_timeout: The duration until the aligned checkpoint will be converted into
+                                  an unaligned checkpoint.
+        """
+        self._j_checkpoint_config.setAlignmentTimeout(alignment_timeout._j_duration)
+        return self
+
+    def get_alignment_timeout(self) -> 'Duration':
+        """
+        Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
+        ``org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT``.
+
+        :return: the alignment timeout.
+        """
+        return Duration(self._j_checkpoint_config.getAlignmentTimeout())
+
+    def set_force_unaligned_checkpoints(
+            self,
+            force_unaligned_checkpoints: bool = True) -> 'CheckpointConfig':
+        """
+        Checks whether unaligned checkpoints are forced, despite currently non-checkpointable
+        iteration feedback or custom partitioners.
+
+        :param force_unaligned_checkpoints: The flag to force unaligned checkpoints.
+        """
+        self._j_checkpoint_config.setForceUnalignedCheckpoints(force_unaligned_checkpoints)
+        return self
+
+    def is_force_unaligned_checkpoints(self) -> 'bool':
+        """
+        Checks whether unaligned checkpoints are forced, despite iteration feedback or custom
+        partitioners.
+
+        :return: True, if unaligned checkpoints are forced, false otherwise.
+        """
+        return self._j_checkpoint_config.isForceUnalignedCheckpoints()
 
 
 class ExternalizedCheckpointCleanup(Enum):
