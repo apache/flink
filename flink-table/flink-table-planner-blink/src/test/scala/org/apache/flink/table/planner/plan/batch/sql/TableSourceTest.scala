@@ -159,7 +159,7 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testTableHint(): Unit = {
+  def testTableHintWithDifferentOptions(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.executeSql(
@@ -191,7 +191,39 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testTableHintWithLogicalTableScanReuse(): Unit = {
+  def testTableHintWithSameOptions(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testTableHintWithDigestReuseForLogicalTableScan(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setBoolean(

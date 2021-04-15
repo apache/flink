@@ -63,7 +63,7 @@ import java.util.List;
  * <p>can. It is the optimizer's responsibility to find these ways, by applying transformation
  * rules.
  *
- * <p>Line 106: {@link #explainTerms} method should consider hints.
+ * <p>CALCITE-4581, Line 106: {@link #explainTerms} method should consider hints.
  */
 public final class LogicalTableScan extends TableScan {
     // ~ Constructors -----------------------------------------------------------
