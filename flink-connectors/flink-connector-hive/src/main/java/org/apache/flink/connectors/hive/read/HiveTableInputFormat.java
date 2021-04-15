@@ -34,9 +34,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.mapred.InputSplit;
@@ -341,23 +338,5 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     @Override
     public InputSplitAssigner getInputSplitAssigner(HiveTableInputSplit[] inputSplits) {
         return new LocatableInputSplitAssigner(inputSplits);
-    }
-
-    public int getNumFiles() throws IOException {
-        int numFiles = 0;
-        FileSystem fs = null;
-        for (HiveTablePartition partition : partitions) {
-            StorageDescriptor sd = partition.getStorageDescriptor();
-            Path inputPath = new Path(sd.getLocation());
-            if (fs == null) {
-                fs = inputPath.getFileSystem(jobConf.conf());
-            }
-            // it's possible a partition exists in metastore but the data has been removed
-            if (!fs.exists(inputPath)) {
-                continue;
-            }
-            numFiles += fs.listStatus(inputPath).length;
-        }
-        return numFiles;
     }
 }
