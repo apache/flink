@@ -41,7 +41,6 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
@@ -191,9 +190,7 @@ public class JdbcBatchingOutputFormat<
                 }
                 try {
                     if (!connectionProvider.isConnectionValid()) {
-                        jdbcStatementExecutor.closeStatements();
-                        Connection connection = connectionProvider.reestablishConnection();
-                        jdbcStatementExecutor.prepareStatements(connection);
+                        updateExecutor(true);
                     }
                 } catch (Exception exception) {
                     LOG.error(
@@ -366,5 +363,13 @@ public class JdbcBatchingOutputFormat<
      */
     static JdbcStatementBuilder<Row> createRowJdbcStatementBuilder(int[] types) {
         return (st, record) -> setRecordToStatement(st, types, record);
+    }
+
+    public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {
+        jdbcStatementExecutor.closeStatements();
+        jdbcStatementExecutor.prepareStatements(
+                reconnect
+                        ? connectionProvider.reestablishConnection()
+                        : connectionProvider.getConnection());
     }
 }
