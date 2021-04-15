@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -29,11 +32,12 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,6 +104,15 @@ public class JobManagerRunnerImpl
     private volatile boolean shutdown;
 
     private volatile CompletableFuture<JobMasterGateway> leaderGatewayFuture;
+
+    @GuardedBy("lock")
+    private JobManagerRunnerJobStatus jobStatus = JobManagerRunnerJobStatus.INITIALIZING;
+
+    @Nullable private UUID currentLeaderSession = null;
+
+    // set in state INITIALIZING_CANCELLING
+    @Nullable private CompletableFuture<Acknowledge> cancelFuture;
+    @Nullable private Time cancelTimeout;
 
     // ------------------------------------------------------------------------
 
@@ -194,44 +207,132 @@ public class JobManagerRunnerImpl
                 shutdown = true;
 
                 setNewLeaderGatewayFuture();
-                leaderGatewayFuture.completeExceptionally(
-                        new FlinkException("JobMaster has been shut down."));
+                final FlinkException shutdownException =
+                        new FlinkException("JobMaster has been shut down.");
+                leaderGatewayFuture.completeExceptionally(shutdownException);
 
-                final CompletableFuture<Void> jobManagerTerminationFuture;
+                if (jobStatus == JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED) {
+                    checkState(
+                            jobMasterService != null,
+                            "JobMaster service must be set when Job master is initialized");
+                    FutureUtils.assertNoException(
+                            jobMasterService
+                                    .closeAsync()
+                                    .whenComplete(
+                                            (Void ignored, Throwable throwable) ->
+                                                    onJobManagerTermination(throwable)));
+                } else if (jobStatus.isInitializing()) {
+                    if (jobStatus == JobManagerRunnerJobStatus.INITIALIZING_CANCELLING) {
+                        checkState(cancelFuture != null);
+                        cancelFuture.completeExceptionally(shutdownException);
+                    }
 
-                if (jobMasterService == null) {
-                    jobManagerTerminationFuture = FutureUtils.completedVoidFuture();
-                } else {
-                    jobManagerTerminationFuture = jobMasterService.closeAsync();
+                    if (currentLeaderSession == null) {
+                        // no ongoing JobMaster initialization (waiting for leadership) --> close
+                        onJobManagerTermination(null);
+                    }
+                    // ongoing initialization, we will finish closing once it is done.
                 }
-
-                jobManagerTerminationFuture.whenComplete(
-                        (Void ignored, Throwable throwable) -> {
-                            try {
-                                leaderElectionService.stop();
-                            } catch (Throwable t) {
-                                throwable =
-                                        ExceptionUtils.firstOrSuppressed(
-                                                t,
-                                                ExceptionUtils.stripCompletionException(throwable));
-                            }
-
-                            classLoaderLease.release();
-
-                            resultFuture.complete(JobManagerRunnerResult.forJobNotFinished());
-
-                            if (throwable != null) {
-                                terminationFuture.completeExceptionally(
-                                        new FlinkException(
-                                                "Could not properly shut down the JobManagerRunner",
-                                                throwable));
-                            } else {
-                                terminationFuture.complete(null);
-                            }
-                        });
             }
 
             return terminationFuture;
+        }
+    }
+
+    private void onJobManagerTermination(@Nullable Throwable throwable) {
+        try {
+            leaderElectionService.stop();
+        } catch (Throwable t) {
+            throwable =
+                    ExceptionUtils.firstOrSuppressed(
+                            t, ExceptionUtils.stripCompletionException(throwable));
+        }
+
+        classLoaderLease.release();
+
+        resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
+
+        if (throwable != null) {
+            terminationFuture.completeExceptionally(
+                    new FlinkException(
+                            "Could not properly shut down the JobManagerRunner", throwable));
+        } else {
+            terminationFuture.complete(null);
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------------
+    // Job operations
+    // ----------------------------------------------------------------------------------------------
+
+    @Override
+    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+        synchronized (lock) {
+            if (jobStatus == JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED) {
+                return leaderGatewayFuture.thenCompose(
+                        jobMasterGateway -> jobMasterGateway.cancel(timeout));
+            } else {
+                if (jobStatus == JobManagerRunnerJobStatus.INITIALIZING_CANCELLING) {
+                    checkState(cancelFuture != null);
+                    return cancelFuture;
+                }
+                log.info(
+                        "Cancellation during initialization requested for job {}. Job will be cancelled once JobManager has been initialized.",
+                        jobGraph.getJobID());
+
+                cancelFuture = new CompletableFuture<>();
+                cancelTimeout = timeout;
+                jobStatus = JobManagerRunnerJobStatus.INITIALIZING_CANCELLING;
+                return cancelFuture;
+            }
+        }
+    }
+
+    @Override
+    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+        return requestJob(timeout)
+                .thenApply(
+                        executionGraphInfo ->
+                                executionGraphInfo.getArchivedExecutionGraph().getState());
+    }
+
+    @Override
+    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+        return requestJob(timeout)
+                .thenApply(
+                        executionGraphInfo ->
+                                JobDetails.createDetailsForJob(
+                                        executionGraphInfo.getArchivedExecutionGraph()));
+    }
+
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+        synchronized (lock) {
+            if (jobStatus == JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED) {
+                if (resultFuture.isDone()) { // job is not running anymore
+                    return resultFuture.thenApply(JobManagerRunnerResult::getExecutionGraphInfo);
+                }
+                // job is running
+                return leaderGatewayFuture.thenCompose(
+                        jobMasterGateway -> jobMasterGateway.requestJob(timeout));
+            } else {
+                checkState(jobStatus.isInitializing());
+                return CompletableFuture.completedFuture(
+                        new ExecutionGraphInfo(
+                                ArchivedExecutionGraph.createFromInitializingJob(
+                                        jobGraph.getJobID(),
+                                        jobGraph.getName(),
+                                        jobStatus.asJobStatus(),
+                                        null,
+                                        initializationTimestamp)));
+            }
+        }
+    }
+
+    @Override
+    public boolean isInitialized() {
+        synchronized (lock) {
+            return jobStatus == JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED;
         }
     }
 
@@ -250,7 +351,7 @@ public class JobManagerRunnerImpl
     /** Job completion notification triggered by self. */
     @Override
     public void jobFinishedByOther() {
-        resultFuture.complete(JobManagerRunnerResult.forJobNotFinished());
+        resultFuture.completeExceptionally(new JobNotFinishedException(jobGraph.getJobID()));
     }
 
     @Override
@@ -297,27 +398,38 @@ public class JobManagerRunnerImpl
                         "JobManagerRunner cannot be granted leadership because it is already shut down.");
                 return;
             }
+            this.currentLeaderSession = leaderSessionID;
 
+            // enqueue a leadership operation
             leadershipOperation =
-                    leadershipOperation.thenRun(
-                            ThrowingRunnable.unchecked(
-                                    () -> {
-                                        synchronized (lock) {
-                                            verifyJobSchedulingStatusAndStartJobManager(
-                                                    leaderSessionID);
-                                        }
-                                    }));
+                    leadershipOperation.thenCompose(
+                            (ign) -> {
+                                synchronized (lock) {
+                                    if (currentLeaderSession == null
+                                            || !currentLeaderSession.equals(leaderSessionID)) {
+                                        // lost leadership in the meantime, complete this operation
+                                        return CompletableFuture.completedFuture(null);
+                                    }
 
+                                    try {
+                                        return verifyJobSchedulingStatusAndStartJobManager(
+                                                leaderSessionID);
+                                    } catch (FlinkException e) {
+                                        ExceptionUtils.rethrow(e);
+                                    }
+                                }
+                                return null;
+                            });
             handleException(leadershipOperation, "Could not start the job manager.");
         }
     }
 
     @GuardedBy("lock")
-    private void verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId)
-            throws FlinkException {
+    private CompletableFuture<Void> verifyJobSchedulingStatusAndStartJobManager(
+            UUID leaderSessionId) throws FlinkException {
         if (shutdown) {
             log.debug("Ignoring starting JobMaster because JobManagerRunner is already shut down.");
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus =
@@ -325,13 +437,15 @@ public class JobManagerRunnerImpl
 
         if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE) {
             jobAlreadyDone();
+            return CompletableFuture.completedFuture(null);
         } else {
-            startJobMaster(leaderSessionId);
+            return startJobMaster(leaderSessionId);
         }
     }
 
     @GuardedBy("lock")
-    private void startJobMaster(UUID leaderSessionId) throws FlinkException {
+    private CompletableFuture<Void> startJobMaster(UUID leaderSessionId) throws FlinkException {
+        checkState(jobMasterService == null, "JobMasterService must be null before being started.");
         log.info(
                 "JobManager runner for job {} ({}) was granted leadership with session id {}.",
                 jobGraph.getName(),
@@ -348,17 +462,76 @@ public class JobManagerRunnerImpl
                     e);
         }
 
-        startJobMasterServiceSafely(leaderSessionId);
+        // run blocking JobMaster initialization outside of the lock
+        CompletableFuture<JobMasterService> jobMasterStartFuture =
+                CompletableFuture.supplyAsync(
+                        () -> startJobMasterServiceSafely(leaderSessionId), executor);
 
-        if (jobMasterService != null) {
-            confirmLeaderSessionIdIfStillLeader(jobMasterService, leaderSessionId);
-        }
+        return jobMasterStartFuture.thenCompose(
+                (newJobMasterService) -> {
+                    synchronized (lock) {
+                        if (newJobMasterService == null) {
+                            // initialization failed
+                            if (jobStatus == JobManagerRunnerJobStatus.INITIALIZING_CANCELLING) {
+                                checkState(cancelFuture != null);
+                                cancelFuture.completeExceptionally(
+                                        new FlinkException(
+                                                "Cancellation failed because JobMaster initialization failed"));
+                            }
+                            jobStatus = JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED;
+                            return CompletableFuture.completedFuture(null);
+                        } else {
+                            return onJobMasterInitializationCompletion(
+                                    newJobMasterService, leaderSessionId);
+                        }
+                    }
+                });
     }
 
-    private void startJobMasterServiceSafely(UUID leaderSessionId) {
-        checkState(jobMasterService == null, "JobMasterService must be null before being started.");
+    // JobMaster initialization is completed. Ensure proper state and leadership
+    @GuardedBy("lock")
+    private CompletableFuture<Void> onJobMasterInitializationCompletion(
+            JobMasterService newJobMasterService, UUID leaderSessionId) {
+        checkNotNull(newJobMasterService);
+        if (shutdown) {
+            return newJobMasterService
+                    .closeAsync()
+                    .whenComplete(
+                            (Void ignored, Throwable throwable) ->
+                                    onJobManagerTermination(throwable));
+        }
 
+        checkState(
+                jobStatus.isInitializing(),
+                "Can only complete initialization in initializing state");
+
+        if (leaderElectionService.hasLeadership(leaderSessionId)) {
+            jobMasterService = newJobMasterService;
+            leaderGatewayFuture.complete(jobMasterService.getGateway());
+            leaderElectionService.confirmLeadership(leaderSessionId, jobMasterService.getAddress());
+
+            if (jobStatus == JobManagerRunnerJobStatus.INITIALIZING_CANCELLING) {
+                checkState(cancelFuture != null);
+                FutureUtils.forward(
+                        newJobMasterService.getGateway().cancel(cancelTimeout), cancelFuture);
+            }
+
+            jobStatus = JobManagerRunnerJobStatus.JOBMASTER_INITIALIZED;
+        } else {
+            log.info(
+                    "Ignoring confirmation of leader session id because {} is no longer the leader. Shutting down JobMaster",
+                    getDescription());
+            return newJobMasterService.closeAsync();
+        }
+
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Nullable
+    private JobMasterService startJobMasterServiceSafely(UUID leaderSessionId) {
         try {
+            // We assume this operation to be potentially long-running (thus it can not block the
+            // JobManager main thread on it)
             final JobMasterService newJobMasterService =
                     jobMasterServiceFactory.createJobMasterService(
                             jobGraph,
@@ -367,9 +540,7 @@ public class JobManagerRunnerImpl
                             userCodeClassLoader,
                             initializationTimestamp);
 
-            jobMasterService = newJobMasterService;
-
-            jobMasterService
+            newJobMasterService
                     .getTerminationFuture()
                     .whenComplete(
                             (unused, throwable) -> {
@@ -383,11 +554,15 @@ public class JobManagerRunnerImpl
                                     }
                                 }
                             });
-        } catch (Exception e) {
+            return newJobMasterService;
+        } catch (Exception initializationError) {
             resultFuture.complete(
                     JobManagerRunnerResult.forInitializationFailure(
                             new JobInitializationException(
-                                    jobGraph.getJobID(), "Could not start the JobMaster.", e)));
+                                    jobGraph.getJobID(),
+                                    "Could not start the JobMaster.",
+                                    initializationError)));
+            return null;
         }
     }
 
@@ -408,19 +583,6 @@ public class JobManagerRunnerImpl
         }
     }
 
-    private void confirmLeaderSessionIdIfStillLeader(
-            JobMasterService jobMasterService, UUID leaderSessionId) {
-
-        if (leaderElectionService.hasLeadership(leaderSessionId)) {
-            leaderGatewayFuture.complete(jobMasterService.getGateway());
-            leaderElectionService.confirmLeadership(leaderSessionId, jobMasterService.getAddress());
-        } else {
-            log.debug(
-                    "Ignoring confirmation of leader session id because {} is no longer the leader.",
-                    getDescription());
-        }
-    }
-
     @Override
     public void revokeLeadership() {
         synchronized (lock) {
@@ -429,6 +591,8 @@ public class JobManagerRunnerImpl
                         "Ignoring revoking leadership because JobManagerRunner is already shut down.");
                 return;
             }
+            // unset current leader session to fail-fast queued grant leadership operations
+            currentLeaderSession = null;
 
             leadershipOperation =
                     leadershipOperation.thenCompose(
@@ -456,12 +620,12 @@ public class JobManagerRunnerImpl
                     jobGraph.getName(),
                     jobGraph.getJobID(),
                     jobMasterService.getAddress());
-
             setNewLeaderGatewayFuture();
 
             final CompletableFuture<Void> jobMasterServiceTerminationFuture =
                     jobMasterService.closeAsync();
             jobMasterService = null;
+            jobStatus = JobManagerRunnerJobStatus.INITIALIZING;
 
             return jobMasterServiceTerminationFuture;
         } else {
@@ -500,5 +664,35 @@ public class JobManagerRunnerImpl
     public void handleError(Exception exception) {
         log.error("Leader Election Service encountered a fatal error.", exception);
         handleJobManagerRunnerError(exception);
+    }
+
+    // ------------------------------------------------------------------------
+
+    private enum JobManagerRunnerJobStatus {
+        // We are waiting for the JobMaster to be initialized
+        INITIALIZING(JobStatus.INITIALIZING, true),
+        // JobMaster is initialized (this includes initialization failures)
+        JOBMASTER_INITIALIZED(null, false),
+        // waiting for cancellation during initialization
+        INITIALIZING_CANCELLING(JobStatus.CANCELLING, true);
+
+        @Nullable private final JobStatus jobStatus;
+        private final boolean initializing;
+
+        JobManagerRunnerJobStatus(@Nullable JobStatus jobStatus, boolean initializing) {
+            this.jobStatus = jobStatus;
+            this.initializing = initializing;
+        }
+
+        public JobStatus asJobStatus() {
+            if (jobStatus == null) {
+                throw new IllegalStateException("This state is not defined as a 'JobStatus'");
+            }
+            return jobStatus;
+        }
+
+        public boolean isInitializing() {
+            return initializing;
+        }
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -29,10 +30,13 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
+import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -50,13 +55,22 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -64,6 +78,8 @@ import static org.junit.Assert.fail;
 
 /** Tests for the {@link JobManagerRunnerImpl}. */
 public class JobManagerRunnerImplTest extends TestLogger {
+
+    private static final Time TESTING_TIMEOUT = Time.seconds(10);
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -148,9 +164,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
             jobManagerRunner.jobFinishedByOther();
 
-            final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
-
-            assertTrue(jobManagerRunnerResult.isJobNotFinished());
+            assertJobNotFinished(resultFuture);
         } finally {
             jobManagerRunner.close();
         }
@@ -170,9 +184,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
             jobManagerRunner.closeAsync();
 
-            final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.join();
-
-            assertTrue(jobManagerRunnerResult.isJobNotFinished());
+            assertJobNotFinished(resultFuture);
         } finally {
             jobManagerRunner.close();
         }
@@ -219,7 +231,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
         TestingJobMasterServiceFactory jobMasterServiceFactory =
                 new TestingJobMasterServiceFactory(
-                        () -> new TestingJobMasterService("localhost", terminationFuture));
+                        () -> new TestingJobMasterService("localhost", terminationFuture, null));
         JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
 
         jobManagerRunner.start();
@@ -252,7 +264,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 
         TestingJobMasterServiceFactory jobMasterServiceFactory =
                 new TestingJobMasterServiceFactory(
-                        () -> new TestingJobMasterService("localhost", terminationFuture));
+                        () -> new TestingJobMasterService("localhost", terminationFuture, null));
         JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
 
         jobManagerRunner.start();
@@ -290,9 +302,286 @@ public class JobManagerRunnerImplTest extends TestLogger {
         assertTrue(
                 jobManagerRunnerResult.getInitializationFailure()
                         instanceof JobInitializationException);
+        assertThat(jobManagerRunnerResult.getInitializationFailure(), containsCause(testException));
+    }
+
+    @Test
+    public void testJobMasterShutDownOnRunnerShutdownDuringJobMasterInitialization()
+            throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        TestingJobMasterService testingJobMasterService =
+                blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        CompletableFuture<Void> closeFuture = jobManagerRunner.closeAsync();
+
+        blockingJobMasterServiceFactory.unblock();
+
+        closeFuture.get();
+
+        assertJobNotFinished(jobManagerRunner.getResultFuture());
+
+        assertThat(testingJobMasterService.isClosed(), is(true));
+    }
+
+    @Test
+    public void testJobMasterShutdownOnLeadershipLossDuringInitialization() throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        TestingJobMasterService testingJobMasterService =
+                blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        leaderElectionService.notLeader();
+
+        blockingJobMasterServiceFactory.unblock();
+
+        // assert termination of testingJobMaster
+        testingJobMasterService.getTerminationFuture().get();
+        assertThat(testingJobMasterService.isClosed(), is(true));
+    }
+
+    @Test
+    public void testJobCancellationOnCancellationDuringInitialization() throws Exception {
+        AtomicBoolean cancelCalled = new AtomicBoolean(false);
+        JobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setCancelFunction(
+                                () -> {
+                                    cancelCalled.set(true);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        TestingJobMasterService testingJobMasterService =
+                new TestingJobMasterService(jobMasterGateway);
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory(() -> testingJobMasterService);
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        // cancel during init
+        CompletableFuture<Acknowledge> cancellationFuture =
+                jobManagerRunner.cancel(TESTING_TIMEOUT);
+
+        assertThat(cancellationFuture.isDone(), is(false));
+
+        blockingJobMasterServiceFactory.unblock();
+
+        // assert that cancellation future completes when cancellation completes.
+        cancellationFuture.get();
+        assertThat(cancelCalled.get(), is(true));
+    }
+
+    @Test
+    public void testJobInformationOperationsDuringInitialization() throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        // assert initializing while waiting for leadership
+        assertInitializingStates(jobManagerRunner);
+
+        // assign leadership
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        // assert initializing while JobMaster is blocked
+        assertInitializingStates(jobManagerRunner);
+        blockingJobMasterServiceFactory.unblock();
+    }
+
+    private static void assertInitializingStates(JobManagerRunner jobManagerRunner)
+            throws ExecutionException, InterruptedException {
         assertThat(
-                jobManagerRunnerResult.getInitializationFailure(),
-                FlinkMatchers.containsCause(testException));
+                jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).get(),
+                is(JobStatus.INITIALIZING));
+        assertThat(jobManagerRunner.getResultFuture().isDone(), is(false));
+        assertThat(
+                jobManagerRunner
+                        .requestJob(TESTING_TIMEOUT)
+                        .get()
+                        .getArchivedExecutionGraph()
+                        .getState(),
+                is(JobStatus.INITIALIZING));
+
+        assertThat(
+                jobManagerRunner.requestJobDetails(TESTING_TIMEOUT).get().getStatus(),
+                is(JobStatus.INITIALIZING));
+    }
+
+    @Test
+    public void testShutdownInInitializedState() throws Exception {
+        final JobManagerRunnerImpl jobManagerRunner = createJobManagerRunner();
+        jobManagerRunner.start();
+        // grant leadership to finish initialization
+        leaderElectionService.isLeader(UUID.randomUUID()).get();
+
+        assertThat(jobManagerRunner.isInitialized(), is(true));
+
+        jobManagerRunner.close();
+
+        assertJobNotFinished(jobManagerRunner.getResultFuture());
+    }
+
+    @Test
+    public void testShutdownWhileWaitingForCancellationDuringInitialization() throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        // cancel while initializing
+        assertThat(
+                jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).get(),
+                is(JobStatus.INITIALIZING));
+
+        CompletableFuture<Acknowledge> cancelFuture = jobManagerRunner.cancel(TESTING_TIMEOUT);
+        assertThat(cancelFuture.isDone(), is(false));
+
+        CompletableFuture<Void> closeFuture = jobManagerRunner.closeAsync();
+        assertThat(closeFuture.isDone(), is(false));
+
+        // the close operation finishes only once the initialization finishes
+        blockingJobMasterServiceFactory.unblock();
+
+        assertThat(cancelFuture.isCompletedExceptionally(), is(true));
+        assertJobNotFinished(jobManagerRunner.getResultFuture());
+    }
+
+    @Test
+    public void testCancellationAfterInitialization() throws Exception {
+        AtomicBoolean cancelCalled = new AtomicBoolean(false);
+        JobMasterGateway testingGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setCancelFunction(
+                                () -> {
+                                    cancelCalled.set(true);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+        TestingJobMasterServiceFactory jobMasterServiceFactory =
+                new TestingJobMasterServiceFactory(
+                        () -> new TestingJobMasterService(testingGateway));
+        final JobManagerRunnerImpl jobManagerRunner =
+                createJobManagerRunner(jobMasterServiceFactory);
+        jobManagerRunner.start();
+        // grant leadership to finish initialization
+        leaderElectionService.isLeader(UUID.randomUUID()).get();
+
+        assertThat(jobManagerRunner.isInitialized(), is(true));
+
+        jobManagerRunner.cancel(TESTING_TIMEOUT).get();
+        assertThat(cancelCalled.get(), is(true));
+    }
+
+    // It can happen that a series of leadership operations happens while the JobMaster
+    // initialization is blocked. This test is to ensure that we are not starting-stopping
+    // JobMasters for all pending leadership grants, but only for the latest.
+    @Test
+    public void testSkippingOfEnqueuedLeadershipOperations() throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        // first leadership assignment to get into blocking initialization
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        // we are now blocked on the initialization, enqueue some operations:
+        for (int i = 0; i < 10; i++) {
+            leaderElectionService.notLeader();
+            leaderElectionService.isLeader(UUID.randomUUID());
+        }
+
+        blockingJobMasterServiceFactory.unblock();
+
+        // wait until the second JobMaster has been created
+        blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        assertThat(
+                blockingJobMasterServiceFactory.getNumberOfJobMasterInstancesCreated(), equalTo(2));
+    }
+
+    @Test
+    public void testCancellationFailsWhenInitializationFails() throws Exception {
+        final BlockingJobMasterServiceFactory blockingJobMasterServiceFactory =
+                new BlockingJobMasterServiceFactory();
+
+        final JobManagerRunner jobManagerRunner =
+                createJobManagerRunner(blockingJobMasterServiceFactory);
+
+        jobManagerRunner.start();
+
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        blockingJobMasterServiceFactory.waitForBlockingOnInit();
+
+        // cancel while initializing
+        assertThat(
+                jobManagerRunner.requestJobStatus(TESTING_TIMEOUT).get(),
+                is(JobStatus.INITIALIZING));
+
+        CompletableFuture<Acknowledge> cancelFuture = jobManagerRunner.cancel(TESTING_TIMEOUT);
+        assertThat(cancelFuture.isDone(), is(false));
+
+        blockingJobMasterServiceFactory.failBlockingInitialization();
+
+        try {
+            cancelFuture.get();
+            fail();
+        } catch (Throwable t) {
+            assertThat(
+                    t,
+                    containsMessage("Cancellation failed because JobMaster initialization failed"));
+        }
+        assertThat(jobManagerRunner.getResultFuture().get().isInitializationFailure(), is(true));
+    }
+
+    private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture) {
+        try {
+            resultFuture.get();
+            fail();
+        } catch (Throwable t) {
+            assertThat(t, containsCause(JobNotFinishedException.class));
+        }
     }
 
     @Nonnull
@@ -308,8 +597,8 @@ public class JobManagerRunnerImplTest extends TestLogger {
     }
 
     @Nonnull
-    private JobManagerRunner createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory)
-            throws Exception {
+    private JobManagerRunnerImpl createJobManagerRunner(
+            JobMasterServiceFactory jobMasterServiceFactory) throws Exception {
         return createJobManagerRunner(
                 jobMasterServiceFactory, TestingClassLoaderLease.newBuilder().build());
     }
@@ -327,5 +616,69 @@ public class JobManagerRunnerImplTest extends TestLogger {
                 TestingUtils.defaultExecutor(),
                 fatalErrorHandler,
                 System.currentTimeMillis());
+    }
+
+    public static class BlockingJobMasterServiceFactory implements JobMasterServiceFactory {
+
+        private final OneShotLatch blocker = new OneShotLatch();
+        private final BlockingQueue<TestingJobMasterService> jobMasterServicesQueue =
+                new ArrayBlockingQueue(1);
+        private final Supplier<TestingJobMasterService> testingJobMasterServiceSupplier;
+        private int numberOfJobMasterInstancesCreated = 0;
+        private FlinkException initializationException = null;
+
+        public BlockingJobMasterServiceFactory() {
+            this((JobMasterGateway) null);
+        }
+
+        public BlockingJobMasterServiceFactory(@Nullable JobMasterGateway jobMasterGateway) {
+            this(() -> new TestingJobMasterService(null, null, jobMasterGateway));
+        }
+
+        public BlockingJobMasterServiceFactory(
+                Supplier<TestingJobMasterService> testingJobMasterServiceSupplier) {
+            this.testingJobMasterServiceSupplier = testingJobMasterServiceSupplier;
+        }
+
+        @Override
+        public JobMasterService createJobMasterService(
+                JobGraph jobGraph,
+                JobMasterId jobMasterId,
+                OnCompletionActions jobCompletionActions,
+                ClassLoader userCodeClassloader,
+                long initializationTimestamp)
+                throws Exception {
+            TestingJobMasterService service = testingJobMasterServiceSupplier.get();
+            jobMasterServicesQueue.offer(service);
+
+            blocker.await();
+            if (initializationException != null) {
+                throw initializationException;
+            }
+            numberOfJobMasterInstancesCreated++;
+            return service;
+        }
+
+        public void unblock() {
+            blocker.trigger();
+        }
+
+        public TestingJobMasterService waitForBlockingOnInit()
+                throws ExecutionException, InterruptedException {
+            return jobMasterServicesQueue.take();
+        }
+
+        public int getNumberOfJobMasterInstancesCreated() {
+            return numberOfJobMasterInstancesCreated;
+        }
+
+        public void failBlockingInitialization() {
+            Preconditions.checkState(
+                    !blocker.isTriggered(),
+                    "This only works before the initialization has been unblocked");
+            this.initializationException =
+                    new FlinkException("Test exception during initialization");
+            unblock();
+        }
     }
 }

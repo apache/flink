@@ -42,10 +42,6 @@ public final class JobManagerRunnerResult {
         return executionGraphInfo != null && failure == null;
     }
 
-    public boolean isJobNotFinished() {
-        return executionGraphInfo == null && failure == null;
-    }
-
     public boolean isInitializationFailure() {
         return executionGraphInfo == null && failure != null;
     }
@@ -88,10 +84,6 @@ public final class JobManagerRunnerResult {
     @Override
     public int hashCode() {
         return Objects.hash(executionGraphInfo, failure);
-    }
-
-    public static JobManagerRunnerResult forJobNotFinished() {
-        return new JobManagerRunnerResult(null, null);
     }
 
     public static JobManagerRunnerResult forSuccess(ExecutionGraphInfo executionGraphInfo) {

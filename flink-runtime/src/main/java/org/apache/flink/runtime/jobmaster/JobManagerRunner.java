@@ -19,6 +19,11 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import java.util.concurrent.CompletableFuture;
@@ -55,4 +60,43 @@ public interface JobManagerRunner extends AutoCloseableAsync {
      * @return job id of the executed job
      */
     JobID getJobID();
+
+    /**
+     * Cancels the currently executed job.
+     *
+     * @param timeout of this operation
+     * @return Future acknowledge of the operation
+     */
+    CompletableFuture<Acknowledge> cancel(Time timeout);
+
+    /**
+     * Requests the current job status.
+     *
+     * @param timeout for the rpc call
+     * @return Future containing the current job status
+     */
+    CompletableFuture<JobStatus> requestJobStatus(Time timeout);
+
+    /**
+     * Request the details of the executed job.
+     *
+     * @param timeout for the rpc call
+     * @return Future details of the executed job
+     */
+    CompletableFuture<JobDetails> requestJobDetails(Time timeout);
+
+    /**
+     * Requests the {@link ExecutionGraphInfo} of the executed job.
+     *
+     * @param timeout for the rpc call
+     * @return Future which is completed with the {@link ExecutionGraphInfo} of the executed job
+     */
+    CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout);
+
+    /**
+     * Flag indicating if the JobManagerRunner has been initialized.
+     *
+     * @return true if the JobManagerRunner has been initialized.
+     */
+    boolean isInitialized();
 }
