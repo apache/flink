@@ -155,7 +155,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
@@ -2483,7 +2482,7 @@ public class StreamTaskTest extends TestLogger {
         public void run(SourceContext<String> ctx) throws Exception {
             runningLatch.countDown();
             while (running) {
-                LockSupport.parkNanos(1_000);
+                Thread.sleep(2);
             }
         }
 
