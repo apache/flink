@@ -286,6 +286,31 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ----
 ----
 
+# Client
+
+{{< generated/client_configuration >}}
+
+----
+----
+
+# Execution
+
+{{< generated/deployment_configuration >}}
+{{< generated/savepoint_config_configuration >}}
+{{< generated/execution_configuration >}}
+
+### Pipeline
+
+{{< generated/pipeline_configuration >}}
+{{< generated/stream_pipeline_configuration >}}
+
+### Checkpointing
+
+{{< generated/execution_checkpointing_configuration >}}
+
+----
+----
+
 # Debugging & Expert Tuning
 
 <div class="alert alert-warning">
@@ -436,29 +461,5 @@ These options may be removed in a future release.
 **DataSet File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
-
-----
-----
-
-# Backup
-
-#### Client
-
-{{< generated/client_configuration >}}
-
-#### Execution
-
-{{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
-{{< generated/execution_configuration >}}
-
-#### Pipeline
-
-{{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
-
-#### Checkpointing
-
-{{< generated/execution_checkpointing_configuration >}}
 
 {{< top >}}
