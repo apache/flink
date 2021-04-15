@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
@@ -90,8 +91,8 @@ public class CheckpointConfig implements java.io.Serializable {
     /** Flag to enable unaligned checkpoints. */
     private boolean unalignedCheckpointsEnabled;
 
-    private long alignmentTimeout =
-            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis();
+    private Duration alignmentTimeout =
+            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue();
 
     /** Flag to enable approximate local recovery. */
     private boolean approximateLocalRecovery;
@@ -539,16 +540,16 @@ public class CheckpointConfig implements java.io.Serializable {
      * checkpoint.
      */
     @PublicEvolving
-    public void setAlignmentTimeout(long alignmentTimeout) {
+    public void setAlignmentTimeout(Duration alignmentTimeout) {
         this.alignmentTimeout = alignmentTimeout;
     }
 
     /**
-     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(long)} or
-     *     {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
+     *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
      */
     @PublicEvolving
-    public long getAlignmentTimeout() {
+    public Duration getAlignmentTimeout() {
         return alignmentTimeout;
     }
 
@@ -750,7 +751,7 @@ public class CheckpointConfig implements java.io.Serializable {
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
-                .ifPresent(timeout -> setAlignmentTimeout(timeout.toMillis()));
+                .ifPresent(this::setAlignmentTimeout);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);
