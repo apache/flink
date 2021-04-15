@@ -75,6 +75,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             LoggerFactory.getLogger(SubtaskCheckpointCoordinatorImpl.class);
     private static final int DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS = 128;
 
+    private static final int CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS = 30_000;
+
     private final CachingCheckpointStorageWorkerView checkpointStorage;
     private final String taskName;
     private final ExecutorService asyncOperationsThreadPool;
@@ -262,6 +264,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             checkAndClearAbortedStatus(metadata.getCheckpointId());
             return;
         }
+
+        logCheckpointProcessingDelay(metadata);
 
         // Step (0): Record the last triggered checkpointId and abort the sync phase of checkpoint
         // if necessary.
@@ -709,6 +713,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 LOG.info(ex.getMessage(), ex);
             }
             throw ex;
+        }
+    }
+
+    private static void logCheckpointProcessingDelay(CheckpointMetaData checkpointMetaData) {
+        long delay = System.currentTimeMillis() - checkpointMetaData.getReceiveTimestamp();
+        if (delay >= CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS) {
+            LOG.warn(
+                    "Time from receiving all checkpoint barriers/RPC to executing it exceeded threshold: {}ms",
+                    delay);
         }
     }
 }
