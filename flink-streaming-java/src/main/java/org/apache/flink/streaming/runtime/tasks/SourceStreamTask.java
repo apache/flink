@@ -107,7 +107,7 @@ public class SourceStreamTask<
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
-                                    new CheckpointMetaData(checkpointId, timestamp);
+                                    new CheckpointMetaData(checkpointId, timestamp, timestamp);
 
                             try {
                                 SourceStreamTask.super
