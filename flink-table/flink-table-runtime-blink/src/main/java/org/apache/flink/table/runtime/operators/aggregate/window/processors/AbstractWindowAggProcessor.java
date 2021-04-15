@@ -29,7 +29,6 @@ import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
@@ -50,7 +49,6 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
 
     protected final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
     protected final WindowBuffer.Factory windowBufferFactory;
-    protected final WindowCombineFunction.Factory combineFactory;
     protected final SliceAssigner sliceAssigner;
     protected final TypeSerializer<RowData> accSerializer;
     protected final boolean isEventTime;
@@ -85,13 +83,11 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     public AbstractWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory bufferFactory,
-            WindowCombineFunction.Factory combinerFactory,
             SliceAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
             ZoneId shiftTimeZone) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
-        this.combineFactory = combinerFactory;
         this.sliceAssigner = sliceAssigner;
         this.accSerializer = accSerializer;
         this.isEventTime = sliceAssigner.isEventTime();
@@ -118,19 +114,16 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         this.aggregator.open(
                 new PerWindowStateDataViewStore(
                         ctx.getKeyedStateBackend(), namespaceSerializer, ctx.getRuntimeContext()));
-        final WindowCombineFunction combineFunction =
-                combineFactory.create(
-                        ctx.getRuntimeContext(),
-                        windowTimerService,
-                        ctx.getKeyedStateBackend(),
-                        windowState,
-                        isEventTime);
         this.windowBuffer =
                 windowBufferFactory.create(
                         ctx.getOperatorOwner(),
                         ctx.getMemoryManager(),
                         ctx.getMemorySize(),
-                        combineFunction,
+                        ctx.getRuntimeContext(),
+                        windowTimerService,
+                        ctx.getKeyedStateBackend(),
+                        windowState,
+                        isEventTime,
                         shiftTimeZone);
 
         this.reuseOutput = new JoinedRowData();

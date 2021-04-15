@@ -38,7 +38,11 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator;
+import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -65,7 +69,6 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
     public static final String FIELD_NAME_WINDOWING = "windowing";
-    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -139,14 +142,17 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
 
+        PagedTypeSerializer<RowData> keySer =
+                (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer();
+        AbstractRowDataSerializer<RowData> valueSer = new RowDataSerializer(inputRowType);
+
+        WindowBuffer.LocalFactory bufferFactory =
+                new RecordsWindowBuffer.LocalFactory(
+                        keySer, valueSer, new LocalAggCombiner.Factory(generatedAggsHandler));
+
         final OneInputStreamOperator<RowData, RowData> localAggOperator =
                 new LocalSlicingWindowAggOperator(
-                        selector,
-                        sliceAssigner,
-                        (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer(),
-                        new RowDataSerializer(inputRowType),
-                        generatedAggsHandler,
-                        shiftTimeZone);
+                        selector, sliceAssigner, bufferFactory, shiftTimeZone);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,

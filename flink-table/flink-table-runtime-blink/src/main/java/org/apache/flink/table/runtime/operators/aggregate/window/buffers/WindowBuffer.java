@@ -19,9 +19,13 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.state.WindowState;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -83,7 +87,12 @@ public interface WindowBuffer {
          * @param operatorOwner the owner of the operator
          * @param memoryManager the manager that governs memory by Flink framework
          * @param memorySize the managed memory size can be used by this operator
-         * @param combineFunction the combine function used to combine buffered data into state
+         * @param runtimeContext the current {@link RuntimeContext}
+         * @param timerService the service to register event-time and processing-time timers
+         * @param stateBackend the state backend to accessing states
+         * @param windowState the window state to flush buffered data into.
+         * @param isEventTime indicates whether the operator works in event-time or processing-time
+         *     mode, used for register corresponding timers.
          * @param shiftTimeZone the shit timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
@@ -91,8 +100,37 @@ public interface WindowBuffer {
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowCombineFunction combineFunction,
+                RuntimeContext runtimeContext,
+                WindowTimerService<Long> timerService,
+                KeyedStateBackend<RowData> stateBackend,
+                WindowState<Long> windowState,
+                boolean isEventTime,
                 ZoneId shiftTimeZone)
-                throws IOException;
+                throws Exception;
+    }
+
+    /** A factory that creates a {@link WindowBuffer}. */
+    @FunctionalInterface
+    interface LocalFactory extends Serializable {
+
+        /**
+         * Creates a {@link WindowBuffer} for local window that buffers elements in memory before
+         * flushing.
+         *
+         * @param operatorOwner the owner of the operator
+         * @param memoryManager the manager that governs memory by Flink framework
+         * @param memorySize the managed memory size can be used by this operator
+         * @param collector collector to emit records
+         * @param shiftTimeZone the shit timezone of the window
+         * @throws IOException thrown if the buffer can't be opened
+         */
+        WindowBuffer create(
+                Object operatorOwner,
+                MemoryManager memoryManager,
+                long memorySize,
+                RuntimeContext runtimeContext,
+                Collector<RowData> collector,
+                ZoneId shiftTimeZone)
+                throws Exception;
     }
 }

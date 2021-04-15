@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
@@ -44,10 +44,10 @@ import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 
 /**
- * An implementation of {@link WindowCombineFunction} that save topN records of incremental input
- * records into the window state.
+ * An implementation of {@link RecordsCombiner} that save topN records of incremental input records
+ * into the window state.
  */
-public final class TopNRecordsCombiner implements WindowCombineFunction {
+public final class TopNRecordsCombiner implements RecordsCombiner {
 
     /** The service to register event-time or processing-time timers. */
     private final WindowTimerService<Long> timerService;
@@ -158,7 +158,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
     // ----------------------------------------------------------------------------------------
 
     /** Factory to create {@link TopNRecordsCombiner}. */
-    public static final class Factory implements WindowCombineFunction.Factory {
+    public static final class Factory implements RecordsCombiner.Factory {
 
         private static final long serialVersionUID = 1L;
 
@@ -183,7 +183,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         }
 
         @Override
-        public WindowCombineFunction create(
+        public RecordsCombiner createRecordsCombiner(
                 RuntimeContext runtimeContext,
                 WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
