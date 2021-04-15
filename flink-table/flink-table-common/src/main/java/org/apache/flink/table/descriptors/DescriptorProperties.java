@@ -1645,21 +1645,9 @@ public class DescriptorProperties {
             }
         } else {
             final String value = properties.get(key);
+            T parsed;
             try {
-                final T parsed = parseFunction.apply(value);
-                if (parsed.compareTo(min) < 0 || parsed.compareTo(max) > 0) {
-                    throw new ValidationException(
-                            "Property '"
-                                    + key
-                                    + "' must be a "
-                                    + typeName
-                                    + " value between "
-                                    + min
-                                    + " and "
-                                    + max
-                                    + " but was: "
-                                    + parsed);
-                }
+                parsed = parseFunction.apply(value);
             } catch (Exception e) {
                 throw new ValidationException(
                         "Property '"
@@ -1668,6 +1656,19 @@ public class DescriptorProperties {
                                 + typeName
                                 + " value but was: "
                                 + value);
+            }
+            if (parsed.compareTo(min) < 0 || parsed.compareTo(max) > 0) {
+                throw new ValidationException(
+                        "Property '"
+                                + key
+                                + "' must be a "
+                                + typeName
+                                + " value between "
+                                + min
+                                + " and "
+                                + max
+                                + " but was: "
+                                + parsed);
             }
         }
     }
