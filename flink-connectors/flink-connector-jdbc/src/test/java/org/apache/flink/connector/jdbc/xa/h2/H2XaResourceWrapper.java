@@ -232,17 +232,9 @@ public class H2XaResourceWrapper implements XAResource {
     }
 
     private void finalizeTx(ThrowingRunnable<XAException> runnable) throws XAException {
-        // underlying implementation sets autocommit on just after commit or rollback
-        // to prevent the actual change we turn it on the lower level and then revert
-        withSessionAutocommitOn(
-                () ->
-                        // underlying implementation nulls out current transaction just after commit
-                        // or rollback
-                        // which prevents it from being prepared afterwards
-                        withCurrentTransaction(runnable));
-    }
-
-    private void withCurrentTransaction(ThrowingRunnable<XAException> runnable) throws XAException {
+        // underlying implementation nulls out current transaction just after commit
+        // or rollback
+        // which prevents it from being prepared afterwards
         Object current = getCurrentTransaction();
         try {
             runnable.run();
@@ -250,18 +242,6 @@ public class H2XaResourceWrapper implements XAResource {
             throw repackageXaException(e);
         } finally {
             setCurrentTransaction(current);
-        }
-    }
-
-    private void withSessionAutocommitOn(ThrowingRunnable<XAException> runnable)
-            throws XAException {
-        JdbcConnection conn = getJdbcConnection();
-        boolean autoCommit = conn.getSession().getAutoCommit();
-        conn.getSession().setAutoCommit(true);
-        try {
-            runnable.run();
-        } finally {
-            conn.getSession().setAutoCommit(autoCommit);
         }
     }
 }
