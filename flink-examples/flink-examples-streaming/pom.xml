@@ -75,6 +75,20 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-jdbc_2.11</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.2.10</version>
+		</dependency>
+
+
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
@@ -119,7 +133,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
     </dependencies>
 
 	<build>
