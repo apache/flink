@@ -116,7 +116,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
             }
         }
 
-        KeyValueIterator<K, Iterator<RowData>> iter = table.getEntryIterator();
+        KeyValueIterator<K, Iterator<RowData>> iter = table.getEntryIterator(false);
         while (iter.advanceNext()) {
             int i = 0;
             Iterator<RowData> valueIter = iter.getValue();

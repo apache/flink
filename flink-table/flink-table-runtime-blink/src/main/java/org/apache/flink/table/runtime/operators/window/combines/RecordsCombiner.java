@@ -30,33 +30,29 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 import java.util.Iterator;
 
-/** The {@link WindowCombineFunction} is used to combine buffered data into state. */
+/** The {@link RecordsCombiner} is used to combine buffered records into state. */
 @Internal
-public interface WindowCombineFunction {
-
+public interface RecordsCombiner {
     /**
      * Combines the buffered data into state based on the given window-key pair.
      *
      * @param windowKey the window-key pair that the buffered data belong to, the window-key object
      *     is reused.
-     * @param value the buffered data, the iterator and {@link RowData} objects are reused
+     * @param records the buffered data, the iterator and {@link RowData} objects are reused.
      */
-    void combine(WindowKey windowKey, Iterator<RowData> value) throws Exception;
+    void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception;
 
     /** Release resources allocated by this combine function. */
     void close() throws Exception;
 
     // ------------------------------------------------------------------------
 
-    /**
-     * A factory that creates a {@link WindowCombineFunction} for combining at global stage, i.e.
-     * keyed operator where combine into keyed state.
-     */
+    /** A factory that creates a {@link RecordsCombiner}. */
     @FunctionalInterface
     interface Factory extends Serializable {
 
         /**
-         * Creates a {@link WindowCombineFunction} that can combine buffered data into states.
+         * Creates a {@link RecordsCombiner} that can combine buffered data into states.
          *
          * @param runtimeContext the current {@link RuntimeContext}
          * @param timerService the service to register event-time and processing-time timers
@@ -65,7 +61,7 @@ public interface WindowCombineFunction {
          * @param isEventTime indicates whether the operator works in event-time or processing-time
          *     mode, used for register corresponding timers.
          */
-        WindowCombineFunction create(
+        RecordsCombiner createRecordsCombiner(
                 RuntimeContext runtimeContext,
                 WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
@@ -74,9 +70,10 @@ public interface WindowCombineFunction {
                 throws Exception;
     }
 
-    /** A factory that creates a {@link WindowCombineFunction} used for combining at local stage. */
+    /** A factory that creates a {@link RecordsCombiner} used for combining at local stage. */
+    @FunctionalInterface
     interface LocalFactory extends Serializable {
-        WindowCombineFunction create(RuntimeContext runtimeContext, Collector<RowData> collector)
-                throws Exception;
+        RecordsCombiner createRecordsCombiner(
+                RuntimeContext runtimeContext, Collector<RowData> collector) throws Exception;
     }
 }
