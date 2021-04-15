@@ -60,7 +60,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcXaSinkTestBase {
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 JdbcExecutionOptions.builder().build(),
-                                DERBY_EBOOKSHOP_DB.toConnectionOptions(),
                                 JdbcExactlyOnceOptions.defaults(),
                                 DERBY_EBOOKSHOP_DB::buildXaDataSource));
         env.execute();

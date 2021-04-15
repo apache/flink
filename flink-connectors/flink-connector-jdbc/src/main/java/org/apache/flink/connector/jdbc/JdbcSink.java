@@ -96,7 +96,6 @@ public class JdbcSink {
      * @param <T> type of data in {@link
      *     org.apache.flink.streaming.runtime.streamrecord.StreamRecord StreamRecord}.
      * @param executionOptions parameters of execution, such as batch size and maximum retries
-     * @param connectionOptions parameters of connection, such as JDBC URL
      * @param exactlyOnceOptions exactly-once options
      * @param dataSourceSupplier supplies the {@link XADataSource}
      */
@@ -104,7 +103,6 @@ public class JdbcSink {
             String sql,
             JdbcStatementBuilder<T> statementBuilder,
             JdbcExecutionOptions executionOptions,
-            JdbcConnectionOptions connectionOptions,
             JdbcExactlyOnceOptions exactlyOnceOptions,
             SerializableSupplier<XADataSource> dataSourceSupplier) {
         return new JdbcXaSinkFunction<>(
