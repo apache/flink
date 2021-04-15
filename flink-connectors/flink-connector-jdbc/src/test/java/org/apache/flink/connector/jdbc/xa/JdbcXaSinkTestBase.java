@@ -86,7 +86,11 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
         xaDataSource = getDbMetadata().buildXaDataSource();
         xaHelper =
                 new JdbcXaFacadeTestHelper(
-                        getDbMetadata().buildXaDataSource(), getDbMetadata().getUrl(), INPUT_TABLE);
+                        getDbMetadata().buildXaDataSource(),
+                        getDbMetadata().getUrl(),
+                        INPUT_TABLE,
+                        getDbMetadata().getUser(),
+                        getDbMetadata().getPassword());
         sinkHelper = buildSinkHelper(createStateHandler());
     }
 
@@ -103,7 +107,12 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
             xaHelper.close();
         }
         try (JdbcXaFacadeTestHelper xa =
-                new JdbcXaFacadeTestHelper(xaDataSource, getDbMetadata().getUrl(), INPUT_TABLE)) {
+                new JdbcXaFacadeTestHelper(
+                        xaDataSource,
+                        getDbMetadata().getUrl(),
+                        INPUT_TABLE,
+                        getDbMetadata().getUser(),
+                        getDbMetadata().getPassword())) {
             xa.cancelAllTx();
         }
     }
