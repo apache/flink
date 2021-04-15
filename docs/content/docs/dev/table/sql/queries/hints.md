@@ -1,6 +1,6 @@
 ---
-title: "SQL Hints"
-weight: 7
+title: "Hints"
+weight: 2
 type: docs
 aliases:
   - /dev/table/sql/hints.html
@@ -26,7 +26,7 @@ under the License.
 
 # SQL Hints
 
-
+{{< label Batch >}} {{< label Streaming >}}
 
 SQL hints can be used with SQL statements to alter execution plans. This chapter explains how to use hints to force various approaches.
 
