@@ -28,36 +28,25 @@ import java.util.Objects;
 /** The result of the {@link JobManagerRunner}. */
 public final class JobManagerRunnerResult {
 
-    @Nullable private final ExecutionGraphInfo executionGraphInfo;
+    private final ExecutionGraphInfo executionGraphInfo;
 
     @Nullable private final Throwable failure;
 
     private JobManagerRunnerResult(
-            @Nullable ExecutionGraphInfo executionGraphInfo, @Nullable Throwable failure) {
+            ExecutionGraphInfo executionGraphInfo, @Nullable Throwable failure) {
         this.executionGraphInfo = executionGraphInfo;
         this.failure = failure;
     }
 
     public boolean isSuccess() {
-        return executionGraphInfo != null && failure == null;
-    }
-
-    public boolean isJobNotFinished() {
-        return executionGraphInfo == null && failure == null;
+        return failure == null;
     }
 
     public boolean isInitializationFailure() {
-        return executionGraphInfo == null && failure != null;
+        return failure != null;
     }
 
-    /**
-     * This method returns the payload of the successful JobManagerRunnerResult.
-     *
-     * @return the @link ExecutionGraphInfo} of a successfully finished job
-     * @throws IllegalStateException if the result is not a success
-     */
     public ExecutionGraphInfo getExecutionGraphInfo() {
-        Preconditions.checkState(isSuccess());
         return executionGraphInfo;
     }
 
@@ -90,15 +79,12 @@ public final class JobManagerRunnerResult {
         return Objects.hash(executionGraphInfo, failure);
     }
 
-    public static JobManagerRunnerResult forJobNotFinished() {
-        return new JobManagerRunnerResult(null, null);
-    }
-
     public static JobManagerRunnerResult forSuccess(ExecutionGraphInfo executionGraphInfo) {
         return new JobManagerRunnerResult(executionGraphInfo, null);
     }
 
-    public static JobManagerRunnerResult forInitializationFailure(Throwable failure) {
-        return new JobManagerRunnerResult(null, failure);
+    public static JobManagerRunnerResult forInitializationFailure(
+            ExecutionGraphInfo executionGraphInfo, Throwable failure) {
+        return new JobManagerRunnerResult(executionGraphInfo, failure);
     }
 }

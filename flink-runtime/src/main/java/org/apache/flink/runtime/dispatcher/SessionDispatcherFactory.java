@@ -43,6 +43,6 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
                 dispatcherBootstrapFactory,
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobGraphStore,
-                        DefaultJobManagerRunnerFactory.INSTANCE));
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE));
     }
 }

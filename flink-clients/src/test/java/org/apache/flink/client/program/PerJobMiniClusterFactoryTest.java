@@ -114,23 +114,6 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testSubmissionError() throws Exception {
-        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-
-        // JobGraph is not a valid job
-
-        JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
-
-        assertThrows(
-                "Could not instantiate JobManager",
-                ExecutionException.class,
-                () ->
-                        perJobMiniClusterFactory
-                                .submitJob(jobGraph, ClassLoader.getSystemClassLoader())
-                                .get());
-    }
-
-    @Test
     public void testMultipleExecutions() throws Exception {
         PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
         {
