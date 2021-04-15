@@ -469,11 +469,17 @@ public class TableEnvHiveConnectorITCase {
                     String.format(
                             "alter table tbl2 add partition (p='a') location '%s'",
                             location.getAbsolutePath()));
-            tableEnv.executeSql("insert into tbl2 partition (p='a') values (1),(2)");
+            tableEnv.executeSql("insert into tbl2 partition (p='a') values (1),(2)").await();
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from tbl2").collect());
             assertEquals("[+I[1, a], +I[2, a]]", results.toString());
+
+            tableEnv.executeSql("insert into tbl2 partition (p) values (3,'b ,')").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl2 where p='b ,'").collect());
+            assertEquals("[+I[3, b ,]]", results.toString());
         } finally {
             if (location != null) {
                 IOUtils.deleteFileQuietly(location.toPath());
