@@ -24,8 +24,8 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public enum JobStatus {
     /**
-     * The job has been received by the Dispatcher, and is waiting for the job manager to be
-     * created.
+     * The job has been received by the Dispatcher, and is waiting for the job manager to receive
+     * leadership and to be created.
      */
     INITIALIZING(TerminalState.NON_TERMINAL),
 
