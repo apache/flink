@@ -66,9 +66,9 @@ public class SortMergeResultPartition extends ResultPartition {
 
     /**
      * Number of expected buffer size to allocate for data writing. Currently, it is an empirical
-     * value (8M) which can not be configured.
+     * value (16M) which can not be configured.
      */
-    private static final int NUM_WRITE_BUFFER_BYTES = 8 * 1024 * 1024;
+    private static final int NUM_WRITE_BUFFER_BYTES = 16 * 1024 * 1024;
 
     private final Object lock = new Object();
 
