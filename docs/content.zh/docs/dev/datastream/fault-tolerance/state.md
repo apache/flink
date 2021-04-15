@@ -36,9 +36,9 @@ to learn about the concepts behind stateful stream processing.
 
 If you want to use keyed state, you first need to specify a key on a
 `DataStream` that should be used to partition the state (and also the records
-in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
-a `DataStream`. This will yield a `KeyedDataStream`, which then allows
-operations that use keyed state.
+in the stream themselves). You can specify a key using `keyBy(KeySelector)`
+in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
+This will yield a `KeyedStream`, which then allows operations that use keyed state.
 
 A key selector function takes a single record as input and returns the key for
 that record. The key can be of any type and **must** be derived from
@@ -76,12 +76,20 @@ val words: DataStream[WC] = // [...]
 val keyed = words.keyBy( _.word )
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+words = # type: DataStream[Row]
+keyed = words.key_by(lambda row: row[0])
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 #### Tuple Keys and Expression Keys
 
 Flink also has two alternative ways of defining keys: tuple keys and expression
-keys. With this you can specify keys using tuple field indices or expressions
+keys in the Java/Scala API(still not supported in the Python API). With this you can
+specify keys using tuple field indices or expressions
 for selecting fields of objects. We don't recommend using these today but you
 can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
 function is strictly superior: with Java lambdas they are easy to use and they
@@ -92,7 +100,7 @@ have potentially less overhead at runtime.
 ## 使用 Keyed State
 
 keyed state 接口提供不同类型状态的访问接口，这些状态都作用于当前输入数据的 key 下。换句话说，这些状态仅可在 `KeyedStream`
-上使用，可以通过 `stream.keyBy(...)` 得到 `KeyedStream`.
+上使用，在Java/Scala API上可以通过 `stream.keyBy(...)` 得到 `KeyedStream`，在Python API上可以通过 `stream.key_by(...)` 得到 `KeyedStream`。
 
 接下来，我们会介绍不同类型的状态，然后介绍如何使用他们。所有支持的状态类型如下所示：
 
@@ -240,6 +248,54 @@ object ExampleCountWindowAverage extends App {
 }
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment, FlatMapFunction, RuntimeContext
+from pyflink.datastream.state import ValueStateDescriptor
+
+class CountWindowAverage(FlatMapFunction):
+
+    def __init__(self):
+        self.sum = None
+
+    def open(self, runtime_context: RuntimeContext):
+        descriptor = ValueStateDescriptor(
+            "average",  # the state name
+            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+        )
+        self.sum = runtime_context.get_state(descriptor)
+
+    def flat_map(self, value):
+        # access the state value
+        current_sum = self.sum.value()
+        if current_sum is None:
+            current_sum = (0, 0)
+
+        # update the count
+        current_sum = (current_sum[0] + 1, current_sum[1] + value[1])
+
+        # update the state
+        self.sum.update(current_sum)
+
+        # if the count reaches 2, emit the average and clear the state
+        if current_sum[0] >= 2:
+            self.sum.clear()
+            yield value[0], int(current_sum[1] / current_sum[0])
+
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.from_collection([(1, 3), (1, 5), (1, 7), (1, 4), (1, 2)]) \
+    .key_by(lambda row: row[0]) \
+    .flat_map(CountWindowAverage()) \
+    .print()
+
+env.execute()
+
+# the printed output will be (1,4) and (1,5)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 这个例子实现了一个简单的计数窗口。 我们把元组的第一个元素当作 key（在示例中都 key 都是 "1"）。 该函数将出现的次数以及总和存储在 "ValueState" 中。 
@@ -318,6 +374,8 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
 
+- State TTL 当前在 PyFlink DataStream API 中还不支持。
+
 #### 过期数据的清理
 
 默认情况下，过期数据会在读取的时候被删除，例如 `ValueState#value`，同时会有后台线程定期清理（如果 StateBackend 支持的话）。可以通过 `StateTtlConfig` 配置关闭后台清理：
@@ -342,6 +400,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .disableCleanupInBackground
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL 当前在 PyFlink DataStream API 中还不支持。
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -376,6 +439,11 @@ val ttlConfig = StateTtlConfig
     .build
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL 当前在 PyFlink DataStream API 中还不支持。
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 这种策略在 `RocksDBStateBackend` 的增量 checkpoint 模式下无效。
@@ -407,6 +475,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL 当前在 PyFlink DataStream API 中还不支持。
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -447,6 +520,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupInRocksdbCompactFilter(1000)
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL 当前在 PyFlink DataStream API 中还不支持。
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -498,6 +576,8 @@ In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
 scenarios where you don't have a key by which state can be partitioned.
 
+**Notes:** Operator state is still not supported in Python DataStream API.
+
 ## Broadcast State
 
 *Broadcast State* is a special type of *Operator State*.  It was introduced to
@@ -514,6 +594,8 @@ in that:
  2. it is only available to specific operators that have as inputs a
     *broadcasted* stream and a *non-broadcasted* one, and
  3. such an operator can have *multiple broadcast states* with different names.
+
+**Notes:** Broadcast state is still not supported in Python DataStream API.
 
 {{< top >}}
 
