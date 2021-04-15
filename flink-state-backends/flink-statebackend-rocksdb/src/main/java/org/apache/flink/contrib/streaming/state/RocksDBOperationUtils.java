@@ -250,7 +250,8 @@ public class RocksDBOperationUtils {
         try {
             // IMPORTANT NOTE: Do not call ColumnFamilyHandle#getDescriptor() just to judge if it
             // return null and then call it again when it return is not null. That will cause
-            // task manager native memory used by RocksDB can't be released timely after job restart.
+            // task manager native memory used by RocksDB can't be released timely after job
+            // restart.
             // The problem can find in : https://issues.apache.org/jira/browse/FLINK-21986
             if (columnFamilyHandle != null) {
                 ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyHandle.getDescriptor();
