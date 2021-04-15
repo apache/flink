@@ -25,7 +25,7 @@ from libc.string cimport memcpy
 
 import datetime
 import decimal
-import pickle
+import cloudpickle
 
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.datastream.window import TimeWindow, CountWindow
@@ -372,7 +372,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             return datetime.time(hours, minutes, seconds, milliseconds * 1000)
         elif field_type == PICKLED_BYTES:
             decoded_bytes = self._decode_bytes()
-            return pickle.loads(decoded_bytes)
+            return cloudpickle.loads(decoded_bytes)
         elif field_type == BIG_DEC:
             return decimal.Decimal(self._decode_bytes().decode("utf-8"))
 
@@ -584,7 +584,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             self._encode_int(milliseconds)
         elif field_type == PICKLED_BYTES:
             # pickled object
-            pickled_bytes = pickle.dumps(item)
+            pickled_bytes = cloudpickle.dumps(item)
             self._encode_bytes(pickled_bytes, len(pickled_bytes))
         elif field_type == BIG_DEC:
             item_bytes = str(item).encode('utf-8')
