@@ -788,8 +788,8 @@ public class ActiveResourceManagerTest extends TestLogger {
                             runInMainThread(() -> requestResourceFuture.complete(tmResourceId));
 
                             // worker registered, verify not released due to timeout
-                            CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                            RegistrationResponse registrationResponse =
+                                    registerTaskExecutor(tmResourceId).join();
 
                             final long registrationTime = (System.nanoTime() - start) / 1_000_000;
 
@@ -797,7 +797,7 @@ public class ActiveResourceManagerTest extends TestLogger {
                                     "The registration must not take longer than the start worker timeout. If it does, then this indicates a very slow machine.",
                                     registrationTime < TESTING_START_WORKER_TIMEOUT_MS);
                             assertThat(
-                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    registrationResponse,
                                     instanceOf(RegistrationResponse.Success.class));
                             assertFalse(releaseResourceFuture.isDone());
                         });
