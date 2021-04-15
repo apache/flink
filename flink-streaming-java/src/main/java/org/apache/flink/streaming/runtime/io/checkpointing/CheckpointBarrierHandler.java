@@ -108,7 +108,10 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
         CheckpointMetaData checkpointMetaData =
-                new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+                new CheckpointMetaData(
+                        checkpointBarrier.getId(),
+                        checkpointBarrier.getTimestamp(),
+                        System.currentTimeMillis());
 
         CheckpointMetricsBuilder checkpointMetrics =
                 new CheckpointMetricsBuilder()
