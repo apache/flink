@@ -26,7 +26,7 @@ under the License.
 
 # SHOW Statements
 
-SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table/view, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database, or list enabled module names, or list all loaded modules with enabled status in the current session.
+SHOW statements are used to list all catalogs, or list all databases in the current catalog, or list all tables/views in the current catalog and the current database, or show current catalog and database, or show create statement for specified table, or list all functions including system functions and user-defined functions in the current catalog and current database, or list only user-defined functions in the current catalog and current database, or list enabled module names, or list all loaded modules with enabled status in the current session.
 
 Flink SQL supports the following SHOW statements for now:
 - SHOW CATALOGS
@@ -122,16 +122,13 @@ tEnv.executeSql("SHOW TABLES").print();
 
 // show create table
 tEnv.executeSql("SHOW CREATE TABLE my_table").print();
-// +----------------------------------------------------------+
-// |                                             create table |
-// +----------------------------------------------------------+
-// | CREATE TABLE `default_catalog`.`default_db`.`my_table` ( |
-// |   ...                                                    |
-// | ) WITH (                                                 |
-// |   ...                                                    |
-// | )                                                        |
-// +----------------------------------------------------------+
-        
+// CREATE TABLE `default_catalog`.`default_db`.`my_table` (
+//   ...
+// ) WITH (
+//   ...
+// )
+
+
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...");
 // show views
@@ -141,15 +138,6 @@ tEnv.executeSql("SHOW VIEWS").print();
 // +-----------+
 // |   my_view |
 // +-----------+
-// show create table for view
-tEnv.executeSql("SHOW CREATE TABLE my_view").print();
-// +---------------------------------------------------------+
-// |                                            create table |
-// +---------------------------------------------------------+
-// | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-// | ...                                                     |
-// |                                                         |
-// +---------------------------------------------------------+
 
 // show functions
 tEnv.executeSql("SHOW FUNCTIONS").print();
@@ -224,15 +212,11 @@ tEnv.executeSql("SHOW TABLES").print()
 
 // show create table
 tEnv.executeSql("SHOW CREATE TABLE my_table").print()
-// +----------------------------------------------------------+
-// |                                             create table |
-// +----------------------------------------------------------+
-// | CREATE TABLE `default_catalog`.`default_db`.`my_table` ( |
-// |   ...                                                    |
-// | ) WITH (                                                 |
-// |   ...                                                    |
-// | )                                                        |
-// +----------------------------------------------------------+
+// CREATE TABLE `default_catalog`.`default_db`.`my_table` (
+//  ...
+// ) WITH (
+//  ...
+// )
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...")
 // show views
@@ -242,15 +226,6 @@ tEnv.executeSql("SHOW VIEWS").print()
 // +-----------+
 // |   my_view |
 // +-----------+
-// show create table for view
-tEnv.executeSql("SHOW CREATE TABLE my_view").print()
-// +---------------------------------------------------------+
-// |                                            create table |
-// +---------------------------------------------------------+
-// | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-// | ...                                                     |
-// |                                                         |
-// +---------------------------------------------------------+
 
 // show functions
 tEnv.executeSql("SHOW FUNCTIONS").print()
@@ -324,15 +299,11 @@ table_env.execute_sql("SHOW TABLES").print()
 # +------------+
 # show create table
 table_env.executeSql("SHOW CREATE TABLE my_table").print()
-# +----------------------------------------------------------+
-# |                                             create table |
-# +----------------------------------------------------------+
-# | CREATE TABLE `default_catalog`.`default_db`.`my_table` ( |
-# |   ...                                                    |
-# | ) WITH (                                                 |
-# |   ...                                                    |
-# | )                                                        |
-# +----------------------------------------------------------+
+# CREATE TABLE `default_catalog`.`default_db`.`my_table` (
+#   ...
+# ) WITH (
+#   ...
+# )
 
 # create a view
 table_env.execute_sql("CREATE VIEW my_view AS ...")
@@ -343,15 +314,6 @@ table_env.execute_sql("SHOW VIEWS").print()
 # +-----------+
 # |   my_view |
 # +-----------+
-# show create table for view
-table_env.execute_sql("SHOW CREATE TABLE my_view").print()
-# +---------------------------------------------------------+
-# |                                            create table |
-# +---------------------------------------------------------+
-# | CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-# | ...                                                     |
-# |                                                         |
-# +---------------------------------------------------------+
 
 # show functions
 table_env.execute_sql("SHOW FUNCTIONS").print()
@@ -408,33 +370,17 @@ Flink SQL> SHOW TABLES;
 my_table
 
 Flink SQL> SHOW CREATE TABLE my_table;
-+----------------------------------------------------------+
-|                                             create table |
-+----------------------------------------------------------+
-| CREATE TABLE `default_catalog`.`default_db`.`my_table` ( |
-|   ...                                                    |
-| ) WITH (                                                 |
-|   ...                                                    |
-| )                                                        |
-+----------------------------------------------------------+
-1 row in set
+CREATE TABLE `default_catalog`.`default_db`.`my_table` (
+  ...
+) WITH (
+  ...
+)
 
 Flink SQL> CREATE VIEW my_view AS ...;
 [INFO] View has been created.
 
 Flink SQL> SHOW VIEWS;
 my_view
-
-Flink SQL> SHOW CREATE TABLE my_view;
-+---------------------------------------------------------+
-|                                            create table |
-+---------------------------------------------------------+
-| CREATE VIEW `default_catalog`.`default_db`.`my_view` AS |
-| ...                                                     |
-|                                                         |
-+---------------------------------------------------------+
-1 row in set
-
 Flink SQL> SHOW FUNCTIONS;
 mod
 sha256
@@ -518,7 +464,9 @@ Show all tables in the current catalog and the current database.
 SHOW CREATE TABLE
 ```
 
-Show create table statement for specified table or view.
+Show create table statement for specified table.
+
+<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL. 
 
 ## SHOW VIEWS
 

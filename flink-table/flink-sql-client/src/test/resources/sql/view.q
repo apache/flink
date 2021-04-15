@@ -74,16 +74,9 @@ show views;
 
 # test SHOW CREATE TABLE for views
 show create table v1;
-+---------------------------------------------------------------------------------------------------------------------------------+
-|                                                                                                                    create table |
-+---------------------------------------------------------------------------------------------------------------------------------+
-| CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v1` AS
-SELECT *
-FROM `default_catalog`.`default_database`.`orders`
- |
-+---------------------------------------------------------------------------------------------------------------------------------+
-1 row in set
-!ok
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.TableException: Could not execute SHOW CREATE TABLE. View with identifier `default_catalog`.`default_database`.`v1` is not supported.
+!error
 
 # ==== test permanent view =====
 

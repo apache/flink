@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.catalog.{CatalogDatabaseImpl, CatalogFunctionImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
@@ -39,7 +39,6 @@ import java.io.File
 import java.math.{BigDecimal => JBigDecimal}
 import java.net.URI
 import java.util
-
 import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
@@ -1028,6 +1027,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
     assertEquals(expectedDDL, row.getField(0))
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage(
+      "Could not execute SHOW CREATE TABLE. " +
+        "Table with identifier `default_catalog`.`default_database`.`tmp` does not exist.")
+    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
   }
 
   @Test
@@ -1047,16 +1052,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
           |from `source`
           |group by `group`
           |""".stripMargin
-    val expectedDDL =
-      """ |CREATE VIEW `default_catalog`.`default_database`.`tmp` AS
-          |SELECT `source`.`group`, AVG(`source`.`score`) AS `avg_score`
-          |FROM `default_catalog`.`default_database`.`source`
-          |GROUP BY `source`.`group`
-          |""".stripMargin
     tableEnv.executeSql(createTableDDL)
     tableEnv.executeSql(createViewDDL)
-    val row = tableEnv.executeSql("SHOW CREATE TABLE `tmp`").collect().next()
-    assertEquals(expectedDDL, row.getField(0))
+    expectedEx.expect(classOf[TableException])
+    expectedEx.expectMessage(
+      "Could not execute SHOW CREATE TABLE. " +
+        "View with identifier `default_catalog`.`default_database`.`tmp` is not supported.")
+    tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
   }
 
   @Test
