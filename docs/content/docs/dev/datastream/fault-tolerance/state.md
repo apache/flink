@@ -88,7 +88,7 @@ keyed = words.key_by(lambda row: row[0])
 #### Tuple Keys and Expression Keys
 
 Flink also has two alternative ways of defining keys: tuple keys and expression
-keys in the Java API(still not supported in the Python API). With this you can
+keys in the Java/Scala API(still not supported in the Python API). With this you can
 specify keys using tuple field indices or expressions
 for selecting fields of objects. We don't recommend using these today but you
 can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
@@ -101,7 +101,7 @@ have potentially less overhead at runtime.
 
 The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
-on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java API or `stream.key_by(…)` in Python API.
+on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java/Scala API or `stream.key_by(…)` in Python API.
 
 Now, we will first look at the different types of state available and then we will see
 how they can be used in a program. The available state primitives are:
@@ -302,7 +302,7 @@ class CountWindowAverage(FlatMapFunction):
         # if the count reaches 2, emit the average and clear the state
         if current_sum[0] >= 2:
             self.sum.clear()
-            yield value[0], current_sum[1] / current_sum[0]
+            yield value[0], int(current_sum[1] / current_sum[0])
 
 
 env = StreamExecutionEnvironment.get_execution_environment()
