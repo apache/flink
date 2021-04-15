@@ -168,10 +168,6 @@ env
                     ps.setInt(5, t.qty);
                 },
                 JdbcExecutionOptions.builder().build(),
-                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                        .withUrl(getDbMetadata().getUrl())
-                        .withDriverName(getDbMetadata().getDriverClass())
-                        .build()),
                 JdbcExactlyOnceOptions.defaults(),
                 () -> {
                     // create a driver-specific XA DataSource
