@@ -1,6 +1,6 @@
 ---
-title: 'Detecting Patterns'
-weight: 6
+title: Pattern Recognition
+weight: 17
 type: docs
 aliases:
   - /dev/table/streaming/match_recognize.html
@@ -24,7 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 'Detecting Patterns in Tables'
+# Pattern Recognition
+
+{{< label Streaming >}}
 
 It is a common use case to search for a set of event patterns, especially in case of data streams.
 Flink comes with a [complex event processing (CEP) library]({{< ref "docs/libs/cep" >}})
@@ -1042,7 +1044,7 @@ use [time attributes](time_attributes.html). To select those there are available
       <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
       <p>The resulting attribute is a <a href="time_attributes.html">rowtime attribute</a>
          that can be used in subsequent time-based operations such as
-         <a href="{{< ref "docs/dev/table/concepts/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
+         <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
          window aggregations</a>.</p></td>
     </tr>
     <tr>
@@ -1051,7 +1053,7 @@ use [time attributes](time_attributes.html). To select those there are available
       </td>
       <td><p>Returns a <a href="time_attributes.html#processing-time">proctime attribute</a>
           that can be used in subsequent time-based operations such as
-          <a href="{{{{< ref "docs/dev/table/concepts/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
+          <a href="{{{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
           window aggregations</a>.</p></td>
     </tr>
   </tbody>

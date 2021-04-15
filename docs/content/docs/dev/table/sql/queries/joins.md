@@ -1,6 +1,6 @@
 ---
 title: "Joins"
-weight: 5
+weight: 10
 type: docs
 aliases:
   - /dev/table/streaming/joins.html
@@ -24,14 +24,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Joins in Continuous Queries
+# Joins
+
+{{< label Batch >}} {{< label Streaming >}}
 
 Flink SQL supports complex and flexible join operations over dynamic tables. 
 There are several different types of joins to account for the wide variety of semantics queries may require. 
 
-For full syntax of each join, please check the join sections in [Table API](../tableApi.html#joins) and [SQL]({{< ref "docs/dev/table/sql/queries" >}}#joins).
-
-
+By default, the order of joins is not optimized. Tables are joined in the order in which they are specified in the `FROM` clause. You can tweak the performance of your join queries, by listing the tables with the lowest update frequency first and the tables with the highest update frequency last. Make sure to specify tables in an order that does not yield a cross join (Cartesian product), which are not supported and would cause a query to fail.
 
 Regular Joins
 -------------
@@ -45,27 +45,65 @@ INNER JOIN Product
 ON Orders.productId = Product.id
 ```
 
+For streaming queries, the grammar of regular joins is the most flexible and allow for any kind of updating (insert, update, delete) input table.
+However, this operation has important operational implications: it requires to keep both sides of the join input in Flink state forever.
+Thus, the required state for computing the query result might grow infinitely depending on the number of distinct input rows of all input tables and intermediate join results. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
 
-These semantics are the most flexible and allow for any kind of updating (insert, update, delete) input table.
-However, this operation has important operational implications: it requires to keep both sides of the join input in Flinks state forever.
-Thus, the resource usage may grow indefinitely if both input tables are append-only. 
+{{< query_state_warning >}}
+
+### INNER Equi-JOIN
+
+Returns a simple Cartesian product restricted by the join condition. Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.
+
+```sql
+SELECT *
+FROM Orders
+INNER JOIN Product
+ON Orders.product_id = Product.id
+```
+
+### OUTER Equi-JOIN
+
+Returns all rows in the qualified Cartesian product (i.e., all combined rows that pass its join condition), plus one copy of each row in an outer table for which the join condition did not match with any row of the other table. Flink supports LEFT, RIGHT, and FULL outer joins. Currently, only equi-joins are supported, i.e., joins with at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.
+
+```sql
+SELECT *
+FROM Orders
+LEFT JOIN Product
+ON Orders.product_id = Product.id
+
+SELECT *
+FROM Orders
+RIGHT JOIN Product
+ON Orders.product_id = Product.id
+
+SELECT *
+FROM Orders
+FULL OUTER JOIN Product
+ON Orders.product_id = Product.id
+```
 
 Interval Joins
 --------------
 
-An interval join is defined by a join predicate that checks if the [time attributes](time_attributes.html) of the input
-records are within certain time constraints, i.e., a time window.
+Returns a simple Cartesian product restricted by the join condition and a time constraint. An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Two appropriate range predicates can define such a condition (<, <=, >=, >), a BETWEEN predicate, or a single equality predicate that compares [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the same type (i.e., processing time or event time) of both input tables.
+
+For example, this query will join all orders with their corresponding shipments if the order was shipped four hours after the order was received.
 
 ```sql
 SELECT *
-FROM
-  Orders o,
-  Shipments s
-WHERE o.id = s.orderId AND
-      o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
+FROM Orders o, Shipments s
+WHERE o.id = s.order_id
+AND o.order_time BETWEEN s.ship_time - INTERVAL '4' HOUR AND s.ship_time
 ```
 
-Compared to a regular join, this kind of join only supports append-only tables with time attributes.
+The following predicates are examples of valid interval join conditions:
+
+- `ltime = rtime`
+- `ltime >= rtime AND ltime < rtime + INTERVAL '10' MINUTE`
+- `ltime BETWEEN rtime - INTERVAL '10' SECOND AND rtime + INTERVAL '5' SECOND`
+
+For streaming queries, compared to the regular join, interval join only supports append-only tables with time attributes.
 Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
 Temporal Joins
@@ -103,7 +141,7 @@ CREATE TABLE orders (
     currency    STRING,
     order_time  TIMESTAMP(3),
     WATERMARK FOR order_time AS order_time
-) WITH (...);
+) WITH (/* ... */);
 
 -- Define a versioned table of currency rates. 
 -- This could be from a change-data-capture
@@ -112,9 +150,12 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTURAL
+    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL
     WATERMARK FOR update_time AS update_time
-) WITH (...);
+) WITH (
+   'connector' = 'upsert-kafka',
+   /* ... */
+);
 
 SELECT 
      order_id,
@@ -224,5 +265,72 @@ The processing-time temporal join is most often used to enrich the stream with a
 
 In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
 Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records join, i.e., old rows are not stored in state.
+
+Lookup Join
+--------------
+
+A lookup join is typically used to enrich a table with data that is queried from an external system. The join requires one table to have a processing time attribute and the other table to be backed by a lookup source connector.
+
+The lookup join uses the above [Processing Time Temporal Join](#processing-time-temporal-join) syntax with the right table to be backed by a lookup source connector.
+
+The following example shows the syntax to specify a lookup join.
+
+```sql
+-- Customers is backed by the JDBC connector and can be used for lookup joins
+CREATE TEMPORARY TABLE Customers (
+  id INT,
+  name STRING,
+  country STRING,
+  zip STRING
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://mysqlhost:3306/customerdb',
+  'table-name' = 'customers'
+);
+
+-- enrich each order with customer information
+SELECT o.order_id, o.total, c.country, c.zip
+FROM Orders AS o
+  JOIN Customers FOR SYSTEM_TIME AS OF o.proc_time AS c
+    ON o.customer_id = c.id;
+```
+
+In the example above, the Orders table is enriched with data from the Customers table which resides in a MySQL database. The `FOR SYSTEM_TIME AS OF` clause with the subsequent processing time attribute ensures that each row of the `Orders` table is joined with those Customers rows that match the join predicate at the point in time when the `Orders` row is processed by the join operator. It also prevents that the join result is updated when a joined `Customer` row is updated in the future. The lookup join also requires a mandatory equality join predicate, in the example above `o.customer_id = c.id`.
+
+Array Expansion
+--------------
+
+Returns a new row for each element in the given array. Unnesting `WITH ORDINALITY` is not yet supported.
+
+```sql
+SELECT order_id, tag
+FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+```
+
+Table Function
+--------------
+
+Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. [User-defined table functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions) must be registered before use.
+
+### INNER JOIN
+
+The row of the left (outer) table is dropped, if its table function call returns an empty result.
+
+```sql
+SELECT order_id, res
+FROM Orders,
+LATERAL TABLE(table_func(order_id)) t(res)
+```
+
+### LEFT OUTER JOIN
+
+If a table function call returns an empty result, the corresponding outer row is preserved, and the result padded with null values. Currently, a left outer join against a lateral table requires a TRUE literal in the ON clause.
+
+```sql
+SELECT order_id, res
+FROM Orders
+LEFT OUTER JOIN LATERAL TABLE(table_func(order_id)) t(res)
+  ON TRUE
+```
 
 {{< top >}}
