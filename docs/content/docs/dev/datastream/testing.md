@@ -443,7 +443,7 @@ public class ExampleIntegrationTest {
                  .build());
 
     @Before
-    public void init() {
+    public void init() throws Exception {
         flinkCluster.before();
     }
 
