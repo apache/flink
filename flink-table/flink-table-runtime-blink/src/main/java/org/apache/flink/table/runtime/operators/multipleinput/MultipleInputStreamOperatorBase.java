@@ -245,9 +245,9 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
                     output = outputs[0];
                 } else {
                     if (isObjectReuseEnabled) {
-                        output = new BroadcastingOutput(outputs);
-                    } else {
                         output = new CopyingBroadcastingOutput(outputs);
+                    } else {
+                        output = new BroadcastingOutput(outputs);
                     }
                 }
             }
