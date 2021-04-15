@@ -144,18 +144,18 @@ END;
 !info
 
 SELECT * FROM BatchTable;
-+-------------+--------------------------------+
-|          id |                            str |
-+-------------+--------------------------------+
-|           1 |                    Hello World |
-|           2 |                             Hi |
-|           2 |                             Hi |
-|           3 |                          Hello |
-|           3 |                          World |
-|           4 |                            ADD |
-|           5 |                           LINE |
-+-------------+--------------------------------+
-Received a total of 7 rows
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+7 rows in set
 !ok
 
 BEGIN STATEMENT SET;
