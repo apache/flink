@@ -203,9 +203,6 @@ class MapState(State, Generic[K, V]):
     def get(self, key: K) -> V:
         """
         Returns the current value associated with the given key.
-
-        Raises:
-            KeyError if the key doesn't exist.
         """
         pass
 
