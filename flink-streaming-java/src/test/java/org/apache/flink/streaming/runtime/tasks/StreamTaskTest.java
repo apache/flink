@@ -2482,7 +2482,11 @@ public class StreamTaskTest extends TestLogger {
         public void run(SourceContext<String> ctx) throws Exception {
             runningLatch.countDown();
             while (running) {
-                Thread.sleep(2);
+                try {
+                    Thread.sleep(Integer.MAX_VALUE);
+                } catch (InterruptedException ignore) {
+                    // ignore
+                }
             }
         }
 
