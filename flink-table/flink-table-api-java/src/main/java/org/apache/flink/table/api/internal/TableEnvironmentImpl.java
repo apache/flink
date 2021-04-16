@@ -1336,7 +1336,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (kind == CatalogBaseTable.TableKind.VIEW) {
             throw new TableException(
                     String.format(
-                            "Could not execute SHOW CREATE TABLE. View with identifier %s is not supported.",
+                            "SHOW CREATE TABLE does not support showing CREATE VIEW statement with identifier %s.",
                             sqlIdentifier.asSerializableString()));
         }
         StringBuilder sb =

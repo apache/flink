@@ -75,7 +75,7 @@ show views;
 # test SHOW CREATE TABLE for views
 show create table v1;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.TableException: Could not execute SHOW CREATE TABLE. View with identifier `default_catalog`.`default_database`.`v1` is not supported.
+org.apache.flink.table.api.TableException: SHOW CREATE TABLE does not support showing CREATE VIEW statement with identifier `default_catalog`.`default_database`.`v1`.
 !error
 
 # ==== test permanent view =====

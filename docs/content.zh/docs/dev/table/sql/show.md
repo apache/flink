@@ -382,6 +382,7 @@ Flink SQL> CREATE VIEW my_view AS ...;
 
 Flink SQL> SHOW VIEWS;
 my_view
+
 Flink SQL> SHOW FUNCTIONS;
 mod
 sha256
