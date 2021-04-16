@@ -28,7 +28,7 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rex.{RexInputRef, RexLiteral}
+import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.Util
 
@@ -67,22 +67,48 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
     } else {
       val condition = project.getProjects.get(filterArg)
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
-      project.getProjects.get(columnIndex) match {
-        case inputRef: RexInputRef =>
-          ColumnIntervalUtil.getColumnIntervalWithFilter(
-            Option(columnInterval),
-            condition,
-            inputRef.getIndex,
-            project.getCluster.getRexBuilder)
-        case literal: RexLiteral =>
-          val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
-          if (literalValue == null) {
-            ValueInterval.empty
-          } else {
-            ValueInterval(literalValue, literalValue)
-          }
-        case _ => null
-      }
+      intersectColumnIntervalWithPredicate(
+        project.getProjects.get(columnIndex),
+        Option(columnInterval),
+        condition,
+        project.getCluster.getRexBuilder)
+    }
+  }
+
+  /**
+   * Calculate the value interval of the given column (which may carry derived column interval) and
+   * additional predicate expression, if the given column is a RexInputRef then the final interval
+   * is intersect with the predicate, if the given column is a RexLiteral then the final interval
+   * is the literal itself, otherwise return null.
+   * This can be improved (e.g., for RexCall) later and refactor this meta data to a utility class
+   * because it only serves for calculating the monotonicity of some specific aggregate functions.
+   *
+   * @param column original column
+   * @param origColumnInterval original column interval
+   * @param predicate the predicate expression
+   * @param rexBuilder RexBuilder instance to analyze the predicate expression
+   * @return
+   */
+  private def intersectColumnIntervalWithPredicate(
+      column: RexNode,
+      origColumnInterval: Option[ValueInterval],
+      predicate: RexNode,
+      rexBuilder: RexBuilder): ValueInterval = {
+    column match {
+      case inputRef: RexInputRef =>
+        ColumnIntervalUtil.getColumnIntervalWithFilter(
+          origColumnInterval,
+          predicate,
+          inputRef.getIndex,
+          rexBuilder)
+      case literal: RexLiteral =>
+        val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
+        if (literalValue == null) {
+          ValueInterval.empty
+        } else {
+          ValueInterval(literalValue, literalValue)
+        }
+      case _ => null
     }
   }
 
@@ -143,12 +169,12 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
     } else {
       val filterRef = calc.getProgram.getProjectList.get(filterArg)
       val condition = calc.getProgram.expandLocalRef(filterRef)
-      val columnRef = calc.getProgram.getProjectList.get(columnIndex).getIndex
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
-      ColumnIntervalUtil.getColumnIntervalWithFilter(
+      val column = calc.getProgram.expandLocalRef(calc.getProgram.getProjectList.get(columnIndex))
+      intersectColumnIntervalWithPredicate(
+        column,
         Option(columnInterval),
         condition,
-        columnRef,
         calc.getCluster.getRexBuilder)
     }
   }
