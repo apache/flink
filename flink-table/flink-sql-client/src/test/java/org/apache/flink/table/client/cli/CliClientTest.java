@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -232,7 +233,8 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
-        CliClient cliClient = new CliClient(sessionId, mockExecutor, historyTempFile());
+        CliClient cliClient =
+                new CliClient(DEFAULT_TERMINAL_FACTORY, sessionId, mockExecutor, historyTempFile());
 
         assertFalse("Should fail", cliClient.executeInitialization(content));
     }

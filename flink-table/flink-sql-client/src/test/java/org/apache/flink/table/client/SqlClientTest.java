@@ -215,7 +215,7 @@ public class SqlClientTest {
                                 new ByteArrayInputStream(
                                         statements.getBytes(StandardCharsets.UTF_8)),
                                 out)) {
-            MockedSqlClient.mockedMain(args, terminal);
+            SqlClient.startClient(args, () -> terminal);
             return getStdoutString(out);
         }
     }

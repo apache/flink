@@ -99,6 +99,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class CliClient implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
+    public static Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
+            TerminalUtils::createDefaultTerminal;
 
     private final Executor executor;
 
@@ -110,7 +112,7 @@ public class CliClient implements AutoCloseable {
 
     private final @Nullable MaskingCallback inputTransformer;
 
-    private final Supplier<Terminal> terminalCreator;
+    private final Supplier<Terminal> terminalFactory;
 
     private Terminal terminal;
 
@@ -130,12 +132,12 @@ public class CliClient implements AutoCloseable {
      */
     @VisibleForTesting
     public CliClient(
-            Supplier<Terminal> terminalCreator,
+            Supplier<Terminal> terminalFactory,
             String sessionId,
             Executor executor,
             Path historyFilePath,
             @Nullable MaskingCallback inputTransformer) {
-        this.terminalCreator = terminalCreator;
+        this.terminalFactory = terminalFactory;
         this.sessionId = sessionId;
         this.executor = executor;
         this.inputTransformer = inputTransformer;
@@ -155,8 +157,12 @@ public class CliClient implements AutoCloseable {
      * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
      * afterwards using {@link #close()}.
      */
-    public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(TerminalUtils::createDefaultTerminal, sessionId, executor, historyFilePath, null);
+    public CliClient(
+            Supplier<Terminal> terminalFactory,
+            String sessionId,
+            Executor executor,
+            Path historyFilePath) {
+        this(terminalFactory, sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -211,7 +217,7 @@ public class CliClient implements AutoCloseable {
     /** Opens the interactive CLI shell. */
     public void executeInInteractiveMode() {
         try {
-            terminal = terminalCreator.get();
+            terminal = terminalFactory.get();
             executeInteractive();
         } finally {
             closeTerminal();
@@ -220,7 +226,7 @@ public class CliClient implements AutoCloseable {
 
     public void executeInNonInteractiveMode(String content) {
         try {
-            terminal = terminalCreator.get();
+            terminal = terminalFactory.get();
             executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
         } finally {
             closeTerminal();
