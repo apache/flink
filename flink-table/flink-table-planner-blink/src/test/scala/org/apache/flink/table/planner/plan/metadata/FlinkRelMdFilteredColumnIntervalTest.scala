@@ -60,7 +60,8 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     // c is not null
     expr10 = relBuilder.call(IS_NOT_NULL, relBuilder.field(2))
     // c in ('all', 'none')
-    expr11 = relBuilder.in(relBuilder.field(2), relBuilder.literal("all"), relBuilder.literal("none"))
+    expr11 = relBuilder
+      .in(relBuilder.field(2), relBuilder.literal("all"), relBuilder.literal("none"))
     // c = 'all'
     expr12 = relBuilder.call(EQUALS, relBuilder.field(2), relBuilder.literal("all"))
     // c != 'all'
@@ -113,10 +114,18 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     assertEquals(ValueInterval(bd(0.0D), bd(6.1D)), mq.getFilteredColumnInterval(p, 1, 15))
     assertEquals(ValueInterval(bd(0.0D), bd(6.1D)), mq.getFilteredColumnInterval(p, 1, 16))
     assertEquals(ValueInterval(bd(0.0D), bd(6.1D)), mq.getFilteredColumnInterval(p, 1, 17))
-    assertEquals(ValueInterval(String.valueOf(""), String.valueOf("zzzzz")), mq.getFilteredColumnInterval(p, 13, 14))
-    assertEquals(ValueInterval(String.valueOf("all"), String.valueOf("none")), mq.getFilteredColumnInterval(p, 13, 15))
-    assertEquals(ValueInterval(String.valueOf("all"), String.valueOf("all")), mq.getFilteredColumnInterval(p, 13, 16))
-    assertEquals(ValueInterval(String.valueOf(""), String.valueOf("zzzzz")), mq.getFilteredColumnInterval(p, 13, 17))
+    assertEquals(
+      ValueInterval(String.valueOf(""), String.valueOf("zzzzz")),
+      mq.getFilteredColumnInterval(p, 13, 14))
+    assertEquals(
+      ValueInterval(String.valueOf("all"), String.valueOf("none")),
+      mq.getFilteredColumnInterval(p, 13, 15))
+    assertEquals(
+      ValueInterval(String.valueOf("all"), String.valueOf("all")),
+      mq.getFilteredColumnInterval(p, 13, 16))
+    assertEquals(
+      ValueInterval(String.valueOf(""), String.valueOf("zzzzz")),
+      mq.getFilteredColumnInterval(p, 13, 17))
   }
 
   @Test
@@ -202,8 +211,10 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetColumnIntervalOnAggregateWithFilter(): Unit = {
-    // FilteredColumnInterval only used for calculating MonotonicityOnAggCall, and always via its input
-    Array(logicalAggWithFilter, flinkLogicalAggWithFilter, batchGlobalAggWithoutLocalWithFilter,
+    // FilteredColumnInterval only used for calculating MonotonicityOnAggCall, and always via its
+    // input
+    Array(
+      logicalAggWithFilter, flinkLogicalAggWithFilter, batchGlobalAggWithoutLocalWithFilter,
       streamGlobalAggWithoutLocalWithFilter).foreach { agg =>
       assertEquals(ValueInterval(bd(12), bd(18)), mq.getFilteredColumnInterval(agg, 0, -1))
       assertNull(mq.getFilteredColumnInterval(agg, 1, -1))
@@ -214,10 +225,14 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
 
       // test aggregate's input column interval with filter `sex = 'M'` and `class > 3`
       assertEquals(ValueInterval(bd(0), null), mq.getFilteredColumnInterval(agg.getInput, 0, 7))
-      assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getFilteredColumnInterval(agg.getInput, 2, 7))
+      assertEquals(
+        ValueInterval(bd(2.7), bd(4.8)),
+        mq.getFilteredColumnInterval(agg.getInput, 2, 7))
       assertEquals(ValueInterval(bd(12), bd(18)), mq.getFilteredColumnInterval(agg.getInput, 3, 8))
       assertEquals(ValueInterval("M", "M"), mq.getFilteredColumnInterval(agg.getInput, 5, 7))
-      assertEquals(ValueInterval(bd(3), null, false), mq.getFilteredColumnInterval(agg.getInput, 6, 8))
+      assertEquals(
+        ValueInterval(bd(3), null, false),
+        mq.getFilteredColumnInterval(agg.getInput, 6, 8))
     }
 
     Array(batchGlobalAggWithLocalWithFilter, streamGlobalAggWithLocalWithFilter).foreach { agg =>
@@ -233,12 +248,16 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     Array(streamLocalAggWithFilter).foreach { agg =>
       assertEquals(ValueInterval(bd(12), bd(18)), mq.getFilteredColumnInterval(agg, 0, -1))
       assertNull(mq.getFilteredColumnInterval(agg, 1, -1))
-      assertEquals(ValueInterval(bd(2.7), bd(4.8)), mq.getFilteredColumnInterval(agg.getInput, 2, 7))
+      assertEquals(
+        ValueInterval(bd(2.7), bd(4.8)),
+        mq.getFilteredColumnInterval(agg.getInput, 2, 7))
       assertEquals(ValueInterval(bd(12), bd(18)), mq.getFilteredColumnInterval(agg.getInput, 3, 8))
       // local aggregate's output is not equal to logical or global agg
       assertNull(mq.getFilteredColumnInterval(agg, 4, -1))
       assertEquals(ValueInterval("M", "M"), mq.getFilteredColumnInterval(agg.getInput, 5, 7))
-      assertEquals(ValueInterval(bd(3), null, false), mq.getFilteredColumnInterval(agg.getInput, 6, 8))
+      assertEquals(
+        ValueInterval(bd(3), null, false),
+        mq.getFilteredColumnInterval(agg.getInput, 6, 8))
     }
   }
 
