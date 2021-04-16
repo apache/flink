@@ -283,21 +283,24 @@ public class OperatorCoordinatorHolder
 
         final CompletableFuture<byte[]> coordinatorCheckpoint = new CompletableFuture<>();
 
-        coordinatorCheckpoint.whenCompleteAsync(
-                (success, failure) -> {
-                    if (failure != null) {
-                        result.completeExceptionally(failure);
-                    } else if (eventValve.tryShutValve(checkpointId)) {
-                        completeCheckpointOnceEventsAreDone(checkpointId, result, success);
-                    } else {
-                        // if we cannot shut the valve, this means the checkpoint
-                        // has been aborted before, so the future is already
-                        // completed exceptionally. but we try to complete it here
-                        // again, just in case, as a safety net.
-                        result.completeExceptionally(new FlinkException("Cannot shut event valve"));
-                    }
-                },
-                mainThreadExecutor);
+        FutureUtils.assertNoException(
+                coordinatorCheckpoint.handleAsync(
+                        (success, failure) -> {
+                            if (failure != null) {
+                                result.completeExceptionally(failure);
+                            } else if (eventValve.tryShutValve(checkpointId)) {
+                                completeCheckpointOnceEventsAreDone(checkpointId, result, success);
+                            } else {
+                                // if we cannot shut the valve, this means the checkpoint
+                                // has been aborted before, so the future is already
+                                // completed exceptionally. but we try to complete it here
+                                // again, just in case, as a safety net.
+                                result.completeExceptionally(
+                                        new FlinkException("Cannot shut event valve"));
+                            }
+                            return null;
+                        },
+                        mainThreadExecutor));
 
         try {
             eventValve.markForCheckpoint(checkpointId);
