@@ -1,6 +1,6 @@
 ---
 title: "DROP Statements"
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /dev/table/sql/drop.html

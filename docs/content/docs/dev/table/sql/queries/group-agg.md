@@ -33,7 +33,7 @@ An aggregate function computes a single result from multiple input rows. For exa
 SELECT COUNT(*) FROM Orders
 ```
 
-For streaming queries, it is important to understand that Flink runs continuous queries that never terminate. Instead they update their result table according to the updates on its input tables. So for the above query, Flink will output an updated count each time a new row is inserted into the `Orders` table.
+For streaming queries, it is important to understand that Flink runs continuous queries that never terminate. Instead, they update their result table according to the updates on its input tables. For the above query, Flink will output an updated count each time a new row is inserted into the `Orders` table.
 
 Apache Flink supports the standard `GROUP BY` clause for aggregating data.
 
@@ -43,7 +43,7 @@ FROM Orders
 GROUP BY order_id
 ```
 
-For streaming queries, the required state for computing the query result might grow infinitely. State size depends on the number of groups and number and type of aggregation functions. For example `MIN`/`MAX` are heavy on state size while `COUNT` is cheap. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
+For streaming queries, the required state for computing the query result might grow infinitely. State size depends on the number of groups and the number and type of aggregation functions. For example `MIN`/`MAX` are heavy on state size while `COUNT` is cheap. You can provide a query configuration with an appropriate state time-to-live (TTL) to prevent excessive state size. Note that this might affect the correctness of the query result. See [query configuration]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) for details.
 
 Apache Flink provides a set of performance tuning ways for Group Aggregation, see more [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}).
 
