@@ -129,11 +129,11 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
     @Test
     public void testWithNullLiteral() {
         util.verifyRelPlan(
-                "WITH MyView AS (SELECT CASE\n" +
-                        "  WHEN amount > 0 THEN name\n" +
-                        "  ELSE CAST(NULL AS STRING)\n" +
-                        "  END AS a\n" +
-                        "  FROM MyTable)\n" +
-                        "SELECT a FROM MyView WHERE a IS NOT NULL\n");
+                "WITH MyView AS (SELECT CASE\n"
+                        + "  WHEN amount > 0 THEN name\n"
+                        + "  ELSE CAST(NULL AS STRING)\n"
+                        + "  END AS a\n"
+                        + "  FROM MyTable)\n"
+                        + "SELECT a FROM MyView WHERE a IS NOT NULL\n");
     }
 }
