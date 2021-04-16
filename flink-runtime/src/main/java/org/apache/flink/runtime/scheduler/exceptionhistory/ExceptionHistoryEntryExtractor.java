@@ -23,6 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.function.QuadFunction;
@@ -56,21 +57,28 @@ public class ExceptionHistoryEntryExtractor {
         final ExecutionVertex rootCauseExecutionVertex =
                 getExecutionVertex(executionJobVertices, failedExecutionVertexId);
 
-        final RootExceptionHistoryEntry root =
-                createLocalExceptionHistoryEntry(
-                        RootExceptionHistoryEntry::fromLocalFailure, rootCauseExecutionVertex);
+        if (rootCauseExecutionVertex.getFailureInfo().isPresent()) {
+            final RootExceptionHistoryEntry root =
+                    createLocalExceptionHistoryEntry(
+                            RootExceptionHistoryEntry::fromLocalFailure, rootCauseExecutionVertex);
 
-        for (ExecutionVertexID otherExecutionVertexId : otherAffectedVertices) {
-            final ExecutionVertex executionVertex =
-                    getExecutionVertex(executionJobVertices, otherExecutionVertexId);
-            if (executionVertex.getFailureInfo().isPresent()) {
-                root.add(
-                        createLocalExceptionHistoryEntry(
-                                ExceptionHistoryEntry::new, executionVertex));
+            for (ExecutionVertexID otherExecutionVertexId : otherAffectedVertices) {
+                final ExecutionVertex executionVertex =
+                        getExecutionVertex(executionJobVertices, otherExecutionVertexId);
+                if (executionVertex.getFailureInfo().isPresent()) {
+                    root.add(
+                            createLocalExceptionHistoryEntry(
+                                    ExceptionHistoryEntry::new, executionVertex));
+                }
             }
+
+            return root;
         }
 
-        return root;
+        return RootExceptionHistoryEntry.fromGlobalFailure(
+                new FlinkException(
+                        "This is a workaround for FLINK-22276: The actual failure was cleaned up already."),
+                System.currentTimeMillis());
     }
 
     /**
