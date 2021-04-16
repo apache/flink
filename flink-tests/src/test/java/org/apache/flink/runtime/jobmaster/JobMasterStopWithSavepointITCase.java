@@ -47,7 +47,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -80,7 +79,6 @@ import static org.junit.Assert.fail;
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
  * TERMINATE.
  */
-@Ignore("FLINK-22249, FLINK-22248")
 public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
