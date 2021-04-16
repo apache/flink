@@ -60,15 +60,16 @@ public class CheckpointInProgressRequestTest {
 
     private CheckpointInProgressRequest cancelCountingRequest(
             AtomicInteger cancelCounter, CyclicBarrier cb) {
-        return new CheckpointInProgressRequest(
-                "test",
-                1L,
-                unused -> {},
-                unused -> {
-                    cancelCounter.incrementAndGet();
-                    await(cb);
-                },
-                false);
+        return new CheckpointInProgressRequest("test", 1L, false) {
+            @Override
+            protected void executeInternal(ChannelStateCheckpointWriter writer) {}
+
+            @Override
+            protected void discard(Throwable cause) {
+                cancelCounter.incrementAndGet();
+                await(cb);
+            }
+        };
     }
 
     private void await(CyclicBarrier cb) {
