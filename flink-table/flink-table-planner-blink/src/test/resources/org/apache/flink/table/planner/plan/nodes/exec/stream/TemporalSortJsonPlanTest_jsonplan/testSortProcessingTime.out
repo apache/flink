@@ -40,7 +40,7 @@
         }
       } ]
     },
-    "id" : 26,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -105,7 +105,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 27,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -171,7 +171,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 28,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -205,7 +205,7 @@
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 29,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -250,7 +250,7 @@
         "nullIsLast" : false
       } ]
     },
-    "id" : 30,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -293,7 +293,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 31,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -324,7 +324,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 32,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -342,43 +342,43 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a])"
   } ],
   "edges" : [ {
-    "source" : 26,
-    "target" : 27,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 27,
-    "target" : 28,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 28,
-    "target" : 29,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 29,
-    "target" : 30,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 30,
-    "target" : 31,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 31,
-    "target" : 32,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },

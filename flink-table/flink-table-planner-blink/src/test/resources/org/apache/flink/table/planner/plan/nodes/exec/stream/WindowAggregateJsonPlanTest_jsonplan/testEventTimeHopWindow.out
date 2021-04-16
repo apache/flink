@@ -27,7 +27,7 @@
         "schema.0.name" : "a"
       }
     },
-    "id" : 116,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -101,7 +101,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 117,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -169,7 +169,7 @@
       }
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 118,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -237,7 +237,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 119,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -316,7 +316,7 @@
       "timeAttributeIndex" : 3,
       "isRowtime" : true
     },
-    "id" : 120,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -342,7 +342,7 @@
     "description" : "LocalWindowAggregate(groupBy=[b], window=[HOP(time_col=[rowtime], size=[10 s], slide=[5 s])], select=[b, COUNT(c) AS count$0, SUM(a) AS sum$1, COUNT(*) AS count1$2, slice_end('w$) AS $slice_end])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 121,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -448,7 +448,7 @@
         }
       }
     } ],
-    "id" : 122,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -525,7 +525,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 123,
+    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -564,7 +564,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 124,
+    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -586,57 +586,57 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, EXPR$1, EXPR$2])"
   } ],
   "edges" : [ {
-    "source" : 116,
-    "target" : 117,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 117,
-    "target" : 118,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 118,
-    "target" : 119,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 119,
-    "target" : 120,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 120,
-    "target" : 121,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 121,
-    "target" : 122,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 122,
-    "target" : 123,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 123,
-    "target" : 124,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
