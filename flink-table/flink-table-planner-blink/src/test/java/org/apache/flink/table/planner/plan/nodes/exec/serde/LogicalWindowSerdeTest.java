@@ -138,7 +138,6 @@ public class LogicalWindowSerdeTest {
         mapper.registerModule(module);
 
         assertEquals(
-                mapper.readValue(mapper.writeValueAsString(window), LogicalWindow.class).toString(),
-                window.toString());
+                mapper.readValue(mapper.writeValueAsString(window), LogicalWindow.class), window);
     }
 }
