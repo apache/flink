@@ -1049,7 +1049,6 @@ public class DefaultSchedulerTest extends TestLogger {
                         .getAttemptId();
 
         final Exception expectedException = new Exception("Expected exception");
-        final long start = System.currentTimeMillis();
         scheduler.handleGlobalFailure(expectedException);
 
         // we have to cancel the task and trigger the restart to have the exception history
