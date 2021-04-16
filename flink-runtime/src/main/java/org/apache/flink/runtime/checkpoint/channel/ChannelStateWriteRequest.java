@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.CANCELLED;
@@ -199,6 +200,7 @@ abstract class CheckpointInProgressRequest implements ChannelStateWriteRequest {
 
 abstract class ChannelStateWriteBuffersRequest extends CheckpointInProgressRequest {
     private final CloseableIterator<Buffer> iterator;
+    private final Object lock = new Object();
 
     public ChannelStateWriteBuffersRequest(
             String name, long checkpointId, CloseableIterator<Buffer> iterator) {
@@ -208,8 +210,8 @@ abstract class ChannelStateWriteBuffersRequest extends CheckpointInProgressReque
 
     @Override
     protected void executeInternal(ChannelStateCheckpointWriter writer) throws Exception {
-        while (iterator.hasNext()) {
-            Buffer buffer = iterator.next();
+        for (Optional<Buffer> next = getNext(); next.isPresent(); next = getNext()) {
+            Buffer buffer = next.get();
             try {
                 checkArgument(buffer.isBuffer());
             } catch (Exception e) {
@@ -220,11 +222,19 @@ abstract class ChannelStateWriteBuffersRequest extends CheckpointInProgressReque
         }
     }
 
+    private Optional<Buffer> getNext() {
+        synchronized (lock) {
+            return iterator.hasNext() ? Optional.of(iterator.next()) : Optional.empty();
+        }
+    }
+
     protected abstract void writeBuffer(ChannelStateCheckpointWriter writer, Buffer buffer)
             throws Exception;
 
     @Override
     protected void discard(Throwable cause) throws Exception {
-        iterator.close();
+        synchronized (lock) {
+            iterator.close();
+        }
     }
 }
