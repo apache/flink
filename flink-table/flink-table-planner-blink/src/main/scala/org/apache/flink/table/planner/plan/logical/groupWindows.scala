@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.plan.logical
 
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.planner.expressions.PlannerWindowReference
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
 
+import java.time.Duration
 import java.util.Objects
 
 /**
@@ -49,9 +51,19 @@ abstract class LogicalWindow(
     } else if (l1 == null || l2 == null) {
       false
     } else {
-      val value1 = l1.getValueAs(classOf[java.lang.Long])
-      val value2 = l2.getValueAs(classOf[java.lang.Long])
-      value1 == value2 && l1.getOutputDataType.equals(l2.getOutputDataType)
+      if (hasTimeIntervalType(l1)) {
+        if (hasTimeIntervalType(l2)) {
+          val v1 = l1.getValueAs(classOf[Duration])
+          val v2 = l2.getValueAs(classOf[Duration])
+          v1.equals(v2) && l1.getOutputDataType.equals(l2.getOutputDataType)
+        } else {
+          false
+        }
+      } else {
+        val v1 = toLong(l1)
+        val v2 = toLong(l2)
+        v1 == v2 && l1.getOutputDataType.equals(l2.getOutputDataType)
+      }
     }
   }
 
