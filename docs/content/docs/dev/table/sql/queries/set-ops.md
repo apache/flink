@@ -30,7 +30,7 @@ under the License.
 `UNION` and `UNION ALL` return the rows that are found in either table.
 `UNION` takes only distinct rows while `UNION ALL` does not remove duplicates from the result rows.
 
-```
+```sql
 Flink SQL> create view t1(s) as values ('c'), ('a'), ('b'), ('b'), ('c');
 Flink SQL> create view t2(s) as values ('d'), ('e'), ('a'), ('b'), ('b');
 
@@ -67,7 +67,7 @@ Flink SQL> (SELECT s FROM t1) UNION ALL (SELECT s FROM t2);
 `INTERSECT` and `INTERSECT ALL` return the rows that are found in both tables.
 `INTERSECT` takes only distinct rows while `INTERSECT ALL` does not remove duplicates from the result rows.
 
-```
+```sql
 Flink SQL> (SELECT s FROM t1) INTERSECT (SELECT s FROM t2);
 +---+
 |  s|
@@ -91,7 +91,7 @@ Flink SQL> (SELECT s FROM t1) INTERSECT ALL (SELECT s FROM t2);
 `EXCEPT` and `EXCEPT ALL` return the rows that are found in one table but not the other.
 `EXCEPT` takes only distinct rows while `EXCEPT ALL` does not remove duplicates from the result rows.
 
-```
+```sql
 Flink SQL> (SELECT s FROM t1) EXCEPT (SELECT s FROM t2);
 +---+
 | s |

@@ -1,6 +1,6 @@
 ---
 title: "Queries"
-weight: 1
+weight: 3
 type: docs
 bookCollapseSection: true
 ---
