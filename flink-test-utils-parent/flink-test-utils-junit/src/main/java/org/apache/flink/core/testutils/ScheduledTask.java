@@ -112,4 +112,8 @@ public final class ScheduledTask<T> implements ScheduledFuture<T> {
             throws InterruptedException, ExecutionException, TimeoutException {
         return result.get(timeout, unit);
     }
+
+    public Callable<T> getCallable() {
+        return this.callable;
+    }
 }
