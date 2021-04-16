@@ -276,7 +276,7 @@ public class CliClientTest extends TestLogger {
 
         try (CliClient client =
                 new CliClient(
-                        () -> TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
                         sessionId,
                         mockExecutor,
                         historyFilePath,
@@ -328,7 +328,7 @@ public class CliClientTest extends TestLogger {
         final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
         final SqlMultiLineParser parser = new SqlMultiLineParser();
 
-        try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
+        try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
 
             final ParsedLine parsedLine =
@@ -354,13 +354,11 @@ public class CliClientTest extends TestLogger {
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
-                        () -> TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
                         sessionId,
                         executor,
                         historyTempFile(),
                         null)) {
-            //            client.executeFile(content,
-            // CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
             client.executeInNonInteractiveMode(content);
         }
         return outputStream.toString();

@@ -236,7 +236,7 @@ public class CliClient implements AutoCloseable {
     public boolean executeInitialization(String content) {
         try {
             OutputStream outputStream = new ByteArrayOutputStream(256);
-            terminal = TerminalUtils.createDummyTerminal(outputStream);
+            terminal = TerminalUtils.createDumbTerminal(outputStream);
             boolean success = executeFile(content, ExecutionMode.INITIALIZATION);
             LOG.info(outputStream.toString());
             return success;
@@ -658,7 +658,7 @@ public class CliClient implements AutoCloseable {
             lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
         } else {
             String msg = "Unable to create history file: " + historyFilePath;
-            System.out.println(msg);
+            terminal.writer().println(msg);
             LOG.warn(msg);
         }
         return lineReader;

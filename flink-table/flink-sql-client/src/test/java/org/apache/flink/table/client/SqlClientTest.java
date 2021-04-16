@@ -182,7 +182,7 @@ public class SqlClientTest {
                                 + ") WITH ("
                                 + "  'connector' = 'values'"
                                 + ");\n",
-                        "SET key=value;\n");
+                        "SET key = value;\n");
         String initFile = createSqlFile(statements, "init-sql.sql");
 
         String[] args = new String[] {"-i", initFile};
@@ -211,17 +211,13 @@ public class SqlClientTest {
     private String runSqlClient(String[] args, String statements) throws Exception {
         try (OutputStream out = new ByteArrayOutputStream();
                 Terminal terminal =
-                        TerminalUtils.createDummyTerminal(
+                        TerminalUtils.createDumbTerminal(
                                 new ByteArrayInputStream(
                                         statements.getBytes(StandardCharsets.UTF_8)),
                                 out)) {
             SqlClient.startClient(args, () -> terminal);
-            return getStdoutString(out);
+            return out.toString();
         }
-    }
-
-    private String getStdoutString(OutputStream out) {
-        return out.toString();
     }
 
     private String createSqlFile(List<String> statements, String name) throws IOException {

@@ -60,7 +60,7 @@ public class CliTableauResultViewTest {
     @Before
     public void setUp() {
         terminalOutput = new ByteArrayOutputStream();
-        terminal = TerminalUtils.createDummyTerminal(terminalOutput);
+        terminal = TerminalUtils.createDumbTerminal(terminalOutput);
 
         schema =
                 ResolvedSchema.of(

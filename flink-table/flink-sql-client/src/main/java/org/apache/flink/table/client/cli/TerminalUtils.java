@@ -35,11 +35,11 @@ public class TerminalUtils {
         // do not instantiate
     }
 
-    public static Terminal createDummyTerminal() {
-        return createDummyTerminal(new MockOutputStream());
+    public static Terminal createDumbTerminal() {
+        return createDumbTerminal(new MockOutputStream());
     }
 
-    public static Terminal createDummyTerminal(OutputStream out) {
+    public static Terminal createDumbTerminal(OutputStream out) {
         try {
             return new DumbTerminal(new MockInputStream(), out);
         } catch (IOException e) {
@@ -47,7 +47,7 @@ public class TerminalUtils {
         }
     }
 
-    public static Terminal createDummyTerminal(InputStream in, OutputStream out) {
+    public static Terminal createDumbTerminal(InputStream in, OutputStream out) {
         try {
             return new DumbTerminal(in, out);
         } catch (IOException e) {

@@ -99,7 +99,7 @@ public class CliResultViewTest {
 
         try (CliClient cli =
                 new TestingCliClient(
-                        TerminalUtils.createDummyTerminal(),
+                        TerminalUtils.createDumbTerminal(),
                         sessionId,
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
