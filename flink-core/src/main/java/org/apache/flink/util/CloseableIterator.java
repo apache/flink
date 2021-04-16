@@ -77,6 +77,7 @@ public interface CloseableIterator<T> extends Iterator<T>, AutoCloseable {
                         exception = ExceptionUtils.firstOrSuppressed(e, exception);
                     }
                 }
+                stack.clear();
                 if (exception != null) {
                     throw exception;
                 }

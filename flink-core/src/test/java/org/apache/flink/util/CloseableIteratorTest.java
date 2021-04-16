@@ -25,12 +25,22 @@ import java.util.List;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
 public class CloseableIteratorTest {
 
     private static final String[] ELEMENTS = new String[] {"flink", "blink"};
+
+    @Test
+    public void testClearOnClose() throws Exception {
+        List<Integer> list = asList(1, 2, 3, 4, 5, 6);
+        CloseableIterator<Integer> iterator = CloseableIterator.fromList(list, unused -> {});
+        assertTrue(iterator.hasNext());
+        iterator.close();
+        assertFalse(iterator.hasNext());
+    }
 
     @Test
     public void testFlattenEmpty() throws Exception {
