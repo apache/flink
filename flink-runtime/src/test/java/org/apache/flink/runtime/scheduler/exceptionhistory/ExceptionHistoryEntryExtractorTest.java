@@ -38,6 +38,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -82,6 +83,7 @@ public class ExceptionHistoryEntryExtractorTest extends TestLogger {
                 Collections.emptyList());
     }
 
+    @Ignore // disabled due to FLINK-22276 workaround in ExceptionHistoryEntryExtractor
     @Test(expected = IllegalArgumentException.class)
     public void testRootExecutionVertexIdNotFailed() {
         final ExecutionVertex rootExecutionVertex = extractExecutionVertex(0);
