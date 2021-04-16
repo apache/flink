@@ -1,6 +1,6 @@
 ---
 title: "CREATE Statements"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/table/sql/create.html
