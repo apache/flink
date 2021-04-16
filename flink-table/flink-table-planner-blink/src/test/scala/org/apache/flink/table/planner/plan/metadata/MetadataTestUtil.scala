@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, CatalogTableImpl, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
@@ -36,6 +36,7 @@ import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.sql.{SqlCall, SqlNode}
 
+import java.lang.{String => JString}
 import java.util
 import java.util.Collections
 
@@ -150,12 +151,19 @@ object MetadataTestUtil {
 
   private def createMyTable3(): Table = {
     val schema = new TableSchema(
-      Array("a", "b"),
-      Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO))
+      Array("a", "b", "c"),
+      Array(
+        BasicTypeInfo.INT_TYPE_INFO,
+        BasicTypeInfo.DOUBLE_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO))
+
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(10L, 1L, 4D, 4, 5, -5),
-      "b" -> new ColumnStats(5L, 0L, 8D, 8, 6.1D, 0D)
+      "b" -> new ColumnStats(5L, 0L, 8D, 8, 6.1D, 0D),
+      "c" ->
+        ColumnStats.Builder.builder().setNdv(100L).setNullCount(1L).setAvgLen(16D).setMaxLen(128)
+          .setMax(JString.valueOf("zzzzz")).setMin(JString.valueOf("")).build()
     )
 
     val tableStats = new TableStats(100L, colStatsMap)

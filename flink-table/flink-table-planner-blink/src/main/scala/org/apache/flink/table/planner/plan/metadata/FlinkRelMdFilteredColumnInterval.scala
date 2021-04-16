@@ -22,13 +22,13 @@ import org.apache.flink.table.planner.plan.nodes.calcite.TableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupTableAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalGroupWindowTableAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
-import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
+import org.apache.flink.table.planner.plan.utils.{ColumnIntervalUtil, FlinkRelOptUtil}
 import org.apache.flink.util.Preconditions.checkArgument
-
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
+import org.apache.calcite.rex.{RexInputRef, RexLiteral}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.Util
 
@@ -67,11 +67,22 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
     } else {
       val condition = project.getProjects.get(filterArg)
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
-      ColumnIntervalUtil.getColumnIntervalWithFilter(
-        Option(columnInterval),
-        condition,
-        columnIndex,
-        project.getCluster.getRexBuilder)
+      project.getProjects.get(columnIndex) match {
+        case inputRef: RexInputRef =>
+          ColumnIntervalUtil.getColumnIntervalWithFilter(
+            Option(columnInterval),
+            condition,
+            inputRef.getIndex,
+            project.getCluster.getRexBuilder)
+        case literal: RexLiteral =>
+          val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
+          if (literalValue == null) {
+            ValueInterval.empty
+          } else {
+            ValueInterval(literalValue, literalValue)
+          }
+        case _ => null
+      }
     }
   }
 
@@ -132,11 +143,12 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
     } else {
       val filterRef = calc.getProgram.getProjectList.get(filterArg)
       val condition = calc.getProgram.expandLocalRef(filterRef)
+      val columnRef = calc.getProgram.getProjectList.get(columnIndex).getIndex
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
       ColumnIntervalUtil.getColumnIntervalWithFilter(
         Option(columnInterval),
         condition,
-        columnIndex,
+        columnRef,
         calc.getCluster.getRexBuilder)
     }
   }
@@ -236,7 +248,9 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
-    checkArgument(filterArg == -1)
+    if (filterArg != -1) {
+      return null
+    }
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getColumnInterval(rel, columnIndex)
   }
@@ -256,6 +270,10 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    // do not support `union`
+    if (!union.all) {
+      return null
+    }
     val subIntervals = union
       .getInputs
       .map(fmq.getFilteredColumnInterval(_, columnIndex, filterArg))

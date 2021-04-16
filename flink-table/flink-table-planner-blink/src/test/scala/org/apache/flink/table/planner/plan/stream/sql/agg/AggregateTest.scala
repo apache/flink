@@ -24,9 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
-
 import java.time.Duration
-
 import org.junit.Test
 
 class AggregateTest extends TableTestBase {
@@ -279,5 +277,21 @@ class AggregateTest extends TableTestBase {
   def testColumnIntervalValidation(): Unit = {
     // test for FLINK-16577
     util.verifyExecPlan("SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b")
+  }
+
+  @Test
+  def testFilteredColumnIntervalValidation(): Unit = {
+    // test for FLINK-22303
+    util.verifyExecPlan(
+      s"""
+         |SELECT
+         |  SUM(uv) FILTER (WHERE c = 'all') AS all_uv
+         |FROM (
+         |  SELECT
+         |    c, COUNT(1) AS uv
+         |  FROM T
+         |  GROUP BY c
+         |) t
+         |""".stripMargin)
   }
 }
