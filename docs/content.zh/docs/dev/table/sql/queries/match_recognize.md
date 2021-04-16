@@ -1,6 +1,6 @@
 ---
-title: '模式检测'
-weight: 6
+title: "模式检测"
+weight: 17
 type: docs
 aliases:
   - /zh/dev/table/streaming/match_recognize.html
@@ -24,7 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# '表中的模式检测'
+# 模式检测
+
+{{< label Streaming >}}
 
 搜索一组事件模式（event pattern）是一种常见的用例，尤其是在数据流情景中。Flink 提供[复杂事件处理（CEP）库]({{< ref "docs/libs/cep" >}})，该库允许在事件流中进行模式检测。此外，Flink 的 SQL API 提供了一种关系式的查询表达方式，其中包含大量内置函数和基于规则的优化，可以开箱即用。
 
@@ -931,7 +933,7 @@ FROM Ticker
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/concepts/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>
@@ -939,7 +941,7 @@ FROM Ticker
         <code>MATCH_PROCTIME()</code><br/>
       </td>
       <td>
-        <p>返回<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">处理时间属性</a>，该属性可用于随后的基于时间的操作，例如 <a href="{{< ref "docs/dev/table/concepts/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>返回<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">处理时间属性</a>，该属性可用于随后的基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
   </tbody>

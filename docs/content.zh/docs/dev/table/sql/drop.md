@@ -1,6 +1,6 @@
 ---
 title: "DROP 语句"
-weight: 4
+weight: 5
 type: docs
 aliases:
   - /zh/dev/table/sql/drop.html

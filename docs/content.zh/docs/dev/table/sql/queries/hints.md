@@ -1,6 +1,6 @@
 ---
-title: "SQL Hints"
-weight: 7
+title: "Hints"
+weight: 2
 type: docs
 aliases:
   - /zh/dev/table/sql/hints.html
@@ -24,8 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# SQL Hints
+# Hints
 
+{{< label Batch >}} {{< label Streaming >}}
 
 
 SQL hints 是和 SQL 语句一起使用来改变执行计划的。本章介绍如何使用 SQL hints 增强各种方法。

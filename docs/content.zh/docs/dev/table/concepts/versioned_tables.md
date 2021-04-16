@@ -257,7 +257,7 @@ currency_time currency   rate
 
 时态表函数
 ------------------------
-时态表函数是一种过时的方式去定义时态表并关联时态表的数据，现在我们可以用时态表 DDL 去定义时态表，用[时态表 Join]({{< ref "docs/dev/table/concepts/joins" >}}#时态表-join) 语法去关联时态表。 
+时态表函数是一种过时的方式去定义时态表并关联时态表的数据，现在我们可以用时态表 DDL 去定义时态表，用[时态表 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#时态表-join) 语法去关联时态表。
 
 时态表函数和时态表 DDL 最大的区别在于，时态表 DDL 可以在纯 SQL 环境中使用但是时态表函数不支持，用时态表 DDL 声明的时态表支持 changelog 流和 append-only 流但时态表函数仅支持 append-only 流。
  
@@ -291,7 +291,7 @@ rowtime  currency  rate
 
 **注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于为函数 `Rates(timeAttribute)` 返回内容提供直观信息。
 
-另请参阅有关[用于持续查询的 join ]({{< ref "docs/dev/table/concepts/joins" >}})页面，以获取有关如何与时态表 join 的更多信息。
+另请参阅有关[用于持续查询的 join ]({{< ref "docs/dev/table/sql/queries/joins" >}})页面，以获取有关如何与时态表 join 的更多信息。
 
 ### 定义时态表函数
 
