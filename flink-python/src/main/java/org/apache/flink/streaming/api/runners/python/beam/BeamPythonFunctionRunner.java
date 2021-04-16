@@ -313,8 +313,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Override
     public void flush() throws Exception {
         if (bundleStarted) {
-            finishBundle();
-            bundleStarted = false;
+            try {
+                finishBundle();
+            } finally {
+                bundleStarted = false;
+            }
         }
     }
 
