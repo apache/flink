@@ -148,8 +148,8 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
 
     cdef void _encode_data_stream_field_simple(self, TypeName field_type, item):
         if field_type == PICKLED_BYTES:
-            import pickle
-            pickled_bytes = pickle.dumps(item)
+            import cloudpickle
+            pickled_bytes = cloudpickle.dumps(item)
             self._encode_bytes(pickled_bytes, len(pickled_bytes))
         elif field_type == BIG_DEC:
             item_bytes = str(item).encode('utf-8')
@@ -172,8 +172,8 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef object _decode_data_stream_field_simple(self, TypeName field_type):
         if field_type == PICKLED_BYTES:
             decoded_bytes = self._decode_bytes()
-            import pickle
-            return pickle.loads(decoded_bytes)
+            import cloudpickle
+            return cloudpickle.loads(decoded_bytes)
         elif field_type == BIG_DEC:
             return decimal.Decimal(self._decode_bytes().decode("utf-8"))
 
