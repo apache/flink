@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.stats.{RightSemiInfiniteValueInterval, ValueInterval}
 import org.apache.flink.table.types.logical._
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{DIVIDE, EQUALS, GREATER_THAN, IS_FALSE, IS_NOT_NULL, IS_TRUE, LESS_THAN, LESS_THAN_OR_EQUAL, NOT_EQUALS}

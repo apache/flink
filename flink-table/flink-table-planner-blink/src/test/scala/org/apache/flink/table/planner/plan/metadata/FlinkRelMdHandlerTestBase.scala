@@ -48,6 +48,7 @@ import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.CatalogManagerMocks
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -67,6 +68,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
+
 import java.math.BigDecimal
 import java.util
 

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.{ColumnIntervalUtil, FlinkRelOptUtil}
 import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core._
@@ -40,6 +41,9 @@ import scala.collection.JavaConversions._
   *
   * The [[FlinkRelMdFilteredColumnInterval]] is almost depend on the implementation of
   * [[FlinkRelMdColumnInterval]], except to handle filter argument in Calc RelNode.
+  *
+  * Refactor this meta data to a utility class later because it only serves for calculating the
+  * monotonicity of some specific aggregate functions.
   */
 class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredColumnInterval] {
 
@@ -79,9 +83,7 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
    * Calculate the value interval of the given column (which may carry derived column interval) and
    * additional predicate expression, if the given column is a RexInputRef then the final interval
    * is intersect with the predicate, if the given column is a RexLiteral then the final interval
-   * is the literal itself, otherwise return null.
-   * This can be improved (e.g., for RexCall) later and refactor this meta data to a utility class
-   * because it only serves for calculating the monotonicity of some specific aggregate functions.
+   * is the literal itself, otherwise return null. This can be improved (e.g., for RexCall) later.
    *
    * @param column original column
    * @param origColumnInterval original column interval

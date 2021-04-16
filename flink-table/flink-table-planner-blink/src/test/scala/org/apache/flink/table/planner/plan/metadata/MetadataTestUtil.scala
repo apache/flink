@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Tabl
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
+
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
@@ -36,7 +37,6 @@ import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.sql.{SqlCall, SqlNode}
 
-import java.lang.{String => JString}
 import java.util
 import java.util.Collections
 
@@ -157,13 +157,12 @@ object MetadataTestUtil {
         BasicTypeInfo.DOUBLE_TYPE_INFO,
         BasicTypeInfo.STRING_TYPE_INFO))
 
-
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(10L, 1L, 4D, 4, 5, -5),
       "b" -> new ColumnStats(5L, 0L, 8D, 8, 6.1D, 0D),
       "c" ->
         ColumnStats.Builder.builder().setNdv(100L).setNullCount(1L).setAvgLen(16D).setMaxLen(128)
-          .setMax(JString.valueOf("zzzzz")).setMin(JString.valueOf("")).build()
+          .setMax("zzzzz").setMin("").build()
     )
 
     val tableStats = new TableStats(100L, colStatsMap)
