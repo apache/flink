@@ -27,7 +27,7 @@
         "schema.0.name" : "a"
       }
     },
-    "id" : 16,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -88,7 +88,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 17,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -149,7 +149,7 @@
       }
     },
     "rowtimeFieldIndex" : 1,
-    "id" : 18,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -178,7 +178,7 @@
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 19,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -270,7 +270,7 @@
     },
     "namedWindowProperties" : [ ],
     "needRetraction" : false,
-    "id" : 20,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -309,7 +309,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 21,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -331,36 +331,36 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, EXPR$1, EXPR$2])"
   } ],
   "edges" : [ {
-    "source" : 16,
-    "target" : 17,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 17,
-    "target" : 18,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 18,
-    "target" : 19,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 19,
-    "target" : 20,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 20,
-    "target" : 21,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -21,7 +21,7 @@
         "schema.1.data-type" : "INT NOT NULL"
       }
     },
-    "id" : 13,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -108,7 +108,7 @@
       }
     },
     "condition" : null,
-    "id" : 14,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -157,7 +157,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 15,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -193,7 +193,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 16,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -213,22 +213,22 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, s])"
   } ],
   "edges" : [ {
-    "source" : 13,
-    "target" : 14,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 14,
-    "target" : 15,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 15,
-    "target" : 16,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },

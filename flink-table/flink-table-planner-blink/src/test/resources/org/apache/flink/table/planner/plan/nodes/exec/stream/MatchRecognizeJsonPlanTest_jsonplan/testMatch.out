@@ -20,7 +20,7 @@
         "schema.1.data-type" : "VARCHAR(2147483647)"
       }
     },
-    "id" : 86,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -64,7 +64,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 87,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -91,7 +91,7 @@
     "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 88,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -408,7 +408,7 @@
       },
       "interval" : null
     },
-    "id" : 89,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -449,7 +449,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 90,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -471,29 +471,29 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[aid, bid, cid])"
   } ],
   "edges" : [ {
-    "source" : 86,
-    "target" : 87,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 87,
-    "target" : 88,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 88,
-    "target" : 89,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 89,
-    "target" : 90,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
