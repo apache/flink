@@ -110,7 +110,7 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
     }
 
     /** A simple custom implementation for {@link MapData}. */
-    private static class CustomMapData implements MapData {
+    public static class CustomMapData implements MapData {
 
         private final Map<?, ?> map;
 

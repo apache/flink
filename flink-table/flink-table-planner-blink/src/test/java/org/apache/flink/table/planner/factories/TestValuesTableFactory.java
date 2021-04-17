@@ -96,6 +96,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,7 @@ public final class TestValuesTableFactory
 
     private static final AtomicInteger idCounter = new AtomicInteger(0);
     private static final Map<String, Collection<Row>> registeredData = new HashMap<>();
+    private static final Map<String, Collection<RowData>> registeredRowData = new HashMap<>();
 
     /**
      * Register the given data into the data factory context and return the data id. The data id can
@@ -143,6 +145,24 @@ public final class TestValuesTableFactory
      */
     public static String registerData(Seq<Row> data) {
         return registerData(JavaScalaConversionUtil.toJava(data));
+    }
+
+    /**
+     * Register the given internal RowData into the data factory context and return the data id. The
+     * data id can be used as a reference to the registered data in data connector DDL.
+     */
+    public static String registerRowData(Collection<RowData> data) {
+        String id = String.valueOf(idCounter.incrementAndGet());
+        registeredRowData.put(id, data);
+        return id;
+    }
+
+    /**
+     * Register the given internal RowData into the data factory context and return the data id. The
+     * data id can be used as a reference to the registered data in data connector DDL.
+     */
+    public static String registerRowData(Seq<RowData> data) {
+        return registerRowData(JavaScalaConversionUtil.toJava(data));
     }
 
     /**
@@ -171,6 +191,7 @@ public final class TestValuesTableFactory
     /** Removes the registered data under the given data id. */
     public static void clearAllData() {
         registeredData.clear();
+        registeredRowData.clear();
         TestValuesRuntimeFunctions.clearResults();
     }
 
@@ -263,6 +284,14 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> ENABLE_WATERMARK_PUSH_DOWN =
             ConfigOptions.key("enable-watermark-push-down").booleanType().defaultValue(false);
 
+    private static final ConfigOption<Boolean> INTERNAL_DATA =
+            ConfigOptions.key("register-internal-data")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "The registered data is internal type data, "
+                                    + "which can be collected by the source directly.");
+
     private static final ConfigOption<Map<String, String>> READABLE_METADATA =
             ConfigOptions.key("readable-metadata")
                     .mapType()
@@ -325,6 +354,7 @@ public final class TestValuesTableFactory
         boolean enableWatermarkPushDown = helper.getOptions().get(ENABLE_WATERMARK_PUSH_DOWN);
         boolean failingSource = helper.getOptions().get(FAILING_SOURCE);
         int numElementToSkip = helper.getOptions().get(SOURCE_NUM_ELEMENT_TO_SKIP);
+        boolean internalData = helper.getOptions().get(INTERNAL_DATA);
 
         Optional<List<String>> filterableFields =
                 helper.getOptions().getOptional(FILTERABLE_FIELDS);
@@ -336,6 +366,10 @@ public final class TestValuesTableFactory
                         helper.getOptions().get(READABLE_METADATA), context.getClassLoader());
 
         if (sourceClass.equals("DEFAULT")) {
+            if (internalData) {
+                return new TestValuesScanTableSourceWithInternalData(dataId, isBounded);
+            }
+
             Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
             List<Map<String, String>> partitions =
                     parsePartitionList(helper.getOptions().get(PARTITION_LIST));
@@ -505,7 +539,8 @@ public final class TestValuesTableFactory
                         WRITABLE_METADATA,
                         ENABLE_WATERMARK_PUSH_DOWN,
                         SINK_DROP_LATE_EVENT,
-                        SOURCE_NUM_ELEMENT_TO_SKIP));
+                        SOURCE_NUM_ELEMENT_TO_SKIP,
+                        INTERNAL_DATA));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -1178,6 +1213,38 @@ public final class TestValuesTableFactory
         }
     }
 
+    /** Values {@link ScanTableSource} which collects the registered {@link RowData} directly. */
+    private static class TestValuesScanTableSourceWithInternalData implements ScanTableSource {
+        private final String dataId;
+        private final boolean bounded;
+
+        public TestValuesScanTableSourceWithInternalData(String dataId, boolean bounded) {
+            this.dataId = dataId;
+            this.bounded = bounded;
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            final SourceFunction<RowData> sourceFunction = new FromRowDataSourceFunction(dataId);
+            return SourceFunctionProvider.of(sourceFunction, bounded);
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesScanTableSourceWithInternalData(dataId, bounded);
+        }
+
+        @Override
+        public String asSummaryString() {
+            return "TestValuesWithInternalData";
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Table sinks
     // --------------------------------------------------------------------------------------------
@@ -1391,6 +1458,35 @@ public final class TestValuesTableFactory
         @Override
         public String asSummaryString() {
             return "TestSinkContextTableSink";
+        }
+    }
+
+    /**
+     * A {@link SourceFunction} which collects specific static {@link RowData} without
+     * serialization.
+     */
+    private static class FromRowDataSourceFunction implements SourceFunction<RowData> {
+        private final String dataId;
+        private volatile boolean isRunning = true;
+
+        public FromRowDataSourceFunction(String dataId) {
+            this.dataId = dataId;
+        }
+
+        @Override
+        public void run(SourceContext<RowData> ctx) throws Exception {
+            Collection<RowData> values =
+                    registeredRowData.getOrDefault(dataId, Collections.emptyList());
+            Iterator<RowData> valueIter = values.iterator();
+
+            while (isRunning && valueIter.hasNext()) {
+                ctx.collect(valueIter.next());
+            }
+        }
+
+        @Override
+        public void cancel() {
+            isRunning = false;
         }
     }
 }
