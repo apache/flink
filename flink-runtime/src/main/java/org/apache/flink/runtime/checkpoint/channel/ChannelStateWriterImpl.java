@@ -97,6 +97,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 new ChannelStateWriteRequestExecutorImpl(
                         taskName,
                         new ChannelStateWriteRequestDispatcherImpl(
+                                taskName,
                                 subtaskIndex,
                                 streamFactoryResolver,
                                 new ChannelStateSerializerImpl())),
