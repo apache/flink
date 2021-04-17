@@ -99,7 +99,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class CliClient implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
-    public static Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
+    public static final Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
             TerminalUtils::createDefaultTerminal;
 
     private final Executor executor;
