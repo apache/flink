@@ -27,11 +27,16 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,6 +52,7 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOUR
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link HiveDynamicTableFactory}. */
@@ -228,6 +234,43 @@ public class HiveDynamicTableFactoryTest {
         }
     }
 
+    @Test
+    public void testJobConfWithCredentials() throws Exception {
+        final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
+        Credentials credentials = new Credentials();
+        credentials.addToken(
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
+        UserGroupInformation.getCurrentUser().addCredentials(credentials);
+
+        // test table source's jobConf with credentials
+        tableEnv.executeSql(
+                String.format(
+                        "create table table10 (x int, y string, z int) partitioned by ("
+                                + " pt_year int, pt_mon string, pt_day string)"));
+        DynamicTableSource tableSource1 = getTableSource("table10");
+
+        HiveTableSource tableSource = (HiveTableSource) tableSource1;
+        Token token =
+                tableSource.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertNotNull(token);
+        assertEquals(hdfsDelegationTokenKind, token.getKind());
+        assertEquals(hdfsDelegationTokenService, token.getService());
+
+        // test table sink's jobConf with credentials
+        DynamicTableSink tableSink1 = getTableSink("table10");
+        HiveTableSink tableSink = (HiveTableSink) tableSink1;
+        token = tableSink.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertNotNull(token);
+        assertEquals(hdfsDelegationTokenKind, token.getKind());
+        assertEquals(hdfsDelegationTokenService, token.getService());
+    }
+
     private DynamicTableSource getTableSource(String tableName) throws Exception {
         TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         ObjectIdentifier tableIdentifier =
@@ -235,6 +278,21 @@ public class HiveDynamicTableFactoryTest {
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
         return FactoryUtil.createTableSource(
+                hiveCatalog,
+                tableIdentifier,
+                tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
+                tableEnv.getConfig().getConfiguration(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
+    }
+
+    private DynamicTableSink getTableSink(String tableName) throws Exception {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
+        CatalogTable catalogTable =
+                (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
+        return FactoryUtil.createTableSink(
                 hiveCatalog,
                 tableIdentifier,
                 tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
