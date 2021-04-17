@@ -82,10 +82,17 @@ public class NetworkActionsLogger {
     }
 
     public static void traceRecover(
-            String action, BufferConsumer bufferConsumer, ResultSubpartitionInfo channelInfo) {
+            String action,
+            BufferConsumer bufferConsumer,
+            String taskName,
+            ResultSubpartitionInfo channelInfo) {
         if (LOG.isTraceEnabled()) {
             LOG.trace(
-                    "{} {} @ {}", action, bufferConsumer.toDebugString(INCLUDE_HASH), channelInfo);
+                    "[{}] {} {} @ {}",
+                    taskName,
+                    action,
+                    bufferConsumer.toDebugString(INCLUDE_HASH),
+                    channelInfo);
         }
     }
 
