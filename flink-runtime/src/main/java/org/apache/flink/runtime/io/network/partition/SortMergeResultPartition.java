@@ -160,18 +160,12 @@ public class SortMergeResultPartition extends ResultPartition {
         }
 
         int numRequiredBuffer = bufferPool.getNumberOfRequiredMemorySegments();
-        String errorMessage =
-                String.format(
-                        "Too few sort buffers, please increase %s to a larger value (more than %d).",
-                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS,
-                        2 * expectedWriteBuffers);
-        if (numRequiredBuffer < 2 * expectedWriteBuffers) {
-            LOG.warn(errorMessage);
-        }
-
         int numWriteBuffers = Math.min(numRequiredBuffer / 2, expectedWriteBuffers);
         if (numWriteBuffers < 1) {
-            throw new IOException(errorMessage);
+            throw new IOException(
+                    String.format(
+                            "Too few sort buffers, please increase %s.",
+                            NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS));
         }
         numBuffersForSort = numRequiredBuffer - numWriteBuffers;
 
@@ -187,6 +181,12 @@ public class SortMergeResultPartition extends ResultPartition {
                 throw new IOException(exception);
             }
         }
+
+        LOG.info(
+                "Sort-merge partition {} initialized, num sort buffers: {}, num write buffers: {}.",
+                getPartitionId(),
+                numBuffersForSort,
+                numWriteBuffers);
     }
 
     @Override
