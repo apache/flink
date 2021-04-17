@@ -505,7 +505,7 @@ public class Task
     public boolean isBackPressured() {
         if (invokable == null
                 || consumableNotifyingPartitionWriters.length == 0
-                || (executionState != ExecutionState.RECOVERING
+                || (executionState != ExecutionState.INITIALIZING
                         && executionState != ExecutionState.RUNNING)) {
             return false;
         }
@@ -647,7 +647,7 @@ public class Task
             // the registration must also strictly be undone
             // ----------------------------------------------------------------
 
-            LOG.info("Registering task at network: {}.", this);
+            LOG.debug("Registering task at network: {}.", this);
 
             setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
@@ -738,14 +738,14 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            // switch to the RECOVERING state, if that fails, we have been canceled/failed in the
+            // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
             // meantime
-            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RECOVERING)) {
+            if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.INITIALIZING)) {
                 throw new CancelTaskException();
             }
 
             taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(executionId, ExecutionState.RECOVERING));
+                    new TaskExecutionState(executionId, ExecutionState.INITIALIZING));
 
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
@@ -758,7 +758,7 @@ public class Task
                 FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
             }
 
-            if (!transitionState(ExecutionState.RECOVERING, ExecutionState.RUNNING)) {
+            if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
                 throw new CancelTaskException();
             }
 
@@ -833,7 +833,7 @@ public class Task
                     }
                 }
 
-                // transition into our final state. we should be either in DEPLOYING, RECOVERING,
+                // transition into our final state. we should be either in DEPLOYING, INITIALIZING,
                 // RUNNING, CANCELING, or FAILED
                 // loop for multiple retries during concurrent state changes via calls to cancel()
                 // or to failExternally()
@@ -841,7 +841,7 @@ public class Task
                     ExecutionState current = this.executionState;
 
                     if (current == ExecutionState.RUNNING
-                            || current == ExecutionState.RECOVERING
+                            || current == ExecutionState.INITIALIZING
                             || current == ExecutionState.DEPLOYING) {
                         if (t instanceof CancelTaskException) {
                             if (transitionState(current, ExecutionState.CANCELED)) {
@@ -1145,7 +1145,8 @@ public class Task
                     this.failureCause = cause;
                     return;
                 }
-            } else if (current == ExecutionState.RECOVERING || current == ExecutionState.RUNNING) {
+            } else if (current == ExecutionState.INITIALIZING
+                    || current == ExecutionState.RUNNING) {
                 if (transitionState(current, targetState, cause)) {
                     // we are canceling / failing out of the running state
                     // we need to cancel the invokable
@@ -1405,7 +1406,7 @@ public class Task
 
         if (invokable == null
                 || (executionState != ExecutionState.RUNNING
-                        && executionState != ExecutionState.RECOVERING)) {
+                        && executionState != ExecutionState.INITIALIZING)) {
             throw new TaskNotRunningException("Task is not yet running.");
         }
 
@@ -1415,7 +1416,7 @@ public class Task
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 
             if (getExecutionState() == ExecutionState.RUNNING
-                    || getExecutionState() == ExecutionState.RECOVERING) {
+                    || getExecutionState() == ExecutionState.INITIALIZING) {
                 FlinkException e = new FlinkException("Error while handling operator event", t);
                 failExternally(e);
                 throw e;

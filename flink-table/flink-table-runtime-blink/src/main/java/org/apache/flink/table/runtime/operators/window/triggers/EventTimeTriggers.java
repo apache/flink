@@ -58,7 +58,7 @@ public class EventTimeTriggers {
      *
      * @see org.apache.flink.streaming.api.watermark.Watermark
      */
-    public static final class AfterEndOfWindow<W extends Window> extends Trigger<W> {
+    public static final class AfterEndOfWindow<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -6379468077823588591L;
 
@@ -85,8 +85,6 @@ public class EventTimeTriggers {
             }
         }
 
-        private TriggerContext ctx;
-
         @Override
         public void open(TriggerContext ctx) throws Exception {
             this.ctx = ctx;
@@ -94,11 +92,11 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
                 // if the watermark is already past the window fire immediately
                 return true;
             } else {
-                ctx.registerEventTimeTimer(window.maxTimestamp());
+                ctx.registerEventTimeTimer(triggerTime(window));
                 return false;
             }
         }
@@ -110,12 +108,12 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onEventTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp();
+            return time == triggerTime(window);
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(triggerTime(window));
         }
 
         @Override
@@ -125,7 +123,7 @@ public class EventTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(triggerTime(window));
         }
 
         @Override
@@ -138,15 +136,14 @@ public class EventTimeTriggers {
      * A composite {@link Trigger} that consist of AfterEndOfWindow and a early trigger and late
      * trigger.
      */
-    public static final class AfterEndOfWindowEarlyAndLate<W extends Window> extends Trigger<W> {
+    public static final class AfterEndOfWindowEarlyAndLate<W extends Window>
+            extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -800582945577030338L;
 
         private final Trigger<W> earlyTrigger;
         private final Trigger<W> lateTrigger;
         private final ValueStateDescriptor<Boolean> hasFiredOnTimeStateDesc;
-
-        private transient TriggerContext ctx;
 
         AfterEndOfWindowEarlyAndLate(Trigger<W> earlyTrigger, Trigger<W> lateTrigger) {
             this.earlyTrigger = earlyTrigger;
@@ -174,7 +171,7 @@ public class EventTimeTriggers {
                 // is Long.MIN_VALUE but the window is already in the late phase.
                 return lateTrigger != null && lateTrigger.onElement(element, timestamp, window);
             } else {
-                if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+                if (triggerTime(window) <= ctx.getCurrentWatermark()) {
                     // we are in the late phase
 
                     // if there is no late trigger then we fire on every late element
@@ -183,7 +180,7 @@ public class EventTimeTriggers {
                     return true;
                 } else {
                     // we are in the early phase
-                    ctx.registerEventTimeTimer(window.maxTimestamp());
+                    ctx.registerEventTimeTimer(triggerTime(window));
                     return earlyTrigger != null
                             && earlyTrigger.onElement(element, timestamp, window);
                 }
@@ -210,7 +207,7 @@ public class EventTimeTriggers {
                 // late fire
                 return lateTrigger != null && lateTrigger.onEventTime(time, window);
             } else {
-                if (time == window.maxTimestamp()) {
+                if (time == triggerTime(window)) {
                     // fire on time and update state
                     hasFiredState.update(true);
                     return true;
@@ -239,7 +236,7 @@ public class EventTimeTriggers {
             // we assume that the new merged window has not fired yet its on-time timer.
             ctx.getPartitionedState(hasFiredOnTimeStateDesc).update(false);
 
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(triggerTime(window));
         }
 
         @Override
@@ -250,7 +247,7 @@ public class EventTimeTriggers {
             if (lateTrigger != null) {
                 lateTrigger.clear(window);
             }
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(triggerTime(window));
             ctx.getPartitionedState(hasFiredOnTimeStateDesc).clear();
         }
 
@@ -268,7 +265,7 @@ public class EventTimeTriggers {
     }
 
     /** A composite {@link Trigger} that consist of AfterEndOfWindow and a late trigger. */
-    public static final class AfterEndOfWindowNoLate<W extends Window> extends Trigger<W> {
+    public static final class AfterEndOfWindowNoLate<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -4334481808648361926L;
 
@@ -288,7 +285,6 @@ public class EventTimeTriggers {
 
         // early trigger is always not null
         private final Trigger<W> earlyTrigger;
-        private TriggerContext ctx;
 
         private AfterEndOfWindowNoLate(Trigger<W> earlyTrigger) {
             checkNotNull(earlyTrigger);
@@ -303,12 +299,12 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onElement(Object element, long timestamp, W window) throws Exception {
-            if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
                 // the on-time firing
                 return true;
             } else {
                 // this is an early element so register the timer and let the early trigger decide
-                ctx.registerEventTimeTimer(window.maxTimestamp());
+                ctx.registerEventTimeTimer(triggerTime(window));
                 return earlyTrigger.onElement(element, timestamp, window);
             }
         }
@@ -320,7 +316,7 @@ public class EventTimeTriggers {
 
         @Override
         public boolean onEventTime(long time, W window) throws Exception {
-            return time == window.maxTimestamp() || earlyTrigger.onEventTime(time, window);
+            return time == triggerTime(window) || earlyTrigger.onEventTime(time, window);
         }
 
         @Override
@@ -330,13 +326,13 @@ public class EventTimeTriggers {
 
         @Override
         public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
-            ctx.registerEventTimeTimer(window.maxTimestamp());
+            ctx.registerEventTimeTimer(triggerTime(window));
             earlyTrigger.onMerge(window, mergeContext);
         }
 
         @Override
         public void clear(W window) throws Exception {
-            ctx.deleteEventTimeTimer(window.maxTimestamp());
+            ctx.deleteEventTimeTimer(triggerTime(window));
             earlyTrigger.clear(window);
         }
 

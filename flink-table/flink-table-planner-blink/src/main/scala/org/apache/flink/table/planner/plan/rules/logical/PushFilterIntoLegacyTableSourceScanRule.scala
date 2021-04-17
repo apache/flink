@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RexNodeExtractor}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, RexNodeExtractor}
 import org.apache.flink.table.sources.FilterableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
@@ -127,7 +127,9 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
       val converter = new ExpressionConverter(relBuilder)
       val remainingConditions = remainingPredicates.map(_.accept(converter)) ++ unconvertedRexNodes
       val remainingCondition = remainingConditions.reduce((l, r) => relBuilder.and(l, r))
-      val newFilter = filter.copy(filter.getTraitSet, newScan, remainingCondition)
+      val simplifiedRemainingCondition =
+        FlinkRexUtil.simplify(relBuilder.getRexBuilder, remainingCondition)
+      val newFilter = filter.copy(filter.getTraitSet, newScan, simplifiedRemainingCondition)
       call.transformTo(newFilter)
     }
   }

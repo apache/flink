@@ -33,7 +33,7 @@ jobs:
   workspace:
     clean: all # this cleans the entire workspace directory before running a new job
     # It is necessary because the custom build machines are reused for tests.
-    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace 
+    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
 
   steps:
   # if on Azure, free up disk space
@@ -42,10 +42,10 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
   # The cache task is persisting the .m2 directory between builds, so that
-  # we do not have to re-download all dependencies from maven central for 
+  # we do not have to re-download all dependencies from maven central for
   # each build. The hope is that downloading the cache is faster than
   # all dependencies individually.
-  # In this configuration, we use a hash over all committed (not generated) .pom files 
+  # In this configuration, we use a hash over all committed (not generated) .pom files
   # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
   # (usually because a pom file has changed), we'll fall back to a key without
   # the pom files (CACHE_FALLBACK_KEY).
@@ -136,20 +136,13 @@ jobs:
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
     displayName: "Set to jdk11"
-    condition: eq('${{parameters.jdk}}', 'jdk11')  
+    condition: eq('${{parameters.jdk}}', 'jdk11')
 
   - script: sudo sysctl -w kernel.core_pattern=core.%p
     displayName: Set coredump pattern
 
   # Test
-  - script: |
-      source ./tools/azure-pipelines/debug_files_utils.sh
-      prepare_debug_files $(module)
-      
-      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
-    
-      compress_debug_files
-      exit $TEST_EXIT_CODE
+  - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -165,7 +158,7 @@ jobs:
 
   # upload debug artifacts
   - task: PublishPipelineArtifact@1
-    condition: and(succeededOrFailed(), not(eq('$(DEBUG_FILES_OUTPUT_DIR)', '')))
+    condition: not(eq('$(DEBUG_FILES_OUTPUT_DIR)', ''))
     displayName: Upload Logs
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
@@ -230,14 +223,13 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc moreutils
+        sudo apt-get install -y bc
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/e2e_uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh
-      timeoutInMinutes: 250
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh e2e
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -245,13 +237,11 @@ jobs:
         IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
         IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
         IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
-      condition: and(succeeded(),not(eq(variables['SKIP'], '1')))
+      condition: and(succeeded(), not(eq(variables['SKIP'], '1')))
       # upload debug artifacts
     - task: PublishPipelineArtifact@1
-      condition: and(succeededOrFailed(), not(eq(variables['SKIP'], '1')), not(eq(variables['ARTIFACT_DIR'], '')))
+      condition: and(not(eq(variables['SKIP'], '1')), not(eq(variables['DEBUG_FILES_OUTPUT_DIR'], '')))
       displayName: Upload Logs
       inputs:
-        targetPath: $(ARTIFACT_DIR)
-        artifact: logs-${{parameters.stage_name}}-e2e
-        
-
+        targetPath: $(DEBUG_FILES_OUTPUT_DIR)
+        artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)

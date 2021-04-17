@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -45,7 +47,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,8 +79,7 @@ import static org.junit.Assert.fail;
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
  * TERMINATE.
  */
-@Ignore("broken test; see FLINK-21031")
-public class JobMasterStopWithSavepointIT extends AbstractTestBase {
+public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -91,7 +91,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
     private static CountDownLatch invokeLatch;
 
     private static CountDownLatch numberOfRestarts;
-    private static AtomicLong syncSavepointId = new AtomicLong();
+    private static final AtomicLong syncSavepointId = new AtomicLong();
     private static volatile CountDownLatch checkpointsToWaitFor;
 
     private Path savepointDirectory;
@@ -99,13 +99,13 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     private JobGraph jobGraph;
 
-    @Test(timeout = 5000)
+    @Test
     public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(true);
@@ -130,12 +130,12 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheTerminate() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(true);
     }
@@ -150,21 +150,21 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             stopWithSavepoint(terminate).get();
             fail();
         } catch (Exception e) {
-            // expected
         }
 
         // verifying that we actually received a synchronous checkpoint
         assertTrue(syncSavepointId.get() > 0);
-        assertThat(getJobStatus(), equalTo(JobStatus.FAILED));
+        assertThat(
+                getJobStatus(), either(equalTo(JobStatus.FAILED)).or(equalTo(JobStatus.FAILING)));
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInSuspend()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInTerminate()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(true);
@@ -172,7 +172,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     private void throwingExceptionOnCallbackWithRestartsHelper(final boolean terminate)
             throws Exception {
-        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(15));
         final int numberOfCheckpointsToExpect = 10;
 
         numberOfRestarts = new CountDownLatch(2);
@@ -232,9 +232,8 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             String exceptionMessage = checkpointExceptionOptional.get().getMessage();
             assertTrue(
                     "Stop with savepoint failed because of another cause " + exceptionMessage,
-                    exceptionMessage.contains("Failed to trigger savepoint")
-                            && exceptionMessage.contains(
-                                    CheckpointFailureReason.EXCEPTION.message()));
+                    exceptionMessage.contains(
+                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE.message()));
         }
 
         final JobStatus jobStatus =
@@ -314,20 +313,15 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
     }
 
     private void waitForJob() throws Exception {
-        for (int i = 0; i < 60; i++) {
-            try {
-                final JobStatus jobStatus =
-                        clusterClient.getJobStatus(jobGraph.getJobID()).get(60, TimeUnit.SECONDS);
-                assertThat(jobStatus.isGloballyTerminalState(), equalTo(false));
-                if (jobStatus == JobStatus.RUNNING) {
-                    return;
-                }
-            } catch (ExecutionException ignored) {
-                // JobManagerRunner is not yet registered in Dispatcher
-            }
-            Thread.sleep(1000);
-        }
-        throw new AssertionError("Job did not become running within timeout.");
+        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+        JobID jobID = jobGraph.getJobID();
+        CommonTestUtils.waitForAllTaskRunning(
+                () ->
+                        miniClusterResource
+                                .getMiniCluster()
+                                .getExecutionGraph(jobID)
+                                .get(60, TimeUnit.SECONDS),
+                deadline);
     }
 
     /**
@@ -357,7 +351,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType == CheckpointType.SAVEPOINT_SUSPEND) {
+            if (checkpointType.isSynchronous()) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }
@@ -379,29 +373,38 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
             return CompletableFuture.completedFuture(null);
         }
+
+        @Override
+        protected void finishTask() {
+            mailboxProcessor.allActionsCompleted();
+        }
     }
 
     /** A {@link StreamTask} that simply waits to be terminated normally. */
     public static class NoOpBlockingStreamTask extends NoOpStreamTask {
 
-        private final transient OneShotLatch finishLatch;
+        private transient MailboxDefaultAction.Suspension suspension;
 
         public NoOpBlockingStreamTask(final Environment environment) throws Exception {
             super(environment);
-            this.finishLatch = new OneShotLatch();
         }
 
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             invokeLatch.countDown();
-            finishLatch.await();
-            controller.allActionsCompleted();
+            if (suspension == null) {
+                suspension = controller.suspendDefaultAction();
+            } else {
+                controller.allActionsCompleted();
+            }
         }
 
         @Override
         public void finishTask() throws Exception {
             finishingLatch.await();
-            finishLatch.trigger();
+            if (suspension != null) {
+                suspension.resume();
+            }
         }
     }
 
@@ -411,24 +414,28 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
      */
     public static class CheckpointCountingTask extends NoOpStreamTask {
 
-        private final transient OneShotLatch finishLatch;
+        private transient MailboxDefaultAction.Suspension suspension;
 
         public CheckpointCountingTask(final Environment environment) throws Exception {
             super(environment);
-            this.finishLatch = new OneShotLatch();
         }
 
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             invokeLatch.countDown();
-            finishLatch.await();
-            controller.allActionsCompleted();
+            if (suspension == null) {
+                suspension = controller.suspendDefaultAction();
+            } else {
+                controller.allActionsCompleted();
+            }
         }
 
         @Override
         protected void cancelTask() throws Exception {
             super.cancelTask();
-            finishLatch.trigger();
+            if (suspension != null) {
+                suspension.resume();
+            }
         }
 
         @Override
@@ -440,7 +447,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
                 checkpointsToWaitFor.countDown();
             }
 
-            return CompletableFuture.completedFuture(true);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         }
     }
 }

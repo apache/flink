@@ -26,7 +26,7 @@ LogicalProject(rate=[*($0, $4)])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)])
+      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -53,7 +53,7 @@ LogicalProject(rate=[$0], secondary_key=[$1], t3_comment=[$2], t3_secondary_key=
       :  +- LogicalFilter(condition=[AND(=($7, $3), OR(>($8, 120), =($9, $4)))])
       :     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
       :        :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      :        +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(TIME ATTRIBUTE(ROWTIME) rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)])
+      :        +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(TIMESTAMP(3) *ROWTIME* rowtime, VARCHAR(2147483647) comment, VARCHAR(2147483647) currency, INTEGER rate, INTEGER secondary_key)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table3]])
 ]]>
     </Resource>
@@ -86,7 +86,7 @@ LogicalProject(rate=[*($0, $4)])
       :- LogicalProject(o_amount=[$0], o_currency=[$1], o_rowtime=[$2])
       :  +- LogicalFilter(condition=[>($0, 1000)])
       :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(ROWTIME) rowtime)])
+      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -111,7 +111,7 @@ LogicalProject(rate=[*($0, $4)])
 +- LogicalFilter(condition=[=($3, $1)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalTableScan(table=[[default_catalog, default_database, ProctimeOrders]])
-      +- LogicalTableFunctionScan(invocation=[ProctimeRates($cor0.o_proctime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIME ATTRIBUTE(PROCTIME) proctime)])
+      +- LogicalTableFunctionScan(invocation=[ProctimeRates($cor0.o_proctime)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP_LTZ(3) *PROCTIME* proctime)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

@@ -169,10 +169,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         configuration, highAvailabilityServices.createBlobStore(), null);
 
         final ExternalResourceInfoProvider externalResourceInfoProvider =
-                ExternalResourceUtils.createStaticExternalResourceInfoProvider(
-                        ExternalResourceUtils.getExternalResourceAmountMap(configuration),
-                        ExternalResourceUtils.externalResourceDriversFromConfig(
-                                configuration, pluginManager));
+                ExternalResourceUtils.createStaticExternalResourceInfoProviderFromConfig(
+                        configuration, pluginManager);
 
         taskExecutorService =
                 taskExecutorServiceFactory.createTaskExecutor(

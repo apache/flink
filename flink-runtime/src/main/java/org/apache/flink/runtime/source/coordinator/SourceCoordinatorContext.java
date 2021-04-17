@@ -30,7 +30,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -91,6 +90,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final SplitAssignmentTracker<SplitT> assignmentTracker;
     private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
             coordinatorThreadFactory;
+    private final OperatorCoordinator.SubtaskGateway[] subtaskGateways;
     private final String coordinatorThreadName;
     private volatile boolean closed;
 
@@ -128,6 +128,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         this.registeredReaders = new ConcurrentHashMap<>();
         this.assignmentTracker = splitAssignmentTracker;
         this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
+        this.subtaskGateways =
+                new OperatorCoordinator.SubtaskGateway
+                        [operatorCoordinatorContext.currentParallelism()];
 
         final Executor errorHandlingCoordinatorExecutor =
                 (runnable) ->
@@ -145,18 +148,14 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
+        checkSubtaskIndex(subtaskId);
+
         callInCoordinatorThread(
                 () -> {
-                    try {
-                        operatorCoordinatorContext.sendEvent(
-                                new SourceEventWrapper(event), subtaskId);
-                        return null;
-                    } catch (TaskNotRunningException e) {
-                        throw new FlinkRuntimeException(
-                                String.format(
-                                        "Failed to send event %s to subtask %d", event, subtaskId),
-                                e);
-                    }
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            getGatewayAndCheckReady(subtaskId);
+                    gateway.sendEvent(new SourceEventWrapper(event));
+                    return null;
                 },
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
@@ -191,20 +190,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                             .assignment()
                             .forEach(
                                     (id, splits) -> {
+                                        final OperatorCoordinator.SubtaskGateway gateway =
+                                                getGatewayAndCheckReady(id);
+
+                                        final AddSplitEvent<SplitT> addSplitEvent;
                                         try {
-                                            operatorCoordinatorContext.sendEvent(
-                                                    new AddSplitEvent<>(splits, splitSerializer),
-                                                    id);
-                                        } catch (TaskNotRunningException e) {
-                                            throw new FlinkRuntimeException(
-                                                    String.format(
-                                                            "Failed to assign splits %s to reader %d.",
-                                                            splits, id),
-                                                    e);
+                                            addSplitEvent =
+                                                    new AddSplitEvent<>(splits, splitSerializer);
                                         } catch (IOException e) {
                                             throw new FlinkRuntimeException(
                                                     "Failed to serialize splits.", e);
                                         }
+
+                                        gateway.sendEvent(addSplitEvent);
                                     });
                     return null;
                 },
@@ -213,16 +211,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void signalNoMoreSplits(int subtask) {
+        checkSubtaskIndex(subtask);
+
         // Ensure the split assignment is done by the the coordinator executor.
         callInCoordinatorThread(
                 () -> {
-                    try {
-                        operatorCoordinatorContext.sendEvent(new NoMoreSplitsEvent(), subtask);
-                        return null; // void return value
-                    } catch (TaskNotRunningException e) {
-                        throw new FlinkRuntimeException(
-                                "Failed to send 'NoMoreSplits' to reader " + subtask, e);
-                    }
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            getGatewayAndCheckReady(subtask);
+                    gateway.sendEvent(new NoMoreSplitsEvent());
+                    return null; // void return value
                 },
                 "Failed to send 'NoMoreSplits' to reader " + subtask);
     }
@@ -255,6 +252,29 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------
+
+    void subtaskReady(OperatorCoordinator.SubtaskGateway gateway) {
+        final int subtask = gateway.getSubtask();
+        if (subtaskGateways[subtask] == null) {
+            subtaskGateways[gateway.getSubtask()] = gateway;
+        } else {
+            throw new IllegalStateException("Already have a subtask gateway for " + subtask);
+        }
+    }
+
+    void subtaskNotReady(int subtaskIndex) {
+        subtaskGateways[subtaskIndex] = null;
+    }
+
+    OperatorCoordinator.SubtaskGateway getGatewayAndCheckReady(int subtaskIndex) {
+        final OperatorCoordinator.SubtaskGateway gateway = subtaskGateways[subtaskIndex];
+        if (gateway != null) {
+            return gateway;
+        }
+
+        throw new IllegalStateException(
+                String.format("Subtask %d is not ready yet to receive events.", subtaskIndex));
+    }
 
     /**
      * Fail the job with the given cause.
@@ -336,6 +356,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     // ---------------- private helper methods -----------------
+
+    private void checkSubtaskIndex(int subtaskIndex) {
+        if (subtaskIndex < 0 || subtaskIndex >= getCoordinatorContext().currentParallelism()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Subtask index %d is out of bounds [0, %s)",
+                            subtaskIndex, getCoordinatorContext().currentParallelism()));
+        }
+    }
 
     /**
      * A helper method that delegates the callable to the coordinator thread if the current thread

@@ -22,20 +22,22 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
+import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
  * An implementation of {@link WindowCombineFunction} that accumulates local accumulators records
@@ -46,7 +48,7 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutab
 public final class GlobalAggAccCombiner implements WindowCombineFunction {
 
     /** The service to register event-time or processing-time timers. */
-    private final InternalTimerService<Long> timerService;
+    private final WindowTimerService<Long> timerService;
 
     /** Context to switch current key for states. */
     private final StateKeyContext keyContext;
@@ -67,7 +69,7 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
     private final TypeSerializer<RowData> keySerializer;
 
     public GlobalAggAccCombiner(
-            InternalTimerService<Long> timerService,
+            WindowTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> localAggregator,
@@ -116,7 +118,12 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         accState.update(window, stateAcc);
 
         // step 3: register timer for current window
-        timerService.registerEventTimeTimer(window, window - 1);
+        long currentWatermark = timerService.currentWatermark();
+        ZoneId shiftTimeZone = timerService.getShiftTimeZone();
+        // the registered window timer should hasn't been triggered
+        if (!isWindowFired(window, currentWatermark, shiftTimeZone)) {
+            timerService.registerEventTimeWindowTimer(window);
+        }
     }
 
     @Override
@@ -137,23 +144,20 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
         private final GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler;
         private final GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler;
         private final TypeSerializer<RowData> keySerializer;
-        private final TypeSerializer<RowData> recordSerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler,
                 GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler,
-                TypeSerializer<RowData> keySerializer,
-                TypeSerializer<RowData> recordSerializer) {
+                TypeSerializer<RowData> keySerializer) {
             this.genLocalAggsHandler = genLocalAggsHandler;
             this.genGlobalAggsHandler = genGlobalAggsHandler;
             this.keySerializer = keySerializer;
-            this.recordSerializer = recordSerializer;
         }
 
         @Override
         public WindowCombineFunction create(
                 RuntimeContext runtimeContext,
-                InternalTimerService<Long> timerService,
+                WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
                 boolean isEventTime)

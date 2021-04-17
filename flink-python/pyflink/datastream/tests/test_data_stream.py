@@ -1145,6 +1145,41 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_function_with_error(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
+
+        def flat_map_func(x):
+            raise ValueError('flat_map_func error')
+            yield x
+
+        from py4j.protocol import Py4JJavaError
+        import pytest
+        with pytest.raises(Py4JJavaError, match="flat_map_func error"):
+            keyed_stream.flat_map(flat_map_func).print()
+            self.env.execute("test_process_function_with_error")
+
+    def test_data_with_custom_class(self):
+
+        class Data(object):
+            def __init__(self, name, num):
+                self.name = name
+                self.num = num
+
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        ds.map(lambda a: Data(a[0], a[1])) \
+            .flat_map(lambda data: [data.name for _ in range(data.num)]) \
+            .add_sink(self.test_sink)
+        self.env.execute("test_data_with_custom_class")
+        results = self.test_sink.get_results(True)
+        expected = ['c', 'c', 'b']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
 
 class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
 

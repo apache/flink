@@ -85,7 +85,7 @@ public class CliChangelogResultView
         if (idx == 0) {
             return 3;
         } else {
-            return MAX_COLUMN_WIDTH;
+            return PrintUtils.MAX_COLUMN_WIDTH;
         }
     }
 
@@ -284,7 +284,7 @@ public class CliChangelogResultView
                         s -> {
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);
+                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
                             schemaHeader.style(AttributedStyle.DEFAULT);
                         });
 

@@ -145,7 +145,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         sliceAssigner,
                         (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer(),
                         new RowDataSerializer(inputRowType),
-                        generatedAggsHandler);
+                        generatedAggsHandler,
+                        shiftTimeZone);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,

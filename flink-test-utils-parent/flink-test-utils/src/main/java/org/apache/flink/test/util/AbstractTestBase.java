@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FileUtils;
 
+import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
@@ -65,6 +67,19 @@ public abstract class AbstractTestBase extends TestBaseUtils {
                             .build());
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+    @After
+    public final void cleanupRunningJobs() throws Exception {
+        for (JobStatusMessage path : miniClusterResource.getClusterClient().listJobs().get()) {
+            if (!path.getJobState().isTerminalState()) {
+                try {
+                    miniClusterResource.getClusterClient().cancel(path.getJobId()).get();
+                } catch (Exception ignored) {
+                    // ignore exceptions when cancelling dangling jobs
+                }
+            }
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     //  Temporary File Utilities

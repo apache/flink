@@ -657,7 +657,11 @@ public class LogicalTypesTest {
 
         testInvalidStringSerializability(structuredType);
 
-        testStringSummary(structuredType, "*" + User.class.getName() + "*");
+        testStringSummary(
+                structuredType,
+                String.format(
+                        "*%s<`name` VARCHAR(1) '...', `setting` INT, `timestamp` TIMESTAMP(6)>*",
+                        User.class.getName()));
 
         testConversions(
                 structuredType,

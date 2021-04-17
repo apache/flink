@@ -22,12 +22,12 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
@@ -50,6 +50,7 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
 import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.Operation;
@@ -313,7 +314,7 @@ public class DependencyTest {
         private ResolvedCatalogTable createResolvedTable(
                 String[] fieldNames, DataType[] fieldDataTypes) {
             final Map<String, String> options = new HashMap<>();
-            options.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+            options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
             final CatalogTable origin =
                     CatalogTable.of(
                             Schema.newBuilder().fromFields(fieldNames, fieldDataTypes).build(),

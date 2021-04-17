@@ -55,12 +55,10 @@ public final class UnresolvedCallExpression implements Expression {
     private final List<Expression> args;
 
     UnresolvedCallExpression(
-            FunctionIdentifier functionIdentifier,
+            @Nullable FunctionIdentifier functionIdentifier,
             FunctionDefinition functionDefinition,
             List<Expression> args) {
-        this.functionIdentifier =
-                Preconditions.checkNotNull(
-                        functionIdentifier, "Function identifier must not be null.");
+        this.functionIdentifier = functionIdentifier;
         this.functionDefinition =
                 Preconditions.checkNotNull(
                         functionDefinition, "Function definition must not be null.");

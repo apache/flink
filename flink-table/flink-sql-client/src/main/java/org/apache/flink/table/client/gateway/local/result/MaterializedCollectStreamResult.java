@@ -45,6 +45,8 @@ public class MaterializedCollectStreamResult extends MaterializedCollectResultBa
         final int initialCapacity =
                 computeMaterializedTableCapacity(maxRowCount); // avoid frequent resizing
         rowPositionCache = new HashMap<>(initialCapacity);
+        // start listener thread
+        retrievalThread.start();
     }
 
     public MaterializedCollectStreamResult(TableResult tableResult, int maxRowCount) {

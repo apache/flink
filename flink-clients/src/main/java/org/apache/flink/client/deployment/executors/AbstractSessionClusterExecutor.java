@@ -92,7 +92,7 @@ public class AbstractSessionClusterExecutor<
                                                     clusterClientProvider,
                                                     jobID,
                                                     userCodeClassloader))
-                    .whenComplete((ignored1, ignored2) -> clusterClient.close());
+                    .whenCompleteAsync((ignored1, ignored2) -> clusterClient.close());
         }
     }
 }

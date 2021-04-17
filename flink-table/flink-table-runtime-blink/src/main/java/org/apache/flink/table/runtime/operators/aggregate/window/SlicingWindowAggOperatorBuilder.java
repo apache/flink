@@ -139,8 +139,7 @@ public class SlicingWindowAggOperatorBuilder {
                     new GlobalAggAccCombiner.Factory(
                             localGeneratedAggregateFunction,
                             globalGeneratedAggregateFunction,
-                            keySerializer,
-                            inputSerializer);
+                            keySerializer);
         } else {
             combinerFactory =
                     new AggRecordsCombiner.Factory(
@@ -171,6 +170,6 @@ public class SlicingWindowAggOperatorBuilder {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
         }
-        return new SlicingWindowOperator<>(windowProcessor, shiftTimeZone);
+        return new SlicingWindowOperator<>(windowProcessor);
     }
 }

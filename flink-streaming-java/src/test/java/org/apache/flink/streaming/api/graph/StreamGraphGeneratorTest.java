@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -207,6 +209,25 @@ public class StreamGraphGeneratorTest extends TestLogger {
         assertTrue(
                 graph.getStreamNode(shuffleOperator.getId()).getOutEdges().get(0).getPartitioner()
                         instanceof ShufflePartitioner);
+    }
+
+    @Test
+    public void testOutputTypeConfigurationWithUdfStreamOperator() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        OutputTypeConfigurableFunction<Integer> function = new OutputTypeConfigurableFunction<>();
+
+        DataStream<Integer> source = env.fromElements(1, 10);
+
+        NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator<>(function);
+
+        source.transform("no-op udf operator", BasicTypeInfo.INT_TYPE_INFO, udfOperator)
+                .addSink(new DiscardingSink<>());
+
+        env.getStreamGraph();
+
+        assertTrue(udfOperator instanceof AbstractUdfStreamOperator);
+        assertEquals(BasicTypeInfo.INT_TYPE_INFO, function.getTypeInformation());
     }
 
     /**
@@ -632,6 +653,32 @@ public class StreamGraphGeneratorTest extends TestLogger {
                                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
                         .get(),
                 equalTo(resourceProfile3));
+    }
+
+    private static class OutputTypeConfigurableFunction<T>
+            implements OutputTypeConfigurable<T>, Function {
+        private TypeInformation<T> typeInformation;
+
+        public TypeInformation<T> getTypeInformation() {
+            return typeInformation;
+        }
+
+        @Override
+        public void setOutputType(TypeInformation<T> outTypeInfo, ExecutionConfig executionConfig) {
+            typeInformation = outTypeInfo;
+        }
+    }
+
+    static class NoOpUdfOperator<T> extends AbstractUdfStreamOperator<T, Function>
+            implements OneInputStreamOperator<T, T> {
+        NoOpUdfOperator(Function function) {
+            super(function);
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {
+            output.collect(element);
+        }
     }
 
     static class OutputTypeConfigurableOperationWithTwoInputs

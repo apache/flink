@@ -246,7 +246,7 @@ object FlinkStreamRuleSets {
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     PushLimitIntoTableSourceScanRule.INSTANCE,
 
-    // reorder the projecct and watermark assigner
+    // reorder the project and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
 
     // reorder sort and projection
@@ -378,6 +378,8 @@ object FlinkStreamRuleSets {
     // because [[PushWatermarkIntoTableSourceScanAcrossCalcRule]] will push the rowtime computed
     // column into the source. After FlinkCalcMergeRule applies, it may produces a trivial calc.
     FlinkLogicalCalcRemoveRule.INSTANCE,
+    // filter push down
+    PushFilterInCalcIntoTableSourceScanRule.INSTANCE,
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.

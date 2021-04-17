@@ -116,6 +116,40 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'"
                         + ")";
         util().tableEnv().executeSql(ddl5);
+
+        String ddl6 =
+                "CREATE TABLE NestedItemTable (\n"
+                        + "  `ID` INT,\n"
+                        + "  `Timestamp` TIMESTAMP(3),\n"
+                        + "  `Result` ROW<\n"
+                        + "    `Mid` ROW<"
+                        + "      `data_arr` ROW<`value` BIGINT> ARRAY,\n"
+                        + "      `data_map` MAP<STRING, ROW<`value` BIGINT>>"
+                        + "     >"
+                        + "   >,\n"
+                        + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'nested-projection-supported' = 'true',"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl6);
+
+        String ddl7 =
+                "CREATE TABLE ItemTable (\n"
+                        + "  `ID` INT,\n"
+                        + "  `Timestamp` TIMESTAMP(3),\n"
+                        + "  `Result` ROW<\n"
+                        + "    `data_arr` ROW<`value` BIGINT> ARRAY,\n"
+                        + "    `data_map` MAP<STRING, ROW<`value` BIGINT>>>,\n"
+                        + "  `outer_array` ARRAY<INT>,\n"
+                        + "  `outer_map` MAP<STRING, STRING>,\n"
+                        + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util().tableEnv().executeSql(ddl7);
     }
 
     @Test
@@ -167,5 +201,46 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "FROM MetadataTable";
 
         util().verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testNestedProjectFieldAccessWithITEM() {
+        util().verifyRelPlan(
+                        "SELECT "
+                                + "`Result`.`Mid`.data_arr[ID].`value`, "
+                                + "`Result`.`Mid`.data_map['item'].`value` "
+                                + "FROM NestedItemTable");
+    }
+
+    @Test
+    public void testNestedProjectFieldAccessWithITEMWithConstantIndex() {
+        util().verifyRelPlan(
+                        "SELECT "
+                                + "`Result`.`Mid`.data_arr[2].`value`, "
+                                + "`Result`.`Mid`.data_arr "
+                                + "FROM NestedItemTable");
+    }
+
+    @Test
+    public void testNestedProjectFieldAccessWithITEMContainsTopLevelAccess() {
+        util().verifyRelPlan(
+                        "SELECT "
+                                + "`Result`.`Mid`.data_arr[2].`value`, "
+                                + "`Result`.`Mid`.data_arr[ID].`value`, "
+                                + "`Result`.`Mid`.data_map['item'].`value`, "
+                                + "`Result`.`Mid` "
+                                + "FROM NestedItemTable");
+    }
+
+    @Test
+    public void testProjectFieldAccessWithITEM() {
+        util().verifyRelPlan(
+                        "SELECT "
+                                + "`Result`.data_arr[ID].`value`, "
+                                + "`Result`.data_map['item'].`value`, "
+                                + "`outer_array`[1], "
+                                + "`outer_array`[ID], "
+                                + "`outer_map`['item'] "
+                                + "FROM ItemTable");
     }
 }

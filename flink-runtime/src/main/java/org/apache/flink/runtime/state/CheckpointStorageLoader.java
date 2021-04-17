@@ -88,25 +88,14 @@ public class CheckpointStorageLoader {
 
         switch (storageName.toLowerCase()) {
             case JOB_MANAGER_STORAGE_NAME:
-                if (logger != null) {
-                    logger.info("Checkpoint storage is set to JobManager");
-                }
-                return Optional.of(
-                        JobManagerCheckpointStorage.createFromConfig(config, classLoader));
+                return Optional.of(createJobManagerCheckpointStorage(config, classLoader, logger));
 
             case FILE_SYSTEM_STORAGE_NAME:
-                FileSystemCheckpointStorage storage =
-                        FileSystemCheckpointStorage.createFromConfig(config, classLoader);
-                if (logger != null) {
-                    logger.info(
-                            "Checkpoint storage is set to filesystem (checkpoints \"{}\")",
-                            storage.getCheckpointPath());
-                }
-                return Optional.of(storage);
+                return Optional.of(createFileSystemCheckpointStorage(config, classLoader, logger));
 
             default:
                 if (logger != null) {
-                    logger.info("Loading state backend via factory {}", storageName);
+                    logger.info("Loading state backend via factory '{}'", storageName);
                 }
 
                 CheckpointStorageFactory<?> factory;
@@ -238,19 +227,30 @@ public class CheckpointStorageLoader {
             ReadableConfig config, ClassLoader classLoader, @Nullable Logger logger) {
 
         if (config.getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY).isPresent()) {
-            FileSystemCheckpointStorage storage =
-                    FileSystemCheckpointStorage.createFromConfig(config, classLoader);
-            if (logger != null) {
-                logger.info(
-                        "Checkpoint storage is set to filesystem: {}", storage.getCheckpointPath());
-            }
-            return storage;
+            return createFileSystemCheckpointStorage(config, classLoader, logger);
         }
 
+        return createJobManagerCheckpointStorage(config, classLoader, logger);
+    }
+
+    private static CheckpointStorage createFileSystemCheckpointStorage(
+            ReadableConfig config, ClassLoader classLoader, @Nullable Logger logger) {
+        FileSystemCheckpointStorage storage =
+                FileSystemCheckpointStorage.createFromConfig(config, classLoader);
         if (logger != null) {
-            logger.info("Checkpoint storage is set to JobManager");
+            logger.info(
+                    "Checkpoint storage is set to '{}': (checkpoints \"{}\")",
+                    FILE_SYSTEM_STORAGE_NAME,
+                    storage.getCheckpointPath());
         }
+        return storage;
+    }
 
+    private static CheckpointStorage createJobManagerCheckpointStorage(
+            ReadableConfig config, ClassLoader classLoader, @Nullable Logger logger) {
+        if (logger != null) {
+            logger.info("Checkpoint storage is set to '{}'", JOB_MANAGER_STORAGE_NAME);
+        }
         return JobManagerCheckpointStorage.createFromConfig(config, classLoader);
     }
 }

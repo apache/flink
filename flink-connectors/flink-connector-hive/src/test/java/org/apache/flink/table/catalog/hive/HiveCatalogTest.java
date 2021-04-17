@@ -18,21 +18,28 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Test for HiveCatalog. */
@@ -43,6 +50,20 @@ public class HiveCatalogTest {
                     .field("name", DataTypes.STRING())
                     .field("age", DataTypes.INT())
                     .build();
+    private static HiveCatalog hiveCatalog;
+
+    @BeforeClass
+    public static void createCatalog() {
+        hiveCatalog = HiveTestUtils.createHiveCatalog();
+        hiveCatalog.open();
+    }
+
+    @AfterClass
+    public static void closeCatalog() {
+        if (hiveCatalog != null) {
+            hiveCatalog.close();
+        }
+    }
 
     @Test
     public void testCreateGenericTable() {
@@ -54,7 +75,7 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogPropertiesUtil.IS_GENERIC), String.valueOf("true"));
+        assertFalse(HiveCatalog.isHiveTable(prop));
         assertTrue(
                 prop.keySet().stream()
                         .allMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
@@ -64,7 +85,7 @@ public class HiveCatalogTest {
     public void testCreateHiveTable() {
         Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-        map.put(CatalogPropertiesUtil.IS_GENERIC, String.valueOf(false));
+        map.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
 
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(
@@ -73,9 +94,30 @@ public class HiveCatalogTest {
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
-        assertEquals(prop.remove(CatalogPropertiesUtil.IS_GENERIC), String.valueOf(false));
+        assertTrue(HiveCatalog.isHiveTable(prop));
         assertTrue(
                 prop.keySet().stream()
                         .noneMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
+    }
+
+    @Test
+    public void testRetrieveFlinkProperties() throws Exception {
+        ObjectPath hiveObjectPath =
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "testRetrieveProperties");
+
+        Map<String, String> properties =
+                new HashMap<>(new FileSystem().path("/test_path").toProperties());
+
+        properties.put(CONNECTOR.key(), "jdbc");
+        properties.put("url", "jdbc:clickhouse://host:port/testUrl1");
+        properties.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
+
+        hiveCatalog.createTable(
+                hiveObjectPath, new CatalogTableImpl(schema, properties, null), false);
+
+        CatalogBaseTable hiveTable = hiveCatalog.getTable(hiveObjectPath);
+        assertEquals(hiveTable.getOptions().get("url"), "jdbc:clickhouse://host:port/testUrl1");
+        assertEquals(
+                hiveTable.getOptions().get("flink.url"), "jdbc:clickhouse://host:port/testUrl2");
     }
 }

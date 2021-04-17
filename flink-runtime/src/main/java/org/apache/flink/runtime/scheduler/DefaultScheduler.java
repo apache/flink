@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -550,7 +550,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             return;
         }
 
-        for (OperatorCoordinator coordinator : vertex.getJobVertex().getOperatorCoordinators()) {
+        for (OperatorCoordinatorHolder coordinator :
+                vertex.getJobVertex().getOperatorCoordinators()) {
             coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
         }
     }

@@ -18,9 +18,9 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -51,13 +51,12 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
+        boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
-        // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
-        if (!isGeneric && !context.isTemporary()) {
+        // we don't support temporary hive tables yet
+        if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
-                    "Hive table should be resolved by HiveDynamicTableFactory.");
+                    "Legacy TableSource for Hive is deprecated. Hive table source should be created by HiveDynamicTableFactory.");
         } else {
             return TableFactoryUtil.findAndCreateTableSource(context);
         }
@@ -68,13 +67,12 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
         CatalogTable table = checkNotNull(context.getTable());
         Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
-        boolean isGeneric =
-                Boolean.parseBoolean(table.getOptions().get(CatalogPropertiesUtil.IS_GENERIC));
+        boolean isHiveTable = HiveCatalog.isHiveTable(table.getOptions());
 
-        // temporary table doesn't have the IS_GENERIC flag but we still consider it generic
-        if (!isGeneric && !context.isTemporary()) {
+        // we don't support temporary hive tables yet
+        if (isHiveTable && !context.isTemporary()) {
             throw new UnsupportedOperationException(
-                    "Hive table should be resolved by HiveDynamicTableFactory.");
+                    "Legacy TableSink for Hive is deprecated. Hive table sink should be created by HiveDynamicTableFactory.");
         } else {
             return TableFactoryUtil.findAndCreateTableSink(context);
         }

@@ -45,6 +45,7 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit._
+import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
@@ -54,6 +55,11 @@ import java.util
 import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
+
+  var _expectedEx: ExpectedException = ExpectedException.none
+
+  @Rule
+  def expectedEx: ExpectedException = _expectedEx
 
   @Before
   override def before(): Unit = {
@@ -794,6 +800,15 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testMapTypeGroupBy(): Unit = {
+    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
+    checkResult(
+      "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
+      Seq()
+    )
+  }
+
+  @Test
   def testValueConstructor(): Unit = {
     val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24.001")))
     BatchTableEnvUtil.registerCollection(
@@ -1442,5 +1457,39 @@ class CalcITCase extends BatchTestBase {
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
         row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
+  }
+
+  @Test
+  def testOrWithIsNullPredicate(): Unit = {
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a = 1 OR T.a = 3 OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple")))
+  }
+
+  @Test
+  def testOrWithIsNullInIf(): Unit = {
+    val data = Seq(
+      row("", "N"),
+      row("X", "Y"),
+      row(null, "Y"))
+    registerCollection(
+      "MyTable", data, new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO), "a, b")
+
+    checkResult(
+      "SELECT IF(a = '', 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('b')))
+    checkResult(
+      "SELECT IF(a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('a')))
   }
 }

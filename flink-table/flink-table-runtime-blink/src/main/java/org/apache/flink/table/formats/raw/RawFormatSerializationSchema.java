@@ -164,7 +164,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
 
             default:
                 throw new UnsupportedOperationException(
-                        "'single-format' currently doesn't support type: " + type);
+                        "'raw' format currently doesn't support type: " + type);
         }
     }
 

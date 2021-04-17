@@ -34,5 +34,5 @@ public interface ModifyOperationVisitor<T> {
 
     <U> T visit(UnregisteredSinkModifyOperation<U> unregisteredSink);
 
-    T visit(SelectSinkOperation selectOperation);
+    T visit(CollectModifyOperation selectOperation);
 }

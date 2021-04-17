@@ -63,10 +63,10 @@ import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescripto
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Tests {@link DemultiplexingRecordDeserializer}. */
 public class DemultiplexingRecordDeserializerTest {
-    public static final int SEGMENT_SIZE = 4096;
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -123,8 +123,7 @@ public class DemultiplexingRecordDeserializerTest {
 
             assertEquals(
                     Arrays.asList(start + 1L, start + 2L, start + 3L), readLongs(deserializer));
-
-            bufferBuilder.recycle();
+            assertTrue(bufferBuilder.getMemorySegment().isFreed());
         }
     }
 
@@ -168,7 +167,7 @@ public class DemultiplexingRecordDeserializerTest {
                 assertEquals(Arrays.asList(i / 2 * 2 + 1L), readLongs(deserializer));
             }
 
-            bufferBuilder.recycle();
+            assertTrue(bufferBuilder.getMemorySegment().isFreed());
         }
     }
 
@@ -206,7 +205,7 @@ public class DemultiplexingRecordDeserializerTest {
                 assertEquals(Arrays.asList(new Watermark(42)), read(deserializer));
             }
 
-            bufferBuilder.recycle();
+            assertTrue(bufferBuilder.getMemorySegment().isFreed());
         }
     }
 

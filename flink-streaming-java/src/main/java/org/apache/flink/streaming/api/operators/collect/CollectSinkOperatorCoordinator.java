@@ -194,6 +194,11 @@ public class CollectSinkOperatorCoordinator
     }
 
     @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        // nothing to do here, connections are re-created lazily
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result)
             throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

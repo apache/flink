@@ -21,12 +21,14 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailover
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.executiongraph.utils.TestFailoverStrategyFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -79,14 +82,17 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -1127,10 +1133,98 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void testExceptionHistoryConcurrentRestart() throws Exception {
+        final JobGraph jobGraph = singleJobVertexJobGraph(2);
+
+        final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+        final TestingLogicalSlotBuilder logicalSlotBuilder = new TestingLogicalSlotBuilder();
+        logicalSlotBuilder.setTaskManagerLocation(taskManagerLocation);
+
+        executionSlotAllocatorFactory = new TestExecutionSlotAllocatorFactory(logicalSlotBuilder);
+
+        final ReorganizableManuallyTriggeredScheduledExecutor delayExecutor =
+                new ReorganizableManuallyTriggeredScheduledExecutor();
+        final TestFailoverStrategyFactory failoverStrategyFactory =
+                new TestFailoverStrategyFactory();
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        failoverStrategyFactory,
+                        delayExecutor);
+        scheduler.startScheduling();
+
+        final ExecutionVertex executionVertex0 =
+                Iterables.get(scheduler.getExecutionGraph().getAllExecutionVertices(), 0);
+        final ExecutionVertex executionVertex1 =
+                Iterables.get(scheduler.getExecutionGraph().getAllExecutionVertices(), 1);
+
+        // single-ExecutionVertex failure
+        final RuntimeException exception0 = new RuntimeException("failure #0");
+        failoverStrategyFactory.setTasksToRestart(executionVertex0.getID());
+        final long updateStateTriggeringRestartTimestamp0 =
+                initiateFailure(
+                        scheduler,
+                        executionVertex0.getCurrentExecutionAttempt().getAttemptId(),
+                        exception0);
+
+        // multi-ExecutionVertex failure
+        final RuntimeException exception1 = new RuntimeException("failure #1");
+        failoverStrategyFactory.setTasksToRestart(
+                executionVertex1.getID(), executionVertex0.getID());
+        final long updateStateTriggeringRestartTimestamp1 =
+                initiateFailure(
+                        scheduler,
+                        executionVertex1.getCurrentExecutionAttempt().getAttemptId(),
+                        exception1);
+
+        // there might be a race condition with the delayExecutor if the tasks are scheduled quite
+        // close to each other which we want to simulate here
+        Collections.reverse(delayExecutor.getCollectedScheduledTasks());
+
+        delayExecutor.triggerNonPeriodicScheduledTasks();
+
+        assertThat(scheduler.getExceptionHistory(), IsIterableWithSize.iterableWithSize(2));
+        final Iterator<RootExceptionHistoryEntry> actualExceptionHistory =
+                scheduler.getExceptionHistory().iterator();
+
+        final RootExceptionHistoryEntry entry0 = actualExceptionHistory.next();
+        assertThat(
+                entry0,
+                is(
+                        ExceptionHistoryEntryMatcher.matchesFailure(
+                                exception0,
+                                updateStateTriggeringRestartTimestamp0,
+                                executionVertex0.getTaskNameWithSubtaskIndex(),
+                                executionVertex0.getCurrentAssignedResourceLocation())));
+        assertThat(
+                entry0.getConcurrentExceptions(),
+                IsIterableContainingInOrder.contains(
+                        ExceptionHistoryEntryMatcher.matchesFailure(
+                                exception1,
+                                updateStateTriggeringRestartTimestamp1,
+                                executionVertex1.getTaskNameWithSubtaskIndex(),
+                                executionVertex1.getCurrentAssignedResourceLocation())));
+
+        final RootExceptionHistoryEntry entry1 = actualExceptionHistory.next();
+        assertThat(entry1.getConcurrentExceptions(), IsEmptyIterable.emptyIterable());
+        FlinkException expectedFailure =
+                new FlinkException(
+                        "This is a workaround for FLINK-22276: The actual failure was cleaned up already.");
+        assertThat(
+                entry1.getException()
+                        .deserializeError(ClassLoader.getSystemClassLoader())
+                        .getMessage(),
+                is(expectedFailure.getMessage()));
+        assertThat(entry1.getConcurrentExceptions(), IsEmptyIterable.emptyIterable());
+    }
+
+    @Test
     public void testExceptionHistoryTruncation() {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
 
-        configuration.set(JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE, 1);
+        configuration.set(WebOptions.MAX_EXCEPTION_HISTORY_SIZE, 1);
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
 
         final ExecutionAttemptID attemptId0 =
@@ -1289,12 +1383,27 @@ public class DefaultSchedulerTest extends TestLogger {
             final SchedulingStrategyFactory schedulingStrategyFactory,
             final FailoverStrategy.Factory failoverStrategyFactory)
             throws Exception {
+        return createScheduler(
+                jobGraph,
+                mainThreadExecutor,
+                schedulingStrategyFactory,
+                failoverStrategyFactory,
+                taskRestartExecutor);
+    }
+
+    private DefaultScheduler createScheduler(
+            final JobGraph jobGraph,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final SchedulingStrategyFactory schedulingStrategyFactory,
+            final FailoverStrategy.Factory failoverStrategyFactory,
+            final ScheduledExecutor delayExecutor)
+            throws Exception {
         return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setLogger(log)
                 .setIoExecutor(executor)
                 .setJobMasterConfiguration(configuration)
                 .setFutureExecutor(scheduledExecutorService)
-                .setDelayExecutor(taskRestartExecutor)
+                .setDelayExecutor(delayExecutor)
                 .setSchedulingStrategyFactory(schedulingStrategyFactory)
                 .setFailoverStrategyFactory(failoverStrategyFactory)
                 .setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)
@@ -1302,6 +1411,77 @@ public class DefaultSchedulerTest extends TestLogger {
                 .setExecutionVertexVersioner(executionVertexVersioner)
                 .setExecutionSlotAllocatorFactory(executionSlotAllocatorFactory)
                 .build();
+    }
+
+    /**
+     * {@code ReorganizableManuallyTriggeredScheduledExecutor} can be used to re-organize scheduled
+     * tasks before actually triggering them. This can be used to test cases with race conditions in
+     * the delayed scheduler.
+     */
+    private static class ReorganizableManuallyTriggeredScheduledExecutor
+            extends ManuallyTriggeredScheduledExecutor {
+
+        private final List<ScheduledTask<?>> scheduledTasks = new ArrayList<>();
+
+        @Override
+        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+            return schedule(
+                    () -> {
+                        command.run();
+                        return null;
+                    },
+                    delay,
+                    unit);
+        }
+
+        @Override
+        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+            final ScheduledTask<V> scheduledTask =
+                    new ScheduledTask<>(callable, unit.convert(delay, TimeUnit.MILLISECONDS));
+            scheduledTasks.add(scheduledTask);
+            return scheduledTask;
+        }
+
+        /**
+         * Returns the collected {@link ScheduledTask ScheduledTasks}. This collection can be
+         * re-organized in-place.
+         *
+         * @return The list of scheduled tasks.
+         */
+        public List<ScheduledTask<?>> getCollectedScheduledTasks() {
+            return scheduledTasks;
+        }
+
+        /** Actually schedules the collected {@link ScheduledTask ScheduledTasks}. */
+        public void scheduleCollectedScheduledTasks() {
+            for (ScheduledTask<?> scheduledTask : scheduledTasks) {
+                super.schedule(
+                        scheduledTask.getCallable(),
+                        scheduledTask.getDelay(TimeUnit.MILLISECONDS),
+                        TimeUnit.MILLISECONDS);
+            }
+            scheduledTasks.clear();
+        }
+
+        /**
+         * Schedules all already collected tasks before actually triggering the actual scheduling of
+         * the next task in the queue.
+         */
+        @Override
+        public void triggerNonPeriodicScheduledTask() {
+            scheduleCollectedScheduledTasks();
+            super.triggerNonPeriodicScheduledTask();
+        }
+
+        /**
+         * Schedules all already collected tasks before actually triggering the actual scheduling of
+         * all tasks in the queue.
+         */
+        @Override
+        public void triggerNonPeriodicScheduledTasks() {
+            scheduleCollectedScheduledTasks();
+            super.triggerNonPeriodicScheduledTasks();
+        }
     }
 
     /**
@@ -1327,7 +1507,7 @@ public class DefaultSchedulerTest extends TestLogger {
     private void transitionToRunning(DefaultScheduler scheduler, ExecutionAttemptID attemptId) {
         Preconditions.checkState(
                 scheduler.updateTaskExecutionState(
-                        new TaskExecutionState(attemptId, ExecutionState.RECOVERING)));
+                        new TaskExecutionState(attemptId, ExecutionState.INITIALIZING)));
         Preconditions.checkState(
                 scheduler.updateTaskExecutionState(
                         new TaskExecutionState(attemptId, ExecutionState.RUNNING)));

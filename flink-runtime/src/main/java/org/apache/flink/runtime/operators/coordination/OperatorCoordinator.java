@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 
@@ -44,6 +45,30 @@ import java.util.concurrent.CompletableFuture;
  * <p>Coordinators that involve more complex operations should hence spawn threads to handle the I/O
  * work. The methods on the {@link Context} are safe to be called from another thread than the
  * thread that calls the Coordinator's methods.
+ *
+ * <h2>Consistency</h2>
+ *
+ * <p>The coordinator's view of the task execution is highly simplified, compared to the Scheduler's
+ * view, but allows for consistent interaction with the operators running on the parallel subtasks.
+ * In particular, the following methods are guaranteed to be called strictly in order:
+ *
+ * <ol>
+ *   <li>{@link #subtaskReady(int, SubtaskGateway)}: Called once you can send events to the subtask.
+ *       The provided gateway is bound to that specific task. This is the start of interaction with
+ *       the operator subtasks.
+ *   <li>{@link #subtaskFailed(int, Throwable)}: Called for each subtask as soon as the subtask
+ *       execution failed or was cancelled. At this point, interaction with the subtask should stop.
+ *   <li>{@link #subtaskReset(int, long)} or {@link #resetToCheckpoint(long, byte[])}: Once the
+ *       scheduler determined which checkpoint to restore, these methods notify the coordinator of
+ *       that. The former method is called in case of a regional failure/recovery (affecting
+ *       possible a subset of subtasks), the later method in case of a global failure/recovery. This
+ *       method should be used to determine which actions to recover, because it tells you with
+ *       checkpoint to fall back to. The coordinator implementation needs to recover the
+ *       interactions with the relevant tasks since the checkpoint that is restored.
+ *   <li>{@link #subtaskReady(int, SubtaskGateway)}: Called again, once the recovered tasks are
+ *       ready to go. This is later than {@link #subtaskReset(int, long)}, because between those
+ *       methods, the task are scheduled and deployed.
+ * </ol>
  */
 public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 
@@ -74,7 +99,8 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
     // ------------------------------------------------------------------------
 
     /**
-     * Hands an OperatorEvent from a task (on the Task Manager) to this coordinator.
+     * Hands an OperatorEvent coming from a parallel Operator instances (one of the parallel
+     * subtasks).
      *
      * @throws Exception Any exception thrown by this method results in a full job failure and
      *     recovery.
@@ -106,6 +132,9 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      *   <li>Every event sent after the checkpoint future is completed is considered to be after the
      *       checkpoint.
      * </ul>
+     *
+     * @throws Exception Any exception thrown by this method results in a full job failure and *
+     *     recovery.
      */
     void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> resultFuture)
             throws Exception;
@@ -148,7 +177,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      *       the coordinator.
      * </ul>
      *
-     * In both cases, the coordinator should reset to an empty (new) state.
+     * <p>In both cases, the coordinator should reset to an empty (new) state.
      *
      * <h2>Restoring implicitly notifies of Checkpoint Completion</h2>
      *
@@ -183,6 +212,17 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      */
     void subtaskReset(int subtask, long checkpointId);
 
+    /**
+     * This is called when a subtask of the Operator becomes ready to receive events, both after
+     * initial startup and after task failover. The given {@code SubtaskGateway} can be used to send
+     * events to the executed subtask.
+     *
+     * <p>The given {@code SubtaskGateway} is bound to that specific execution attempt that became
+     * ready. All events sent through the gateway target that execution attempt; if the attempt is
+     * no longer running by the time the event is sent, then the events are failed.
+     */
+    void subtaskReady(int subtask, SubtaskGateway gateway);
+
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
 
@@ -194,16 +234,6 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
 
         /** Gets the ID of the operator to which the coordinator belongs. */
         OperatorID getOperatorId();
-
-        /**
-         * Sends an event to the parallel subtask with the given subtask index.
-         *
-         * <p>The returned future is completed successfully once the event has been received by the
-         * target TaskManager. The future is completed exceptionally if the event cannot be sent.
-         * That includes situations where the target task is not running.
-         */
-        CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask)
-                throws TaskNotRunningException;
 
         /**
          * Fails the job and trigger a global failover operation.
@@ -222,6 +252,35 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * JVM's classpath.
          */
         ClassLoader getUserCodeClassloader();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /**
+     * The {@code SubtaskGateway} is the way to interact with a specific parallel instance of the
+     * Operator (an Operator subtask), like sending events to the operator.
+     */
+    interface SubtaskGateway {
+
+        /**
+         * Sends an event to the parallel subtask with the given subtask index.
+         *
+         * <p>The returned future is completed successfully once the event has been received by the
+         * target TaskManager. The future is completed exceptionally if the event cannot be sent.
+         * That includes situations where the target task is not running.
+         */
+        CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt);
+
+        /**
+         * Gets the execution attempt for the subtask execution attempt that this gateway
+         * communicates with.
+         */
+        ExecutionAttemptID getExecution();
+
+        /**
+         * Gets the subtask index of the parallel operator instance this gateway communicates with.
+         */
+        int getSubtask();
     }
 
     // ------------------------------------------------------------------------

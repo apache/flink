@@ -40,9 +40,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
-
-import java.time.ZoneId;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -108,12 +105,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     /** The concrete window operator implementation. */
     private final SlicingWindowProcessor<W> windowProcessor;
 
-    /**
-     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
-     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
-     * which means never shift when assigning windows.
-     */
-    private final ZoneId shiftTimeZone;
     // ------------------------------------------------------------------------
 
     /** This is used for emitting elements with a given timestamp. */
@@ -136,9 +127,8 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     private transient Meter lateRecordsDroppedRate;
     private transient Gauge<Long> watermarkLatency;
 
-    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor, ZoneId shiftTimeZone) {
+    public SlicingWindowOperator(SlicingWindowProcessor<W> windowProcessor) {
         this.windowProcessor = windowProcessor;
-        this.shiftTimeZone = shiftTimeZone;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -226,13 +216,11 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
-        long timestamp = TimeWindowUtil.toUtcTimestampMills(timer.getTimestamp(), shiftTimeZone);
-
-        if (timestamp > lastTriggeredProcessingTime) {
+        if (timer.getTimestamp() > lastTriggeredProcessingTime) {
             // similar to the watermark advance,
             // we need to notify WindowProcessor first to flush buffer into state
-            lastTriggeredProcessingTime = timestamp;
-            windowProcessor.advanceProgress(timestamp);
+            lastTriggeredProcessingTime = timer.getTimestamp();
+            windowProcessor.advanceProgress(timer.getTimestamp());
             // timers registered in advanceProgress() should always be smaller than current timer
             // so, it should be safe to trigger current timer straightforwards.
         }

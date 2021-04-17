@@ -75,6 +75,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
@@ -733,6 +734,19 @@ public final class DataTypes {
     }
 
     /**
+     * Data type of a sequence of fields.
+     *
+     * <p>This is shortcut for {@link #ROW(Field...)} where the field names will be generated using
+     * {@code f0, f1, f2, ...}.
+     */
+    public static DataType ROW(DataType... fieldDataTypes) {
+        return ROW(
+                IntStream.range(0, fieldDataTypes.length)
+                        .mapToObj(idx -> FIELD("f" + idx, fieldDataTypes[idx]))
+                        .toArray(Field[]::new));
+    }
+
+    /**
      * Data type of a row type with no fields. It only exists for completeness.
      *
      * @see #ROW(Field...)
@@ -783,6 +797,19 @@ public final class DataTypes {
                                     .toArray(Field[]::new);
                     return ROW(fieldsArray);
                 });
+    }
+
+    /**
+     * Data type of a sequence of fields.
+     *
+     * <p>This is shortcut for {@link #ROW(AbstractField...)} where the field names will be
+     * generated using {@code f0, f1, f2, ...}.
+     */
+    public static UnresolvedDataType ROW(AbstractDataType<?>... fieldDataTypes) {
+        return ROW(
+                IntStream.range(0, fieldDataTypes.length)
+                        .mapToObj(idx -> FIELD("f" + idx, fieldDataTypes[idx]))
+                        .toArray(AbstractField[]::new));
     }
 
     /**

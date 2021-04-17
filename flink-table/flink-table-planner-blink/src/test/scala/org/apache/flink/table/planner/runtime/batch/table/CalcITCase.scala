@@ -587,8 +587,6 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStarFromNestedTable(): Unit = {
 
-    val sqlQuery = "SELECT * FROM MyTable"
-
     val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       ((0, 0), "0"),
       ((1, 1), "1"),
@@ -598,9 +596,9 @@ class CalcITCase extends BatchTestBase {
     val results = executeQuery(table)
     results.zipWithIndex.foreach {
       case (row, i) =>
-        val nestedRow = row.getField(0).asInstanceOf[Row]
-        assertEquals(i, nestedRow.getField(0))
-        assertEquals(i, nestedRow.getField(1))
+        val nestedRow = row.getField(0).asInstanceOf[(Int, Int)]
+        assertEquals(i, nestedRow._1)
+        assertEquals(i, nestedRow._2)
         assertEquals(i.toString, row.getField(1))
     }
   }

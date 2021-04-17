@@ -35,7 +35,7 @@
         "limit" : 10
       } ]
     },
-    "id" : 15,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -47,7 +47,7 @@
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 16,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -74,7 +74,7 @@
       "type" : "AppendFast"
     },
     "generateUpdateBefore" : false,
-    "id" : 17,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -116,7 +116,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 18,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -153,7 +153,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 19,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -173,29 +173,29 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, a0])"
   } ],
   "edges" : [ {
-    "source" : 15,
-    "target" : 16,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 16,
-    "target" : 17,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 17,
-    "target" : 18,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 18,
-    "target" : 19,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },

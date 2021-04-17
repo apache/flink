@@ -217,6 +217,9 @@ public class DataTypesTest {
                                                 new RowType.RowField("field1", new CharType(2)),
                                                 new RowType.RowField("field2", new BooleanType()))))
                         .expectConversionClass(Row.class),
+                TestSpec.forDataType(ROW(DataTypes.INT(), DataTypes.FLOAT()))
+                        .expectResolvedDataType(
+                                DataTypes.ROW(FIELD("f0", INT()), FIELD("f1", FLOAT()))),
                 TestSpec.forDataType(NULL())
                         .expectLogicalType(new NullType())
                         .expectConversionClass(Object.class),
@@ -267,6 +270,8 @@ public class DataTypesTest {
                         .expectUnresolvedString("[ROW<field1 [CHAR(2)], field2 BOOLEAN>]")
                         .expectResolvedDataType(
                                 ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN()))),
+                TestSpec.forUnresolvedDataType(ROW(DataTypes.of("CHAR(2)"), BOOLEAN()))
+                        .expectResolvedDataType(ROW(FIELD("f0", CHAR(2)), FIELD("f1", BOOLEAN()))),
                 TestSpec.forUnresolvedDataType(
                                 ARRAY(
                                         ROW(

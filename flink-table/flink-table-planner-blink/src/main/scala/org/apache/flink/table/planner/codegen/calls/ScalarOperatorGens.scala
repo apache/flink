@@ -36,9 +36,11 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
@@ -993,7 +995,7 @@ object ScalarOperatorGens {
 
     // Date/Time/Timestamp -> String
     case (_, VARCHAR | CHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         operandTerm =>
           s"${localTimeToStringCode(ctx, operand.resultType, operandTerm.head)}"
       }
@@ -1002,7 +1004,7 @@ object ScalarOperatorGens {
     case (INTERVAL_YEAR_MONTH, VARCHAR | CHAR) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_YEAR_MONTH_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.YEAR_TO_MONTH)
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         terms => s"$method(${terms.head}, $timeUnitRange)"
       }
 
@@ -1010,32 +1012,35 @@ object ScalarOperatorGens {
     case (INTERVAL_DAY_TIME, VARCHAR | CHAR) =>
       val method = qualifyMethod(BuiltInMethod.INTERVAL_DAY_TIME_TO_STRING.method)
       val timeUnitRange = qualifyEnum(TimeUnitRange.DAY_TO_SECOND)
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         terms => s"$method(${terms.head}, $timeUnitRange, 3)" // milli second precision
       }
 
     // Array -> String
     case (ARRAY, VARCHAR | CHAR) =>
-      generateCastArrayToString(ctx, operand, operand.resultType.asInstanceOf[ArrayType])
+      generateCastArrayToString(
+        ctx, operand, operand.resultType.asInstanceOf[ArrayType], targetType)
 
     // Byte array -> String UTF-8
     case (BINARY | VARBINARY, VARCHAR | CHAR) =>
       val charset = classOf[StandardCharsets].getCanonicalName
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         terms => s"(new String(${terms.head}, $charset.UTF_8))"
       }
 
 
     // Map -> String
     case (MAP, VARCHAR | CHAR) =>
-      generateCastMapToString(ctx, operand, operand.resultType.asInstanceOf[MapType])
+      generateCastMapToString(
+        ctx, operand, operand.resultType.asInstanceOf[MapType], targetType)
 
     // composite type -> String
     case (ROW, VARCHAR | CHAR) =>
-      generateCastRowDataToString(ctx, operand, operand.resultType.asInstanceOf[RowType])
+      generateCastRowDataToString(
+        ctx, operand, operand.resultType.asInstanceOf[RowType], targetType)
 
     case (RAW, VARCHAR | CHAR) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         terms =>
           val converter = DataFormatConverters.getConverterForDataType(
             fromLogicalTypeToDataType(operand.resultType))
@@ -1046,7 +1051,7 @@ object ScalarOperatorGens {
     // * (not Date/Time/Timestamp) -> String
     // TODO: GenericType with Date/Time/Timestamp -> String would call toString implicitly
     case (_, VARCHAR | CHAR) =>
-      generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
+      generateStringResultCallIfArgsNotNull(ctx, Seq(operand), targetType) {
         terms => s""" "" + ${terms.head}"""
       }
 
@@ -1262,7 +1267,7 @@ object ScalarOperatorGens {
           " instead, note the numeric is in seconds.")
       } else {
         throw new ValidationException("The cast conversion from TIMESTAMP type to NUMERIC type" +
-          " is not allowed,it's recommended to use" +
+          " is not allowed, it's recommended to use" +
           " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead.")
       }
     }
@@ -1318,7 +1323,8 @@ object ScalarOperatorGens {
           | (INTERVAL_YEAR_MONTH, BIGINT) =>
       internalExprCasting(operand, targetType)
 
-    case (ROW, ROW) if LogicalTypeCasts.supportsExplicitCast(operand.resultType, targetType) =>
+    case (ROW | STRUCTURED_TYPE, ROW | STRUCTURED_TYPE)
+        if supportsExplicitCast(operand.resultType, targetType) =>
       generateCastRowToRow(ctx, operand, targetType)
 
     case (_, _) =>
@@ -1458,11 +1464,9 @@ object ScalarOperatorGens {
 
   def generateRow(
       ctx: CodeGeneratorContext,
-      resultType: LogicalType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
-    checkArgument(resultType.isInstanceOf[RowType])
-    val rowType = resultType.asInstanceOf[RowType]
-    val fieldTypes = rowType.getChildren
+    val fieldTypes = getFieldTypes(rowType)
     val isLiteral = elements.forall(e => e.literal)
     val isPrimitive = fieldTypes.forall(PlannerTypeUtils.isPrimitive)
 
@@ -1512,7 +1516,7 @@ object ScalarOperatorGens {
 
   private def generateLiteralRow(
       ctx: CodeGeneratorContext,
-      rowType: RowType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
     checkArgument(elements.forall(e => e.literal))
     val expr = generateNonLiteralRow(ctx, rowType, elements)
@@ -1522,8 +1526,9 @@ object ScalarOperatorGens {
 
   private def generateNonLiteralRow(
       ctx: CodeGeneratorContext,
-      rowType: RowType,
+      rowType: LogicalType,
       elements: Seq[GeneratedExpression]): GeneratedExpression = {
+    val fieldTypes = getFieldTypes(rowType)
 
     val rowTerm = newName("row")
     val writerTerm = newName("writer")
@@ -1531,7 +1536,7 @@ object ScalarOperatorGens {
 
     val writeCode = elements.zipWithIndex.map {
       case (element, idx) =>
-        val tpe = rowType.getTypeAt(idx)
+        val tpe = fieldTypes(idx)
         if (ctx.nullCheck) {
           s"""
              |${element.code}
@@ -1556,7 +1561,7 @@ object ScalarOperatorGens {
          |$writerTerm.complete();
        """.stripMargin
 
-    ctx.addReusableMember(s"$BINARY_ROW $rowTerm = new $BINARY_ROW(${rowType.getFieldCount});")
+    ctx.addReusableMember(s"$BINARY_ROW $rowTerm = new $BINARY_ROW(${fieldTypes.length});")
     ctx.addReusableMember(s"$writerCls $writerTerm = new $writerCls($rowTerm);")
     GeneratedExpression(rowTerm, GeneratedExpression.NEVER_NULL, code, rowType)
   }
@@ -1834,7 +1839,14 @@ object ScalarOperatorGens {
 
     val mapTerm = map.resultTerm
 
-    val equal = generateEquals(ctx, key, GeneratedExpression(tmpKey, NEVER_NULL, NO_CODE, keyType))
+    val equal = generateEquals(
+      ctx,
+      // We have to create a new GeneratedExpression from `key`, but erase the code of it.
+      // Otherwise, the code of `key` will be called twice in `accessCode`, which may lead to
+      // exceptions such as 'Redefinition of local variable'.
+      GeneratedExpression(key.resultTerm, key.nullTerm, NO_CODE, key.resultType, key.literalValue),
+      GeneratedExpression(tmpKey, NEVER_NULL, NO_CODE, keyType)
+    )
     val code =
       s"""
          |if ($mapTerm instanceof $BINARY_MAP) {
@@ -1955,8 +1967,9 @@ object ScalarOperatorGens {
   private def generateCastArrayToString(
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
-      at: ArrayType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand)) {
+      at: ArrayType,
+      targetType: LogicalType): GeneratedExpression =
+    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
       terms =>
         val builderCls = classOf[JStringBuilder].getCanonicalName
         val builderTerm = newName("builder")
@@ -1982,7 +1995,7 @@ object ScalarOperatorGens {
              """.stripMargin
         val elementExpr = GeneratedExpression(
           elementTerm, elementNullTerm, elementCode, elementType)
-        val castExpr = generateCast(ctx, elementExpr, new VarCharType(VarCharType.MAX_LENGTH))
+        val castExpr = generateCast(ctx, elementExpr, targetType)
 
         val stmt =
           s"""
@@ -2009,8 +2022,9 @@ object ScalarOperatorGens {
   private def generateCastMapToString(
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
-      mt: MapType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand)) {
+      mt: MapType,
+      targetType: LogicalType): GeneratedExpression =
+    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
       terms =>
         val resultTerm = newName("toStringResult")
 
@@ -2041,7 +2055,7 @@ object ScalarOperatorGens {
              |}
              """.stripMargin
         val keyExpr = GeneratedExpression(keyTerm, keyNullTerm, keyCode, keyType)
-        val keyCastExpr = generateCast(ctx, keyExpr, new VarCharType(VarCharType.MAX_LENGTH))
+        val keyCastExpr = generateCast(ctx, keyExpr, targetType)
 
         val valueType = mt.getValueType
         val valueCls = primitiveTypeTermForType(valueType)
@@ -2057,7 +2071,7 @@ object ScalarOperatorGens {
              |}
              """.stripMargin
         val valueExpr = GeneratedExpression(valueTerm, valueNullTerm, valueCode, valueType)
-        val valueCastExpr = generateCast(ctx, valueExpr, new VarCharType(VarCharType.MAX_LENGTH))
+        val valueCastExpr = generateCast(ctx, valueExpr, targetType)
 
         val stmt =
           s"""
@@ -2105,8 +2119,9 @@ object ScalarOperatorGens {
   private def generateCastRowDataToString(
       ctx: CodeGeneratorContext,
       operand: GeneratedExpression,
-      brt: RowType): GeneratedExpression =
-    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand)) {
+      brt: RowType,
+      targetType: LogicalType): GeneratedExpression =
+    generateStringResultCallWithStmtIfArgsNotNull(ctx, Seq(operand), targetType) {
       terms =>
         val builderCls = classOf[JStringBuilder].getCanonicalName
         val builderTerm = newName("builder")
@@ -2122,7 +2137,7 @@ object ScalarOperatorGens {
               elementTerm, s"$rowTerm.isNullAt($idx)",
               s"$elementCls $elementTerm = ($elementCls) ${rowFieldReadAccess(
                 ctx, idx, rowTerm, elementType)};", elementType)
-            val castExpr = generateCast(ctx, elementExpr, new VarCharType(VarCharType.MAX_LENGTH))
+            val castExpr = generateCast(ctx, elementExpr, targetType)
             s"""
                |${if (idx != 0) s"""$builderTerm.append(",");""" else ""}
                |${castExpr.code}

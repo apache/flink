@@ -37,9 +37,12 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
+import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
@@ -56,6 +59,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -228,6 +232,60 @@ public class ResourceManagerTest extends TestLogger {
     }
 
     @Test
+    public void testDisconnectJobManagerClearsRequirements() throws Exception {
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final JobLeaderIdService jobLeaderIdService =
+                TestingJobLeaderIdService.newBuilder()
+                        .setGetLeaderIdFunction(
+                                jobId ->
+                                        CompletableFuture.completedFuture(
+                                                jobMasterGateway.getFencingToken()))
+                        .build();
+
+        final CompletableFuture<JobID> clearRequirementsFuture = new CompletableFuture<>();
+
+        final SlotManager slotManager =
+                new TestingSlotManagerBuilder()
+                        .setClearRequirementsConsumer(clearRequirementsFuture::complete)
+                        .createSlotManager();
+        resourceManager =
+                createAndStartResourceManager(heartbeatServices, jobLeaderIdService, slotManager);
+
+        final JobID jobId = JobID.generate();
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+        resourceManagerGateway
+                .registerJobManager(
+                        jobMasterGateway.getFencingToken(),
+                        ResourceID.generate(),
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        TIMEOUT)
+                .get();
+
+        resourceManagerGateway
+                .declareRequiredResources(
+                        jobMasterGateway.getFencingToken(),
+                        ResourceRequirements.create(
+                                jobId,
+                                jobMasterGateway.getAddress(),
+                                Collections.singleton(
+                                        ResourceRequirement.create(ResourceProfile.UNKNOWN, 1))),
+                        TIMEOUT)
+                .get();
+
+        resourceManagerGateway.disconnectJobManager(
+                jobId, JobStatus.FINISHED, new FlinkException("Test exception"));
+
+        assertThat(clearRequirementsFuture.get(5, TimeUnit.SECONDS), is(jobId));
+    }
+
+    @Test
     public void testHeartbeatTimeoutWithJobMaster() throws Exception {
         final CompletableFuture<ResourceID> heartbeatRequestFuture = new CompletableFuture<>();
         final CompletableFuture<ResourceManagerId> disconnectFuture = new CompletableFuture<>();
@@ -395,6 +453,15 @@ public class ResourceManagerTest extends TestLogger {
                 SlotManagerBuilder.newBuilder()
                         .setScheduledExecutor(rpcService.getScheduledExecutor())
                         .build();
+
+        return createAndStartResourceManager(heartbeatServices, jobLeaderIdService, slotManager);
+    }
+
+    private TestingResourceManager createAndStartResourceManager(
+            HeartbeatServices heartbeatServices,
+            JobLeaderIdService jobLeaderIdService,
+            SlotManager slotManager)
+            throws Exception {
 
         final TestingResourceManager resourceManager =
                 new TestingResourceManager(

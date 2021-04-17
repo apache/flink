@@ -77,6 +77,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -993,7 +994,7 @@ public class MultipleInputStreamTaskTest {
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                 .modifyExecutionConfig(config -> config.enableObjectReuse())
                 .modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
-                .modifyStreamConfig(config -> config.setAlignmentTimeout(0))
+                .modifyStreamConfig(config -> config.setAlignmentTimeout(Duration.ZERO))
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                 .addSourceInput(
                         new SourceOperatorFactory<>(

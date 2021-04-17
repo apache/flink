@@ -81,6 +81,7 @@ You can configure checkpointing directly in code within your Flink job or applic
 
   - `web.submit.enable`: Enables uploading and starting jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still accept jobs through REST requests (HTTP calls). This flag only guards the feature to upload jobs in the UI.
   - `web.upload.dir`: The directory where to store uploaded jobs. Only used when `web.submit.enable` is true.
+  - `web.exception-history-size`: Sets the size of the exception history that prints the most recent failures that were handled by Flink for a job.
 
 **Other**
 
@@ -285,6 +286,31 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ----
 ----
 
+# Client
+
+{{< generated/client_configuration >}}
+
+----
+----
+
+# Execution
+
+{{< generated/deployment_configuration >}}
+{{< generated/savepoint_config_configuration >}}
+{{< generated/execution_configuration >}}
+
+### Pipeline
+
+{{< generated/pipeline_configuration >}}
+{{< generated/stream_pipeline_configuration >}}
+
+### Checkpointing
+
+{{< generated/execution_checkpointing_configuration >}}
+
+----
+----
+
 # Debugging & Expert Tuning
 
 <div class="alert alert-warning">
@@ -435,29 +461,5 @@ These options may be removed in a future release.
 **DataSet File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
-
-----
-----
-
-# Backup
-
-#### Client
-
-{{< generated/client_configuration >}}
-
-#### Execution
-
-{{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
-{{< generated/execution_configuration >}}
-
-#### Pipeline
-
-{{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
-
-#### Checkpointing
-
-{{< generated/execution_checkpointing_configuration >}}
 
 {{< top >}}

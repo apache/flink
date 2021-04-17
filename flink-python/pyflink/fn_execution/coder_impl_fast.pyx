@@ -25,7 +25,7 @@ from libc.string cimport memcpy
 
 import datetime
 import decimal
-import pickle
+import cloudpickle
 
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.datastream.window import TimeWindow, CountWindow
@@ -60,7 +60,7 @@ cdef class InternalRow:
         return "InternalRow(%s, %s)" % (self.row_kind, self.values)
 
 cdef class BaseCoderImpl:
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         pass
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
@@ -72,7 +72,7 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         self._end_message = <char*> malloc(1)
         self._end_message[0] = 0x00
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         cdef is_row_or_tuple = False
         if iter_value:
             if isinstance(iter_value, (tuple, Row)):
@@ -97,7 +97,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
         self._is_row_data = True
         self._is_first_row = True
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         self._encode_list_value(iter_value, output_stream)
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
@@ -161,7 +161,7 @@ cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
         self._end_message = <char*> malloc(1)
         self._end_message[0] = 0x00
 
-    cpdef void encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
             for value in iter_value:
                 self._single_field_coder.encode_to_stream(value, output_stream)
@@ -181,7 +181,7 @@ cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
         super(DataStreamMapCoderImpl, self).__init__([field_coder])
         self._single_field_coder = self._field_coders[0]
 
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         coder_type = self._single_field_coder.coder_type()
         type_name = self._single_field_coder.type_name()
         self._encode_field(coder_type, type_name, self._single_field_coder, value)
@@ -221,7 +221,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         else:
             self._single_output = True
 
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         if self._single_output:
             self._encode_one_row(value, output_stream)
         else:
@@ -372,7 +372,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             return datetime.time(hours, minutes, seconds, milliseconds * 1000)
         elif field_type == PICKLED_BYTES:
             decoded_bytes = self._decode_bytes()
-            return pickle.loads(decoded_bytes)
+            return cloudpickle.loads(decoded_bytes)
         elif field_type == BIG_DEC:
             return decimal.Decimal(self._decode_bytes().decode("utf-8"))
 
@@ -584,7 +584,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             self._encode_int(milliseconds)
         elif field_type == PICKLED_BYTES:
             # pickled object
-            pickled_bytes = pickle.dumps(item)
+            pickled_bytes = cloudpickle.dumps(item)
             self._encode_bytes(pickled_bytes, len(pickled_bytes))
         elif field_type == BIG_DEC:
             item_bytes = str(item).encode('utf-8')

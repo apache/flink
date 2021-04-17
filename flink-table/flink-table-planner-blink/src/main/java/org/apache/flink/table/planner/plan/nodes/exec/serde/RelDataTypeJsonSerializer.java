@@ -84,6 +84,8 @@ public class RelDataTypeJsonSerializer extends StdSerializer<RelDataType> {
                     timeIndicatorType.isEventTime()
                             ? TimestampKind.ROWTIME.name()
                             : TimestampKind.PROCTIME.name());
+            gen.writeStringField(
+                    FIELD_NAME_TYPE_NAME, timeIndicatorType.originalType().getSqlTypeName().name());
             gen.writeBooleanField(FIELD_NAME_NULLABLE, relDataType.isNullable());
         } else if (relDataType instanceof StructuredRelDataType) {
             StructuredRelDataType structuredType = (StructuredRelDataType) relDataType;

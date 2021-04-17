@@ -70,6 +70,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+
 /** PassThroughPythonStreamGroupWindowAggregateOperator. */
 public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
         extends PythonStreamGroupWindowAggregateOperator<K, TimeWindow> {
@@ -296,11 +298,12 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
     }
 
     private long cleanupTime(TimeWindow window) {
+        long windowMaxTs = toEpochMillsForTimer(window.maxTimestamp(), shiftTimeZone);
         if (windowAssigner.isEventTime()) {
-            long cleanupTime = Math.max(0, window.maxTimestamp() + allowedLateness);
-            return cleanupTime >= window.maxTimestamp() ? cleanupTime : Long.MAX_VALUE;
+            long cleanupTime = Math.max(0, windowMaxTs + allowedLateness);
+            return cleanupTime >= windowMaxTs ? cleanupTime : Long.MAX_VALUE;
         } else {
-            return Math.max(0, window.maxTimestamp());
+            return Math.max(0, windowMaxTs);
         }
     }
 
