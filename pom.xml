@@ -107,7 +107,7 @@ under the License.
 		<akka.version>2.5.21</akka.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.15</slf4j.version>
-		<log4j.version>2.12.1</log4j.version>
+		<log4j.version>2.13.3</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -127,7 +127,7 @@ under the License.
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>4.13.1</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
@@ -1837,7 +1837,7 @@ under the License.
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
 							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
-							<version>8.14</version>
+							<version>8.29</version>
 						</dependency>
 					</dependencies>
 					<executions>
