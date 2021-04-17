@@ -466,7 +466,12 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
+    val dataType = fromLogicalTypeToDataType(literalType)
+    if (literalValue == null) {
+      Some(valueLiteral(null, dataType.nullable()))
+    } else {
+      Some(valueLiteral(literalValue, dataType.notNull()))
+    }
   }
 
   override def visitCall(oriRexCall: RexCall): Option[ResolvedExpression] = {
