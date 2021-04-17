@@ -160,6 +160,7 @@ public class CliTableauResultView implements AutoCloseable {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
                         // get ctrl+c from terminal and fallback
+                        return;
                     }
                     break;
                 case EOS:
