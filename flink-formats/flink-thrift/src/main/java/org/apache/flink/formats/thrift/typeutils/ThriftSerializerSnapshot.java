@@ -23,89 +23,93 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.formats.thrift.ThriftCodeGenerator;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.thrift.TBase;
+import org.apache.thrift.protocol.TProtocolFactory;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.readString;
+import static org.apache.flink.util.StringUtils.writeString;
 
 /**
- * An {@code Avro} specific implementation of a {@link TypeSerializerSnapshot}.
+ * An {@code Thrift} specific implementation of a {@link TypeSerializerSnapshot}.
  *
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
-public class ThriftSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
-	private static final Logger LOG = LoggerFactory.getLogger(ThriftSerializerSnapshot.class);
+public class ThriftSerializerSnapshot<T extends TBase> implements TypeSerializerSnapshot<T> {
 
-	private Class<T> runtimeType;
-	private ThriftCodeGenerator codeGenerator;
+    private Class<T> tClass;
+    private Class<? extends TProtocolFactory> tPClass;
 
-	@SuppressWarnings("WeakerAccess")
-	public ThriftSerializerSnapshot() {
-		// this constructor is used when restoring from a checkpoint.
-	}
+    public ThriftSerializerSnapshot() {
+        // this constructor is used when restoring from a checkpoint.
+    }
 
-	ThriftSerializerSnapshot(Class<T> runtimeType, ThriftCodeGenerator codeGenerator) {
-		this.runtimeType = runtimeType;
-		this.codeGenerator = codeGenerator;
-	}
+    ThriftSerializerSnapshot(Class<T> tClass, Class<? extends TProtocolFactory> tPClass) {
+        this.tClass = tClass;
+        this.tPClass = tPClass;
+    }
 
-	@Override
-	public int getCurrentVersion() {
-		return 2;
-	}
+    @Override
+    public int getCurrentVersion() {
+        return 0;
+    }
 
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		checkNotNull(runtimeType);
-		out.writeUTF(runtimeType.getName());
-	}
+    @Override
+    public void writeSnapshot(DataOutputView out) throws IOException {
+        writeString(tClass.getName(), out);
+        writeString(tPClass.getName(), out);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String thriftClassName = in.readUTF();
-		try {
-			this.runtimeType = (Class<T>) Class.forName(thriftClassName);
-		} catch (Exception e) {
-			throw new IOException(e);
-		}
-	}
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        final String tClassName = readString(in);
+        final String tPClassName = readString(in);
 
-	@Override
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-		if (!(newSerializer instanceof ThriftSerializer)) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-		ThriftSerializer<?> newThriftSerializer = (ThriftSerializer<?>) newSerializer;
-		return runtimeType.getName().equals(newThriftSerializer.getThriftClassName())
-			? TypeSerializerSchemaCompatibility.compatibleAsIs()
-			: TypeSerializerSchemaCompatibility.incompatible();
-	}
+        tClass = findClassOrThrow(userCodeClassLoader, tClassName);
+        tPClass = findClassOrThrow(userCodeClassLoader, tPClassName);
+    }
 
-	@Override
-	public TypeSerializer<T> restoreSerializer() {
-		checkNotNull(runtimeType);
-		return new ThriftSerializer(runtimeType, codeGenerator);
-	}
+    @Override
+    public TypeSerializer<T> restoreSerializer() {
+        return new ThriftSerializer<>(tClass, tPClass);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Nonnull
-	private static <T> Class<T> findClassOrThrow(ClassLoader userCodeClassLoader, String className) {
-		try {
-			Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-			return (Class<T>) runtimeTarget;
-		} catch (ClassNotFoundException e) {
-			LOG.error("Failed to find class {}", className, e);
-			throw new IllegalStateException(""
-				+ "Unable to find the class '" + className + "' which is used to deserialize "
-				+ "the elements of this serializer. "
-				+ "Were the class was moved or renamed?", e);
-		}
-	}
+    @Override
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        if (!(newSerializer instanceof ThriftSerializer)) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+
+        ThriftSerializer thriftSerializer = (ThriftSerializer) newSerializer;
+        if (thriftSerializer.tClass == tClass && thriftSerializer.tPClass == tPClass) {
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        } else {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    private static <T> Class<T> findClassOrThrow(
+            ClassLoader userCodeClassLoader, String className) {
+        try {
+            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
+            return (Class<T>) runtimeTarget;
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    ""
+                            + "Unable to find the class '"
+                            + className
+                            + "' which is used to deserialize "
+                            + "the elements of this serializer. "
+                            + "Were the class was moved or renamed?",
+                    e);
+        }
+    }
 }

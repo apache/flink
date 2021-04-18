@@ -18,25 +18,21 @@
 
 package org.apache.flink.formats.thrift;
 
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.formats.thrift.generated.Diagnostics;
 import org.apache.flink.formats.thrift.generated.Event;
 import org.apache.flink.formats.thrift.typeutils.ThriftTypeInfo;
 
-import org.junit.Test;
+import org.apache.thrift.protocol.TCompactProtocol;
 
-import static junit.framework.TestCase.assertEquals;
+/** Test for {@link ThriftTypeInfo}. */
+public class ThriftTypeInfoTest extends TypeInformationTestBase<ThriftTypeInfo<?>> {
 
-/**
- * Tests for ThriftTypeInfo class.
- */
-public class ThriftTypeInfoTest {
-
-	@Test
-	public void testThriftTypeInfo() {
-		ThriftTypeInfo thriftTypeInfo = new ThriftTypeInfo(Event.class, ThriftCodeGenerator.THRIFT);
-		String[] fieldNames = thriftTypeInfo.getFieldNames();
-		for (String str : fieldNames) {
-			System.out.println(str);
-		}
-		assertEquals(fieldNames.length, 6);
-	}
+    @Override
+    protected ThriftTypeInfo<?>[] getTestData() {
+        return new ThriftTypeInfo<?>[] {
+            new ThriftTypeInfo<>(Event.class, TCompactProtocol.Factory.class),
+            new ThriftTypeInfo<>(Diagnostics.class, TCompactProtocol.Factory.class)
+        };
+    }
 }

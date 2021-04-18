@@ -39,6 +39,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-avro</module>
 		<module>flink-json</module>
 		<module>flink-avro-confluent-registry</module>
 		<module>flink-parquet</module>

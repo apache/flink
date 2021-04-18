@@ -21,32 +21,36 @@ package org.apache.flink.formats.thrift;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 
 import org.apache.thrift.TBase;
+import org.apache.thrift.TException;
 import org.apache.thrift.TSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.thrift.protocol.TProtocolFactory;
 
 /**
- * ThriftSerializationSchema that extends SerializationSchema interface.
+ * Serialization schema that serializes to THRIFT object binary format.
  *
- * @param <T> The Thrift class.
+ * @param <T> the type to be serialized
  */
 public class ThriftSerializationSchema<T extends TBase> implements SerializationSchema<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ThriftSerializationSchema.class);
-	private TSerializer serializer;
+    private Class<? extends TProtocolFactory> tPClass;
 
-	public ThriftSerializationSchema(Class<T> recordClazz) {
-		this.serializer = new TSerializer();
-	}
+    private transient TSerializer tSerializer;
 
-	public byte[] serialize(T element) {
-		byte[] message = null;
-		TSerializer serializer = new TSerializer();
-		try {
-			message = serializer.serialize(element);
-		} catch (Exception e) {
-			LOG.error("Failed to serialize message : {}", element, e);
-		}
-		return message;
-	}
+    public ThriftSerializationSchema(Class<? extends TProtocolFactory> tPClass) {
+        this.tPClass = tPClass;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        tSerializer = new TSerializer(tPClass.newInstance());
+    }
+
+    @Override
+    public byte[] serialize(T element) {
+        try {
+            return tSerializer.serialize(element);
+        } catch (TException e) {
+            throw new RuntimeException("Serialize thrift object error.", e);
+        }
+    }
 }

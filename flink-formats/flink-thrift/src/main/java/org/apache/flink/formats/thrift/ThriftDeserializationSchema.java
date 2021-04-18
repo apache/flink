@@ -24,41 +24,49 @@ import org.apache.flink.formats.thrift.typeutils.ThriftTypeInfo;
 
 import org.apache.thrift.TBase;
 import org.apache.thrift.TDeserializer;
+import org.apache.thrift.protocol.TProtocolFactory;
 
 import java.io.IOException;
 
 /**
- * ThriftDeserializationSchema that extends DeserializationSchema interface.
- * @param <T> The Thrift class.
+ * Deserialization schema that deserializes from Thrift object binary format.
+ *
+ * @param <T> type of record it produces
  */
-public class ThriftDeserializationSchema<T extends TBase> implements DeserializationSchema {
+public class ThriftDeserializationSchema<T extends TBase> implements DeserializationSchema<T> {
 
-	private Class<T> thriftClazz;
-	private ThriftCodeGenerator codeGenerator;
+    private final Class<T> tClass;
+    private final Class<? extends TProtocolFactory> tPClass;
+    private transient TDeserializer tDeserializer;
 
-	public ThriftDeserializationSchema(Class<T> recordClazz, ThriftCodeGenerator codeGenerator) {
-		this.thriftClazz = recordClazz;
-		this.codeGenerator = codeGenerator;
-	}
+    public ThriftDeserializationSchema(Class<T> tClass, Class<? extends TProtocolFactory> tPClass) {
+        this.tClass = tClass;
+        this.tPClass = tPClass;
+    }
 
-	@Override
-	public T deserialize(byte[] message) throws IOException {
-		TDeserializer deserializer = new TDeserializer();
-		T instance = null;
-		try {
-			instance = thriftClazz.newInstance();
-			deserializer.deserialize(instance, message);
-		} catch (Exception e) {
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        tDeserializer = new TDeserializer(tPClass.newInstance());
+    }
 
-		}
-		return instance;
-	}
+    @Override
+    public T deserialize(byte[] message) throws IOException {
+        try {
+            T t = tClass.newInstance();
+            tDeserializer.deserialize(t, message);
+            return t;
+        } catch (Exception e) {
+            throw new RuntimeException("Deserialize thrift object error", e);
+        }
+    }
 
-	public boolean isEndOfStream(Object nextElement) {
-		return false;
-	}
+    @Override
+    public boolean isEndOfStream(T nextElement) {
+        return false;
+    }
 
-	public TypeInformation<T> getProducedType() {
-		return new ThriftTypeInfo<>(thriftClazz, codeGenerator);
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return new ThriftTypeInfo(tClass, tPClass);
+    }
 }

@@ -95,5 +95,12 @@ Flink 支持以下格式：
           <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a>,
           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
+        <tr>
+        <td><a href="{{< ref "docs/connectors/table/formats/thrift" >}}">Thrift</a></td>
+        <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
+          <a href="{{< ref "docs/connectors/table/upsert-kafka" >}}">Upsert Kafka</a>,
+          <a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a></td>
+          <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
+        </tr>
     </tbody>
 </table>

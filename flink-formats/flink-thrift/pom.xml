@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-thrift</artifactId>
-	<name>flink-thrift</name>
+	<name>Flink : Formats : Thrift</name>
 
 	<properties>
 		<scrooge.version>19.4.0</scrooge.version>
@@ -55,29 +55,13 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<scope>provided</scope>
-			<!-- thrift records can contain JodaTime fields when using logical fields.
-				In order to handle them, we need to add an optional dependency.
-				Users with those thrift records need to add this dependency themselves. -->
-			<optional>true</optional>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-		</dependency>
-
 		<!-- test dependencies -->
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
@@ -86,12 +70,21 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- TODO This could be dropped if we move the Table thrift IT Case -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -99,7 +92,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- TODO This could be dropped if we move the Table thrift IT Case -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
@@ -122,23 +114,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-runtime-blink_2.11</artifactId>
+            <version>1.13-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
 
-		<!-- We need this for the patched FlinkScalaKryoInstantiator -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-	</dependencies>
+    </dependencies>
 
 	<profiles>
 		<!-- Create SQL Client uber jars by default -->
@@ -199,34 +182,12 @@ under the License.
 			</plugin>
 
 			<!-- Generate Test class from thrift schema -->
-
-			<plugin>
-				<groupId>org.apache.thrift.tools</groupId>
-				<artifactId>maven-thrift-plugin</artifactId>
-				<version>0.1.11</version>
-				<configuration>
-					<thriftExecutable>/usr/local/bin/thrift</thriftExecutable>
-					<thriftTestSourceRoot>src/test/resources/thrift</thriftTestSourceRoot>
-					<outputDirectory>${project.build.directory}/generated-test-sources/thrift</outputDirectory>
-					<generator>java</generator>
-				</configuration>
-				<executions>
-					<execution>
-						<id>thrift-test-sources</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
 			<plugin>
 				<groupId>com.twitter</groupId>
 				<artifactId>scrooge-maven-plugin</artifactId>
 				<version>${scrooge.version}</version>
 				<configuration>
-					<thriftSourceRoot>src/test/resources/scrooge</thriftSourceRoot>
+					<thriftSourceRoot>src/test/resources/thrift/</thriftSourceRoot>
 					<language>java</language>
 					<thriftOpts>
 						<thriftOpt>--finagle</thriftOpt>
@@ -272,16 +233,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<filesets>
-						<fileset>
-							<directory>${project.basedir}/src/test/java/org/apache/flink/formats/thrift/generated</directory>
-						</fileset>
-						<fileset>
-							<directory>${project.basedir}/src/test/java/org/apache/flink/formats/scrooge/generated</directory>
-						</fileset>
-					</filesets>
-				</configuration>
 			</plugin>
 
 			<!-- Add thrift test classes to test jar in order to test thriftTypeInfo. -->

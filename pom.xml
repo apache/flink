@@ -126,6 +126,7 @@ under the License.
 		<jackson.version>2.10.1</jackson.version>
 		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.10.0</avro.version>
+		<thrift.version>0.14.1</thrift.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit.version>4.12</junit.version>

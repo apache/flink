@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+namespace java org.apache.flink.formats.thrift.generated
 
-import org.apache.flink.annotation.Internal;
+enum TestEnum {
+  ENUM_TYPE1 = 0,
+  ENUM_TYPE2 = 1,
+  ENUM_TYPE3 = 2
+}
 
-/**
- * Validator for {@link Thrift}.
- */
-@Internal
-public class ThriftValidator extends FormatDescriptorValidator {
-
-	public static final String FORMAT_TYPE_VALUE = "thrift";
-	public static final String FORMAT_THRIFT_CLASS = "format.thrift-class";
-
-	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		properties.validateBoolean(FORMAT_DERIVE_SCHEMA, true);
-		final boolean hasSchema = properties.containsKey(FORMAT_THRIFT_CLASS);
-		if (hasSchema) {
-			properties.validateType(FORMAT_THRIFT_CLASS, false, true);
-		}
-	}
+struct TestData {
+    1: optional bool testBool
+    2: optional byte testByte
+    3: optional i16 testShort
+    4: optional i32 testInt
+    5: optional i64 testLong
+    6: optional double testDouble
+    7: optional string testString
+    8: optional binary testBinary
+    9: optional TestEnum testEnum
+    10: optional list<string> testListString
+    11: optional map<string, string> testMapString
+    12: optional set<string> testSetString
+    13: optional list<binary> testListBinary
+    14: optional map<binary, binary> testMapBinary
+    15: optional set<binary> testSetBinary
 }

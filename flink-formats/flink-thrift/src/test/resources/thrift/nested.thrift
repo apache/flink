@@ -16,12 +16,46 @@
  * limitations under the License.
  */
 
-namespace java org.apache.flink.formats.thrift.generated
+namespace java org.apache.flink.formats.thrift.generated.nested
 
+typedef i32 int
 
-struct StructWithBinaryField {
-    1: optional i64 id,
-    2: optional binary segmentIds,
-    3: optional string value,
-    4: optional i64 nums,
+struct LLColl {
+    1: list<list<string>> listOfLists;
+}
+
+struct LMColl {
+    1: list<map<int,string>> listOfMaps;
+}
+
+struct LSColl {
+    1: list<set<string>> listOfSets;
+}
+
+struct MLColl {
+    1: map<int,list<string>> mapOfLists;
+}
+
+struct MMColl {
+    1: map<int,map<int,string>> mapOfMaps;
+}
+
+struct MSColl {
+    1: map<int,set<string>> mapOfSets;
+}
+
+struct SLColl {
+    1: set<list<string>> setOfLists;
+}
+
+struct SMColl {
+    1: set<map<int,string>> setOfMaps;
+}
+
+struct SSColl {
+    1: set<set<string>> setOfSets;
+}
+
+struct AllColl {
+    1: list<LLColl> llColls;
 }
