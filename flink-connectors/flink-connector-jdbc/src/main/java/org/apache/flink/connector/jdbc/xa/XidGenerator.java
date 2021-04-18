@@ -46,6 +46,9 @@ public interface XidGenerator extends Serializable, AutoCloseable {
 
     default void open() {}
 
+    /** @return true if the provided transaction belongs to this subtask */
+    boolean belongsToSubtask(Xid xid, RuntimeContext ctx);
+
     @Override
     default void close() {}
 
