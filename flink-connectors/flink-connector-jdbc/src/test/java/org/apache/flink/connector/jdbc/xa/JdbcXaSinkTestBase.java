@@ -164,147 +164,151 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
         return sink;
     }
 
-    static final RuntimeContext TEST_RUNTIME_CONTEXT =
-            new RuntimeContext() {
-                @Override
-                public JobID getJobId() {
-                    return new JobID();
-                }
+    static final RuntimeContext TEST_RUNTIME_CONTEXT = getRuntimeContext(new JobID());
 
-                @Override
-                public String getTaskName() {
-                    return "test";
-                }
+    static RuntimeContext getRuntimeContext(final JobID jobID) {
+        return new RuntimeContext() {
 
-                @Override
-                public MetricGroup getMetricGroup() {
-                    return null;
-                }
+            @Override
+            public JobID getJobId() {
+                return jobID;
+            }
 
-                @Override
-                public int getNumberOfParallelSubtasks() {
-                    return 1;
-                }
+            @Override
+            public String getTaskName() {
+                return "test";
+            }
 
-                @Override
-                public int getMaxNumberOfParallelSubtasks() {
-                    return 1;
-                }
+            @Override
+            public MetricGroup getMetricGroup() {
+                return null;
+            }
 
-                @Override
-                public int getIndexOfThisSubtask() {
-                    return 0;
-                }
+            @Override
+            public int getNumberOfParallelSubtasks() {
+                return 1;
+            }
 
-                @Override
-                public int getAttemptNumber() {
-                    return 0;
-                }
+            @Override
+            public int getMaxNumberOfParallelSubtasks() {
+                return 1;
+            }
 
-                @Override
-                public String getTaskNameWithSubtasks() {
-                    return "test";
-                }
+            @Override
+            public int getIndexOfThisSubtask() {
+                return 0;
+            }
 
-                @Override
-                public ExecutionConfig getExecutionConfig() {
-                    return null;
-                }
+            @Override
+            public int getAttemptNumber() {
+                return 0;
+            }
 
-                @Override
-                public ClassLoader getUserCodeClassLoader() {
-                    return null;
-                }
+            @Override
+            public String getTaskNameWithSubtasks() {
+                return "test";
+            }
 
-                @Override
-                public <V, A extends Serializable> void addAccumulator(
-                        String name, Accumulator<V, A> accumulator) {}
+            @Override
+            public ExecutionConfig getExecutionConfig() {
+                return null;
+            }
 
-                @Override
-                public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
-                    return null;
-                }
+            @Override
+            public ClassLoader getUserCodeClassLoader() {
+                return null;
+            }
 
-                @Override
-                public void registerUserCodeClassLoaderReleaseHookIfAbsent(
-                        String releaseHookName, Runnable releaseHook) {
-                    throw new UnsupportedOperationException();
-                }
+            @Override
+            public <V, A extends Serializable> void addAccumulator(
+                    String name, Accumulator<V, A> accumulator) {}
 
-                @Override
-                public IntCounter getIntCounter(String name) {
-                    return null;
-                }
+            @Override
+            public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+                return null;
+            }
 
-                @Override
-                public LongCounter getLongCounter(String name) {
-                    return null;
-                }
+            @Override
+            public void registerUserCodeClassLoaderReleaseHookIfAbsent(
+                    String releaseHookName, Runnable releaseHook) {
+                throw new UnsupportedOperationException();
+            }
 
-                @Override
-                public DoubleCounter getDoubleCounter(String name) {
-                    return null;
-                }
+            @Override
+            public IntCounter getIntCounter(String name) {
+                return null;
+            }
 
-                @Override
-                public Histogram getHistogram(String name) {
-                    return null;
-                }
+            @Override
+            public LongCounter getLongCounter(String name) {
+                return null;
+            }
 
-                @Override
-                public boolean hasBroadcastVariable(String name) {
-                    return false;
-                }
+            @Override
+            public DoubleCounter getDoubleCounter(String name) {
+                return null;
+            }
 
-                @Override
-                public <RT> List<RT> getBroadcastVariable(String name) {
-                    return null;
-                }
+            @Override
+            public Histogram getHistogram(String name) {
+                return null;
+            }
 
-                @Override
-                public <T, C> C getBroadcastVariableWithInitializer(
-                        String name, BroadcastVariableInitializer<T, C> initializer) {
-                    return null;
-                }
+            @Override
+            public boolean hasBroadcastVariable(String name) {
+                return false;
+            }
 
-                @Override
-                public DistributedCache getDistributedCache() {
-                    return null;
-                }
+            @Override
+            public <RT> List<RT> getBroadcastVariable(String name) {
+                return null;
+            }
 
-                @Override
-                public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-                    return null;
-                }
+            @Override
+            public <T, C> C getBroadcastVariableWithInitializer(
+                    String name, BroadcastVariableInitializer<T, C> initializer) {
+                return null;
+            }
 
-                @Override
-                public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-                    return null;
-                }
+            @Override
+            public DistributedCache getDistributedCache() {
+                return null;
+            }
 
-                @Override
-                public <T> ReducingState<T> getReducingState(
-                        ReducingStateDescriptor<T> stateProperties) {
-                    return null;
-                }
+            @Override
+            public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+                return null;
+            }
 
-                @Override
-                public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
-                        AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-                    return null;
-                }
+            @Override
+            public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+                return null;
+            }
 
-                @Override
-                public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
-                    throw new UnsupportedOperationException();
-                }
+            @Override
+            public <T> ReducingState<T> getReducingState(
+                    ReducingStateDescriptor<T> stateProperties) {
+                return null;
+            }
 
-                @Override
-                public <UK, UV> MapState<UK, UV> getMapState(
-                        MapStateDescriptor<UK, UV> stateProperties) {
-                    return null;
-                }
-            };
+            @Override
+            public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+                    AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+                return null;
+            }
+
+            @Override
+            public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public <UK, UV> MapState<UK, UV> getMapState(
+                    MapStateDescriptor<UK, UV> stateProperties) {
+                return null;
+            }
+        };
+    }
 
     static final SinkFunction.Context TEST_SINK_CONTEXT =
             new SinkFunction.Context() {

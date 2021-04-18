@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.jdbc.xa;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.DbMetadata;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
@@ -128,7 +129,17 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
 
     private static XidGenerator getXidGenerator() {
         final AtomicInteger txCounter = new AtomicInteger();
-        return (x, y) -> new TestXid(txCounter.incrementAndGet(), 0, 0);
+        return new XidGenerator() {
+            @Override
+            public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
+                return new TestXid(txCounter.incrementAndGet(), 0, 0);
+            }
+
+            @Override
+            public boolean belongsToSubtask(Xid xid, RuntimeContext ctx) {
+                return false;
+            }
+        };
     }
 
     private static String getSnapshotPath(MigrationVersion version) {
