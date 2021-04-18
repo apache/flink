@@ -224,11 +224,11 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
         hangingXids = new LinkedList<>(xaGroupOps.failOrRollback(hangingXids).getForRetry());
         commitUpToCheckpoint(Optional.empty());
         if (options.isDiscoverAndRollbackOnRecovery()) {
-            // todo: consider doing recover-rollback later (e.g. after the 1st checkpoint)
-            // when we are sure that all other subtasks started and committed any of their prepared
-            // transactions
-            // this would require to distinguish between this job Xids and other Xids
-            xaGroupOps.recoverAndRollback();
+            // Pending transactions which are not included into the checkpoint might hold locks and
+            // should be rolled back. However, rolling back ALL transactions can cause data loss. So
+            // each subtask first commits transactions from its state and then rolls back discovered
+            // transactions if they belong to it.
+            xaGroupOps.recoverAndRollback(getRuntimeContext(), xidGenerator);
         }
         beginTx(0L);
         outputFormat.setRuntimeContext(getRuntimeContext());
