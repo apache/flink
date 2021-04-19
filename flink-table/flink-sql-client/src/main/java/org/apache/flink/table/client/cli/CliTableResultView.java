@@ -32,6 +32,7 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -298,9 +299,19 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
             return;
         }
 
+        final ZoneId sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
         // convert page
         final List<String[]> stringRows =
-                rows.stream().map(PrintUtils::rowToString).collect(Collectors.toList());
+                rows.stream()
+                        .map(
+                                r ->
+                                        PrintUtils.rowToString(
+                                                r,
+                                                resultDescriptor.getResultSchema(),
+                                                sessionTimeZone))
+                        .collect(Collectors.toList());
 
         // update results
         if (previousResultsPage == retrievalPage) {

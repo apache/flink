@@ -30,6 +30,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,17 +43,90 @@ import static org.junit.Assert.assertEquals;
 /** Tests for {@link PrintUtils}. */
 public class PrintUtilsTest {
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
     public void testArrayToString() {
-        Row row = new Row(4);
+        Row row = new Row(6);
         row.setField(0, new int[] {1, 2});
         row.setField(1, new Integer[] {3, 4});
         row.setField(2, new Object[] {new int[] {5, 6}, new int[] {7, 8}});
         row.setField(3, new Integer[][] {new Integer[] {9, 10}, new Integer[] {11, 12}});
+        row.setField(
+                4,
+                new LocalDateTime[] {
+                    LocalDateTime.parse("2021-04-18T18:00:00.123456"),
+                    LocalDateTime.parse("2021-04-18T18:00:00.000001")
+                });
+        row.setField(
+                5,
+                new Instant[][] {
+                    new Instant[] {Instant.ofEpochMilli(1), Instant.ofEpochMilli(10)},
+                    new Instant[] {Instant.ofEpochSecond(1), Instant.ofEpochSecond(10)}
+                });
+
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
+                                Column.physical("f1", DataTypes.ARRAY(DataTypes.INT())),
+                                Column.physical(
+                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
+                                Column.physical(
+                                        "f3", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
+                                Column.physical("f4", DataTypes.ARRAY(DataTypes.TIMESTAMP(6))),
+                                Column.physical(
+                                        "f5",
+                                        DataTypes.ARRAY(
+                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3))))));
         assertEquals(
-                "[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]",
-                Arrays.toString(PrintUtils.rowToString(row)));
+                "[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]],"
+                        + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
+                        + " [[1970-01-01 00:00:00.001, 1970-01-01 00:00:00.01],"
+                        + " [1970-01-01 00:00:01, 1970-01-01 00:00:10]]]",
+                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
+    }
+
+    @Test
+    public void testNestedRowToString() {
+        Row row = new Row(3);
+        row.setField(0, new int[] {1, 2});
+        Row row1 = new Row(4);
+        row1.setField(0, "hello");
+        row1.setField(1, new boolean[] {true, false});
+        row1.setField(
+                2,
+                new Timestamp[] {
+                    Timestamp.valueOf("2021-04-18 18:00:00.123456"),
+                    Timestamp.valueOf("2021-04-18 18:00:00.000001")
+                });
+        row1.setField(3, new Long[] {100L, 200L});
+        row.setField(1, row1);
+        row.setField(
+                2,
+                new int[][] {
+                    new int[] {1, 10},
+                    new int[] {2, 20}
+                });
+
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
+                                Column.physical(
+                                        "f1",
+                                        DataTypes.ROW(
+                                                DataTypes.STRING(),
+                                                DataTypes.ARRAY(DataTypes.BOOLEAN()),
+                                                DataTypes.ARRAY(DataTypes.TIMESTAMP(6)),
+                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(6)))),
+                                Column.physical(
+                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))));
+        assertEquals(
+                "[[1, 2], +I[hello, [true, false],"
+                        + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
+                        + " [1970-01-01 00:00:00.1, 1970-01-01 00:00:00.2]], [[1, 10], [2, 20]]]",
+                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
 
     @Test
@@ -81,7 +157,10 @@ public class PrintUtilsTest {
     @Test
     public void testPrintWithEmptyResult() {
         PrintUtils.printAsTableauForm(
-                getSchema(), Collections.<Row>emptyList().iterator(), new PrintWriter(outContent));
+                getSchema(),
+                Collections.<Row>emptyList().iterator(),
+                new PrintWriter(outContent),
+                ZoneId.of("UTC"));
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
@@ -95,7 +174,8 @@ public class PrintUtilsTest {
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
                 true, // derive column width by type
-                true);
+                true,
+                UTC_ZONE_ID);
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
@@ -109,7 +189,8 @@ public class PrintUtilsTest {
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
                 false, // derive column width by content
-                false);
+                false,
+                UTC_ZONE_ID);
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }
@@ -117,7 +198,7 @@ public class PrintUtilsTest {
     @Test
     public void testPrintWithMultipleRows() {
         PrintUtils.printAsTableauForm(
-                getSchema(), getData().iterator(), new PrintWriter(outContent));
+                getSchema(), getData().iterator(), new PrintWriter(outContent), UTC_ZONE_ID);
 
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
@@ -134,7 +215,7 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |"
+                        + "|  (NULL) |           1 |                    2 |                            abc |           1.23 |        2020-03-01 18:39:14 |"
                         + System.lineSeparator()
                         + "|   false |      (NULL) |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |"
                         + System.lineSeparator()
@@ -146,9 +227,9 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "|  (NULL) |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                     (NULL) |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |"
+                        + "|  (NULL) |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |        2020-03-04 18:39:14 |"
                         + System.lineSeparator()
-                        + "|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |"
+                        + "|  (NULL) |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |        2020-03-04 18:39:14 |"
                         + System.lineSeparator()
                         + "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -166,7 +247,8 @@ public class PrintUtilsTest {
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
                 true, // derive column width by type
-                true);
+                true,
+                UTC_ZONE_ID);
 
         // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
         // character's
@@ -183,7 +265,7 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |"
+                        + "| +I |         |           1 |                    2 |                            abc |           1.23 |        2020-03-01 18:39:14 |"
                         + System.lineSeparator()
                         + "| +I |   false |             |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |"
                         + System.lineSeparator()
@@ -195,9 +277,9 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "| -U |         |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyza... |   -12345.06789 |                            |"
                         + System.lineSeparator()
-                        + "| +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |"
+                        + "| +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |        2020-03-04 18:39:14 |"
                         + System.lineSeparator()
-                        + "| -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |"
+                        + "| -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |        2020-03-04 18:39:14 |"
                         + System.lineSeparator()
                         + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
@@ -215,7 +297,8 @@ public class PrintUtilsTest {
                 PrintUtils.MAX_COLUMN_WIDTH,
                 "",
                 false, // derive column width by content
-                true);
+                true,
+                UTC_ZONE_ID);
 
         assertEquals(
                 "+----+---------+------------+--------+---------+----------------+------------------------+"
@@ -224,7 +307,7 @@ public class PrintUtilsTest {
                         + System.lineSeparator()
                         + "+----+---------+------------+--------+---------+----------------+------------------------+"
                         + System.lineSeparator()
-                        + "| +I |         |          1 |      2 |     abc |           1.23 |  2020-03-01 18:39:14.0 |"
+                        + "| +I |         |          1 |      2 |     abc |           1.23 |    2020-03-01 18:39:14 |"
                         + System.lineSeparator()
                         + "| +I |   false |            |      0 |         |              1 |  2020-03-01 18:39:14.1 |"
                         + System.lineSeparator()

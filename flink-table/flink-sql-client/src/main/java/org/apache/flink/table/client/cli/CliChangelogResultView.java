@@ -32,6 +32,7 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -115,6 +116,10 @@ public class CliChangelogResultView
             return;
         }
 
+        final ZoneId sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
+
         // do nothing if result is empty
         switch (result.getType()) {
             case EMPTY:
@@ -129,7 +134,13 @@ public class CliChangelogResultView
 
                 for (Row change : changes) {
                     // convert row
-                    final String[] row = PrintUtils.rowToString(change, NULL_COLUMN, true);
+                    final String[] row =
+                            PrintUtils.rowToString(
+                                    change,
+                                    NULL_COLUMN,
+                                    true,
+                                    resultDescriptor.getResultSchema(),
+                                    sessionTimeZone);
 
                     // update results
 

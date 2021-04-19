@@ -67,6 +67,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -106,6 +107,8 @@ public class CliClient implements AutoCloseable {
 
     private final String sessionId;
 
+    private final ZoneId sessionTimeZone;
+
     private final Path historyFilePath;
 
     private final String prompt;
@@ -142,6 +145,7 @@ public class CliClient implements AutoCloseable {
         this.executor = executor;
         this.inputTransformer = inputTransformer;
         this.historyFilePath = historyFilePath;
+        this.sessionTimeZone = CliUtils.getSessionTimeZone(executor.getSessionConfig(sessionId));
 
         // create prompt
         prompt =
@@ -574,7 +578,8 @@ public class CliClient implements AutoCloseable {
                     Integer.MAX_VALUE,
                     "",
                     false,
-                    false);
+                    false,
+                    sessionTimeZone);
             terminal.flush();
         }
     }

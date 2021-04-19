@@ -804,6 +804,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     PrintUtils.NULL_COLUMN,
                                     true,
                                     isStreamingMode))
+                    .setSessionTimeZone(getConfig().getLocalTimeZone())
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
@@ -1204,6 +1205,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
                     .data(Collections.singletonList(Row.of(explanation)))
                     .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
+                    .setSessionTimeZone(getConfig().getLocalTimeZone())
                     .build();
         } else if (operation instanceof DescribeTableOperation) {
             DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
@@ -1370,6 +1372,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
                 .setPrintStyle(
                         TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false, false))
+                .setSessionTimeZone(getConfig().getLocalTimeZone())
                 .build();
     }
 

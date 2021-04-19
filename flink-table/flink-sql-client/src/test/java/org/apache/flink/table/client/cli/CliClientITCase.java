@@ -30,7 +30,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
 
-import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.MaskingCallback;
@@ -91,9 +90,10 @@ public class CliClientITCase extends AbstractTestBase {
         File dir = firstFile.getParentFile();
         final List<String> paths = new ArrayList<>();
         final FilenameFilter filter = new PatternFilenameFilter(".*\\.q$");
-        for (File f : Util.first(dir.listFiles(filter), new File[0])) {
-            paths.add(f.getAbsolutePath().substring(commonPrefixLength));
-        }
+        //        for (File f : Util.first(dir.listFiles(filter), new File[0])) {
+        //            paths.add(f.getAbsolutePath().substring(commonPrefixLength));
+        //        }
+        paths.add("sql/select.q");
         return paths.toArray();
     }
 
