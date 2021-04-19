@@ -190,7 +190,7 @@ public class KafkaSourceEnumerator
     }
 
     @Override
-    public KafkaSourceEnumState snapshotState() throws Exception {
+    public KafkaSourceEnumState snapshotState(long checkpointId) throws Exception {
         return new KafkaSourceEnumState(assignedPartitions);
     }
 

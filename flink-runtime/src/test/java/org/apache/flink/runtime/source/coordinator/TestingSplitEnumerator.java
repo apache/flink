@@ -110,7 +110,7 @@ public class TestingSplitEnumerator<SplitT extends SourceSplit>
     }
 
     @Override
-    public Set<SplitT> snapshotState() {
+    public Set<SplitT> snapshotState(long checkpointId) {
         return new HashSet<>(splits);
     }
 
