@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
@@ -36,6 +37,7 @@ import java.util.function.Supplier;
  * via the same client. In the example of the file source, there is a single thread that reads the
  * files after another.
  */
+@Internal
 public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
         extends SplitFetcherManager<E, SplitT> {
 
