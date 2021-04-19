@@ -255,6 +255,20 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
         assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
+
+        // test describe table
+        assertEquals(
+                3,
+                CollectionUtil.iteratorToList(tableEnv.executeSql("desc tbl1").collect()).size());
+        assertEquals(
+                1,
+                CollectionUtil.iteratorToList(tableEnv.executeSql("describe tbl2").collect())
+                        .size());
+        assertEquals(
+                3,
+                CollectionUtil.iteratorToList(
+                                tableEnv.executeSql("describe extended tbl3").collect())
+                        .size());
     }
 
     @Test
