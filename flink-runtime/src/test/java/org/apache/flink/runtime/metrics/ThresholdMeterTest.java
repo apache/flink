@@ -151,9 +151,9 @@ public class ThresholdMeterTest extends TestLogger {
         assertEquals(repeatNum * concurrency, thresholdMeter.getCount());
     }
 
-    private static Runnable repeat(Runnable task, int repeateNum) {
+    private static Runnable repeat(Runnable task, int repeatNum) {
         return () -> {
-            for (int i = 0; i < repeateNum; ++i) {
+            for (int i = 0; i < repeatNum; ++i) {
                 task.run();
             }
         };

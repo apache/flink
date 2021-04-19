@@ -29,7 +29,12 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-/** A timestamp queue based threshold meter. */
+/**
+ * A timestamp queue based threshold meter.
+ *
+ * <p>Note: This class is thread safe, at the price of synchronization overhead. Do not use this in
+ * performance sensitive scenarios, e.g., per-record updated metrics.
+ */
 public class ThresholdMeter implements Meter {
     private static final double MILLISECONDS_PER_SECOND = 1000.0;
     private final Clock clock;
