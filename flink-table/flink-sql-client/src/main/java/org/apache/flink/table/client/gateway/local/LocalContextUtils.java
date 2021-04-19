@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -82,8 +81,7 @@ public class LocalContextUtils {
                 CliFrontend.loadCustomCommandLines(configuration, flinkConfigDir);
 
         // try to find a environment if not found use the default env;
-        Environment defaultEnvironment =
-                getLocalDefaultEnvironment(flinkConfigDir, options.getDefaults());
+        Environment defaultEnvironment = getLocalDefaultEnvironment(options.getDefaults());
         Environment sessionEnvironment =
                 getSessionEnvironment(defaultEnvironment, options.getEnvironment());
 
@@ -106,37 +104,16 @@ public class LocalContextUtils {
 
     // --------------------------------------------------------------------------------------------
 
-    private static Environment getLocalDefaultEnvironment(
-            String flinkConfigDir, @Nullable URL defaultUrl) {
-        // try to find a default environment
-        URL defaultEnv = null;
-        if (defaultUrl == null) {
-            final String defaultFilePath = flinkConfigDir + "/" + DEFAULT_ENV_FILE;
-            System.out.println("No default environment specified.");
-            System.out.print("Searching for '" + defaultFilePath + "'...");
-            final File file = new File(defaultFilePath);
-            if (file.exists()) {
-                System.out.println("found.");
-                try {
-                    defaultEnv = org.apache.flink.core.fs.Path.fromLocalFile(file).toUri().toURL();
-                } catch (MalformedURLException e) {
-                    throw new SqlClientException(e);
-                }
-                LOG.info("Using default environment file: {}", defaultEnv);
-            } else {
-                System.out.println("not found.");
-            }
-        }
-
+    private static Environment getLocalDefaultEnvironment(@Nullable URL defaultUrl) {
         // inform user
         Environment defaultEnvironment;
-        if (defaultEnv != null) {
-            System.out.println("Reading default environment from: " + defaultEnv);
+        if (defaultUrl != null) {
+            System.out.println("Reading default environment from: " + defaultUrl);
             try {
-                defaultEnvironment = Environment.parse(defaultEnv);
+                defaultEnvironment = Environment.parse(defaultUrl);
             } catch (IOException e) {
                 throw new SqlClientException(
-                        "Could not read default environment file at: " + defaultEnv, e);
+                        "Could not read default environment file at: " + defaultUrl, e);
             }
         } else {
             defaultEnvironment = new Environment();
