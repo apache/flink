@@ -108,7 +108,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
             result.append(self.row[:])
         return result
 
-    cdef void _encode_list_value(self, list results, LengthPrefixOutputStream output_stream):
+    cdef _encode_list_value(self, list results, LengthPrefixOutputStream output_stream):
         cdef list result
         cdef InternalRow value
         if self._is_first_row and results:
@@ -122,7 +122,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
                 for value in result:
                     self._encode_internal_row(value, output_stream)
 
-    cdef void _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream):
+    cdef _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream):
         self._encode_one_row_to_buffer(row.values, row.row_kind)
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
         self._tmp_output_pos = 0
@@ -249,7 +249,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             self._field_type[i] = self._field_coders[i].type_name()
             self._field_coder_type[i] = self._field_coders[i].coder_type()
 
-    cdef void _encode_one_row_to_buffer(self, value, unsigned char row_kind_value):
+    cdef _encode_one_row_to_buffer(self, value, unsigned char row_kind_value):
         cdef size_t i
         self._write_mask(
             value,
@@ -272,10 +272,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._tmp_output_pos = 0
         return self._tmp_output_data[:pos]
 
-    cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream):
+    cdef _encode_one_row(self, value, LengthPrefixOutputStream output_stream):
         self._encode_one_row_with_row_kind(value, output_stream, 0)
 
-    cdef void _encode_one_row_with_row_kind(
+    cdef _encode_one_row_with_row_kind(
             self, value, LengthPrefixOutputStream output_stream, unsigned char row_kind_value):
         self._encode_one_row_to_buffer(value, row_kind_value)
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
@@ -531,14 +531,14 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._input_pos += size
         return self._input_data[self._input_pos - size: self._input_pos]
 
-    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+    cdef _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                             item):
         if coder_type == SIMPLE:
             self._encode_field_simple(field_type, item)
         else:
             self._encode_field_complex(field_type, field_coder, item)
 
-    cdef void _encode_field_simple(self, TypeName field_type, item):
+    cdef _encode_field_simple(self, TypeName field_type, item):
         cdef libc.stdint.int32_t hour, minute, seconds, microsecond, milliseconds
         cdef bytes item_bytes
         if field_type == TINYINT:
@@ -590,7 +590,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             item_bytes = str(item).encode('utf-8')
             self._encode_bytes(item_bytes, len(item_bytes))
 
-    cdef void _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item):
+    cdef _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item):
         cdef libc.stdint.int32_t nanoseconds, microseconds_of_second, length, row_field_count
         cdef libc.stdint.int32_t leading_complete_bytes_num, remaining_bits_num
         cdef libc.stdint.int64_t timestamp_milliseconds, timestamp_seconds
