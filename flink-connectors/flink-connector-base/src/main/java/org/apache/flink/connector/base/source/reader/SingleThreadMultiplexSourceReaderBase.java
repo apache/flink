@@ -26,7 +26,7 @@ import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcher
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
-import java.util.Collection;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -47,7 +47,7 @@ import java.util.function.Supplier;
  *   <li>The class must override the methods to convert back and forth between the immutable splits
  *       ({@code SplitT}) and the mutable split state representation ({@code SplitStateT}).
  *   <li>Finally, the reader must decide what to do when it starts ({@link #start()}) or when a
- *       split is finished ({@link #onSplitFinished(Collection)}).
+ *       split is finished ({@link #onSplitFinished(Map)}).
  * </ul>
  *
  * @param <E> The type of the records (the raw type that typically contains checkpointing
