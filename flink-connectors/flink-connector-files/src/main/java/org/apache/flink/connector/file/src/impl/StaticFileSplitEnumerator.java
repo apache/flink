@@ -118,7 +118,7 @@ public class StaticFileSplitEnumerator
     }
 
     @Override
-    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState() {
+    public PendingSplitsCheckpoint<FileSourceSplit> snapshotState(long checkpointId) {
         return PendingSplitsCheckpoint.fromCollectionSnapshot(splitAssigner.remainingSplits());
     }
 }

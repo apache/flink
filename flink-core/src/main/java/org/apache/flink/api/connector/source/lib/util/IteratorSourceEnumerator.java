@@ -72,7 +72,7 @@ public class IteratorSourceEnumerator<SplitT extends IteratorSourceSplit<?, ?>>
     }
 
     @Override
-    public Collection<SplitT> snapshotState() throws Exception {
+    public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
         return remainingSplits;
     }
 

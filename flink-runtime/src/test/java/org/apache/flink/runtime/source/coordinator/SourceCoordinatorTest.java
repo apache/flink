@@ -336,7 +336,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         // Build checkpoint data with serde version 0
         final TestingSplitEnumerator<MockSourceSplit> enumerator = getEnumerator();
         final Set<MockSourceSplit> splits = new HashSet<>();
-        enumerator.runInEnumThreadAndSync(() -> splits.addAll(enumerator.snapshotState()));
+        enumerator.runInEnumThreadAndSync(() -> splits.addAll(enumerator.snapshotState(1L)));
 
         final byte[] checkpointDataForV0Serde = createCheckpointDataWithSerdeV0(splits);
 
@@ -428,7 +428,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         }
 
         @Override
-        public Set<MockSourceSplit> snapshotState() throws Exception {
+        public Set<MockSourceSplit> snapshotState(long checkpointId) throws Exception {
             throw new UnsupportedOperationException();
         }
 

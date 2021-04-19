@@ -77,7 +77,7 @@ public class MockSplitEnumerator
     }
 
     @Override
-    public List<MockSourceSplit> snapshotState() {
+    public List<MockSourceSplit> snapshotState(long checkpointId) {
         return splits;
     }
 
