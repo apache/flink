@@ -47,6 +47,9 @@ message UserDefinedFunction {
 
   // The index of the over window used in pandas batch over window aggregation
   int32 window_index = 3;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
 }
 
 // A list of user-defined functions to be executed in a batch.

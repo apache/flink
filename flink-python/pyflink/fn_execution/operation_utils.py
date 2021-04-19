@@ -17,6 +17,7 @@
 ################################################################################
 import datetime
 from enum import Enum
+from functools import partial
 
 from typing import Any, Tuple, Dict, List
 
@@ -35,6 +36,18 @@ _constant_num = 0
 def wrap_pandas_result(it):
     import pandas as pd
     return [pd.Series([result]) for result in it]
+
+
+def check_pandas_udf_result(f, *input_args):
+    output = f(*input_args)
+    import pandas as pd
+    assert type(output) == pd.Series or type(output) == pd.DataFrame, \
+        "The result type of Pandas UDF '%s' must be pandas.Series or pandas.DataFrame, got %s" \
+        % (f.__name__, type(output))
+    assert len(output) == len(input_args[0]), \
+        "The result length '%d' of Pandas UDF '%s' is not equal to the input length '%d'" \
+        % (len(output), f.__name__, len(input_args[0]))
+    return output
 
 
 def extract_over_window_user_defined_function(user_defined_function_proto):
@@ -89,7 +102,10 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     func_name = 'f%s' % _next_func_num()
     if isinstance(user_defined_func, DelegatingScalarFunction) \
             or isinstance(user_defined_func, DelegationTableFunction):
-        variable_dict[func_name] = user_defined_func.func
+        if user_defined_function_proto.is_pandas_udf:
+            variable_dict[func_name] = partial(check_pandas_udf_result, user_defined_func.func)
+        else:
+            variable_dict[func_name] = user_defined_func.func
     else:
         variable_dict[func_name] = user_defined_func.eval
     user_defined_funcs.append(user_defined_func)
