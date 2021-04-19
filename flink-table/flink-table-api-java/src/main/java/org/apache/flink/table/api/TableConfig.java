@@ -113,7 +113,9 @@ public class TableConfig {
      */
     public ZoneId getLocalTimeZone() {
         String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
-        return "default".equals(zone) ? ZoneId.systemDefault() : ZoneId.of(zone);
+        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                ? ZoneId.systemDefault()
+                : ZoneId.of(zone);
     }
 
     /**

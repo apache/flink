@@ -17,8 +17,10 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -126,6 +128,8 @@ public class CliResultViewTest {
 
         private final TypedResult<?> typedResult;
         private final CountDownLatch cancellationCounter;
+        private static final Configuration defaultConfig =
+                TableConfig.getDefault().getConfiguration();
 
         public MockExecutor(TypedResult<?> typedResult, CountDownLatch cancellationCounter) {
             this.typedResult = typedResult;
@@ -150,12 +154,12 @@ public class CliResultViewTest {
         @Override
         public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
-            return null;
+            return defaultConfig.toMap();
         }
 
         @Override
         public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-            return null;
+            return defaultConfig;
         }
 
         @Override
