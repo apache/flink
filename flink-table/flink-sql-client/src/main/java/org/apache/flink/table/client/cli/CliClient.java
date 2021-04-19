@@ -574,7 +574,8 @@ public class CliClient implements AutoCloseable {
                     Integer.MAX_VALUE,
                     "",
                     false,
-                    false);
+                    false,
+                    CliUtils.getSessionTimeZone(executor.getSessionConfig(sessionId)));
             terminal.flush();
         }
     }
