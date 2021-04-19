@@ -80,12 +80,12 @@ def is_instance_of(java_object, java_class):
         param, java_object)
 
 
-def get_j_env_configuration(t_env):
-    if is_instance_of(t_env._get_j_env(), "org.apache.flink.api.java.ExecutionEnvironment"):
-        return t_env._get_j_env().getConfiguration()
+def get_j_env_configuration(j_env):
+    if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
+        return j_env.getConfiguration()
     else:
         return invoke_method(
-            t_env._get_j_env(),
+            j_env,
             "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
             "getConfiguration"
         )

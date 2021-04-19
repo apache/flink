@@ -51,7 +51,7 @@ class TableEnvironmentTest(object):
 
     def test_set_sys_executable_for_local_mode(self):
         jvm = get_gateway().jvm
-        actual_executable = get_j_env_configuration(self.t_env) \
+        actual_executable = get_j_env_configuration(self.t_env._get_j_env()) \
             .getString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
         self.assertEqual(sys.executable, actual_executable)
 
