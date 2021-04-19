@@ -160,20 +160,13 @@ public class ZooKeeperLeaderRetrievalDriver
             case RECONNECTED:
                 LOG.info(
                         "Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
-                onReconnectedConnectionState();
                 break;
             case LOST:
                 LOG.warn(
                         "Connection to ZooKeeper lost. Can no longer retrieve the leader from "
                                 + "ZooKeeper.");
-                leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
                 break;
         }
-    }
-
-    private void onReconnectedConnectionState() {
-        // check whether we find some new leader information in ZooKeeper
-        retrieveLeaderInformationFromZooKeeper();
     }
 
     @Override
