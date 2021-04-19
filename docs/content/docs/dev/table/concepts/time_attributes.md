@@ -28,7 +28,7 @@ under the License.
 
 Flink can process data based on different notions of time. 
 
-- *Processing time* refers to the machine's system time (also known as "wall-clock time") that is executing the respective operation.
+- *Processing time* refers to the machine's system time (also known as epoch time, e.g. Java's `System.currentTimeMillis()`) that is executing the respective operation.
 - *Event time* refers to the processing of streaming data based on timestamps that are attached to each row. The timestamps can encode when an event happened.
 
 For more information about time handling in Flink, see the introduction about [event time and watermarks]({{< ref "docs/concepts/time" >}}).
@@ -59,6 +59,8 @@ Event time attributes can be defined in `CREATE` table DDL or during DataStream-
 
 The event time attribute is defined using a `WATERMARK` statement in `CREATE` table DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as the event time attribute. Please see [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more information about watermark statement and watermark strategies.
 
+Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
+If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
 ```sql
 
 CREATE TABLE user_actions (
@@ -77,6 +79,25 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ```
 
+If the data source contains long epoch time, it's recommended to defining event time attribute on TIMESTAMP_LTZ.  
+```sql
+
+CREATE TABLE user_actions (
+  user_name STRING,
+  data STRING,
+  ts BIGINT,
+  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
+  WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
+) WITH (
+  ...
+);
+
+SELECT TUMBLE_START(time_ltz, INTERVAL '10' MINUTE), COUNT(DISTINCT user_name)
+FROM user_actions
+GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
+
+```
 
 ### During DataStream-to-Table Conversion
 
@@ -155,7 +176,7 @@ There are three ways to define a processing time attribute.
 
 ### Defining in DDL
 
-The processing time attribute is defined as a computed column in `CREATE` table DDL using the system `PROCTIME()` function. Please see [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more information about computed column.
+The processing time attribute is defined as a computed column in `CREATE` table DDL using the system `PROCTIME()` function, the function return type is TIMESTAMP_LTZ. Please see [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more information about computed column.
 
 ```sql
 

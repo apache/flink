@@ -28,7 +28,7 @@ under the License.
 
 Flink 可以基于几种不同的 *时间* 概念来处理数据。
 
-- *处理时间* 指的是执行具体操作时的机器时间（也称作"挂钟时间"）
+- *处理时间* 指的是执行具体操作时的机器时间（大家熟知的绝对时间, 例如 Java的 `System.currentTimeMillis()`) ）
 - *事件时间* 指的是数据本身携带的时间。这个时间是在事件产生时的时间。
 - *摄入时间* 指的是数据进入 Flink 的时间；在系统内部，会把它当做事件时间来处理。
 
@@ -94,7 +94,7 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 
 ### 在创建表的 DDL 中定义
 
-处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) 
+处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间，函数 `PROCTIME()` 的返回类型是 TIMESTAMP_LTZ 。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) 
 
 ```sql
 
@@ -233,6 +233,10 @@ val windowedTable = tEnv
 
 事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
 
+Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
+If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
+
+Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。 如果数据源中包含时间戳，推荐在 TIMESTAMP 列上定义事件时间：
 ```sql
 
 CREATE TABLE user_actions (
@@ -251,6 +255,25 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ```
 
+如果数据源中包含 long 类型的绝对时间，推荐在 TIMESTAMP_LTZ 列上定义事件时间：
+ ```sql
+
+CREATE TABLE user_actions (
+  user_name STRING,
+  data STRING,
+  ts BIGINT,
+  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
+  WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
+) WITH (
+  ...
+);
+
+SELECT TUMBLE_START(time_ltz, INTERVAL '10' MINUTE), COUNT(DISTINCT user_name)
+FROM user_actions
+GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
+
+```
 
 ### 在 DataStream 到 Table 转换时定义
 
