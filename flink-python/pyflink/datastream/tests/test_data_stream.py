@@ -387,11 +387,11 @@ class DataStreamTests(object):
                       decimal.Decimal('2000000000000000000.061111111111111'
                                       '11111111111111'))]
         expected = test_data
-        ds = self.env.from_collection(test_data)
+        ds = self.env.from_collection(test_data).map(lambda a: a)
         with ds.execute_and_collect() as results:
-            actual = []
-            for result in results:
-                actual.append(result)
+            actual = [result for result in results]
+            actual.sort()
+            expected.sort()
             self.assertEqual(expected, actual)
 
     def test_key_by_map(self):
@@ -942,7 +942,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected_num_partitions = 5
 
         def my_partitioner(key, num_partitions):
-            assert expected_num_partitions, num_partitions
+            assert expected_num_partitions == num_partitions
             return key % num_partitions
 
         partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
