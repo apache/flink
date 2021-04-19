@@ -23,7 +23,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
-import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -52,16 +53,16 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.utils.TimestampStringUtils.timestampToString;
 
 /** Utilities for print formatting. */
 @Internal
@@ -72,13 +73,6 @@ public class PrintUtils {
     public static final String NULL_COLUMN = "(NULL)";
     public static final String ROW_KIND_COLUMN = "op";
     private static final String COLUMN_TRUNCATED_FLAG = "...";
-    private static final DateTimeFormatter SQL_TIMESTAMP_FORMAT =
-            new DateTimeFormatterBuilder()
-                    .append(DateTimeFormatter.ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
-                    .appendPattern("HH:mm:ss")
-                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
-                    .toFormatter();
 
     private PrintUtils() {}
 
@@ -240,7 +234,7 @@ public class PrintUtils {
             } else {
                 fields.add(
                         StringUtils.arrayAwareToString(
-                                normalizeTimestamp(field, fieldType, sessionTimeZone)));
+                                formattedTimestamp(field, fieldType, sessionTimeZone)));
             }
         }
         return fields.toArray(new String[0]);
@@ -249,9 +243,9 @@ public class PrintUtils {
     /**
      * Normalizes field that contains TIMESTAMP and TIMESTAMP_LTZ type data.
      *
-     * <p>This method supports array type and nested type.
+     * <p>This method also supports nested type ARRAY, ROW, MAP.
      */
-    private static Object normalizeTimestamp(
+    private static Object formattedTimestamp(
             Object field, LogicalType fieldType, ZoneId sessionTimeZone) {
         final LogicalTypeRoot typeRoot = fieldType.getTypeRoot();
         if (field == null) {
@@ -265,98 +259,98 @@ public class PrintUtils {
                 LogicalType elementType = ((ArrayType) fieldType).getElementType();
                 if (field instanceof List) {
                     List<?> array = (List<?>) field;
-                    List<Object> normalizedArray = new ArrayList<>(array.size());
+                    Object[] formattedArray = new Object[array.size()];
                     for (int i = 0; i < array.size(); i++) {
-                        normalizedArray.set(
-                                i, normalizeTimestamp(array.get(i), elementType, sessionTimeZone));
+                        formattedArray[i] =
+                                formattedTimestamp(array.get(i), elementType, sessionTimeZone);
                     }
-                    return normalizedArray;
+                    return formattedArray;
                 } else if (field instanceof ArrayData) {
                     ArrayData array = (ArrayData) field;
-                    Object[] normalizedArray = new Object[array.size()];
+                    Object[] formattedArray = new Object[array.size()];
                     for (int i = 0; i < array.size(); i++) {
-                        normalizedArray[i] =
-                                normalizeTimestamp(
+                        formattedArray[i] =
+                                formattedTimestamp(
                                         array.getTimestamp(i, getPrecision(elementType)),
                                         elementType,
                                         sessionTimeZone);
                     }
-                    return new GenericArrayData(normalizedArray);
+                    return new GenericArrayData(formattedArray).toObjectArray();
                 } else if (field.getClass().isArray()) {
                     // primitive type
                     if (field.getClass() == byte[].class) {
                         byte[] array = (byte[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == short[].class) {
                         short[] array = (short[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == int[].class) {
                         int[] array = (int[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == long[].class) {
                         long[] array = (long[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == float[].class) {
                         float[] array = (float[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == double[].class) {
                         double[] array = (double[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == boolean[].class) {
                         boolean[] array = (boolean[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else if (field.getClass() == char[].class) {
                         char[] array = (char[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     } else {
                         // non-primitive type
                         Object[] array = (Object[]) field;
-                        Object[] normalizedArray = new Object[array.length];
+                        Object[] formattedArray = new Object[array.length];
                         for (int i = 0; i < array.length; i++) {
-                            normalizedArray[i] =
-                                    normalizeTimestamp(array[i], elementType, sessionTimeZone);
+                            formattedArray[i] =
+                                    formattedTimestamp(array[i], elementType, sessionTimeZone);
                         }
-                        return normalizedArray;
+                        return formattedArray;
                     }
                 } else {
                     return field;
@@ -364,29 +358,56 @@ public class PrintUtils {
             case ROW:
                 if (fieldType instanceof RowType && field instanceof Row) {
                     Row row = (Row) field;
-                    Row normalizedRow = new Row(row.getKind(), row.getArity());
+                    Row formattedRow = new Row(row.getKind(), row.getArity());
                     for (int i = 0; i < ((RowType) fieldType).getFields().size(); i++) {
                         LogicalType type = ((RowType) fieldType).getFields().get(i).getType();
-                        normalizedRow.setField(
-                                i, normalizeTimestamp(row.getField(i), type, sessionTimeZone));
+                        formattedRow.setField(
+                                i, formattedTimestamp(row.getField(i), type, sessionTimeZone));
                     }
-                    return normalizedRow;
+                    return formattedRow;
 
                 } else if (fieldType instanceof RowType && field instanceof RowData) {
                     RowData rowData = (RowData) field;
-                    GenericRowData normalizedRowData =
-                            new GenericRowData(rowData.getRowKind(), rowData.getArity());
+                    Row formattedRow = new Row(rowData.getRowKind(), rowData.getArity());
                     for (int i = 0; i < ((RowType) fieldType).getFields().size(); i++) {
                         LogicalType type = ((RowType) fieldType).getFields().get(i).getType();
                         RowData.FieldGetter fieldGetter = RowData.createFieldGetter(type, i);
-                        normalizedRowData.setField(
+                        formattedRow.setField(
                                 i,
-                                normalizeTimestamp(
+                                formattedTimestamp(
                                         fieldGetter.getFieldOrNull(rowData),
                                         type,
                                         sessionTimeZone));
                     }
-                    return normalizedRowData;
+                    return formattedRow;
+                } else {
+                    return field;
+                }
+            case MAP:
+                LogicalType keyType = ((MapType) fieldType).getKeyType();
+                LogicalType valueType = ((MapType) fieldType).getValueType();
+                if (fieldType instanceof MapType && field instanceof Map) {
+                    Map<Object, Object> map = ((Map) field);
+                    Map<Object, Object> formattedMap = new HashMap<>(map.size());
+                    for (Object key : map.keySet()) {
+                        formattedMap.put(
+                                formattedTimestamp(key, keyType, sessionTimeZone),
+                                formattedTimestamp(map.get(key), valueType, sessionTimeZone));
+                    }
+                    return formattedMap;
+                } else if (fieldType instanceof MapType && field instanceof MapData) {
+                    MapData map = ((MapData) field);
+                    Map<Object, Object> formattedMap = new HashMap<>(map.size());
+                    Object[] keyArray =
+                            (Object[]) formattedTimestamp(map.keyArray(), keyType, sessionTimeZone);
+                    Object[] valueArray =
+                            (Object[])
+                                    formattedTimestamp(
+                                            map.valueArray(), valueType, sessionTimeZone);
+                    for (int i = 0; i < keyArray.length; i++) {
+                        formattedMap.put(keyArray[i], valueArray[i]);
+                    }
+                    return formattedMap;
                 } else {
                     return field;
                 }
@@ -403,17 +424,16 @@ public class PrintUtils {
             Object timestampField, LogicalType fieldType, ZoneId sessionTimeZone) {
         switch (fieldType.getTypeRoot()) {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
+                final int precision = getPrecision(fieldType);
                 if (timestampField instanceof java.sql.Timestamp) {
                     // conversion between java.sql.Timestamp and TIMESTAMP_WITHOUT_TIME_ZONE
-                    return ((Timestamp) timestampField)
-                            .toLocalDateTime()
-                            .format(SQL_TIMESTAMP_FORMAT);
+                    return timestampToString(
+                            ((Timestamp) timestampField).toLocalDateTime(), precision);
                 } else if (timestampField instanceof java.time.LocalDateTime) {
-                    return ((LocalDateTime) timestampField).format(SQL_TIMESTAMP_FORMAT);
+                    return timestampToString(((LocalDateTime) timestampField), precision);
                 } else if (timestampField instanceof TimestampData) {
-                    return ((TimestampData) timestampField)
-                            .toLocalDateTime()
-                            .format(SQL_TIMESTAMP_FORMAT);
+                    return timestampToString(
+                            ((TimestampData) timestampField).toLocalDateTime(), precision);
                 } else {
                     return timestampField;
                 }
@@ -436,9 +456,9 @@ public class PrintUtils {
                     instant = Instant.ofEpochMilli((Long) timestampField);
                 }
                 if (instant != null) {
-                    return instant.atZone(sessionTimeZone)
-                            .toLocalDateTime()
-                            .format(SQL_TIMESTAMP_FORMAT);
+                    return timestampToString(
+                            instant.atZone(sessionTimeZone).toLocalDateTime(),
+                            getPrecision(fieldType));
                 } else {
                     return timestampField;
                 }
@@ -523,11 +543,11 @@ public class PrintUtils {
                     break;
                 case TIMESTAMP_WITHOUT_TIME_ZONE:
                     precision = ((TimestampType) type.getLogicalType()).getPrecision();
-                    len = timestampTypeColumnWidth(precision, type.getConversionClass());
+                    len = timestampTypeColumnWidth(precision);
                     break;
                 case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                     precision = ((LocalZonedTimestampType) type.getLogicalType()).getPrecision();
-                    len = timestampTypeColumnWidth(precision, type.getConversionClass());
+                    len = timestampTypeColumnWidth(precision);
                     break;
                 default:
                     len = maxColumnWidth;
@@ -561,10 +581,10 @@ public class PrintUtils {
      *     <p>And for java.sql.Timestamp, the number of digits after point will be precision except
      *     when precision is 0. In that case, the format would be 'uuuu-MM-dd HH:mm:ss.0'
      */
-    private static int timestampTypeColumnWidth(int precision, Class<?> conversionClass) {
+    private static int timestampTypeColumnWidth(int precision) {
         int base = 19; // length of uuuu-MM-dd HH:mm:ss
-        if (precision == 0 && java.sql.Timestamp.class.isAssignableFrom(conversionClass)) {
-            return base + 2; // consider java.sql.Timestamp
+        if (precision == 0) {
+            return base;
         } else if (precision <= 3) {
             return base + 4;
         } else if (precision <= 6) {

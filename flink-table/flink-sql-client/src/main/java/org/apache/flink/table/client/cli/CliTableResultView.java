@@ -54,6 +54,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     private int page;
     private LocalTime lastRetrieval;
     private int previousResultsPage;
+    private final ZoneId sessionTimeZone;
 
     private static final int DEFAULT_REFRESH_INTERVAL = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 1; // every 100ms
@@ -69,6 +70,9 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         previousResults = Collections.emptyList();
         previousResultsPage = 1;
         results = Collections.emptyList();
+        this.sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -299,9 +303,6 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
             return;
         }
 
-        final ZoneId sessionTimeZone =
-                CliUtils.getSessionTimeZone(
-                        client.getExecutor().getSessionConfig(client.getSessionId()));
         // convert page
         final List<String[]> stringRows =
                 rows.stream()

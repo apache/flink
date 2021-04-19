@@ -21,6 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -36,7 +37,9 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -126,6 +129,34 @@ public class PrintUtilsTest {
                 "[[1, 2], +I[hello, [true, false],"
                         + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
                         + " [1970-01-01 00:00:00.1, 1970-01-01 00:00:00.2]], [[1, 10], [2, 20]]]",
+                Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
+    }
+
+    @Test
+    public void testNestedMapToString() {
+        Row row = new Row(2);
+        row.setField(0, new int[] {1, 2});
+        Row row1 = new Row(2);
+        row1.setField(0, "hello");
+        Map<TimestampData, TimestampData> map = new HashMap<>();
+        map.put(TimestampData.fromEpochMillis(1000), TimestampData.fromEpochMillis(2000));
+        map.put(TimestampData.fromEpochMillis(2000), TimestampData.fromEpochMillis(4000));
+        row1.setField(1, map);
+        row.setField(1, row1);
+        ResolvedSchema resolvedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical("f0", DataTypes.ARRAY(DataTypes.INT())),
+                                Column.physical(
+                                        "f1",
+                                        DataTypes.ROW(
+                                                DataTypes.STRING(),
+                                                DataTypes.MAP(
+                                                        DataTypes.TIMESTAMP_LTZ(3),
+                                                        DataTypes.TIMESTAMP_LTZ(3))))));
+        assertEquals(
+                "[[1, 2], +I[hello,"
+                        + " {1970-01-01 00:00:01.000=1970-01-01 00:00:02.000, 1970-01-01 00:00:02.000=1970-01-01 00:00:04.000}]]",
                 Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
 

@@ -122,6 +122,8 @@ public final class CliUtils {
     /** Get time zone from the the given session config. */
     public static ZoneId getSessionTimeZone(ReadableConfig sessionConfig) {
         final String zone = sessionConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
-        return "default".equals(zone) ? ZoneId.systemDefault() : ZoneId.of(zone);
+        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                ? ZoneId.systemDefault()
+                : ZoneId.of(zone);
     }
 }

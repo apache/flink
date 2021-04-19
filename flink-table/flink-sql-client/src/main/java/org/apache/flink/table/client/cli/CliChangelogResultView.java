@@ -57,6 +57,7 @@ public class CliChangelogResultView
     private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
 
+    private final ZoneId sessionTimeZone;
     private LocalTime lastRetrieval;
     private int scrolling;
 
@@ -71,6 +72,10 @@ public class CliChangelogResultView
         previousResults = null;
         // rows are always appended at the tail and deleted from the head of the list
         results = new LinkedList<>();
+
+        this.sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -115,10 +120,6 @@ public class CliChangelogResultView
             close(e);
             return;
         }
-
-        final ZoneId sessionTimeZone =
-                CliUtils.getSessionTimeZone(
-                        client.getExecutor().getSessionConfig(client.getSessionId()));
 
         // do nothing if result is empty
         switch (result.getType()) {
