@@ -273,10 +273,7 @@ public class ZooKeeperLeaderElectionDriver
                 LOG.debug("Connected to ZooKeeper quorum. Leader election can start.");
                 break;
             case SUSPENDED:
-                LOG.warn(
-                        "Connection to ZooKeeper suspended. The contender "
-                                + leaderContenderDescription
-                                + " no longer participates in the leader election.");
+                LOG.warn("Connection to ZooKeeper suspended, waiting for reconnection.");
                 break;
             case RECONNECTED:
                 LOG.info(

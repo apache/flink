@@ -155,10 +155,7 @@ public class ZooKeeperLeaderRetrievalDriver
                 LOG.debug("Connected to ZooKeeper quorum. Leader retrieval can start.");
                 break;
             case SUSPENDED:
-                LOG.warn(
-                        "Connection to ZooKeeper suspended. Can no longer retrieve the leader from "
-                                + "ZooKeeper.");
-                leaderRetrievalEventHandler.notifyLeaderAddress(LeaderInformation.empty());
+                LOG.warn("Connection to ZooKeeper suspended, waiting for reconnection.");
                 break;
             case RECONNECTED:
                 LOG.info(

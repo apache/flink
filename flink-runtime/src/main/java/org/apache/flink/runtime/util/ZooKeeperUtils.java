@@ -54,6 +54,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -150,6 +151,7 @@ public class ZooKeeperUtils {
                         .sessionTimeoutMs(sessionTimeout)
                         .connectionTimeoutMs(connectionTimeout)
                         .retryPolicy(new ExponentialBackoffRetry(retryWait, maxRetryAttempts))
+                        .connectionStateErrorPolicy(new SessionConnectionStateErrorPolicy())
                         // Curator prepends a '/' manually and throws an Exception if the
                         // namespace starts with a '/'.
                         .namespace(
