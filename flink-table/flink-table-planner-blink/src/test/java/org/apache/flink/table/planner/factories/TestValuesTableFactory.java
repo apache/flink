@@ -1229,15 +1229,9 @@ public final class TestValuesTableFactory
             if (isInsertOnly) {
                 return ChangelogMode.insertOnly();
             } else {
-                ChangelogMode.Builder builder = ChangelogMode.newBuilder();
                 if (primaryKeyIndices.length > 0) {
                     // can update on key, ignore UPDATE_BEFORE
-                    for (RowKind kind : requestedMode.getContainedKinds()) {
-                        if (kind != RowKind.UPDATE_BEFORE) {
-                            builder.addContainedKind(kind);
-                        }
-                    }
-                    return builder.build();
+                    return ChangelogMode.upsert();
                 } else {
                     // don't have key, works in retract mode
                     return requestedMode;
