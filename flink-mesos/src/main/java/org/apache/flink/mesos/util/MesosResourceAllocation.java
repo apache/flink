@@ -52,7 +52,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * protocol definition.
  *
  * <p>This class is not thread-safe.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class MesosResourceAllocation {
 
     protected static final Logger LOG = LoggerFactory.getLogger(MesosResourceAllocation.class);
