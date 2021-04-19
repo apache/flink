@@ -158,7 +158,7 @@ public class TestingTaskManagerResourceInfoProvider implements TaskManagerResour
             return this;
         }
 
-        public Builder setgetPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction(
+        public Builder setGetPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction(
                 BiFunction<ResourceProfile, ResourceProfile, Collection<PendingTaskManager>>
                         getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction) {
             this.getPendingTaskManagersByTotalAndDefaultSlotResourceProfileFunction =
