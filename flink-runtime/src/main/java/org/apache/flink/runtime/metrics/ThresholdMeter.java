@@ -23,6 +23,8 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -33,7 +35,11 @@ public class ThresholdMeter implements Meter {
     private final Clock clock;
     private final double maxEventsPerInterval;
     private final Duration interval;
+
+    @GuardedBy("this")
     private final Queue<Long> eventTimestamps;
+
+    @GuardedBy("this")
     private long eventCount = 0;
 
     public ThresholdMeter(double maxEventsPerInterval, Duration interval) {
@@ -52,13 +58,13 @@ public class ThresholdMeter implements Meter {
     }
 
     @Override
-    public void markEvent() {
+    public synchronized void markEvent() {
         eventTimestamps.add(clock.absoluteTimeMillis());
         eventCount++;
     }
 
     @Override
-    public void markEvent(long n) {
+    public synchronized void markEvent(long n) {
         long timestamp = clock.absoluteTimeMillis();
         for (int i = 0; i < n; i++) {
             eventTimestamps.add(timestamp);
@@ -72,7 +78,7 @@ public class ThresholdMeter implements Meter {
     }
 
     @Override
-    public long getCount() {
+    public synchronized long getCount() {
         return eventCount;
     }
 
@@ -86,7 +92,7 @@ public class ThresholdMeter implements Meter {
         }
     }
 
-    private int getEventCountsRecentInterval() {
+    private synchronized int getEventCountsRecentInterval() {
         Long currentTimeStamp = clock.absoluteTimeMillis();
         while (!eventTimestamps.isEmpty()
                 && currentTimeStamp - eventTimestamps.peek() > interval.toMillis()) {
