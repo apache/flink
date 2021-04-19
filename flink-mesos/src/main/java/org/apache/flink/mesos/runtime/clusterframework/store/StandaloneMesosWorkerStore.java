@@ -27,7 +27,13 @@ import java.util.Map;
 
 import scala.Option;
 
-/** A standalone Mesos worker store. */
+/**
+ * A standalone Mesos worker store.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class StandaloneMesosWorkerStore implements MesosWorkerStore {
 
     private Option<Protos.FrameworkID> frameworkID = Option.empty();

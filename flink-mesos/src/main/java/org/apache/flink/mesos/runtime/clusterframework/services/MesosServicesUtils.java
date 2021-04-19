@@ -31,7 +31,13 @@ import akka.actor.ActorSystem;
 
 import java.util.UUID;
 
-/** Utilities for the {@link MesosServices}. */
+/**
+ * Utilities for the {@link MesosServices}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosServicesUtils {
 
     /**

@@ -30,7 +30,13 @@ import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.duration.FiniteDuration;
 
-/** Factory class for actors used in mesos deployment. */
+/**
+ * Factory class for actors used in mesos deployment.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public interface MesosResourceManagerActorFactory {
 
     /** Create self actor for mesos resource manager. */

@@ -42,7 +42,13 @@ import scala.Option;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** A ZooKeeper-backed Mesos worker store. */
+/**
+ * A ZooKeeper-backed Mesos worker store.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperMesosWorkerStore.class);
