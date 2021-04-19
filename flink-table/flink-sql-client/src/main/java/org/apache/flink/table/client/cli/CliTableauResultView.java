@@ -29,6 +29,7 @@ import org.apache.flink.types.Row;
 
 import org.jline.terminal.Terminal;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -45,6 +46,7 @@ public class CliTableauResultView implements AutoCloseable {
     private final Terminal terminal;
     private final Executor sqlExecutor;
     private final String sessionId;
+    private final ZoneId sessionTimeZone;
     private final ResultDescriptor resultDescriptor;
     private final ExecutorService displayResultExecutorService;
 
@@ -60,6 +62,7 @@ public class CliTableauResultView implements AutoCloseable {
         this.displayResultExecutorService =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("CliTableauResultView"));
+        this.sessionTimeZone = CliUtils.getSessionTimeZone(sqlExecutor.getSessionConfig(sessionId));
     }
 
     public void displayResults() throws SqlExecutionException {
@@ -124,7 +127,10 @@ public class CliTableauResultView implements AutoCloseable {
         final List<Row> resultRows = waitBatchResults();
         receivedRowCount.addAndGet(resultRows.size());
         PrintUtils.printAsTableauForm(
-                resultDescriptor.getResultSchema(), resultRows.iterator(), terminal.writer());
+                resultDescriptor.getResultSchema(),
+                resultRows.iterator(),
+                terminal.writer(),
+                sessionTimeZone);
     }
 
     private void printStreamingResults(AtomicInteger receivedRowCount) {
@@ -180,7 +186,12 @@ public class CliTableauResultView implements AutoCloseable {
                     List<Row> changes = result.getPayload();
                     for (Row change : changes) {
                         final String[] row =
-                                PrintUtils.rowToString(change, PrintUtils.NULL_COLUMN, true);
+                                PrintUtils.rowToString(
+                                        change,
+                                        PrintUtils.NULL_COLUMN,
+                                        true,
+                                        resultDescriptor.getResultSchema(),
+                                        sessionTimeZone);
                         PrintUtils.printSingleRow(colWidths, row, terminal.writer());
                         receivedRowCount.incrementAndGet();
                     }

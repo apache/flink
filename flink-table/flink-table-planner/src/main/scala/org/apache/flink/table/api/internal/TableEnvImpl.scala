@@ -634,6 +634,7 @@ abstract class TableEnvImpl(
         .data(selectResultProvider.getResultIterator)
         .setPrintStyle(
           PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, true, false))
+        .setSessionTimeZone(getConfig.getLocalTimeZone)
         .build
     } catch {
       case e: Exception =>
@@ -827,6 +828,7 @@ abstract class TableEnvImpl(
           .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING)))
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.rawContent())
+          .setSessionTimeZone(getConfig.getLocalTimeZone)
           .build
       case descOperation: DescribeTableOperation =>
         val result = catalogManager.getTable(descOperation.getSqlIdentifier)
