@@ -955,7 +955,7 @@ public class SqlToOperationConverter {
         if (constraint.isEnforced()) {
             throw new ValidationException(
                     "Flink doesn't support ENFORCED mode for "
-                            + "PRIMARY KEY constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+                            + "PRIMARY KEY constraint. ENFORCED/NOT ENFORCED  controls if the constraint "
                             + "checks are performed on the incoming/outgoing data. "
                             + "Flink does not own the data therefore the only supported mode "
                             + "is the NOT ENFORCED mode");
