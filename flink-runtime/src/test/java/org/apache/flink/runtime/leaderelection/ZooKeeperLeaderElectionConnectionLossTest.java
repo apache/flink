@@ -25,7 +25,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-/** Test behaviors of {@link ZooKeeperLeaderElectionDriver} on {@link ConnectionLossException} */
+/**
+ * Test behaviors of {@link ZooKeeperLeaderElectionDriver} on {@link ConnectionLossException}.
+ */
+
 public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 
     private static final String LATCH_PATH = "/latch";
