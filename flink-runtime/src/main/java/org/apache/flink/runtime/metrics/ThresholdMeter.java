@@ -77,11 +77,12 @@ public class ThresholdMeter implements Meter {
     }
 
     public void checkAgainstThreshold() throws ThresholdExceedException {
-        if (getEventCountsRecentInterval() >= maxEventsPerInterval) {
+        int recentEvents = getEventCountsRecentInterval();
+        if (recentEvents >= maxEventsPerInterval) {
             throw new ThresholdExceedException(
                     String.format(
                             "%d events detected in the recent interval, reaching the threshold %f.",
-                            getEventCountsRecentInterval(), maxEventsPerInterval));
+                            recentEvents, maxEventsPerInterval));
         }
     }
 
