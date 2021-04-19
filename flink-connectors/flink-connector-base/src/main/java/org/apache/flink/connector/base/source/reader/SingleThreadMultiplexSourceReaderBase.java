@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -56,6 +57,7 @@ import java.util.function.Supplier;
  * @param <SplitT> The type of the splits processed by the source.
  * @param <SplitStateT> The type of the mutable state per split.
  */
+@PublicEvolving
 public abstract class SingleThreadMultiplexSourceReaderBase<
                 E, T, SplitT extends SourceSplit, SplitStateT>
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {

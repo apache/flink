@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.synchronization;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -69,6 +70,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * @param <T> the type of the elements in the queue.
  */
+@PublicEvolving
 public class FutureCompletingBlockingQueue<T> {
 
     /**

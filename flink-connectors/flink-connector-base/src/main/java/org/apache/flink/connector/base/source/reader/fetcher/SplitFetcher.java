@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** The internal fetcher runnable responsible for polling message from the external system. */
+@Internal
 public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcher.class);
     private static final SplitFetcherTask WAKEUP_TASK = new DummySplitFetcherTask("WAKEUP_TASK");
