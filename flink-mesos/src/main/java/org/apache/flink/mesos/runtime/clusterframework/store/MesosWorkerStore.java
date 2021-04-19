@@ -29,7 +29,13 @@ import scala.Option;
 
 import static java.util.Objects.requireNonNull;
 
-/** A store of Mesos workers and associated framework information. */
+/**
+ * A store of Mesos workers and associated framework information.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public interface MesosWorkerStore {
 
     /** The template for naming the worker. */

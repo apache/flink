@@ -219,6 +219,11 @@ The options in this section are necessary for setups where Flink itself actively
 
 ### Mesos
 
+{{< hint warning >}}
+Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the future (see 
+[FLINK-22352](https://issues.apache.org/jira/browse/FLINK-22352) for further details).
+{{< /hint >}}
+
 {{< generated/mesos_configuration >}}
 
 **Mesos TaskManager**

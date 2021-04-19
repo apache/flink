@@ -32,7 +32,13 @@ import org.apache.mesos.SchedulerDriver;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** An abstract implementation of {@link MesosServices}. */
+/**
+ * An abstract implementation of {@link MesosServices}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public abstract class AbstractMesosServices implements MesosServices {
 
     private final ActorSystem actorSystem;

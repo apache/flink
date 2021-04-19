@@ -18,7 +18,13 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-/** The Mesos environment variables used for settings of the containers. */
+/**
+ * The Mesos environment variables used for settings of the containers.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosConfigKeys {
     // ------------------------------------------------------------------------
     //  Environment variable names
