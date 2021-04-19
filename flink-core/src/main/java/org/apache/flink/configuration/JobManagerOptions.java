@@ -401,7 +401,7 @@ public class JobManagerOptions {
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofSeconds(10))
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             Description.builder()
                                     .text(
