@@ -49,6 +49,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -1409,6 +1410,24 @@ public class SqlToOperationConverterTest {
                 (EndStatementSetOperation) operation;
 
         assertEquals("END", endStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testSqlRichExplainWithSelect() {
+        final String sql = "explain plan for select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testSqlRichExplainWithInsert() {
+        final String sql = "explain plan for insert into t1 select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof ExplainOperation);
     }
 
     // ~ Tool Methods ----------------------------------------------------------

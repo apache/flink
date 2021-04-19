@@ -147,6 +147,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -903,7 +904,17 @@ public class SqlToOperationConverter {
 
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
-        Operation operation = convertSqlQuery(sqlExplain.getStatement());
+        Operation operation;
+        SqlNode sqlNode = sqlExplain.getStatement();
+        if (sqlNode instanceof RichSqlInsert) {
+            operation = convertSqlInsert((RichSqlInsert) sqlNode);
+        } else if (sqlNode instanceof SqlSelect) {
+            operation = convertSqlQuery(sqlExplain.getStatement());
+        } else {
+            throw new ValidationException(
+                    String.format(
+                            "EXPLAIN statement doesn't support %s", sqlNode.getKind().toString()));
+        }
         return new ExplainOperation(operation);
     }
 
