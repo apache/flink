@@ -50,6 +50,9 @@ message UserDefinedFunction {
 
   // Whether the UDF takes row as input instead of each columns of a row
   bool takes_row_as_input = 4;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
 }
 
 // A list of user-defined functions to be executed in a batch.
