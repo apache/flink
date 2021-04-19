@@ -95,7 +95,13 @@ final class TestValuesRuntimeFunctions {
     }
 
     static List<Watermark> getWatermarks(String tableName) {
-        return watermarkHistory.getOrDefault(tableName, new ArrayList<>());
+        synchronized (TestValuesTableFactory.class) {
+            if (watermarkHistory.containsKey(tableName)) {
+                return new ArrayList<>(watermarkHistory.get(tableName));
+            } else {
+                return Collections.emptyList();
+            }
+        }
     }
 
     static List<String> getResults(String tableName) {
@@ -122,6 +128,7 @@ final class TestValuesRuntimeFunctions {
             globalRawResult.clear();
             globalUpsertResult.clear();
             globalRetractResult.clear();
+            watermarkHistory.clear();
         }
     }
 
