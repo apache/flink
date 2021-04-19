@@ -549,7 +549,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
 
             @Override
-            public EnumeratorState snapshotState() throws Exception {
+            public EnumeratorState snapshotState(long checkpointId) throws Exception {
                 LOG.info("snapshotState {}", state);
                 return state;
             }
