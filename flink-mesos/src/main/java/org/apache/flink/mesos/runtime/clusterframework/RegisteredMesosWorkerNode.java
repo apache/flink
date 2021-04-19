@@ -27,7 +27,11 @@ import java.io.Serializable;
 
 /**
  * A representation of a registered Mesos task managed by the {@link MesosResourceManagerDriver}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
 
     private static final long serialVersionUID = 2;

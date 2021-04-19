@@ -63,7 +63,11 @@ import static org.apache.flink.mesos.configuration.MesosOptions.PORT_ASSIGNMENTS
  *
  * <p>Translates the abstract {@link ContainerSpecification} into a concrete Mesos-specific {@link
  * Protos.TaskInfo}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class LaunchableMesosWorker implements LaunchableTask {
 
     protected static final Logger LOG = LoggerFactory.getLogger(LaunchableMesosWorker.class);

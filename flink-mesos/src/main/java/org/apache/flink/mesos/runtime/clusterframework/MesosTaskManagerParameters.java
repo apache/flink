@@ -47,7 +47,11 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  *
  * <p>These parameters are in addition to the common parameters provided by {@link
  * ContaineredTaskManagerParameters}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class MesosTaskManagerParameters {
 
     /**
