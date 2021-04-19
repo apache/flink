@@ -230,6 +230,18 @@ class CodersTest(PyFlinkTestCase):
         row.set_row_kind(RowKind.DELETE)
         self.check_cython_coder(python_field_coders, cython_field_coders, data)
 
+    def test_cython_coder_with_wrong_result_type(self):
+        from apache_beam.coders.coder_impl import create_OutputStream
+        from pyflink.fn_execution.beam.beam_stream import BeamOutputStream
+        data = ['1']
+        cython_field_coders = [coder_impl_fast.BigIntCoderImpl() for _ in range(len(data))]
+        cy_flatten_row_coder = coder_impl_fast.FlattenRowCoderImpl(cython_field_coders)
+        beam_output_stream = create_OutputStream()
+        output_stream = BeamOutputStream(beam_output_stream)
+        with self.assertRaises(TypeError) as context:
+            cy_flatten_row_coder.encode_to_stream(data, output_stream)
+        self.assertIn('an integer is required', str(context.exception))
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
