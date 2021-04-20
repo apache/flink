@@ -28,7 +28,7 @@ under the License.
 
 Windows are at the heart of processing infinite streams. Windows split the stream into “buckets” of finite size, over which we can apply computations. This document focuses on how windowing is performed in Flink SQL and how the programmer can benefit to the maximum from its offered functionality.
 
-Apache Flink provides several windowing table-valued functions (TVF) to divide the elements of your table into windows, including:
+Apache Flink provides several window table-valued functions (TVF) to divide the elements of your table into windows, including:
 
 - [Tumble Windows](#tumble)
 - [Hop Windows](#hop)
@@ -37,7 +37,7 @@ Apache Flink provides several windowing table-valued functions (TVF) to divide t
 
 Note that each element can logically belong to more than one window, depending on the windowing table-valued function you use. For example, HOP windowing creates overlapping windows wherein a single element can be assigned to multiple windows.
 
-Windowing TVFs are Flink defined Polymorphic Table Functions (abbreviated PTF). PTF is the part of the SQL 2016 standard which is a special table-function, but can have table as parameter. PTF is a powerful feature to change the shape of a table. Because PTFs are semantically used like tables, their invocation occurs in a `FROM` clause of a `SELECT` statement.
+Windowing TVFs are Flink defined Polymorphic Table Functions (abbreviated PTF). PTF is part of the SQL 2016 standard, a special table-function, but can have a table as a parameter. PTF is a powerful feature to change the shape of a table. Because PTFs are used semantically like tables, their invocation occurs in a `FROM` clause of a `SELECT` statement.
 
 Windowing TVFs is a replacement of legacy [Grouped Window Functions]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated). Windowing TVFs is more SQL standard compliant and more powerful to support complex window-based computations, e.g. Window TopN, Window Join. However, [Grouped Window Functions]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation) can only support Window Aggregation.
 
@@ -52,7 +52,7 @@ Apache Flink provides 3 built-in windowing TVFs: TUMBLE, `HOP` and `CUMULATE`. T
 
 ### TUMBLE
 
-The `TUMBLE` function assigns each element to a window of a specified window size. Tumbling windows have a fixed size and do not overlap. For example, if you specify a tumbling window with a size of 5 minutes, the current window will be evaluated and a new window will be started every five minutes as illustrated by the following figure.
+The `TUMBLE` function assigns each element to a window of specified window size. Tumbling windows have a fixed size and do not overlap. For example, suppose you specify a tumbling window with a size of 5 minutes. In that case, Flink will evaluate the current window, and a new window started every five minutes, as illustrated by the following figure.
 
 {{< img src="/fig/tumbling-windows.svg" alt="Tumbling Windows" width="70%">}}
 
@@ -134,9 +134,9 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 
 ### HOP
 
-The `HOP` function assigns elements to windows of fixed length. Similar to a `TUMBLE` windowing function, the size of the windows is configured by the window size parameter. An additional window slide parameter controls how frequently a hopping window is started. Hence, hopping windows can be overlapping if the slide is smaller than the window size. In this case elements are assigned to multiple windows. Hopping windows is also known as "sliding windows".
+The `HOP` function assigns elements to windows of fixed length. Like a `TUMBLE` windowing function, the size of the windows is configured by the window size parameter. An additional window slide parameter controls how frequently a hopping window is started. Hence, hopping windows can be overlapping if the slide is smaller than the window size. In this case, elements are assigned to multiple windows. Hopping windows are also known as "sliding windows".
 
-For example, you could have windows of size 10 minutes that slides by 5 minutes. With this you get every 5 minutes a window that contains the events that arrived during the last 10 minutes as depicted by the following figure.
+For example, you could have windows of size 10 minutes that slides by 5 minutes. With this, you get every 5 minutes a window that contains the events that arrived during the last 10 minutes, as depicted by the following figure.
 
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
@@ -205,7 +205,7 @@ Here is an example invocation on the `Bid` table:
 
 Cumulating windows are very useful in some scenarios, such as tumbling windows with early firing in a fixed window interval. For example, a daily dashboard draws cumulative UVs from 00:00 to every minute, the UV at 10:00 represents the total number of UV from 00:00 to 10:00. This can be easily and efficiently implemented by CUMULATE windowing.
 
-The `CUMULATE` function assigns elements to windows that cover rows within an initial interval of step size, and expanding to one more step size (keep window start fixed) every step until to the max window size.
+The `CUMULATE` function assigns elements to windows that cover rows within an initial interval of step size and expand to one more step size (keep window start fixed) every step until the max window size.
 You can think `CUMULATE` function as applying `TUMBLE` windowing with max window size first, and split each tumbling windows into several windows with same window start and window ends of step-size difference. So cumulating windows do overlap and don't have a fixed size.
 
 For example, you could have a cumulating window for 1 hour step and 1 day max size, and you will get windows: `[00:00, 01:00)`, `[00:00, 02:00)`, `[00:00, 03:00)`, ..., `[00:00, 24:00)` for every day.
