@@ -1000,7 +1000,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  ts2 timestamp_ltz(3) metadata from 'timestamp',
         |  `__source__` varchar(255),
         |  proc as proctime(),
-        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)) - interval '5' second,
+        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)),
         |  constraint test_constraint primary key (a, b) not enforced
         |) comment 'test show create table statement'
         |partitioned by (b,h)
@@ -1023,7 +1023,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
           |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
           |  `__source__` VARCHAR(255),
           |  `proc` AS PROCTIME(),
-          |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)) - INTERVAL '5' SECOND,
+          |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)),
           |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
           |) COMMENT 'test show create table statement'
           |PARTITIONED BY (`b`, `h`)
