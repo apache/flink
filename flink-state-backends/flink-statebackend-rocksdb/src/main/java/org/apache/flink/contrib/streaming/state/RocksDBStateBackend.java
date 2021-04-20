@@ -216,7 +216,6 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         }
         this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
         this.rocksDBStateBackend = new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
-        this.rocksDBStateBackend.setLogger(LOG);
     }
 
     /** @deprecated Use {@link #RocksDBStateBackend(StateBackend)} instead. */
@@ -588,7 +587,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
 
     @VisibleForTesting
     static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
-        EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempDirectory, LOG);
+        EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempDirectory);
     }
 
     @VisibleForTesting

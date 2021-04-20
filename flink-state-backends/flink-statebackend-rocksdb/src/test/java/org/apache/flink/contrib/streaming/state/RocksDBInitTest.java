@@ -62,7 +62,7 @@ public class RocksDBInitTest {
 
         File tempFolder = temporaryFolder.newFolder();
         try {
-            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath(), LOG);
+            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(tempFolder.getAbsolutePath());
             fail("Not throwing expected exception.");
         } catch (IOException ignored) {
             // ignored
