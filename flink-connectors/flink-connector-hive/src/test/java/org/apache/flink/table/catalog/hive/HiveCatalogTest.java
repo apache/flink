@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,6 +41,7 @@ import java.util.Map;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Test for HiveCatalog. */
@@ -119,5 +121,20 @@ public class HiveCatalogTest {
         assertEquals(hiveTable.getOptions().get("url"), "jdbc:clickhouse://host:port/testUrl1");
         assertEquals(
                 hiveTable.getOptions().get("flink.url"), "jdbc:clickhouse://host:port/testUrl2");
+    }
+
+    @Test
+    public void testCreateHiveConf() {
+        // hive-conf-dir not specified, should read hive-site from classpath
+        HiveConf hiveConf = HiveCatalog.createHiveConf(null, null);
+        assertEquals("common-val", hiveConf.get("common-key"));
+        // hive-conf-dir specified, shouldn't read hive-site from classpath
+        String hiveConfDir =
+                Thread.currentThread()
+                        .getContextClassLoader()
+                        .getResource("test-catalog-factory-conf")
+                        .getPath();
+        hiveConf = HiveCatalog.createHiveConf(hiveConfDir, null);
+        assertNull(hiveConf.get("common-key", null));
     }
 }
