@@ -37,8 +37,8 @@ The streaming aggregation optimizations mentioned in this page are all supported
 
 ## MiniBatch Aggregation
 
-By default, the group aggregation operators process input records one by one, i.e., (1) read accumulator from state, (2) accumulate/retract record to accumulator, (3) write accumulator back to state, (4) the next record will do the process again from (1). This processing pattern may increase the overhead of StateBackend (especially for RocksDB StateBackend).
-Besides, data skew which is very common in production will worsen the problem and make it easy for the jobs to be under backpressure situations.
+By default, group aggregation operators process input records one by one, i.e., (1) read accumulator from state, (2) accumulate/retract record to the accumulator, (3) write accumulator back to state, (4) the next record will do the process again from (1). This processing pattern may increase the overhead of StateBackend (especially for RocksDB StateBackend).
+Besides, data skew, which is very common in production, will worsen the problem and make it easy for the jobs to be under backpressure situations.
 
 The core idea of mini-batch aggregation is caching a bundle of inputs in a buffer inside of the aggregation operator. When the bundle of inputs is triggered to process, only one operation per key to access state is needed. This can significantly reduce the state overhead and get a better throughput. However, this may increase some latency because it buffers some records instead of processing them in an instant. This is a trade-off between throughput and latency.
 
@@ -49,8 +49,8 @@ The following figure explains how the mini-batch aggregation reduces state opera
 MiniBatch optimization is disabled by default for group aggregation. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
 
 {{< hint info >}}
-MiniBatch optimization is enabled by default for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) and it can't be disabled. Enable or disable above mini-batch configuration doesn't affect window aggregations.
-Besides, window aggregations buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of full GC or OOM problems.
+MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), regardless of the above configuration.
+Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
 The following examples show how to enable these options.
