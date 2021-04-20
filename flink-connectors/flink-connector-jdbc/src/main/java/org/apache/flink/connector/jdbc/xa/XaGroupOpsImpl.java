@@ -113,6 +113,7 @@ class XaGroupOpsImpl implements XaGroupOps {
         for (Xid xid : recovered) {
             try {
                 xaFacade.rollback(xid);
+                LOG.info("rollbacked transaction {}", xid);
             } catch (Exception e) {
                 LOG.info("unable to rollback recovered transaction, xid={}", xid, e);
             }

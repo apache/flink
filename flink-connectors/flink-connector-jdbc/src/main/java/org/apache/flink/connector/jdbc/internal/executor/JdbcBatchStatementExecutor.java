@@ -19,7 +19,9 @@
 package org.apache.flink.connector.jdbc.internal.executor;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.jdbc.JdbcKeyCreator;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
+import org.apache.flink.connector.jdbc.JdbcStatementFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -48,5 +50,12 @@ public interface JdbcBatchStatementExecutor<T> {
     static <T, V> JdbcBatchStatementExecutor<T> simple(
             String sql, JdbcStatementBuilder<V> paramSetter, Function<T, V> valueTransformer) {
         return new SimpleBatchStatementExecutor<>(sql, paramSetter, valueTransformer);
+    }
+
+    static <T> JdbcBatchStatementExecutor<T> dynamic(
+            JdbcStatementFactory<T> sqlFactory,
+            JdbcStatementBuilder<T> paramSetter,
+            JdbcKeyCreator<T> keyCreator) {
+        return new DynamicBatchStatementExecutor<>(sqlFactory, paramSetter, keyCreator);
     }
 }

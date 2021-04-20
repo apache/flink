@@ -40,6 +40,7 @@ public class JdbcTestFixture {
     public static final JdbcTestCheckpoint CP1 = new JdbcTestCheckpoint(1, 4, 5, 6);
 
     public static final String INPUT_TABLE = "books";
+    public static final String INPUT_TABLE_2 = "books2";
     public static final String OUTPUT_TABLE = "newbooks";
     public static final String OUTPUT_TABLE_2 = "newbooks2";
     public static final String OUTPUT_TABLE_3 = "newbooks3";
@@ -190,6 +191,7 @@ public class JdbcTestFixture {
         Class.forName(dbMetadata.getDriverClass());
         try (Connection conn = DriverManager.getConnection(dbMetadata.getInitUrl())) {
             createTable(conn, JdbcTestFixture.INPUT_TABLE);
+            createTable(conn, JdbcTestFixture.INPUT_TABLE_2);
             createTable(conn, OUTPUT_TABLE);
             createTable(conn, OUTPUT_TABLE_2);
             createTable(conn, OUTPUT_TABLE_3);
@@ -221,6 +223,7 @@ public class JdbcTestFixture {
                 Statement stat = conn.createStatement()) {
 
             stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
+            stat.executeUpdate("DROP TABLE " + INPUT_TABLE_2);
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_2);
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_3);
