@@ -117,9 +117,9 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 
 ### GROUPING SETS
 
-Window aggregations also supports `GROUPING SETS` syntax. Grouping sets allow for more complex grouping operations than those describable by a standard `GROUP BY`. Rows are grouped separately by each specified grouping set and aggregates are computed for each group just as for simple `GROUP BY` clauses.
+Window aggregations also support `GROUPING SETS` syntax. Grouping sets allow for more complex grouping operations than those describable by a standard `GROUP BY`. Rows are grouped separately by each specified grouping set and aggregates are computed for each group just as for simple `GROUP BY` clauses.
 
-Window aggregations with `GROUPING SETS` requires both the `window_start` and `window_end` columns have to be in the `GROUP BY` clause, but not in the `GROUPING SETS` clause.
+Window aggregations with `GROUPING SETS` require both the `window_start` and `window_end` columns have to be in the `GROUP BY` clause, but not in the `GROUPING SETS` clause.
 
 ```sql
 Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
@@ -138,7 +138,7 @@ Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
 +------------------+------------------+-------------+-------+
 ```
 
-Each sublist of `GROUPING SETS` may specify zero or more columns or expressions and is interpreted the same way as though it was used directly in the `GROUP BY` clause. An empty grouping set means that all rows are aggregated down to a single group, which is output even if no input rows were present.
+Each sublist of `GROUPING SETS` may specify zero or more columns or expressions and is interpreted the same way as though used directly in the `GROUP BY` clause. An empty grouping set means that all rows are aggregated down to a single group, which is output even if no input rows were present.
 
 References to the grouping columns or expressions are replaced by null values in result rows for grouping sets in which those columns do not appear.
 
@@ -192,7 +192,7 @@ The `window_start` and `window_end` columns are regular timestamp columns, not t
 In order to propagate time attributes, you need to additionally add `window_time` column into `GROUP BY` clause. The `window_time` is the third column produced by [Windowing TVFs]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}#window-functions) which is a time attribute of the assigned window.
 Adding `window_time` into `GROUP BY` clause makes `window_time` also to be group key that can be selected. Then following queries can use this column for subsequent time-based operations, such as cascading window aggregations and [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}).
 
-The following shows a cascading window aggregation where the first window aggregation propagate time attribute for the second window aggregation.
+The following shows a cascading window aggregation where the first window aggregation propagates the time attribute for the second window aggregation.
 
 ```sql
 -- tumbling 5 minutes for each supplier_id

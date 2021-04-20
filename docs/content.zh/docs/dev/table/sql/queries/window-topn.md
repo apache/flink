@@ -27,12 +27,12 @@ under the License.
 
 Window Top-N is a special [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) which returns the N smallest or largest values for each window and other partitioned keys.
 
-For streaming queries, unlike regular Top-N on continuous tables, window Top-N do not emit intermediate results but only a final result, the total top N records at the end of the window. Moreover, window Top-N purge all intermediate state when no longer needed.
+For streaming queries, unlike regular Top-N on continuous tables, window Top-N does not emit intermediate results but only a final result, the total top N records at the end of the window. Moreover, window Top-N purges all intermediate state when no longer needed.
 Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) together.
 
 Window Top-N can be defined in the same syntax as regular Top-N, see [Top-N documentation]({{< ref "docs/dev/table/sql/queries/topn" >}}) for more information.
 Besides that, Window Top-N requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation applied [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) or [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}).
-Otherwise the optimizer won’t be able to translate the query.
+Otherwise, the optimizer won’t be able to translate the query.
 
 
 The following shows the syntax of the Window Top-N statement:

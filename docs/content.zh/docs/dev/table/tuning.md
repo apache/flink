@@ -49,8 +49,8 @@ MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子�
 默认情况下，对于无界聚合算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
 {{< hint info >}}
-MiniBatch optimization is enabled by default for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) and it can't be disabled. Enable or disable above mini-batch configuration doesn't affect window aggregations.
-Besides, window aggregations buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of full GC or OOM problems.
+MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), regardless of the above configuration.
+Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
 下面的例子显示如何启用这些选项。
