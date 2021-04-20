@@ -467,7 +467,7 @@ SHOW CREATE TABLE
 
 Show create table statement for specified table.
 
-<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL. 
+<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL. 
 
 ## SHOW VIEWS
 

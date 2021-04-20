@@ -147,7 +147,6 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -185,7 +184,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private final ModuleManager moduleManager;
     private final OperationTreeBuilder operationTreeBuilder;
     private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
-    private final String printIndent = "  ";
 
     protected final TableConfig tableConfig;
     protected final Executor execEnv;
@@ -1133,7 +1131,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             ShowCreateTableOperation showCreateTableOperation =
                     (ShowCreateTableOperation) operation;
             Optional<CatalogManager.TableLookupResult> result =
-                    catalogManager.getTable(showCreateTableOperation.getSqlIdentifier());
+                    catalogManager.getTable(showCreateTableOperation.getTableIdentifier());
             if (result.isPresent()) {
                 return TableResultImpl.builder()
                         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
@@ -1143,8 +1141,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         Row.of(
                                                 buildShowCreateTableRow(
                                                         result.get().getResolvedTable(),
-                                                        ((ShowCreateTableOperation) operation)
-                                                                .getSqlIdentifier(),
+                                                        showCreateTableOperation
+                                                                .getTableIdentifier(),
                                                         result.get().isTemporary()))))
                         .setPrintStyle(TableResultImpl.PrintStyle.rawContent())
                         .build();
@@ -1153,7 +1151,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         String.format(
                                 "Could not execute SHOW CREATE TABLE. Table with identifier %s does not exist.",
                                 showCreateTableOperation
-                                        .getSqlIdentifier()
+                                        .getTableIdentifier()
                                         .asSerializableString()));
             }
         } else if (operation instanceof ShowCurrentCatalogOperation) {
@@ -1330,21 +1328,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
-            ObjectIdentifier sqlIdentifier,
+            ObjectIdentifier tableIdentifier,
             boolean isTemporary) {
+        final String printIndent = "  ";
         CatalogBaseTable.TableKind kind = table.getTableKind();
         if (kind == CatalogBaseTable.TableKind.VIEW) {
             throw new TableException(
                     String.format(
                             "SHOW CREATE TABLE does not support showing CREATE VIEW statement with identifier %s.",
-                            sqlIdentifier.asSerializableString()));
+                            tableIdentifier.asSerializableString()));
         }
         StringBuilder sb =
                 new StringBuilder(
                         String.format(
                                 "CREATE %sTABLE %s (\n",
                                 isTemporary ? "TEMPORARY " : "",
-                                sqlIdentifier.asSerializableString()));
+                                tableIdentifier.asSerializableString()));
         ResolvedSchema schema = table.getResolvedSchema();
         // append columns
         sb.append(
@@ -1361,14 +1360,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                             String.format(
                                                     "%sWATERMARK FOR %s AS %s",
                                                     printIndent,
-                                                    String.join(
-                                                            ".",
-                                                            EncodingUtils.escapeIdentifier(
-                                                                    watermarkSpec
-                                                                            .getRowtimeAttribute())),
+                                                    EncodingUtils.escapeIdentifier(
+                                                            watermarkSpec.getRowtimeAttribute()),
                                                     watermarkSpec
                                                             .getWatermarkExpression()
-                                                            .asSummaryString()))
+                                                            .asSerializableString()))
                             .collect(Collectors.joining("\n")));
         }
         // append constraint
@@ -1388,7 +1384,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             sb.append("PARTITIONED BY (")
                     .append(
                             catalogTable.getPartitionKeys().stream()
-                                    .map(key -> String.format("`%s`", key))
+                                    .map(EncodingUtils::escapeIdentifier)
                                     .collect(Collectors.joining(", ")))
                     .append(")\n");
         }
@@ -1424,14 +1420,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             "Column expression can not be null for computed column '%s'",
                                                             column.getName()))));
         } else {
-            DataType dataType = column.getDataType();
-            String type = dataType.toString();
-            LogicalType logicalType = dataType.getLogicalType();
-            // skip internal timestamp kind
-            if (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-                type = logicalType.asSerializableString();
-            }
-            sb.append(type);
+            sb.append(column.getDataType().getLogicalType().asSerializableString());
             column.explainExtras()
                     .ifPresent(
                             e -> {

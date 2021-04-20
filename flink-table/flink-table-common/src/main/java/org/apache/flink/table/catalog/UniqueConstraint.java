@@ -56,7 +56,7 @@ public final class UniqueConstraint extends AbstractConstraint {
         return columns;
     }
 
-    private final String getTypeString() {
+    private String getTypeString() {
         switch (getType()) {
             case PRIMARY_KEY:
                 return "PRIMARY KEY";

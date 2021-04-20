@@ -994,9 +994,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |  g as 2*(a+1),
         |  b string not null,
         |  c bigint metadata virtual,
-        |  ts timestamp(3),
+        |  e row<name string, age int, flag boolean>,
+        |  f as myfunc(a),
+        |  ts1 timestamp(3),
+        |  ts2 timestamp_ltz(3) metadata from 'timestamp',
+        |  `__source__` varchar(255),
         |  proc as proctime(),
-        |  watermark for ts as ts - interval '5' second,
+        |  watermark for ts1 as cast(timestampadd(hour, 8, ts1) as timestamp(3)) - interval '5' second,
         |  constraint test_constraint primary key (a, b) not enforced
         |) comment 'test show create table statement'
         |partitioned by (b,h)
@@ -1009,13 +1013,17 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val expectedDDL =
       """ |CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`TBL1` (
           |  `a` BIGINT NOT NULL,
-          |  `h` STRING,
+          |  `h` VARCHAR(2147483647),
           |  `g` AS 2 * (`a` + 1),
-          |  `b` STRING NOT NULL,
+          |  `b` VARCHAR(2147483647) NOT NULL,
           |  `c` BIGINT METADATA VIRTUAL,
-          |  `ts` TIMESTAMP(3),
+          |  `e` ROW<`name` VARCHAR(2147483647), `age` INT, `flag` BOOLEAN>,
+          |  `f` AS `default_catalog`.`default_database`.`myfunc`(`a`),
+          |  `ts1` TIMESTAMP(3),
+          |  `ts2` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp',
+          |  `__source__` VARCHAR(255),
           |  `proc` AS PROCTIME(),
-          |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND,
+          |  WATERMARK FOR `ts1` AS CAST(TIMESTAMPADD(HOUR, 8, `ts1`) AS TIMESTAMP(3)) - INTERVAL '5' SECOND,
           |  CONSTRAINT `test_constraint` PRIMARY KEY (`a`, `b`) NOT ENFORCED
           |) COMMENT 'test show create table statement'
           |PARTITIONED BY (`b`, `h`)

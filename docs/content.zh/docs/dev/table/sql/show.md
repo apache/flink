@@ -467,7 +467,7 @@ SHOW CREATE TABLE [catalog_name.][db_name.]table_name
 
 展示创建指定表的 create 语句。
 
-<span class="label label-danger">Attention</span> 目前 `SHOW CREATE TABLE` 只支持通过 Flink SQL 创建的表。
+<span class="label label-danger">Attention</span> 目前 `SHOW CREATE TABLE` 只支持通过 Flink SQL DDL 创建的表。
 
 ## SHOW VIEWS
 
