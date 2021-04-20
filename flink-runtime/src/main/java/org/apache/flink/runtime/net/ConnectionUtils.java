@@ -352,7 +352,7 @@ public class ConnectionUtils {
             return true;
         } catch (Exception ex) {
             String message =
-                    "Failed to connect from address '" + fromAddress + "': " + ex.getMessage();
+                    "Failed to connect from address '" + fromAddress + "' to address '" + toSocket + "': " + ex.getMessage();
             if (LOG.isDebugEnabled()) {
                 LOG.debug(message, ex);
             } else if (logFailed) {
