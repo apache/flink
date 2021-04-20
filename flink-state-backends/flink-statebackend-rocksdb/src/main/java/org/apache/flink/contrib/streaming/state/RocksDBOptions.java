@@ -63,7 +63,7 @@ public class RocksDBOptions {
     public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
             ConfigOptions.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
                     .intType()
-                    .defaultValue(1)
+                    .defaultValue(4)
                     .withDescription(
                             "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
