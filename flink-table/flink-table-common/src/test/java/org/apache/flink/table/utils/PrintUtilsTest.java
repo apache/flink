@@ -191,7 +191,7 @@ public class PrintUtilsTest {
                 getSchema(),
                 Collections.<Row>emptyList().iterator(),
                 new PrintWriter(outContent),
-                ZoneId.of("UTC"));
+                UTC_ZONE_ID);
 
         assertEquals("Empty set" + System.lineSeparator(), outContent.toString());
     }

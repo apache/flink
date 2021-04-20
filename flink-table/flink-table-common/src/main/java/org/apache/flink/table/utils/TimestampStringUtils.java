@@ -26,7 +26,7 @@ import java.time.LocalDateTime;
 @Internal
 public class TimestampStringUtils {
 
-    // TODO this method is copied from org.apache.flink.table.runtime.functions.SqlDDateTimeUtils,
+    // TODO this method is copied from org.apache.flink.table.runtime.functions.SqlDateTimeUtils,
     // we can refactor these utils in the future
     public static String timestampToString(LocalDateTime ldt, int precision) {
         String fraction = pad(9, (long) ldt.getNano());

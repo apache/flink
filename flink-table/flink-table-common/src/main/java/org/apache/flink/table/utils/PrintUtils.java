@@ -21,12 +21,9 @@ package org.apache.flink.table.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -254,7 +251,7 @@ public class PrintUtils {
         switch (typeRoot) {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return formatTimestampData(field, fieldType, sessionTimeZone);
+                return formatTimestampField(field, fieldType, sessionTimeZone);
             case ARRAY:
                 LogicalType elementType = ((ArrayType) fieldType).getElementType();
                 if (field instanceof List) {
@@ -265,17 +262,6 @@ public class PrintUtils {
                                 formattedTimestamp(array.get(i), elementType, sessionTimeZone);
                     }
                     return formattedArray;
-                } else if (field instanceof ArrayData) {
-                    ArrayData array = (ArrayData) field;
-                    Object[] formattedArray = new Object[array.size()];
-                    for (int i = 0; i < array.size(); i++) {
-                        formattedArray[i] =
-                                formattedTimestamp(
-                                        array.getTimestamp(i, getPrecision(elementType)),
-                                        elementType,
-                                        sessionTimeZone);
-                    }
-                    return new GenericArrayData(formattedArray).toObjectArray();
                 } else if (field.getClass().isArray()) {
                     // primitive type
                     if (field.getClass() == byte[].class) {
@@ -420,7 +406,7 @@ public class PrintUtils {
      * Formats the print content of TIMESTAMP and TIMESTAMP_LTZ type data, consider the user
      * configured time zone.
      */
-    private static Object formatTimestampData(
+    private static Object formatTimestampField(
             Object timestampField, LogicalType fieldType, ZoneId sessionTimeZone) {
         switch (fieldType.getTypeRoot()) {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
@@ -511,9 +497,9 @@ public class PrintUtils {
 
         // determine proper column width based on types
         for (int i = 0; i < columns.size(); ++i) {
-            DataType type = columns.get(i).getDataType();
+            LogicalType type = columns.get(i).getDataType().getLogicalType();
             int len;
-            switch (type.getLogicalType().getTypeRoot()) {
+            switch (type.getTypeRoot()) {
                 case TINYINT:
                     len = TinyIntType.PRECISION + 1; // extra for negative value
                     break;
@@ -528,7 +514,7 @@ public class PrintUtils {
                     break;
                 case DECIMAL:
                     len =
-                            ((DecimalType) type.getLogicalType()).getPrecision()
+                            ((DecimalType) type).getPrecision()
                                     + 2; // extra for negative value and decimal point
                     break;
                 case BOOLEAN:
@@ -538,15 +524,15 @@ public class PrintUtils {
                     len = 10; // e.g. 9999-12-31
                     break;
                 case TIME_WITHOUT_TIME_ZONE:
-                    int precision = ((TimeType) type.getLogicalType()).getPrecision();
+                    int precision = ((TimeType) type).getPrecision();
                     len = precision == 0 ? 8 : precision + 9; // 23:59:59[.999999999]
                     break;
                 case TIMESTAMP_WITHOUT_TIME_ZONE:
-                    precision = ((TimestampType) type.getLogicalType()).getPrecision();
+                    precision = ((TimestampType) type).getPrecision();
                     len = timestampTypeColumnWidth(precision);
                     break;
                 case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                    precision = ((LocalZonedTimestampType) type.getLogicalType()).getPrecision();
+                    precision = ((LocalZonedTimestampType) type).getPrecision();
                     len = timestampTypeColumnWidth(precision);
                     break;
                 default:
