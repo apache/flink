@@ -52,23 +52,33 @@ WHERE rownum <= N [AND conditions]
 The following example shows how to calculate Top 3 suppliers who have the highest sales for every tumbling 10 minutes window.
 
 ```sql
--- Note: the bidtime column must have been defined as time attribute
-> SELECT * FROM Bid;
---+---------+-------+------+-------------+
---| bidtime | price | item | supplier_id |
---+---------+-------+------+-------------+
---|    8:05 |     4 |    A |   supplier1 |
---|    8:06 |     4 |    C |   supplier2 |
---|    8:07 |     2 |    G |   supplier1 |
---|    8:08 |     2 |    B |   supplier3 |
---|    8:09 |     5 |    D |   supplier4 |
---|    8:11 |     2 |    B |   supplier3 |
---|    8:13 |     1 |    E |   supplier1 |
---|    8:15 |     3 |    H |   supplier2 |
---|    8:17 |     6 |    F |   supplier5 |
---+---------+-------+------+-------------+
+-- tables must have time attribute, e.g. `bidtime` in this table
+Flink SQL> desc Bid;
++-------------+------------------------+------+-----+--------+---------------------------------+
+|        name |                   type | null | key | extras |                       watermark |
++-------------+------------------------+------+-----+--------+---------------------------------+
+|     bidtime | TIMESTAMP(3) *ROWTIME* | true |     |        | `bidtime` - INTERVAL '1' SECOND |
+|       price |         DECIMAL(10, 2) | true |     |        |                                 |
+|        item |                 STRING | true |     |        |                                 |
+| supplier_id |                 STRING | true |     |        |                                 |
++-------------+------------------------+------+-----+--------+---------------------------------+
 
-> SELECT *
+Flink SQL> SELECT * FROM Bid;
++------------------+-------+------+-------------+
+|          bidtime | price | item | supplier_id |
++------------------+-------+------+-------------+
+| 2020-04-15 08:05 |  4.00 |    A |   supplier1 |
+| 2020-04-15 08:06 |  4.00 |    C |   supplier2 |
+| 2020-04-15 08:07 |  2.00 |    G |   supplier1 |
+| 2020-04-15 08:08 |  2.00 |    B |   supplier3 |
+| 2020-04-15 08:09 |  5.00 |    D |   supplier4 |
+| 2020-04-15 08:11 |  2.00 |    B |   supplier3 |
+| 2020-04-15 08:13 |  1.00 |    E |   supplier1 |
+| 2020-04-15 08:15 |  3.00 |    H |   supplier2 |
+| 2020-04-15 08:17 |  6.00 |    F |   supplier5 |
++------------------+-------+------+-------------+
+
+Flink SQL> SELECT *
   FROM (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
     FROM (
@@ -78,17 +88,19 @@ The following example shows how to calculate Top 3 suppliers who have the highes
       GROUP BY window_start, window_end, supplier_id
     )
   ) WHERE rownum <= 3;
---+--------------+------------+-------------+-------+-----+--------+
---| window_start | window_end | supplier_id | price | cnt | rownum |
---+--------------+------------+-------------+-------+-----+--------+
---|         8:00 |       8:10 |   supplier1 |     6 |   2 |      1 |
---|         8:00 |       8:10 |   supplier4 |     5 |   1 |      2 |
---|         8:00 |       8:10 |   supplier2 |     4 |   1 |      3 |
---|         8:10 |       8:20 |   supplier5 |     6 |   1 |      1 |
---|         8:10 |       8:20 |   supplier2 |     3 |   1 |      2 |
---|         8:10 |       8:20 |   supplier3 |     2 |   1 |      3 |
---+--------------+------------+-------------+-------+-----+--------+
++------------------+------------------+-------------+-------+-----+--------+
+|     window_start |       window_end | supplier_id | price | cnt | rownum |
++------------------+------------------+-------------+-------+-----+--------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier1 |  6.00 |   2 |      1 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier4 |  5.00 |   1 |      2 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier2 |  4.00 |   1 |      3 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier5 |  6.00 |   1 |      1 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier2 |  3.00 |   1 |      2 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier3 |  2.00 |   1 |      3 |
++------------------+------------------+-------------+-------+-----+--------+
 ```
+
+*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
 
 ## Limitation
 

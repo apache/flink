@@ -45,60 +45,75 @@ Flink supports `TUMBLE`, `HOP` and `CUMULATE` types of window aggregations, whic
 Here are some examples for `TUMBLE`, `HOP` and `CUMULATE` window aggregations.
 
 ```sql
--- assume bidtime has been defined as a time attribute in DDL
-> SELECT * FROM Bid;
---+---------+-------+------+-------------+
---| bidtime | price | item | supplier_id |
---+---------+-------+------+-------------+
---| 8:07    | $2    | A    | supplier1   |
---| 8:11    | $3    | B    | supplier2   |
---| 8:05    | $4    | C    | supplier1   |
---| 8:09    | $5    | D    | supplier2   |
---| 8:13    | $1    | E    | supplier1   |
---| 8:17    | $6    | F    | supplier2   |
---+---------+-------+------+-------------+
+-- tables must have time attribute, e.g. `bidtime` in this table
+Flink SQL> desc Bid;
++-------------+------------------------+------+-----+--------+---------------------------------+
+|        name |                   type | null | key | extras |                       watermark |
++-------------+------------------------+------+-----+--------+---------------------------------+
+|     bidtime | TIMESTAMP(3) *ROWTIME* | true |     |        | `bidtime` - INTERVAL '1' SECOND |
+|       price |         DECIMAL(10, 2) | true |     |        |                                 |
+|        item |                 STRING | true |     |        |                                 |
+| supplier_id |                 STRING | true |     |        |                                 |
++-------------+------------------------+------+-----+--------+---------------------------------+
 
-> SELECT window_start, window_end, SUM(price)
+Flink SQL> SELECT * FROM Bid;
++------------------+-------+------+-------------+
+|          bidtime | price | item | supplier_id |
++------------------+-------+------+-------------+
+| 2020-04-15 08:05 | 4.00  | C    | supplier1   |
+| 2020-04-15 08:07 | 2.00  | A    | supplier1   |
+| 2020-04-15 08:09 | 5.00  | D    | supplier2   |
+| 2020-04-15 08:11 | 3.00  | B    | supplier2   |
+| 2020-04-15 08:13 | 1.00  | E    | supplier1   |
+| 2020-04-15 08:17 | 6.00  | F    | supplier2   |
++------------------+-------+------+-------------+
+
+-- tumbling window aggregation
+Flink SQL> SELECT window_start, window_end, SUM(price)
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
---+--------------+------------+-------+
---| window_start | window_end | price |
---+--------------+------------+-------+
---| 8:00         | 8:10       | $11   |
---| 8:10         | 8:20       | $10   |
---+--------------+------------+-------+
++------------------+------------------+-------+
+|     window_start |       window_end | price |
++------------------+------------------+-------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
++------------------+------------------+-------+
 
-> SELECT window_start, window_end, SUM(price)
+-- hopping window aggregation
+Flink SQL> SELECT window_start, window_end, SUM(price)
   FROM TABLE(
     HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
---+---------------+------------+-------+
---|  window_start | window_end | price |
---+---------------+------------+-------+
---| 8:00          | 8:10       | $11   |
---| 8:05          | 8:15       | $15   |
---| 8:10          | 8:20       | $10   |
---| 8:15          | 8:25       | $6    |
---+---------------+------------+-------+
++------------------+------------------+-------+
+|     window_start |       window_end | price |
++------------------+------------------+-------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
+| 2020-04-15 08:05 | 2020-04-15 08:15 | 15.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
+| 2020-04-15 08:15 | 2020-04-15 08:25 | 6.00  |
++------------------+------------------+-------+
 
-> SELECT window_start, window_end, SUM(price)
+-- cumulative window aggregation
+Flink SQL> SELECT window_start, window_end, SUM(price)
   FROM TABLE(
     CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end;
---+---------------+------------+-------+
---|  window_start | window_end | price |
---+---------------+------------+-------+
---| 8:00          | 8:06       | $4    |
---| 8:00          | 8:08       | $6    |
---| 8:00          | 8:10       | $11   |
---| 8:10          | 8:12       | $3    |
---| 8:10          | 8:14       | $4    |
---| 8:10          | 8:16       | $4    |
---| 8:10          | 8:18       | $10   |
---| 8:10          | 8:20       | $10   |
---+---------------+--------------------+
++------------------+------------------+-------+
+|     window_start |       window_end | price |
++------------------+------------------+-------+
+| 2020-04-15 08:00 | 2020-04-15 08:06 | 4.00  |
+| 2020-04-15 08:00 | 2020-04-15 08:08 | 6.00  |
+| 2020-04-15 08:00 | 2020-04-15 08:10 | 11.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:12 | 3.00  |
+| 2020-04-15 08:10 | 2020-04-15 08:14 | 4.00  |
+| 2020-04-15 08:10 | 2020-04-15 08:16 | 4.00  |
+| 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
++------------------+------------------+-------+
 ```
+
+*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
 
 ### GROUPING SETS
 
@@ -107,20 +122,20 @@ Window aggregations also supports `GROUPING SETS` syntax. Grouping sets allow fo
 Window aggregations with `GROUPING SETS` requires both the `window_start` and `window_end` columns have to be in the `GROUP BY` clause, but not in the `GROUPING SETS` clause.
 
 ```sql
-> SELECT window_start, window_end, supplier_id, SUM(price) as price
+Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) as price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   GROUP BY window_start, window_end, GROUPING SETS ((supplier_id), ());
---+--------------+------------+-------------+-------+
---| window_start | window_end | supplier_id | price |
---+--------------+------------+-------------+-------+
---|         8:00 |       8:10 |      (NULL) |   $11 |
---|         8:00 |       8:10 |   supplier2 |    $5 |
---|         8:00 |       8:10 |   supplier1 |    $6 |
---|         8:10 |       8:20 |      (NULL) |   $10 |
---|         8:10 |       8:20 |   supplier2 |    $9 |
---|         8:10 |       8:20 |   supplier1 |    $1 |
---+--------------+------------+-------------+-------+
++------------------+------------------+-------------+-------+
+|     window_start |       window_end | supplier_id | price |
++------------------+------------------+-------------+-------+
+| 2020-04-15 08:00 | 2020-04-15 08:10 |      (NULL) | 11.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier2 |  5.00 |
+| 2020-04-15 08:00 | 2020-04-15 08:10 |   supplier1 |  6.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |      (NULL) | 10.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier2 |  9.00 |
+| 2020-04-15 08:10 | 2020-04-15 08:20 |   supplier1 |  1.00 |
++------------------+------------------+-------------+-------+
 ```
 
 Each sublist of `GROUPING SETS` may specify zero or more columns or expressions and is interpreted the same way as though it was used directly in the `GROUP BY` clause. An empty grouping set means that all rows are aggregated down to a single group, which is output even if no input rows were present.
@@ -136,10 +151,10 @@ Window aggregations with `ROLLUP` requires both the `window_start` and `window_e
 For example, the following query is equivalent to the one above.
 
 ```sql
-> SELECT window_start, window_end, supplier_id, SUM(price) as price
-  FROM TABLE(
+SELECT window_start, window_end, supplier_id, SUM(price) as price
+FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
-  GROUP BY window_start, window_end, ROLLUP (supplier_id);
+GROUP BY window_start, window_end, ROLLUP (supplier_id);
 ```
 
 #### CUBE
