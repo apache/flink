@@ -54,7 +54,8 @@ class FlinkHepProgram[OC <: FlinkOptimizeContext] extends FlinkOptimizeProgram[O
     }
 
     try {
-      val planner = new HepPlanner(hepProgram.get, context)
+      val planner = new HepPlanner(
+        hepProgram.get, context, false, null, root.getCluster.getPlanner.getCostFactory)
       FlinkRelMdNonCumulativeCost.THREAD_PLANNER.set(planner)
 
       planner.setRoot(root)
