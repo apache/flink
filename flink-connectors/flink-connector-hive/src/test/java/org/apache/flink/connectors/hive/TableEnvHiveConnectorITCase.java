@@ -104,6 +104,11 @@ public class TableEnvHiveConnectorITCase {
                                     + "      LEFT OUTER JOIN src1 p2\n"
                                     + "      ON (t2.key = p2.key)) j")
                     .await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest order by key").collect());
+            assertEquals(
+                    "[+I[3, val3], +I[3, val3], +I[4, null], +I[4, null]]", results.toString());
         } finally {
             tableEnv.useDatabase("default");
             tableEnv.executeSql("drop database db1 cascade");
