@@ -38,6 +38,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.rocksdb.localdir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
                     .withDescription(
@@ -61,6 +62,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
             ConfigOptions.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
+                    .intType()
                     .defaultValue(1)
                     .withDescription(
                             "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
@@ -69,6 +71,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> PREDEFINED_OPTIONS =
             ConfigOptions.key("state.backend.rocksdb.predefined-options")
+                    .stringType()
                     .defaultValue(DEFAULT.name())
                     .withDescription(
                             String.format(
@@ -84,6 +87,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.rocksdb.options-factory")
+                    .stringType()
                     .defaultValue(DefaultConfigurableOptionsFactory.class.getName())
                     .withDescription(
                             String.format(
