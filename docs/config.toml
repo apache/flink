@@ -67,7 +67,7 @@ pygmentsUseClasses = true
   MenuLinks = [
     ["Project Homepage", "//flink.apache.org"],
     ["JavaDocs", "//ci.apache.org/projects/flink/flink-docs-release-1.13/api/java/"],
-    ["ScalaDocs", "//ci.apache.org/projects/flink/flink-docs-release-1.13/api/scala/index.html#org.apache.flink.api.scala.package/"]
+    ["ScalaDocs", "//ci.apache.org/projects/flink/flink-docs-release-1.13/api/scala/index.html#org.apache.flink.api.scala.package/"],
     ["PyDocs", "//ci.apache.org/projects/flink/flink-docs-release-1.13/api/python/"]
   ]
 
