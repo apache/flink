@@ -45,6 +45,14 @@ public final class ChangelogMode {
                     .addContainedKind(RowKind.DELETE)
                     .build();
 
+    private static final ChangelogMode ALL =
+            ChangelogMode.newBuilder()
+                    .addContainedKind(RowKind.INSERT)
+                    .addContainedKind(RowKind.UPDATE_BEFORE)
+                    .addContainedKind(RowKind.UPDATE_AFTER)
+                    .addContainedKind(RowKind.DELETE)
+                    .build();
+
     private final Set<RowKind> kinds;
 
     private ChangelogMode(Set<RowKind> kinds) {
@@ -64,6 +72,11 @@ public final class ChangelogMode {
      */
     public static ChangelogMode upsert() {
         return UPSERT;
+    }
+
+    /** Shortcut for a changelog that can contain all {@link RowKind}s. */
+    public static ChangelogMode all() {
+        return ALL;
     }
 
     /** Builder for configuring and creating instances of {@link ChangelogMode}. */
