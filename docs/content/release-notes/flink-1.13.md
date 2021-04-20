@@ -61,12 +61,12 @@ interval by 1.
 
 ##### [FLINK-20654](https://issues.apache.org/jira/browse/FLINK-20654)
 
-"Using unaligned checkpoints in Flink 1.12.0 combined with two/multiple inputs tasks or with union
+Using unaligned checkpoints in Flink 1.12.0 combined with two/multiple inputs tasks or with union
 inputs for single input tasks can result in corrupted state.
 
 This can happen if a new checkpoint is triggered before recovery is fully completed. For state to be
 corrupted a task with two or more input gates must receive a checkpoint barrier exactly at the same
-time this tasks finishes recovering spilled in-flight data. In such case this new checkpoint can
+time this task finishes recovering spilled in-flight data. In such case this new checkpoint can
 succeed, with corrupted/missing in-flight data, which will result in various
 deserialisation/corrupted data stream errors when someone attempts to recover from such corrupted
 checkpoint.
@@ -191,13 +191,29 @@ State access latency metrics are introduced to track all kinds of keyed state ac
 state performance. This feature is not enabled by default and could be turned on once
 setting `state.backend.latency-track.keyed-state-enabled` as true.
 
+#### Support for CPU FlameGraphs in new web UI
+
+##### [FLINK-13550](https://issues.apache.org/jira/browse/FLINK-13550)
+
+Flink now offers Flamegraphs for each node in the job graph. Please enable this experimental feature
+by setting the respective configuration flag `rest.flamegraph.enabled`.
+
+#### Display last n exceptions/causes for job restarts in Web UI
+
+##### [FLINK-6042](https://issues.apache.org/jira/browse/FLINK-6042)
+
+Flink exposes the exception history now through the REST API and the UI. The amount of most-recently
+handled exceptions that shall be tracked can be defined through `web.exception-history-size`.
+Some values of the exception history's REST API Json response are deprecated as part of this effort.
+
 #### Create backPressuredTimeMsPerSecond metric
 
 ##### [FLINK-20717](https://issues.apache.org/jira/browse/FLINK-20717)
 
 Previously `idleTimeMsPerSecond` was defined as the time task spent waiting for either the input or
 the back pressure. Now `idleTimeMsPerSecond` excludes back pressured time, so if the task is back
-pressured it is not idle. The back pressured time is now measured separately as `backPressuredTimeMsPerSecond`.
+pressured it is not idle. The back pressured time is now measured separately
+as `backPressuredTimeMsPerSecond`.
 
 #### Enable log4j2 monitor interval by default
 
@@ -222,10 +238,12 @@ Task's RUNNING state was split into two states: INITIALIZING and RUNNING. Task i
 state is initialising and in case of unaligned checkpoints, until all the in-flight data has been
 recovered.
 
-#### Support for CPU FlameGraphs in new web UI
+### Deployment
 
-##### [FLINK-13550](https://issues.apache.org/jira/browse/FLINK-13550)
+#### Officially deprecate Mesos support
 
-Flink now offers Flamegraphs for each node in the job graph. Please enable this experimental feature
-by setting the respective configuration flag `rest.flamegraph.enabled`.
+##### [FLINK-22352](https://issues.apache.org/jira/browse/FLINK-22352)
+
+The community decided to deprecate the Apache Mesos support for Apache Flink. It is subject to
+removal in the future. Users are encourage to switch to a different resource manager.
 
