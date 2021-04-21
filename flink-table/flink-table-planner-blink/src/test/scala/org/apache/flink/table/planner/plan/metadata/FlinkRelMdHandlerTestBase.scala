@@ -2616,7 +2616,7 @@ class FlinkRelMdHandlerTestBase {
     .build
 
   // select * from TableSourceTable1 left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
-  protected lazy val logicalLeftJoinWithNoneKeyTableUniqueKeys: RelNode = relBuilder
+  protected lazy val logicalLeftJoinWithNonKeyTableUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable3")
     .join(JoinRelType.LEFT,

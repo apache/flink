@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank}
+import org.apache.flink.table.planner.plan.utils.ExpandUtil
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.`type`.RelDataTypeFieldImpl
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, VARCHAR}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank}
-import org.apache.flink.table.planner.plan.utils.ExpandUtil
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import org.junit.Assert._
 import org.junit.Test
 
