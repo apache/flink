@@ -56,6 +56,36 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   }
 
   @Test
+  def testRowNumberOnOver(): Unit = {
+    val t = failingDataSource(TestData.tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+    val sqlQuery = "SELECT a, ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime()) FROM MyTable"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,1",
+      "2,2",
+      "3,1",
+      "3,2",
+      "3,3",
+      "4,1",
+      "4,2",
+      "4,3",
+      "4,4",
+      "5,1",
+      "5,2",
+      "5,3",
+      "5,4",
+      "5,5")
+    assertEquals(expected, sink.getAppendResults)
+  }
+
+  @Test
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
