@@ -18,18 +18,35 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.annotation.Internal;
+
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlAbstractTimeFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Function that returns current timestamp, the function return type is {@link
- * SqlTypeName#TIMESTAMP_WITH_LOCAL_TIME_ZONE}.
+ * Function that used to define SQL time function like LOCALTIMESTAMP, CURRENT_TIMESTAMP,
+ * CURRENT_ROW_TIMESTAMP(), NOW() in Flink, the function support configuring the return type and the
+ * precision of return type.
  */
-public class SqlCurrentTimestampFunction extends SqlAbstractTimeFunction {
+@Internal
+public class FlinkSqlTimestampFunction extends SqlAbstractTimeFunction {
 
-    public SqlCurrentTimestampFunction(String name) {
+    private final SqlTypeName returnTypeName;
+    private final int precision;
+
+    public FlinkSqlTimestampFunction(
+            String functionName, SqlTypeName returnTypeName, int precision) {
         // access protected constructor
-        super(name, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+        super(functionName, returnTypeName);
+        this.returnTypeName = returnTypeName;
+        this.precision = precision;
+    }
+
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        return opBinding.getTypeFactory().createSqlType(returnTypeName, precision);
     }
 
     @Override
