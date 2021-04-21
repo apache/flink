@@ -380,7 +380,7 @@ object AggregateUtil extends Enumeration {
       .zipWithIndex
       .map { case (call, index) =>
         val argIndexes = call.getAggregation match {
-          case _: SqlRankFunction => orderKeyIndexes
+          case _: SqlRankFunction => if (orderKeyIndexes != null) orderKeyIndexes else Array[Int]()
           case _ => call.getArgList.map(_.intValue()).toArray
         }
         transformToAggregateInfo(
