@@ -46,9 +46,11 @@ import com.ibm.icu.lang.UProperty;
 import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +61,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.utils.TimestampStringUtils.localTimeToUnixDate;
+import static org.apache.flink.table.utils.TimestampStringUtils.timeToInternal;
 import static org.apache.flink.table.utils.TimestampStringUtils.timestampToString;
+import static org.apache.flink.table.utils.TimestampStringUtils.unixTimeToString;
 
 /** Utilities for print formatting. */
 @Internal
@@ -238,7 +243,7 @@ public class PrintUtils {
     }
 
     /**
-     * Normalizes field that contains TIMESTAMP and TIMESTAMP_LTZ type data.
+     * Normalizes field that contains TIMESTAMP, TIMESTAMP_LTZ and TIME type data.
      *
      * <p>This method also supports nested type ARRAY, ROW, MAP.
      */
@@ -252,6 +257,8 @@ public class PrintUtils {
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 return formatTimestampField(field, fieldType, sessionTimeZone);
+            case TIME_WITHOUT_TIME_ZONE:
+                return formatTimeField(field);
             case ARRAY:
                 LogicalType elementType = ((ArrayType) fieldType).getElementType();
                 if (field instanceof List) {
@@ -450,6 +457,21 @@ public class PrintUtils {
                 }
             default:
                 return timestampField;
+        }
+    }
+
+    /** Formats the print content of TIME type data. */
+    private static Object formatTimeField(Object timeField) {
+        if (timeField.getClass().isAssignableFrom(int.class) || timeField instanceof Integer) {
+            return unixTimeToString((int) timeField);
+        } else if (timeField.getClass().isAssignableFrom(long.class) || timeField instanceof Long) {
+            return unixTimeToString(((Long) timeField).intValue());
+        } else if (timeField instanceof Time) {
+            return unixTimeToString(timeToInternal((Time) timeField));
+        } else if (timeField instanceof LocalTime) {
+            return unixTimeToString(localTimeToUnixDate((LocalTime) timeField));
+        } else {
+            return timeField;
         }
     }
 
