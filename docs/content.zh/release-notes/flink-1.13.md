@@ -57,28 +57,6 @@ The Failure Rate Restart Strategy was allowing 1 less restart per interval than 
 wishing to keep the current behavior should reduce the maximum number of allowed failures per
 interval by 1.
 
-#### Unaligned checkpoint recovery may lead to corrupted data stream
-
-##### [FLINK-20654](https://issues.apache.org/jira/browse/FLINK-20654)
-
-Using unaligned checkpoints in Flink 1.12.0 combined with two/multiple input tasks or with union
-inputs for single input tasks can result in corrupted state.
-
-This can happen if a new checkpoint is triggered before recovery is fully completed. For state to be
-corrupted a task with two or more input gates must receive a checkpoint barrier exactly at the same
-time this task finishes recovering spilled in-flight data. In such case this new checkpoint can
-succeed, with corrupted/missing in-flight data, which will result in various
-deserialisation/corrupted data stream errors when someone attempts to recover from such corrupted
-checkpoint.
-
-Using unaligned checkpoints in Flink 1.12.1, a corruption may occur in the checkpoint following a
-declined checkpoint.
-
-A late barrier of a canceled checkpoint may lead to buffers being not written into the successive
-checkpoint, such that recovery is not possible. This happens, when the next checkpoint barrier
-arrives at a given operator before all previous barriers arrived, which can only happen after
-cancellation in unaligned checkpoints.
-
 #### Support rescaling for Unaligned Checkpoints
 
 ##### [FLINK-17979](https://issues.apache.org/jira/browse/FLINK-17979)
