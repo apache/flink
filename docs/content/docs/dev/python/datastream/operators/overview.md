@@ -1,9 +1,9 @@
 ---
-title: "Operators"
-weight: 21
+title: "Overview"
+weight: 1
 type: docs
 aliases:
-  - /dev/python/datastream-api-users-guide/operators.html
+  - /dev/python/datastream/operators
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
