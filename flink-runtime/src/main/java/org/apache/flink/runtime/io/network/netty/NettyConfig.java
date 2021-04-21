@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
+import java.util.Iterator;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -49,7 +49,8 @@ public class NettyConfig {
 
     private final InetAddress serverAddress;
 
-    private final int serverPort;
+    private final String serverPortRange;
+    private final Iterator<Integer> serverPortRangeIterator;
 
     private final int memorySegmentSize;
 
@@ -59,15 +60,16 @@ public class NettyConfig {
 
     public NettyConfig(
             InetAddress serverAddress,
-            int serverPort,
+            Iterator<Integer> serverPortRangeIterator,
+            String serverPortRange,
             int memorySegmentSize,
             int numberOfSlots,
             Configuration config) {
 
         this.serverAddress = checkNotNull(serverAddress);
 
-        checkArgument(NetUtils.isValidHostPort(serverPort), "Invalid port number.");
-        this.serverPort = serverPort;
+        this.serverPortRangeIterator = serverPortRangeIterator;
+        this.serverPortRange = serverPortRange;
 
         checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");
         this.memorySegmentSize = memorySegmentSize;
@@ -84,8 +86,12 @@ public class NettyConfig {
         return serverAddress;
     }
 
-    int getServerPort() {
-        return serverPort;
+    String getServerPortRange() {
+        return serverPortRange;
+    }
+
+    Iterator<Integer> getServerPortRangeIterator() {
+        return serverPortRangeIterator;
     }
 
     // ------------------------------------------------------------------------
@@ -165,7 +171,7 @@ public class NettyConfig {
         String format =
                 "NettyConfig ["
                         + "server address: %s, "
-                        + "server port: %d, "
+                        + "server port range: %s, "
                         + "ssl enabled: %s, "
                         + "memory segment size (bytes): %d, "
                         + "transport type: %s, "
@@ -181,7 +187,7 @@ public class NettyConfig {
         return String.format(
                 format,
                 serverAddress,
-                serverPort,
+                serverPortRange,
                 getSSLEnabled() ? "true" : "false",
                 memorySegmentSize,
                 getTransportType(),

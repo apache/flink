@@ -32,6 +32,8 @@ import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.util.Collections;
+import java.util.Iterator;
 
 import static org.junit.Assert.assertEquals;
 
@@ -47,10 +49,15 @@ public class NettyConnectionManagerTest {
         // Expected number of arenas and threads
         int numberOfSlots = 2;
 
+        int availPort = NetUtils.getAvailablePort();
+        Iterator<Integer> portRangeIterator = Collections.singletonList(availPort).iterator();
+        String portRange = String.valueOf(availPort);
+
         NettyConfig config =
                 new NettyConfig(
                         InetAddress.getLocalHost(),
-                        NetUtils.getAvailablePort(),
+                        portRangeIterator,
+                        portRange,
                         1024,
                         numberOfSlots,
                         new Configuration());
@@ -111,10 +118,15 @@ public class NettyConnectionManagerTest {
         flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
         flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
 
+        int availPort = NetUtils.getAvailablePort();
+        Iterator<Integer> portRangeIterator = Collections.singletonList(availPort).iterator();
+        String portRange = String.valueOf(availPort);
+
         NettyConfig config =
                 new NettyConfig(
                         InetAddress.getLocalHost(),
-                        NetUtils.getAvailablePort(),
+                        portRangeIterator,
+                        portRange,
                         1024,
                         1337,
                         flinkConfig);

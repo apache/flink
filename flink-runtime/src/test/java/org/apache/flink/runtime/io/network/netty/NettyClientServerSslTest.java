@@ -42,6 +42,8 @@ import org.junit.runners.Parameterized;
 import javax.net.ssl.SSLSessionContext;
 
 import java.net.InetAddress;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
@@ -297,9 +299,13 @@ public class NettyClientServerSslTest extends TestLogger {
     }
 
     private static NettyConfig createNettyConfig(Configuration config) {
+        int availPort = NetUtils.getAvailablePort();
+        Iterator<Integer> portRangeIterator = Collections.singletonList(availPort).iterator();
+        String portRange = String.valueOf(availPort);
         return new NettyConfig(
                 InetAddress.getLoopbackAddress(),
-                NetUtils.getAvailablePort(),
+                portRangeIterator,
+                portRange,
                 NettyTestUtil.DEFAULT_SEGMENT_SIZE,
                 1,
                 config);

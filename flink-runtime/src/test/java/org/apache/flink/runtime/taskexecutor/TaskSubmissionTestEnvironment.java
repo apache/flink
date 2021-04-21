@@ -72,6 +72,7 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -285,8 +286,9 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
             final NettyConfig nettyConfig =
                     new NettyConfig(
-                            socketAddress.getAddress(),
-                            socketAddress.getPort(),
+                            InetAddress.getByName(testingRpcService.getAddress()),
+                            Collections.singletonList(socketAddress.getPort()).iterator(),
+                            String.valueOf(socketAddress.getPort()),
                             ConfigurationParserUtils.getPageSize(configuration),
                             ConfigurationParserUtils.getSlot(configuration),
                             configuration);

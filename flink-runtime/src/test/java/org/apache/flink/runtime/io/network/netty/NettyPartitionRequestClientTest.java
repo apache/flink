@@ -38,6 +38,8 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.Iterator;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -199,9 +201,18 @@ public class NettyPartitionRequestClientTest {
     private NettyPartitionRequestClient createPartitionRequestClient(
             Channel tcpChannel, NetworkClientHandler clientHandler) throws Exception {
         int port = NetUtils.getAvailablePort();
+        Iterator<Integer> portRangeIterator = Collections.singletonList(port).iterator();
+        String portRange = String.valueOf(port);
+
         ConnectionID connectionID = new ConnectionID(new InetSocketAddress("localhost", port), 0);
         NettyConfig config =
-                new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
+                new NettyConfig(
+                        InetAddress.getLocalHost(),
+                        portRangeIterator,
+                        portRange,
+                        1024,
+                        1,
+                        new Configuration());
         NettyClient nettyClient = new NettyClient(config);
         PartitionRequestClientFactory partitionRequestClientFactory =
                 new PartitionRequestClientFactory(nettyClient);

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 
@@ -64,6 +65,7 @@ class NettyServer {
     NettyServer(NettyConfig config) {
         this.config = checkNotNull(config);
         localAddress = null;
+        bindFuture = null;
     }
 
     int init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
@@ -109,9 +111,6 @@ class NettyServer {
         // Configuration
         // --------------------------------------------------------------------
 
-        // Server bind address
-        bootstrap.localAddress(config.getServerAddress(), config.getServerPort());
-
         // Pooled allocators for Netty's ByteBuf instances
         bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
         bootstrap.childOption(ChannelOption.ALLOCATOR, nettyBufferPool);
@@ -145,17 +144,37 @@ class NettyServer {
         // Start Server
         // --------------------------------------------------------------------
 
-        bindFuture = bootstrap.bind().syncUninterruptibly();
+        Iterator<Integer> portRangeIterator = config.getServerPortRangeIterator();
+        while (bindFuture == null && portRangeIterator.hasNext()) {
+            Integer port = portRangeIterator.next();
+            LOG.info("Trying to bind Task Manager data port to: {}", port);
+            bootstrap.localAddress(config.getServerAddress(), port);
 
-        localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
+            try {
+                bindFuture = bootstrap.bind().syncUninterruptibly();
+            } catch (Exception e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Unable to bind port {}", port, e);
+                } else {
+                    LOG.info("Unable to bind port {}, due to error: {}", port, e.getMessage());
+                }
+            }
+        }
 
-        final long duration = (System.nanoTime() - start) / 1_000_000;
-        LOG.info(
-                "Successful initialization (took {} ms). Listening on SocketAddress {}.",
-                duration,
-                localAddress);
+        if (bindFuture != null) {
+            localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
-        return localAddress.getPort();
+            final long duration = (System.nanoTime() - start) / 1_000_000;
+            LOG.info(
+                    "Successful initialization (took {} ms). Listening on SocketAddress {}.",
+                    duration,
+                    localAddress);
+            return localAddress.getPort();
+        } else {
+            throw new IOException(
+                    "Unable to bind Task Manager Netty Server to any ports in "
+                            + config.getServerPortRange());
+        }
     }
 
     NettyConfig getConfig() {
@@ -186,7 +205,8 @@ class NettyServer {
     private void initNioBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         NioEventLoopGroup nioGroup =
                 new NioEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
@@ -196,7 +216,8 @@ class NettyServer {
     private void initEpollBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         EpollEventLoopGroup epollGroup =
                 new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));

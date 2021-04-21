@@ -28,6 +28,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -43,6 +45,8 @@ public class NettyTestUtil {
 
     static final int DEFAULT_SEGMENT_SIZE = 1024;
 
+    private static int serverPort;
+
     // ---------------------------------------------------------------------------------------------
     // NettyServer and NettyClient
     // ---------------------------------------------------------------------------------------------
@@ -53,7 +57,7 @@ public class NettyTestUtil {
         final NettyServer server = new NettyServer(config);
 
         try {
-            server.init(protocol, bufferPool);
+            serverPort = server.init(protocol, bufferPool);
         } catch (Exception e) {
             server.shutdown();
             throw e;
@@ -70,7 +74,7 @@ public class NettyTestUtil {
         final NettyServer server = new NettyServer(config);
 
         try {
-            server.init(bufferPool, channelInitializer);
+            serverPort = server.init(bufferPool, channelInitializer);
         } catch (Exception e) {
             server.shutdown();
             throw e;
@@ -116,8 +120,7 @@ public class NettyTestUtil {
     static Channel connect(NettyClient client, NettyServer server) throws Exception {
         final NettyConfig config = server.getConfig();
 
-        return client.connect(
-                        new InetSocketAddress(config.getServerAddress(), config.getServerPort()))
+        return client.connect(new InetSocketAddress(config.getServerAddress(), serverPort))
                 .sync()
                 .channel();
     }
@@ -161,8 +164,12 @@ public class NettyTestUtil {
         checkArgument(segmentSize > 0);
         checkNotNull(config);
 
+        int availPort = NetUtils.getAvailablePort();
+        Iterator<Integer> portRangeIterator = Collections.singletonList(availPort).iterator();
+        String portRange = String.valueOf(availPort);
+
         return new NettyConfig(
-                InetAddress.getLocalHost(), NetUtils.getAvailablePort(), segmentSize, 1, config);
+                InetAddress.getLocalHost(), portRangeIterator, portRange, segmentSize, 1, config);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -224,9 +231,7 @@ public class NettyTestUtil {
 
         ConnectionID getConnectionID(int connectionIndex) {
             return new ConnectionID(
-                    new InetSocketAddress(
-                            server.getConfig().getServerAddress(),
-                            server.getConfig().getServerPort()),
+                    new InetSocketAddress(server.getConfig().getServerAddress(), serverPort),
                     connectionIndex);
         }
     }

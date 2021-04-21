@@ -48,6 +48,8 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
+import java.util.Iterator;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
 
@@ -198,10 +200,12 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
             @SuppressWarnings("SameParameterValue") int bufferPoolSize, Configuration config)
             throws Exception {
 
+        Iterator<Integer> portRangeIterator = Collections.singletonList(0).iterator();
         final NettyConfig nettyConfig =
                 new NettyConfig(
                         LOCAL_ADDRESS,
-                        0,
+                        portRangeIterator,
+                        "0",
                         ConfigurationParserUtils.getPageSize(config),
                         // please note that the number of slots directly influences the number of
                         // netty threads!

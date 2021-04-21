@@ -20,12 +20,14 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -34,9 +36,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Objects;
 
 /** Configuration object for the network stack. */
@@ -218,7 +221,7 @@ public class NettyShuffleEnvironmentConfiguration {
             boolean localTaskManagerCommunication,
             InetAddress taskManagerAddress) {
 
-        final int dataBindPort = getDataBindPort(configuration);
+        final Iterator<Integer> dataBindPortRange = getDataBindPortRange(configuration);
 
         final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
@@ -227,7 +230,7 @@ public class NettyShuffleEnvironmentConfiguration {
                         configuration,
                         localTaskManagerCommunication,
                         taskManagerAddress,
-                        dataBindPort);
+                        dataBindPortRange);
 
         final int numberOfNetworkBuffers =
                 calculateNumberOfNetworkBuffers(configuration, networkMemorySize, pageSize);
@@ -306,26 +309,35 @@ public class NettyShuffleEnvironmentConfiguration {
      * @param configuration configuration object
      * @return the data port
      */
-    private static int getDataBindPort(Configuration configuration) {
-        final int dataBindPort;
+    private static Iterator<Integer> getDataBindPortRange(Configuration configuration) {
+        final Iterator<Integer> portRangeIterator;
+        final String dataBindPortRange;
         if (configuration.contains(NettyShuffleEnvironmentOptions.DATA_BIND_PORT)) {
-            dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
-            ConfigurationParserUtils.checkConfigParameter(
-                    dataBindPort >= 0,
-                    dataBindPort,
-                    NettyShuffleEnvironmentOptions.DATA_BIND_PORT.key(),
-                    "Leave config parameter empty to fallback to '"
-                            + NettyShuffleEnvironmentOptions.DATA_PORT.key()
-                            + "' automatically.");
+            dataBindPortRange =
+                    configuration.getString(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
+            try {
+                portRangeIterator = NetUtils.getPortRangeFromString(dataBindPortRange);
+            } catch (Exception e) {
+                throw new IllegalConfigurationException(
+                        "Invalid value for '"
+                                + NettyShuffleEnvironmentOptions.DATA_BIND_PORT.key()
+                                + "' (port for the TaskManager data transfer): "
+                                + dataBindPortRange
+                                + " Leave config parameter empty to fallback to '"
+                                + NettyShuffleEnvironmentOptions.DATA_PORT.key()
+                                + "' automatically.");
+            }
         } else {
-            dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+            final int dataBindPort =
+                    configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
             ConfigurationParserUtils.checkConfigParameter(
                     dataBindPort >= 0,
                     dataBindPort,
                     NettyShuffleEnvironmentOptions.DATA_PORT.key(),
                     "Leave config parameter empty or use 0 to let the system choose a port automatically.");
+            portRangeIterator = Collections.singletonList(dataBindPort).iterator();
         }
-        return dataBindPort;
+        return portRangeIterator;
     }
 
     /**
@@ -370,7 +382,8 @@ public class NettyShuffleEnvironmentConfiguration {
      * @param localTaskManagerCommunication true, to skip initializing the network stack
      * @param taskManagerAddress identifying the IP address under which the TaskManager will be
      *     accessible
-     * @param dataport data port for communication and data exchange
+     * @param dataBindPortRangeIterator An iterator for data ports for communication and data
+     *     exchange
      * @return the netty configuration or {@code null} if communication is in the same task manager
      */
     @Nullable
@@ -378,17 +391,25 @@ public class NettyShuffleEnvironmentConfiguration {
             Configuration configuration,
             boolean localTaskManagerCommunication,
             InetAddress taskManagerAddress,
-            int dataport) {
+            Iterator<Integer> dataBindPortRangeIterator) {
 
         final NettyConfig nettyConfig;
         if (!localTaskManagerCommunication) {
-            final InetSocketAddress taskManagerInetSocketAddress =
-                    new InetSocketAddress(taskManagerAddress, dataport);
+            final String dataBindPortRange;
+            if (configuration.contains(NettyShuffleEnvironmentOptions.DATA_BIND_PORT)) {
+                dataBindPortRange =
+                        configuration.getString(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
+            } else {
+                dataBindPortRange =
+                        String.valueOf(
+                                configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
+            }
 
             nettyConfig =
                     new NettyConfig(
-                            taskManagerInetSocketAddress.getAddress(),
-                            taskManagerInetSocketAddress.getPort(),
+                            taskManagerAddress,
+                            dataBindPortRangeIterator,
+                            dataBindPortRange,
                             ConfigurationParserUtils.getPageSize(configuration),
                             ConfigurationParserUtils.getSlot(configuration),
                             configuration);

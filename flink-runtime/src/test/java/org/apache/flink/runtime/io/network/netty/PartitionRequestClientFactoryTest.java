@@ -40,6 +40,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -326,9 +328,17 @@ public class PartitionRequestClientFactoryTest {
 
     private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(
             NettyProtocol protocol) throws IOException {
+        Iterator<Integer> portRangeIterator = Collections.singletonList(SERVER_PORT).iterator();
+        String portRange = String.valueOf(SERVER_PORT);
+
         final NettyConfig config =
                 new NettyConfig(
-                        InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
+                        InetAddress.getLocalHost(),
+                        portRangeIterator,
+                        portRange,
+                        32 * 1024,
+                        1,
+                        new Configuration());
 
         final NettyServer server = new NettyServer(config);
         final NettyClient client = new NettyClient(config);
