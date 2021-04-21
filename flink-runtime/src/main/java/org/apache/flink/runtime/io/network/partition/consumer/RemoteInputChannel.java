@@ -462,6 +462,7 @@ public class RemoteInputChannel extends InputChannel {
 
                 wasEmpty = receivedBuffers.isEmpty();
                 receivedBuffers.add(buffer);
+                recycleBuffer = false;
 
                 if (listener != null
                         && buffer.isBuffer()
@@ -473,7 +474,6 @@ public class RemoteInputChannel extends InputChannel {
                 notifyReceivedBarrier =
                         listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
             }
-            recycleBuffer = false;
 
             ++expectedSequenceNumber;
 
