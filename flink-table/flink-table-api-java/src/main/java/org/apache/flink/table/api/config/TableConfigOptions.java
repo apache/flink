@@ -89,7 +89,7 @@ public class TableConfigOptions {
                             "The local time zone defines current session time zone id. It is used when converting to/from "
                                     + "<code>TIMESTAMP WITH LOCAL TIME ZONE</code>. Internally, timestamps with local time zone are always represented in the UTC time zone. "
                                     + "However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), "
-                                    + "the session time zone is used during conversion. The input of option is either an abbreviation such as \"PST\", a full name "
+                                    + "the session time zone is used during conversion. The input of option is either a full name "
                                     + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-8:00\".");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
