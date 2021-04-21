@@ -25,21 +25,32 @@ import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 /**
  * A rule to retry failed tests for a fixed number of times.
  *
- * <p>Add the {@link RetryRule} to your test and annotate tests with {@link RetryOnFailure}.
+ * <p>Add the {@link RetryRule} to your test class and annotate the class and/or tests with either
+ * {@link RetryOnFailure} or {@link RetryOnException}. If both the class and test are annotated,
+ * then only the latter annotation is taken into account.
  *
  * <pre>
+ * {@literal @}RetryOnFailure(times=1)
  * public class YourTest {
  *
  *     {@literal @}Rule
  *     public RetryRule retryRule = new RetryRule();
  *
  *     {@literal @}Test
- *     {@literal @}RetryOnFailure(times=1)
  *     public void yourTest() {
  *         // This will be retried 1 time (total runs 2) before failing the test.
+ *         throw new Exception("Failing test");
+ *     }
+ *
+ *     {@literal @}Test
+ *     {@literal @}RetryOnFailure(times=2)
+ *     public void yourTest() {
+ *         // This will be retried 2 time (total runs 3) before failing the test.
  *         throw new Exception("Failing test");
  *     }
  * }
@@ -53,6 +64,12 @@ public class RetryRule implements TestRule {
     public Statement apply(Statement statement, Description description) {
         RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
         RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
+
+        if (retryOnFailure == null && retryOnException == null) {
+            // if nothing is specified on the test method, fall back to annotations on the class
+            retryOnFailure = description.getTestClass().getAnnotation(RetryOnFailure.class);
+            retryOnException = description.getTestClass().getAnnotation(RetryOnException.class);
+        }
 
         // sanity check that we don't use both annotations
         if (retryOnFailure != null && retryOnException != null) {
