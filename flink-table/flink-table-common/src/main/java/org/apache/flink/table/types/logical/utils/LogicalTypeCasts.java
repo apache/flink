@@ -358,8 +358,8 @@ public final class LogicalTypeCasts {
         return false;
     }
 
-    private static CastingRuleBuilder castTo(LogicalTypeRoot sourceType) {
-        return new CastingRuleBuilder(sourceType);
+    private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {
+        return new CastingRuleBuilder(targetType);
     }
 
     private static LogicalTypeRoot[] allTypes() {
