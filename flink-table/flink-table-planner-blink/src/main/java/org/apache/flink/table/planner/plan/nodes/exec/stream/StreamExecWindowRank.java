@@ -47,12 +47,14 @@ import org.apache.flink.table.runtime.operators.rank.window.WindowRankOperatorBu
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -197,6 +199,9 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
                                         sortSpec.getFieldSpec(idx).getNullIsLast()));
         SortSpec sortSpecInSortKey = builder.build();
         TableConfig tableConfig = planner.getTableConfig();
+
+        ZoneId shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), tableConfig);
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
                         tableConfig,
@@ -210,6 +215,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(new RowDataSerializer(inputType))
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(
                                 (PagedTypeSerializer<RowData>)
                                         selector.getProducedType().toSerializer())

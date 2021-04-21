@@ -99,7 +99,7 @@ public class LogicalTypeCastAvoidanceTest {
                     {new TimestampType(9), new TimestampType(3), false},
                     {new ZonedTimestampType(9), new ZonedTimestampType(3), false},
                     {
-                        new ZonedTimestampType(false, TimestampKind.PROCTIME, 9),
+                        new ZonedTimestampType(false, TimestampKind.ROWTIME, 9),
                         new ZonedTimestampType(3),
                         false
                     },
@@ -228,7 +228,29 @@ public class LogicalTypeCastAvoidanceTest {
                         createDistinctType("Money", new DecimalType(10, 2)),
                         createDistinctType("Money2", new DecimalType(10, 2)),
                         true
-                    }
+                    },
+
+                    // row and structure type
+                    {
+                        RowType.of(new IntType(), new VarCharType()),
+                        createUserType("User2", new IntType(), new VarCharType()),
+                        true
+                    },
+                    {
+                        RowType.of(new BigIntType(), new VarCharType()),
+                        createUserType("User2", new IntType(), new VarCharType()),
+                        false
+                    },
+                    {
+                        createUserType("User2", new IntType(), new VarCharType()),
+                        RowType.of(new IntType(), new VarCharType()),
+                        true
+                    },
+                    {
+                        createUserType("User2", new IntType(), new VarCharType()),
+                        RowType.of(new BigIntType(), new VarCharType()),
+                        false
+                    },
                 });
     }
 

@@ -117,7 +117,7 @@ public class HiveGenericUDAF
         initialized = true;
     }
 
-    private GenericUDAFEvaluator createEvaluator(ObjectInspector[] inputInspectors)
+    public GenericUDAFEvaluator createEvaluator(ObjectInspector[] inputInspectors)
             throws SemanticException {
         GenericUDAFResolver2 resolver;
 

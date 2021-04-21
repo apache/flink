@@ -31,6 +31,8 @@ import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProc
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
+import java.time.ZoneId;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -65,10 +67,16 @@ public class WindowRankOperatorBuilder {
     private long rankStart = -1;
     private long rankEnd = -1;
     private int windowEndIndex = -1;
+    private ZoneId shiftTimeZone;
 
     public WindowRankOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
         this.inputSerializer = inputSerializer;
+        return this;
+    }
+
+    public WindowRankOperatorBuilder shiftTimeZone(ZoneId shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
         return this;
     }
 
@@ -147,7 +155,8 @@ public class WindowRankOperatorBuilder {
                         rankStart,
                         rankEnd,
                         outputRankNumber,
-                        windowEndIndex);
+                        windowEndIndex,
+                        shiftTimeZone);
         return new SlicingWindowOperator<>(windowProcessor);
     }
 }

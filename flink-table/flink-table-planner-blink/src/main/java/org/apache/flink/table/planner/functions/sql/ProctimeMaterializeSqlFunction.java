@@ -42,7 +42,7 @@ public class ProctimeMaterializeSqlFunction extends SqlFunction {
                 "PROCTIME_MATERIALIZE",
                 SqlKind.OTHER_FUNCTION,
                 ReturnTypes.cascade(
-                        ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 3),
+                        ReturnTypes.explicit(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3),
                         SqlTypeTransforms.TO_NULLABLE),
                 InferTypes.RETURN_TYPE,
                 OperandTypes.family(SqlTypeFamily.TIMESTAMP),

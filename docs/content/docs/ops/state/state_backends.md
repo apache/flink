@@ -53,12 +53,6 @@ If nothing else is configured, the system will use the HashMapStateBackend.
 The *HashMapStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
 that store the values, triggers, etc.
 
-The HashMapStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a HashMapStateBackend with the corresponding boolean flag in the constructor set to `false`, e.g.:
-
-```java
-new HashMapStateBackend(false);
-```
-
 The HashMapStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
@@ -71,6 +65,7 @@ This will ensure that the maximum amount of memory is allocated for user code on
 
 The EmbeddedRocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
 that is (per default) stored in the TaskManager local data directories.
+Unlike storing java objects in `HashMapStateBackend`, data is stored as serialized byte arrays, which are mainly defined by the type serializer, resulting in key comparisons being byte-wise instead of using Java's `hashCode()` and `equals()` methods.
 
 The EmbeddedRocksDBStateBackend always performs asynchronous snapshots.
 

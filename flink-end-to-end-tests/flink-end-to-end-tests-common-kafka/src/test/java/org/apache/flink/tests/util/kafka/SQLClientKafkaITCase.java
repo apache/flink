@@ -66,7 +66,7 @@ import static org.junit.Assert.assertThat;
 /** End-to-end test for the kafka SQL connectors. */
 @RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, FailsOnJava11.class})
-@Ignore // temporarily disabled due to frequent failures
+@Ignore("FLINK-21796")
 public class SQLClientKafkaITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);

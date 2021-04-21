@@ -49,7 +49,12 @@ class BatchPhysicalBoundedStreamScanRule
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalDataStreamTableScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    new BatchPhysicalBoundedStreamScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
+    new BatchPhysicalBoundedStreamScan(
+      rel.getCluster,
+      newTrait,
+      scan.getHints,
+      scan.getTable,
+      rel.getRowType)
   }
 }
 

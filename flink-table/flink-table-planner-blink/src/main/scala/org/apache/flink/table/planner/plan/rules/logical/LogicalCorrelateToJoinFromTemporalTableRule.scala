@@ -286,6 +286,14 @@ abstract class LogicalCorrelateToJoinFromGeneralTemporalTableRule(
             s" primary key and row time attribute in versioned table," +
             s" but no row time attribute can be found.")
       }
+
+      if (snapshotTimeInputRef.getType.getSqlTypeName
+        != rightTimeInputRef.get.getType.getSqlTypeName) {
+        throw new ValidationException(
+          String.format("Event-Time Temporal Table Join requires same rowtime" +
+          " type in left table and versioned table, but the rowtime types are %s and %s.",
+            snapshotTimeInputRef.getType.toString, rightTimeInputRef.get.getType.toString))
+      }
       // Deal primary key in TemporalJoinRewriteUniqueKeyRule
       TemporalJoinUtil.makeInitialRowTimeTemporalTableJoinCondCall(
         rexBuilder,

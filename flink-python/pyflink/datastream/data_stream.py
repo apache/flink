@@ -25,6 +25,7 @@ from pyflink.datastream.window import TimeWindowSerializer, CountWindowSerialize
     Trigger, WindowOperationDescriptor
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.datastream.connectors import Sink
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
@@ -224,9 +225,7 @@ class DataStream(object):
             -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
-        each element of the DataStream. Each MapFunction call returns exactly one element. The user
-        can also extend RichMapFunction to gain access to other features provided by the
-        RichFunction interface.
+        each element of the DataStream. Each MapFunction call returns exactly one element.
 
         Note that If user does not specify the output data type, the output data will be serialized
         as pickle primitive byte array.
@@ -258,8 +257,7 @@ class DataStream(object):
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
-        elements including none. The user can also extend RichFlatMapFunction to gain access to
-        other features provided by the RichFUnction.
+        elements including none.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
         :param output_type: The type information of output data.
@@ -336,9 +334,7 @@ class DataStream(object):
         """
         Applies a Filter transformation on a DataStream. The transformation calls a FilterFunction
         for each element of the DataStream and retains only those element for which the function
-        returns true. Elements for which the function returns false are filtered. The user can also
-        extend RichFilterFunction to gain access to other features provided by the RichFunction
-        interface.
+        returns true. Elements for which the function returns false are filtered.
 
         :param func: The FilterFunction that is called for each element of the DataStream.
         :return: The filtered DataStream.
@@ -618,6 +614,18 @@ class DataStream(object):
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
+    def sink_to(self, sink: Sink) -> 'DataStreamSink':
+        """
+        Adds the given sink to this DataStream. Only streams with sinks added will be
+        executed once the
+        :func:`~pyflink.datastream.stream_execution_environment.StreamExecutionEnvironment.execute`
+        method is called.
+
+        :param sink: The user defined sink.
+        :return: The closed DataStream.
+        """
+        return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
+
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
             -> Union['CloseableIterator', list]:
         """
@@ -809,13 +817,24 @@ class KeyedStream(DataStream):
 
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
+        """
+        Applies a Map transformation on a KeyedStream. The transformation calls a MapFunction for
+        each element of the DataStream. Each MapFunction call returns exactly one element.
+
+        Note that If user does not specify the output data type, the output data will be serialized
+        as pickle primitive byte array.
+
+        :param func: The MapFunction that is called for each element of the DataStream.
+        :param output_type: The type information of the MapFunction output data.
+        :return: The transformed DataStream.
+        """
         if not isinstance(func, MapFunction):
             if callable(func):
                 func = MapFunctionWrapper(func)  # type: ignore
             else:
                 raise TypeError("The input func must be a MapFunction or a callable function.")
 
-        class KeyedMapFunctionWrapper(KeyedProcessFunction):
+        class KeyedMapProcessFunction(KeyedProcessFunction):
 
             def __init__(self, underlying: MapFunction):
                 self._underlying = underlying
@@ -827,14 +846,26 @@ class KeyedStream(DataStream):
                 self._underlying.close()
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
-                return [self._underlying.map(value)]
-        return self.process(KeyedMapFunctionWrapper(func), output_type)  # type: ignore
+                yield self._underlying.map(value)
+
+        return self.process(KeyedMapProcessFunction(func), output_type)  # type: ignore
 
     def flat_map(self,
                  func: Union[Callable, FlatMapFunction],
                  output_type: TypeInformation = None,
                  result_type: TypeInformation = None) \
             -> 'DataStream':
+        """
+        Applies a FlatMap transformation on a KeyedStream. The transformation calls a
+        FlatMapFunction for each element of the DataStream. Each FlatMapFunction call can return
+        any number of elements including none.
+
+        :param func: The FlatMapFunction that is called for each element of the DataStream.
+        :param output_type: The type information of output data.
+        :param result_type: The type information of output data.
+                            (Deprecated, use output_type instead)
+        :return: The transformed DataStream.
+        """
         if result_type is not None:
             warnings.warn("The parameter result_type is deprecated in 1.13. "
                           "Use output_type instead.", DeprecationWarning)
@@ -847,7 +878,7 @@ class KeyedStream(DataStream):
             else:
                 raise TypeError("The input func must be a FlatMapFunction or a callable function.")
 
-        class KeyedFlatMapFunctionWrapper(KeyedProcessFunction):
+        class KeyedFlatMapProcessFunction(KeyedProcessFunction):
 
             def __init__(self, underlying: FlatMapFunction):
                 self._underlying = underlying
@@ -860,7 +891,8 @@ class KeyedStream(DataStream):
 
             def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
                 yield from self._underlying.flat_map(value)
-        return self.process(KeyedFlatMapFunctionWrapper(func), output_type)  # type: ignore
+
+        return self.process(KeyedFlatMapProcessFunction(func), output_type)  # type: ignore
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
@@ -946,6 +978,7 @@ class KeyedStream(DataStream):
                     return [value]
                 else:
                     return []
+
         return self.process(
             KeyedFilterProcessFunction(func), self._original_data_type_info)  # type: ignore
 
@@ -1259,10 +1292,10 @@ class ConnectedStreams(object):
                     self._underlying.open(runtime_context)
 
                 def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    return [self._underlying.map1(value)]
+                    yield self._underlying.map1(value)
 
                 def process_element2(self, value, ctx: 'KeyedCoProcessFunction.Context'):
-                    return [self._underlying.map2(value)]
+                    yield self._underlying.map2(value)
 
                 def close(self):
                     self._underlying.close()

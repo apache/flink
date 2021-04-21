@@ -1,0 +1,110 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testPartialInsertWithComplexReorder[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink (b,e,a,g,f,c,d) SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- Calc(select=[a, b, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorderAndComputedColumn[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Sort(orderBy=[c ASC, d ASC])
+   +- Calc(select=[a, c, d, e, 123:BIGINT AS f, 456 AS g])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+         +- Exchange(distribution=[hash[a, b, c, d, e]])
+            +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorder[isBatch: true]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink (b,e,a,g,f,c,d) SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, g])
++- Calc(select=[a, b, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialInsertWithComplexReorderAndComputedColumn[isBatch: false]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO partitioned_sink (e,a,g,f,c,d) SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
+   +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.partitioned_sink], fields=[a, c, d, e, f, g])
++- Calc(select=[a, c, d, e, 123:BIGINT AS f, 456 AS g])
+   +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
+      +- Exchange(distribution=[hash[a, b, c, d, e]])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -50,6 +50,9 @@ message UserDefinedFunction {
 
   // Whether the UDF takes row as input instead of each columns of a row
   bool takes_row_as_input = 4;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
 }
 
 // A list of user-defined functions to be executed in a batch.
@@ -180,6 +183,8 @@ message GroupWindow {
   int64 allowedLateness = 8;
 
   repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.

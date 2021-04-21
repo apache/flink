@@ -42,11 +42,17 @@ public abstract class AbstractSqlCallContext implements CallContext {
 
     private final String name;
 
+    private final boolean isGroupedAggregation;
+
     protected AbstractSqlCallContext(
-            DataTypeFactory dataTypeFactory, FunctionDefinition definition, String name) {
+            DataTypeFactory dataTypeFactory,
+            FunctionDefinition definition,
+            String name,
+            boolean isGroupedAggregation) {
         this.dataTypeFactory = dataTypeFactory;
         this.definition = definition;
         this.name = name;
+        this.isGroupedAggregation = isGroupedAggregation;
     }
 
     @Override
@@ -62,6 +68,11 @@ public abstract class AbstractSqlCallContext implements CallContext {
     @Override
     public String getName() {
         return name;
+    }
+
+    @Override
+    public boolean isGroupedAggregation() {
+        return isGroupedAggregation;
     }
 
     // --------------------------------------------------------------------------------------------

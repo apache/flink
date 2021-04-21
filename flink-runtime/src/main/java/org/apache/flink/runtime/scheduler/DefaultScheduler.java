@@ -43,7 +43,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -199,10 +200,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private void handleTaskFailure(
             final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
-        setGlobalFailureCause(error);
+        final long timestamp = System.currentTimeMillis();
+        setGlobalFailureCause(error, timestamp);
         notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
         final FailureHandlingResult failureHandlingResult =
-                executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
+                executionFailureHandler.getFailureHandlingResult(
+                        executionVertexId, error, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
@@ -217,11 +220,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     @Override
     public void handleGlobalFailure(final Throwable error) {
-        setGlobalFailureCause(error);
+        final long timestamp = System.currentTimeMillis();
+        setGlobalFailureCause(error, timestamp);
 
         log.info("Trying to recover from a global failure.", error);
         final FailureHandlingResult failureHandlingResult =
-                executionFailureHandler.getGlobalFailureHandlingResult(error);
+                executionFailureHandler.getGlobalFailureHandlingResult(error, timestamp);
         maybeRestartTasks(failureHandlingResult);
     }
 
@@ -229,7 +233,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         if (failureHandlingResult.canRestart()) {
             restartTasksWithDelay(failureHandlingResult);
         } else {
-            failJob(failureHandlingResult.getError());
+            failJob(failureHandlingResult.getError(), failureHandlingResult.getTimestamp());
         }
     }
 
@@ -248,12 +252,17 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         final CompletableFuture<?> cancelFuture = cancelTasksAsync(verticesToRestart);
 
+        final FailureHandlingResultSnapshot failureHandlingResultSnapshot =
+                FailureHandlingResultSnapshot.create(
+                        failureHandlingResult,
+                        id -> this.getExecutionVertex(id).getCurrentExecutionAttempt());
         delayExecutor.schedule(
                 () ->
                         FutureUtils.assertNoException(
                                 cancelFuture.thenRunAsync(
                                         () -> {
-                                            archiveFromFailureHandlingResult(failureHandlingResult);
+                                            archiveFromFailureHandlingResult(
+                                                    failureHandlingResultSnapshot);
                                             restartTasks(executionVertexVersions, globalRecovery);
                                         },
                                         getMainThreadExecutor())),
@@ -547,7 +556,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             return;
         }
 
-        for (OperatorCoordinator coordinator : vertex.getJobVertex().getOperatorCoordinators()) {
+        for (OperatorCoordinatorHolder coordinator :
+                vertex.getJobVertex().getOperatorCoordinators()) {
             coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
         }
     }

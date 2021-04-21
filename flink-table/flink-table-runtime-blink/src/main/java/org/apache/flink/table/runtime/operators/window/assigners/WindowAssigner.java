@@ -52,7 +52,8 @@ public abstract class WindowAssigner<W extends Window> implements Serializable {
      *
      * @param element The element to which windows should be assigned.
      * @param timestamp The timestamp of the element when {@link #isEventTime()} returns true, or
-     *     the current system time when {@link #isEventTime()} returns false.
+     *     the current system time when {@link #isEventTime()} returns false. The timestamp value is
+     *     mapping to UTC milliseconds for splitting windows simply.
      */
     public abstract Collection<W> assignWindows(RowData element, long timestamp) throws IOException;
 

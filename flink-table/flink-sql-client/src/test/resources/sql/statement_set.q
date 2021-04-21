@@ -56,7 +56,8 @@ BEGIN STATEMENT SET;
 !info
 
 BEGIN STATEMENT SET;
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 create table src (
@@ -65,11 +66,13 @@ create table src (
 ) with (
   'connector' = 'values'
 );
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 SELECT id, str FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi')) as T(id, str);
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
@@ -83,21 +86,22 @@ END;
 !info
 
 END;
-[ERROR] No Statement Set to submit, "END;" command should be used after "BEGIN STATEMENT SET;".
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: No Statement Set to submit, "END;" command should be used after "BEGIN STATEMENT SET;".
 !error
 
 SELECT * FROM StreamingTable;
-+----+-------------+----------------------+
-| op |          id |                  str |
-+----+-------------+----------------------+
-| +I |           1 |          Hello World |
-| +I |           2 |                   Hi |
-| +I |           2 |                   Hi |
-| +I |           3 |                Hello |
-| +I |           3 |                World |
-| +I |           4 |                  ADD |
-| +I |           5 |                 LINE |
-+----+-------------+----------------------+
++----+-------------+--------------------------------+
+| op |          id |                            str |
++----+-------------+--------------------------------+
+| +I |           1 |                    Hello World |
+| +I |           2 |                             Hi |
+| +I |           2 |                             Hi |
+| +I |           3 |                          Hello |
+| +I |           3 |                          World |
+| +I |           4 |                            ADD |
+| +I |           5 |                           LINE |
++----+-------------+--------------------------------+
 Received a total of 7 rows
 !ok
 
@@ -125,7 +129,8 @@ BEGIN STATEMENT SET;
 !info
 
 BEGIN STATEMENT SET;
-[ERROR] Only INSERT statement is allowed in Statement Set.
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.client.gateway.SqlExecutionException: Only INSERT statement is allowed in Statement Set.
 !error
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
@@ -139,16 +144,24 @@ END;
 !info
 
 SELECT * FROM BatchTable;
-+-------------+----------------------+
-|          id |                  str |
-+-------------+----------------------+
-|           1 |          Hello World |
-|           2 |                   Hi |
-|           2 |                   Hi |
-|           3 |                Hello |
-|           3 |                World |
-|           4 |                  ADD |
-|           5 |                 LINE |
-+-------------+----------------------+
-Received a total of 7 rows
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+7 rows in set
 !ok
+
+BEGIN STATEMENT SET;
+[INFO] Begin a statement set.
+!info
+
+END;
+[INFO] No statement in the statement set, skip submit.
+!info

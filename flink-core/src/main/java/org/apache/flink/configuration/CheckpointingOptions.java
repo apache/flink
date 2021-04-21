@@ -26,7 +26,7 @@ import org.apache.flink.configuration.description.TextElement;
 public class CheckpointingOptions {
 
     // ------------------------------------------------------------------------
-    //  general checkpoint and state backend options
+    //  general checkpoint options
     // ------------------------------------------------------------------------
 
     /**
@@ -39,8 +39,12 @@ public class CheckpointingOptions {
      * StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)} method is called.
      *
      * <p>Recognized shortcut names are 'hashmap' and 'rocksdb'.
+     *
+     * @deprecated Use {@link StateBackendOptions#STATE_BACKEND}.
      */
-    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 1)
+    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
+    @Deprecated
     public static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state.backend")
                     .stringType()
@@ -113,21 +117,13 @@ public class CheckpointingOptions {
                     .defaultValue(1)
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
-    /**
-     * Option whether the state backend should use an asynchronous snapshot method where possible
-     * and configurable.
-     *
-     * <p>Some state backends may not support asynchronous snapshots, or only support asynchronous
-     * snapshots, and ignore this option.
-     */
-    @Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
+    /** @deprecated Checkpoints are aways asynchronous. */
+    @Deprecated
     public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =
             ConfigOptions.key("state.backend.async")
+                    .booleanType()
                     .defaultValue(true)
-                    .withDescription(
-                            "Option whether the state backend should use an asynchronous snapshot method where"
-                                    + " possible and configurable. Some state backends may not support asynchronous snapshots, or only support"
-                                    + " asynchronous snapshots, and ignore this option.");
+                    .withDescription("Deprecated option. All state snapshots are asynchronous.");
 
     /**
      * Option whether the state backend should create incremental checkpoints, if possible. For an

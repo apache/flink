@@ -47,6 +47,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -88,6 +90,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.hamcrest.Matchers;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -267,6 +270,39 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                 new CloseableRegistry());
 
         return backend;
+    }
+
+    @Test
+    public void testEnableStateLatencyTracking() throws Exception {
+        B stateBackend = getStateBackend();
+        Configuration config = new Configuration();
+        config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        StateBackend configuredBackend =
+                ((ConfigurableStateBackend) stateBackend)
+                        .configure(config, Thread.currentThread().getContextClassLoader());
+        KeyGroupRange groupRange = new KeyGroupRange(0, 1);
+        CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
+                configuredBackend.createKeyedStateBackend(
+                        env,
+                        new JobID(),
+                        "test_op",
+                        IntSerializer.INSTANCE,
+                        groupRange.getNumberOfKeyGroups(),
+                        groupRange,
+                        env.getTaskKvStateRegistry(),
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        new CloseableRegistry());
+        try {
+            Assert.assertTrue(
+                    ((AbstractKeyedStateBackend<Integer>) keyedStateBackend)
+                            .getLatencyTrackingStateConfig()
+                            .isEnabled());
+        } finally {
+            IOUtils.closeQuietly(keyedStateBackend);
+            keyedStateBackend.dispose();
+        }
     }
 
     @Test

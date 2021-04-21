@@ -30,7 +30,9 @@ public interface ModifyOperationVisitor<T> {
 
     T visit(OutputConversionModifyOperation outputConversion);
 
+    T visit(ExternalModifyOperation externalModifyOperation);
+
     <U> T visit(UnregisteredSinkModifyOperation<U> unregisteredSink);
 
-    T visit(SelectSinkOperation selectOperation);
+    T visit(CollectModifyOperation selectOperation);
 }

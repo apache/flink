@@ -20,16 +20,17 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestLegacyFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestDataTypeTableSource, TestFileInputFormatTableSource, TestInputFormatTableSource, TestLegacyFilterableTableSource, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestTableSourceSinks}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.junit.{Assert, Before, Test}
 
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
@@ -331,5 +332,54 @@ class LegacyTableSourceITCase extends BatchTestBase {
         row("t4")
       )
     )
+  }
+
+  @Test
+  def testTableHint(): Unit = {
+    tEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable1 (
+         |  name STRING,
+         |  a bigint,
+         |  b int,
+         |  c double
+         |) with (
+         |  'connector.type' = 'TestFilterableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` BIGINT,
+         |  `b` INT,
+         |  `c` DOUBLE
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '$resultPath'
+         |)
+       """.stripMargin)
+
+    val stmtSet= tEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='31') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='32') */
+        |""".stripMargin)
+    stmtSet.execute().await()
+
+    val result = TableTestUtil.readFromFile(resultPath)
+    val expected = Seq("31,31,31.0", "32,32,32.0", "32,32,32.0")
+    Assert.assertEquals(expected.sorted, result.sorted)
   }
 }

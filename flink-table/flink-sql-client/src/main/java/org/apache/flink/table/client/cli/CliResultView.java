@@ -35,8 +35,6 @@ import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 /** Abstract CLI view for showing results (either as changelog or table). */
 public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> {
 
-    protected static final int MAX_COLUMN_WIDTH = 25;
-
     protected static final int NO_ROW_SELECTED = -1;
 
     protected static final List<Tuple2<String, Long>> REFRESH_INTERVALS;
@@ -228,6 +226,11 @@ public abstract class CliResultView<O extends Enum<O>> extends CliView<O, Void> 
     @Override
     protected void cleanUp() {
         stopRetrieval(true);
+        try {
+            refreshThread.join();
+        } catch (InterruptedException ex) {
+            // ignore
+        }
     }
 
     // --------------------------------------------------------------------------------------------

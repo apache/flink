@@ -22,7 +22,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -32,12 +31,15 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 
+import org.jline.reader.MaskingCallback;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -95,19 +97,23 @@ public class CliResultViewTest {
                         false,
                         true);
 
-        Thread resultViewRunner = null;
         try (CliClient cli =
-                new CliClient(
-                        TerminalUtils.createDummyTerminal(),
+                new TestingCliClient(
+                        TerminalUtils.createDumbTerminal(),
                         sessionId,
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
                         null)) {
-            resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
+            Thread resultViewRunner =
+                    new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
             resultViewRunner.start();
-        } finally {
-            if (resultViewRunner != null && !resultViewRunner.isInterrupted()) {
+
+            if (!resultViewRunner.isInterrupted()) {
                 resultViewRunner.interrupt();
+            }
+            // close the client until view exit
+            while (resultViewRunner.isAlive()) {
+                Thread.sleep(100);
             }
         }
 
@@ -259,6 +265,36 @@ public class CliResultViewTest {
         @Override
         protected List<AttributedString> computeMainHeaderLines() {
             return Collections.emptyList();
+        }
+    }
+
+    private static class TestingCliClient extends CliClient {
+
+        private final Terminal terminal;
+
+        public TestingCliClient(
+                Terminal terminal,
+                String sessionId,
+                Executor executor,
+                Path historyFilePath,
+                @Nullable MaskingCallback inputTransformer) {
+            super(() -> terminal, sessionId, executor, historyFilePath, inputTransformer);
+            this.terminal = terminal;
+        }
+
+        @Override
+        public Terminal getTerminal() {
+            return terminal;
+        }
+
+        @Override
+        public boolean isPlainTerminal() {
+            return true;
+        }
+
+        @Override
+        public void clearTerminal() {
+            // do nothing
         }
     }
 }

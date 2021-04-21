@@ -96,12 +96,12 @@ public final class TypeInferenceUtil {
      * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
      * default values (*) where (*) is future work.
      */
-    public static AdaptedCallContext adaptArguments(
+    public static CallContext adaptArguments(
             TypeInference typeInference, CallContext callContext, @Nullable DataType outputType) {
         return adaptArguments(typeInference, callContext, outputType, true);
     }
 
-    private static AdaptedCallContext adaptArguments(
+    private static CallContext adaptArguments(
             TypeInference typeInference,
             CallContext callContext,
             @Nullable DataType outputType,
@@ -129,6 +129,10 @@ public final class TypeInferenceUtil {
             final DataType expectedType = expectedTypes.get(pos);
             final DataType actualType = actualTypes.get(pos);
             if (!supportsImplicitCast(actualType.getLogicalType(), expectedType.getLogicalType())) {
+                if (!throwOnInferInputFailure) {
+                    // abort the adaption, e.g. if a NULL is passed for a NOT NULL argument
+                    return callContext;
+                }
                 throw new ValidationException(
                         String.format(
                                 "Invalid argument type at position %d. Data type %s expected but %s passed.",
@@ -224,17 +228,21 @@ public final class TypeInferenceUtil {
 
         private final int innerCallPosition;
 
+        private final boolean isGroupedAggregation;
+
         public SurroundingInfo(
                 String name,
                 FunctionDefinition functionDefinition,
                 TypeInference typeInference,
                 int argumentCount,
-                int innerCallPosition) {
+                int innerCallPosition,
+                boolean isGroupedAggregation) {
             this.name = name;
             this.functionDefinition = functionDefinition;
             this.typeInference = typeInference;
             this.argumentCount = argumentCount;
             this.innerCallPosition = innerCallPosition;
+            this.isGroupedAggregation = isGroupedAggregation;
         }
 
         private Optional<DataType> inferOutputType(DataTypeFactory typeFactory) {
@@ -249,12 +257,16 @@ public final class TypeInferenceUtil {
             // for "takes_string(this_function(NULL))" simulate "takes_string(NULL)"
             // for retrieving the output type of "this_function(NULL)"
             final CallContext callContext =
-                    new UnknownCallContext(typeFactory, name, functionDefinition, argumentCount);
+                    new UnknownCallContext(
+                            typeFactory,
+                            name,
+                            functionDefinition,
+                            argumentCount,
+                            isGroupedAggregation);
 
             // We might not be able to infer the input types at this moment, if the surrounding
-            // function
-            // does not provide an explicit input type strategy.
-            final AdaptedCallContext adaptedContext =
+            // function does not provide an explicit input type strategy.
+            final CallContext adaptedContext =
                     adaptArguments(typeInference, callContext, null, false);
             return typeInference
                     .getInputTypeStrategy()
@@ -315,7 +327,7 @@ public final class TypeInferenceUtil {
             throw createInvalidInputException(typeInference, callContext, e);
         }
 
-        final AdaptedCallContext adaptedCallContext;
+        final CallContext adaptedCallContext;
         try {
             // use information of surrounding call to determine output type of this call
             final DataType outputType;

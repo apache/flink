@@ -31,6 +31,7 @@ import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.row;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST}. */
 public class CastFunctionITCase extends BuiltInFunctionTestBase {
@@ -94,10 +95,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(f0 AS ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>)",
                                 Row.of(Row.of("12", true, null), "Hello"),
                                 // the inner NOT NULL is ignored in SQL because the outer ROW is
-                                // nullable and
-                                // the cast does not allow setting the outer nullability but derives
-                                // it from
-                                // the source operand
+                                // nullable and the cast does not allow setting the outer
+                                // nullability but derives it from the source operand
                                 DataTypes.of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
@@ -124,7 +123,32 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                                         DataTypes.FIELD("s", DataTypes.STRING()))),
                                 Row.of(Row.of("12", true, null), "Hello"),
                                 DataTypes.of(
-                                        "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")));
+                                        "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "implicit between structured type and row")
+                        .onFieldsWithData(12, "Ingo")
+                        .withFunction(StructuredTypeConstructor.class)
+                        .withFunction(RowToFirstField.class)
+                        .testResult(
+                                call(
+                                        "RowToFirstField",
+                                        call("StructuredTypeConstructor", row($("f0"), $("f1")))),
+                                "RowToFirstField(StructuredTypeConstructor((f0, f1)))",
+                                12,
+                                DataTypes.INT()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "explicit between structured type and row")
+                        .onFieldsWithData(12, "Ingo")
+                        .withFunction(StructuredTypeConstructor.class)
+                        .testTableApiResult(
+                                call("StructuredTypeConstructor", row($("f0"), $("f1")))
+                                        .cast(
+                                                DataTypes.ROW(
+                                                        DataTypes.BIGINT(), DataTypes.STRING())),
+                                Row.of(12L, "Ingo"),
+                                DataTypes.ROW(DataTypes.BIGINT(), DataTypes.STRING())));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -145,6 +169,25 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             assert row.getField(0) instanceof Row;
             assert row.getField(1) instanceof String;
             return (Row) row.getField(0);
+        }
+    }
+
+    /** Function that takes and forwards a structured type. */
+    public static class StructuredTypeConstructor extends ScalarFunction {
+        public UserPojo eval(UserPojo pojo) {
+            return pojo;
+        }
+    }
+
+    /** Testing POJO. */
+    public static class UserPojo {
+        public final Integer i;
+
+        public final String s;
+
+        public UserPojo(Integer i, String s) {
+            this.i = i;
+            this.s = s;
         }
     }
 }

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.TernaryBoolean;
@@ -133,12 +134,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
     private final int fileStateThreshold;
 
     /**
-     * Switch to chose between synchronous and asynchronous snapshots. A value of 'undefined' means
-     * not yet configured, in which case the default will be used.
-     */
-    private final TernaryBoolean asynchronousSnapshots;
-
-    /**
      * The write buffer size for created checkpoint stream, this should not be less than file state
      * threshold when we want state below that threshold stored as part of metadata not files. A
      * value of '-1' means not yet configured, in which case the default will be used.
@@ -178,7 +173,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      *
      * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
      *     and the path to the checkpoint data directory.
-     * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+     * @param asynchronousSnapshots This parameter is only there for API compatibility. Checkpoints
+     *     are always asynchronous now.
      */
     public FsStateBackend(String checkpointDataUri, boolean asynchronousSnapshots) {
         this(new Path(checkpointDataUri), asynchronousSnapshots);
@@ -215,7 +211,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      *
      * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
      *     and the path to the checkpoint data directory.
-     * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+     * @param asynchronousSnapshots This parameter is only there for API compatibility. Checkpoints
+     *     are always asynchronous now.
      */
     public FsStateBackend(Path checkpointDataUri, boolean asynchronousSnapshots) {
         this(checkpointDataUri.toUri(), asynchronousSnapshots);
@@ -273,7 +270,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      *
      * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
      *     and the path to the checkpoint data directory.
-     * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+     * @param asynchronousSnapshots This parameter is only there for API compatibility. Checkpoints
+     *     are always asynchronous now.
      */
     public FsStateBackend(URI checkpointDataUri, boolean asynchronousSnapshots) {
         this(checkpointDataUri, null, -1, -1, TernaryBoolean.fromBoolean(asynchronousSnapshots));
@@ -314,7 +312,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      *     and the path to the checkpoint data directory.
      * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
      *     rather than in files (-1 for default value).
-     * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+     * @param asynchronousSnapshots This parameter is only there for API compatibility. Checkpoints
+     *     are always asynchronous now.
      */
     public FsStateBackend(
             URI checkpointDataUri, int fileStateSizeThreshold, boolean asynchronousSnapshots) {
@@ -348,21 +347,20 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
      * @param writeBufferSize Write buffer size used to serialize state. If -1, the value configured
      *     in the runtime configuration will be used, or the default value (4KB) if nothing is
      *     configured.
-     * @param asynchronousSnapshots Flag to switch between synchronous and asynchronous snapshot
-     *     mode. If UNDEFINED, the value configured in the runtime configuration will be used.
+     * @param asynchronousSnapshots This parameter is only there for API compatibility. Checkpoints
+     *     are always asynchronous now.
      */
     public FsStateBackend(
             URI checkpointDirectory,
             @Nullable URI defaultSavepointDirectory,
             int fileStateSizeThreshold,
             int writeBufferSize,
-            TernaryBoolean asynchronousSnapshots) {
+            @SuppressWarnings("unused") TernaryBoolean asynchronousSnapshots) {
 
         super(
                 checkNotNull(checkpointDirectory, "checkpoint directory is null"),
                 defaultSavepointDirectory);
 
-        checkNotNull(asynchronousSnapshots, "asynchronousSnapshots");
         checkArgument(
                 fileStateSizeThreshold >= -1 && fileStateSizeThreshold <= MAX_FILE_STATE_THRESHOLD,
                 "The threshold for file state size must be in [-1, %s], where '-1' means to use "
@@ -375,7 +373,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
-        this.asynchronousSnapshots = asynchronousSnapshots;
     }
 
     /**
@@ -387,12 +384,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
     private FsStateBackend(
             FsStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
         super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
-
-        // if asynchronous snapshots were configured, use that setting,
-        // else check the configuration
-        this.asynchronousSnapshots =
-                original.asynchronousSnapshots.resolveUndefined(
-                        configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
 
         if (getValidFileStateThreshold(original.fileStateThreshold) >= 0) {
             this.fileStateThreshold = original.fileStateThreshold;
@@ -425,6 +416,9 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
                         : configuration.get(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
         this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
+        // configure latency tracking
+        latencyTrackingConfigBuilder =
+                original.latencyTrackingConfigBuilder.configure(configuration);
     }
 
     private int getValidFileStateThreshold(long fileStateThreshold) {
@@ -495,14 +489,11 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
     }
 
     /**
-     * Gets whether the key/value data structures are asynchronously snapshotted.
-     *
-     * <p>If not explicitly configured, this is the default value of {@link
-     * CheckpointingOptions#ASYNC_SNAPSHOTS}.
+     * Gets whether the key/value data structures are asynchronously snapshotted, which is always
+     * true for this state backend.
      */
     public boolean isUsingAsynchronousSnapshots() {
-        return asynchronousSnapshots.getOrDefault(
-                CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue());
+        return true;
     }
 
     // ------------------------------------------------------------------------
@@ -560,6 +551,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
         HeapPriorityQueueSetFactory priorityQueueSetFactory =
                 new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
         return new HeapKeyedStateBackendBuilder<>(
                         kvStateRegistry,
                         keySerializer,
@@ -568,6 +561,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
                         keyGroupRange,
                         env.getExecutionConfig(),
                         ttlTimeProvider,
+                        latencyTrackingStateConfig,
                         stateHandles,
                         AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
                         localRecoveryConfig,
@@ -605,8 +599,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
                 + getCheckpointPath()
                 + "', savepoints: '"
                 + getSavepointPath()
-                + "', asynchronous: "
-                + asynchronousSnapshots
                 + ", fileStateThreshold: "
                 + fileStateThreshold
                 + ")";

@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -31,7 +33,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
@@ -42,12 +43,50 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToDataTypes;
+import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToNames;
 
 /**
  * Utility to derive a physical {@link DataType}, {@link Schema}, and projections when entering or
  * leaving the table ecosystem from and to other APIs where {@link TypeInformation} is required.
  */
+@Internal
 public final class ExternalSchemaTranslator {
+
+    /**
+     * Converts the given {@link DataType} into the final {@link OutputResult}.
+     *
+     * <p>Currently, this method serves only the following use case:
+     *
+     * <ul>
+     *   <li>1. Derive physical columns from the input data type.
+     * </ul>
+     */
+    public static OutputResult fromInternal(
+            DataTypeFactory dataTypeFactory,
+            ResolvedSchema inputSchema,
+            AbstractDataType<?> targetDataType) {
+        final List<String> inputFieldNames = inputSchema.getColumnNames();
+        final DataType resolvedDataType = dataTypeFactory.createDataType(targetDataType);
+        final List<String> targetFieldNames = flattenToNames(resolvedDataType);
+        final List<DataType> targetFieldDataTypes = flattenToDataTypes(resolvedDataType);
+
+        // help in reorder fields for POJOs if all field names are present but out of order,
+        // otherwise let the sink validation fail later
+        final List<String> projections;
+        if (targetFieldNames.size() == inputFieldNames.size()
+                && !targetFieldNames.equals(inputFieldNames)
+                && targetFieldNames.containsAll(inputFieldNames)) {
+            projections = targetFieldNames;
+        } else {
+            projections = null;
+        }
+
+        final Schema schema =
+                Schema.newBuilder().fromFields(targetFieldNames, targetFieldDataTypes).build();
+
+        return new OutputResult(projections, schema, resolvedDataType);
+    }
 
     /**
      * Converts the given {@link TypeInformation} and an optional declared {@link Schema} (possibly
@@ -99,19 +138,24 @@ public final class ExternalSchemaTranslator {
                 patchDataTypeFromDeclaredSchema(dataTypeFactory, inputDataType, declaredColumns);
         final Schema patchedSchema =
                 createPatchedSchema(isTopLevelRecord, patchedDataType, declaredSchema);
-        final int[] projections = extractProjections(patchedSchema, declaredSchema);
+        final List<String> projections = extractProjections(patchedSchema, declaredSchema);
         return new InputResult(patchedDataType, isTopLevelRecord, patchedSchema, projections);
     }
 
-    private static int[] extractProjections(Schema patchedSchema, Schema declaredSchema) {
+    private static @Nullable List<String> extractProjections(
+            Schema patchedSchema, Schema declaredSchema) {
         final List<String> patchedColumns =
                 patchedSchema.getColumns().stream()
                         .map(UnresolvedColumn::getName)
                         .collect(Collectors.toList());
-        return declaredSchema.getColumns().stream()
-                .map(UnresolvedColumn::getName)
-                .mapToInt(patchedColumns::indexOf)
-                .toArray();
+        final List<String> declaredColumns =
+                declaredSchema.getColumns().stream()
+                        .map(UnresolvedColumn::getName)
+                        .collect(Collectors.toList());
+        if (patchedColumns.equals(declaredColumns)) {
+            return null;
+        }
+        return declaredColumns;
     }
 
     private static Schema createPatchedSchema(
@@ -169,7 +213,7 @@ public final class ExternalSchemaTranslator {
             DataTypeFactory dataTypeFactory,
             DataType dataType,
             UnresolvedPhysicalColumn physicalColumn) {
-        final List<String> fieldNames = DataTypeUtils.flattenToNames(dataType);
+        final List<String> fieldNames = flattenToNames(dataType);
         final String columnName = physicalColumn.getName();
         if (!fieldNames.contains(columnName)) {
             throw new ValidationException(
@@ -202,7 +246,7 @@ public final class ExternalSchemaTranslator {
     private static DataType patchRowDataType(
             DataType dataType, String patchedFieldName, DataType patchedFieldDataType) {
         final RowType type = (RowType) dataType.getLogicalType();
-        final List<String> oldFieldNames = DataTypeUtils.flattenToNames(dataType);
+        final List<String> oldFieldNames = flattenToNames(dataType);
         final List<DataType> oldFieldDataTypes = dataType.getChildren();
         final Class<?> oldConversion = dataType.getConversionClass();
 
@@ -220,7 +264,7 @@ public final class ExternalSchemaTranslator {
     private static DataType patchStructuredDataType(
             DataType dataType, String patchedFieldName, DataType patchedFieldDataType) {
         final StructuredType type = (StructuredType) dataType.getLogicalType();
-        final List<String> oldFieldNames = DataTypeUtils.flattenToNames(dataType);
+        final List<String> oldFieldNames = flattenToNames(dataType);
         final List<DataType> oldFieldDataTypes = dataType.getChildren();
         final Class<?> oldConversion = dataType.getConversionClass();
 
@@ -261,8 +305,8 @@ public final class ExternalSchemaTranslator {
     }
 
     private static void addPhysicalDataTypeFields(Schema.Builder builder, DataType dataType) {
-        final List<DataType> fieldDataTypes = DataTypeUtils.flattenToDataTypes(dataType);
-        final List<String> fieldNames = DataTypeUtils.flattenToNames(dataType);
+        final List<DataType> fieldDataTypes = flattenToDataTypes(dataType);
+        final List<String> fieldNames = flattenToNames(dataType);
         builder.fromFields(fieldNames, fieldDataTypes);
     }
 
@@ -274,8 +318,12 @@ public final class ExternalSchemaTranslator {
     // Result representation
     // --------------------------------------------------------------------------------------------
 
-    /** Result of {@link #fromExternal(DataTypeFactory, TypeInformation, Schema)}. */
-    public static class InputResult {
+    /**
+     * Result of {@link #fromExternal(DataTypeFactory, TypeInformation, Schema)}.
+     *
+     * <p>The result should be applied as: physical data type -> schema -> projections.
+     */
+    public static final class InputResult {
 
         /**
          * Data type expected from the first table ecosystem operator for input conversion. The data
@@ -300,13 +348,13 @@ public final class ExternalSchemaTranslator {
          * List of indices to adjust the presents and order of columns from {@link #schema} for the
          * final column structure.
          */
-        private final @Nullable int[] projections;
+        private final @Nullable List<String> projections;
 
         private InputResult(
                 DataType physicalDataType,
                 boolean isTopLevelRecord,
                 Schema schema,
-                @Nullable int[] projections) {
+                @Nullable List<String> projections) {
             this.physicalDataType = physicalDataType;
             this.isTopLevelRecord = isTopLevelRecord;
             this.schema = schema;
@@ -325,8 +373,50 @@ public final class ExternalSchemaTranslator {
             return schema;
         }
 
-        public @Nullable int[] getProjections() {
+        public @Nullable List<String> getProjections() {
             return projections;
+        }
+    }
+
+    /**
+     * Result of {@link #fromExternal(DataTypeFactory, TypeInformation, Schema)}.
+     *
+     * <p>The result should be applied as: projections -> schema -> physical data type.
+     */
+    public static final class OutputResult {
+
+        /**
+         * List of field names to adjust the order of columns in {@link #schema} for the final
+         * column structure.
+         */
+        private final @Nullable List<String> projections;
+
+        /** Schema derived from the physical data type. */
+        private final Schema schema;
+
+        /**
+         * Data type expected from the first external operator after output conversion. The data
+         * type might not be a row type and can possibly be nullable.
+         */
+        private final DataType physicalDataType;
+
+        private OutputResult(
+                @Nullable List<String> projections, Schema schema, DataType physicalDataType) {
+            this.projections = projections;
+            this.schema = schema;
+            this.physicalDataType = physicalDataType;
+        }
+
+        public @Nullable List<String> getProjections() {
+            return projections;
+        }
+
+        public Schema getSchema() {
+            return schema;
+        }
+
+        public DataType getPhysicalDataType() {
+            return physicalDataType;
         }
     }
 }

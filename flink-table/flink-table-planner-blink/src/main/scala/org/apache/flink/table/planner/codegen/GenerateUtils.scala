@@ -132,9 +132,10 @@ object GenerateUtils {
     */
   def generateStringResultCallIfArgsNotNull(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType)
       (call: Seq[String] => String): GeneratedExpression = {
-    generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+    generateCallIfArgsNotNull(ctx, returnType, operands) {
       args => s"$BINARY_STRING.fromString(${call(args)})"
     }
   }
@@ -146,9 +147,10 @@ object GenerateUtils {
     */
   def generateStringResultCallWithStmtIfArgsNotNull(
       ctx: CodeGeneratorContext,
-      operands: Seq[GeneratedExpression])
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType)
       (call: Seq[String] => (String, String)): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
+    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands) {
       args =>
         val (stmt, result) = call(args)
         (stmt, s"$BINARY_STRING.fromString($result)")
@@ -490,7 +492,7 @@ object GenerateUtils {
   def generateProctimeTimestamp(
       ctx: CodeGeneratorContext,
       contextTerm: String): GeneratedExpression = {
-    val resultType = new TimestampType(3)
+    val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
@@ -504,14 +506,18 @@ object GenerateUtils {
 
   def generateCurrentTimestamp(
       ctx: CodeGeneratorContext): GeneratedExpression = {
-    //TODO return TIMESTAMP for PROCTIME(), will return TIMESTAMP_LTZ once FLINK-21617 finished
-    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new TimestampType(3))
+    new CurrentTimePointCallGen(true, true).generate(ctx, Seq(), new LocalZonedTimestampType(3))
   }
 
   def generateRowtimeAccess(
       ctx: CodeGeneratorContext,
-      contextTerm: String): GeneratedExpression = {
-    val resultType = new TimestampType(true, TimestampKind.ROWTIME, 3)
+      contextTerm: String,
+      isTimestampLtz: Boolean): GeneratedExpression = {
+    val resultType = if (isTimestampLtz) {
+      new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 3)
+    } else {
+      new TimestampType(true, TimestampKind.ROWTIME, 3)
+    }
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val Seq(resultTerm, nullTerm, timestamp) = ctx.addReusableLocalVariables(
       (resultTypeTerm, "result"),

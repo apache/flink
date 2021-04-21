@@ -86,6 +86,9 @@ public final class TimestampType extends LogicalType {
                             "Timestamp precision must be between %d and %d (both inclusive).",
                             MIN_PRECISION, MAX_PRECISION));
         }
+        if (kind == TimestampKind.PROCTIME) {
+            throw new ValidationException("TimestampType can not be used as PROCTIME type.");
+        }
         this.kind = kind;
         this.precision = precision;
     }

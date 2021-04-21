@@ -212,12 +212,6 @@ public class DataStreamAllroundTestJobFactory {
                     .withDescription(
                             "Activate or deactivate incremental snapshots if RocksDBStateBackend is selected.");
 
-    private static final ConfigOption<Boolean> STATE_BACKEND_FILE_ASYNC =
-            ConfigOptions.key("state_backend.file.async")
-                    .defaultValue(true)
-                    .withDescription(
-                            "Activate or deactivate asynchronous snapshots if FileStateBackend is selected.");
-
     private static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_KEYSPACE =
             ConfigOptions.key("sequence_generator_source.keyspace").defaultValue(200);
 
@@ -356,12 +350,7 @@ public class DataStreamAllroundTestJobFactory {
         final String stateBackend = pt.get(STATE_BACKEND.key(), STATE_BACKEND.defaultValue());
 
         if ("hashmap".equalsIgnoreCase(stateBackend)) {
-            boolean asyncCheckpoints =
-                    pt.getBoolean(
-                            STATE_BACKEND_FILE_ASYNC.key(),
-                            STATE_BACKEND_FILE_ASYNC.defaultValue());
-
-            env.setStateBackend(new HashMapStateBackend(asyncCheckpoints));
+            env.setStateBackend(new HashMapStateBackend());
         } else if ("rocks".equalsIgnoreCase(stateBackend)) {
             boolean incrementalCheckpoints =
                     pt.getBoolean(

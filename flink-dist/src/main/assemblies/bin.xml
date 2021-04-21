@@ -133,9 +133,6 @@ under the License.
 			<directory>../flink-python/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
-			<excludes>
-				<exclude>pyflink-udf-runner.*</exclude>
-			</excludes>
 		</fileSet>
 
 		<!-- copy SQL client -->
@@ -143,13 +140,6 @@ under the License.
 			<directory>../flink-table/flink-sql-client/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
-		</fileSet>
-
-		<!-- copy SQL client configuration files -->
-		<fileSet>
-			<directory>../flink-table/flink-sql-client/conf/</directory>
-			<outputDirectory>conf</outputDirectory>
-			<fileMode>0644</fileMode>
 		</fileSet>
 
 		<!-- copy yarn start scripts -->
@@ -172,7 +162,7 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
-		
+
 		<!-- copy default configuration -->
 		<fileSet>
 			<directory>src/main/flink-bin/conf</directory>

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
@@ -30,10 +31,10 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.util.Arrays;
 import java.util.Optional;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -81,6 +82,37 @@ public class ExternalSchemaTranslatorTest {
     }
 
     @Test
+    public void testOutputToRow() {
+        final ResolvedSchema inputSchema =
+                ResolvedSchema.of(
+                        Column.physical("c", DataTypes.INT()),
+                        Column.physical("a", DataTypes.BOOLEAN()),
+                        Column.physical("b", DataTypes.DOUBLE()));
+
+        final DataType physicalDataType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.BOOLEAN()),
+                        DataTypes.FIELD("b", DataTypes.DOUBLE()),
+                        DataTypes.FIELD("c", DataTypes.INT()));
+
+        final ExternalSchemaTranslator.OutputResult result =
+                ExternalSchemaTranslator.fromInternal(
+                        dataTypeFactory(), inputSchema, physicalDataType);
+
+        assertEquals(Arrays.asList("a", "b", "c"), result.getProjections());
+
+        assertEquals(
+                Schema.newBuilder()
+                        .column("a", DataTypes.BOOLEAN())
+                        .column("b", DataTypes.DOUBLE())
+                        .column("c", DataTypes.INT())
+                        .build(),
+                result.getSchema());
+
+        assertEquals(physicalDataType, result.getPhysicalDataType());
+    }
+
+    @Test
     public void testInputFromAtomic() {
         final TypeInformation<?> inputTypeInfo = Types.GENERIC(Row.class);
 
@@ -97,6 +129,21 @@ public class ExternalSchemaTranslatorTest {
                 result.getSchema());
 
         assertNull(result.getProjections());
+    }
+
+    @Test
+    public void testOutputToAtomic() {
+        final ResolvedSchema inputSchema = ResolvedSchema.of(Column.physical("a", DataTypes.INT()));
+
+        final ExternalSchemaTranslator.OutputResult result =
+                ExternalSchemaTranslator.fromInternal(
+                        dataTypeFactory(), inputSchema, DataTypes.INT());
+
+        assertNull(result.getProjections());
+
+        assertEquals(Schema.newBuilder().column("f0", DataTypes.INT()).build(), result.getSchema());
+
+        assertEquals(DataTypes.INT(), result.getPhysicalDataType());
     }
 
     @Test
@@ -176,7 +223,8 @@ public class ExternalSchemaTranslatorTest {
                         .build(),
                 result.getSchema());
 
-        assertArrayEquals(new int[] {1, 0, 4, 2, 5}, result.getProjections());
+        assertEquals(
+                Arrays.asList("f1", "f0", "computed", "f2", "computed2"), result.getProjections());
     }
 
     @Test
@@ -217,7 +265,7 @@ public class ExternalSchemaTranslatorTest {
                         .build(),
                 result.getSchema());
 
-        assertArrayEquals(new int[] {1, 0, 2}, result.getProjections());
+        assertEquals(Arrays.asList("f0_0", "f0", "f0_1"), result.getProjections());
     }
 
     @Test

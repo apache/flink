@@ -51,7 +51,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link TaskExecutor} RPC gateway interface. */
-public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEventGateway {
+public interface TaskExecutorGateway
+        extends RpcGateway, TaskExecutorOperatorEventGateway, TaskExecutorThreadInfoGateway {
 
     /**
      * Requests a slot from the TaskManager.

@@ -740,7 +740,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"
@@ -1612,7 +1612,7 @@
               "type" : "array",
               "items" : {
                 "type" : "object",
-                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:RootExceptionInfo",
                 "properties" : {
                   "exceptionName" : {
                     "type" : "string"
@@ -1628,6 +1628,30 @@
                   },
                   "location" : {
                     "type" : "string"
+                  },
+                  "concurrentExceptions" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                      "properties" : {
+                        "exceptionName" : {
+                          "type" : "string"
+                        },
+                        "stacktrace" : {
+                          "type" : "string"
+                        },
+                        "timestamp" : {
+                          "type" : "integer"
+                        },
+                        "taskName" : {
+                          "type" : "string"
+                        },
+                        "location" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -1943,7 +1967,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "attempt" : {
                 "type" : "integer"
@@ -2255,7 +2279,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2341,7 +2365,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2576,7 +2600,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"

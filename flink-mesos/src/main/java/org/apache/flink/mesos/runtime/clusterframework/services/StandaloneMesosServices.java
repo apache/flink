@@ -25,7 +25,13 @@ import org.apache.flink.mesos.util.MesosArtifactServer;
 
 import akka.actor.ActorSystem;
 
-/** {@link MesosServices} implementation for the standalone mode. */
+/**
+ * {@link MesosServices} implementation for the standalone mode.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class StandaloneMesosServices extends AbstractMesosServices {
 
     protected StandaloneMesosServices(ActorSystem actorSystem, MesosArtifactServer artifactServer) {

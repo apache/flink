@@ -276,10 +276,7 @@ SET sql-client.execution.result-mode = tableau;
 
 # test the SELECT query can run successfully, even result is empty
 select * from hivecatalog.`default`.param_types_table;
-+--------------+----------------------+----------------------+
-|          dec |                   ch |                  vch |
-+--------------+----------------------+----------------------+
-Received a total of 0 row
+Empty set
 !ok
 
 # ==========================================================================

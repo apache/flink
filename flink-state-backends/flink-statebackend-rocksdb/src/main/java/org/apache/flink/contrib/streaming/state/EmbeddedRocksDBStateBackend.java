@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -272,6 +273,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         } catch (DynamicCodeLoadingException e) {
             throw new FlinkRuntimeException(e);
         }
+
+        // configure latency tracking
+        latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
     }
 
     /**
@@ -444,6 +448,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
                 getCompressionDecorator(executionConfig);
+
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
         RocksDBKeyedStateBackendBuilder<K> builder =
                 new RocksDBKeyedStateBackendBuilder<>(
                                 operatorIdentifier,
@@ -459,6 +466,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                                 localRecoveryConfig,
                                 getPriorityQueueStateType(),
                                 ttlTimeProvider,
+                                latencyTrackingStateConfig,
                                 metricGroup,
                                 stateHandles,
                                 keyGroupCompressionDecorator,

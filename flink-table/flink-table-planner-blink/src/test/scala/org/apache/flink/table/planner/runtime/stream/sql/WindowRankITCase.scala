@@ -22,7 +22,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -47,7 +46,7 @@ class WindowRankITCase(mode: StateBackendMode)
     env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
     FailingCollectionSource.reset()
 
-    val dataId = TestValuesTableFactory.registerData(TestData.windowData)
+    val dataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.executeSql(
       s"""
         |CREATE TABLE T1 (
@@ -67,10 +66,6 @@ class WindowRankITCase(mode: StateBackendMode)
         |)
         |""".stripMargin)
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
-
-    // TODO: [FLINK-22011] remove this option to test default two-phase mode
-    tEnv.getConfig.getConfiguration
-      .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
   }
 
   @Test
@@ -228,7 +223,7 @@ class WindowRankITCase(mode: StateBackendMode)
 
     val expected = Seq(
       "a,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1,1",
-      "a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3,Comment#2|Hi|Comment#1,1",
+      "a,2020-10-10T00:00,2020-10-10T00:00:10,6,19.98,5.0,1.0,3,Comment#2|Hi|Comment#1,1",
       "a,2020-10-10T00:00:05,2020-10-10T00:00:15,1,3.33,null,3.0,1,Comment#2,2",
       "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi,2",
       "b,2020-10-10T00:00:05,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi,1",
@@ -361,8 +356,8 @@ class WindowRankITCase(mode: StateBackendMode)
 
     val expected = Seq(
       "a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1,1",
-      "a,2020-10-10T00:00,2020-10-10T00:00:10,5,14.43,5.0,1.0,3,Hi|Comment#1|Comment#2,1",
-      "a,2020-10-10T00:00,2020-10-10T00:00:15,5,14.43,5.0,1.0,3,Hi|Comment#1|Comment#2,1",
+      "a,2020-10-10T00:00,2020-10-10T00:00:10,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2,1",
+      "a,2020-10-10T00:00,2020-10-10T00:00:15,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2,1",
       "b,2020-10-10T00:00,2020-10-10T00:00:10,2,6.66,6.0,3.0,2,Hello|Hi,2",
       "b,2020-10-10T00:00,2020-10-10T00:00:15,2,6.66,6.0,3.0,2,Hello|Hi,2",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi,1",

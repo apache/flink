@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -46,7 +47,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
 
@@ -121,7 +121,11 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
  * </tbody>
  * </table>
  *
- * @since 1.11
+ * <p>Attention: JdbcXaSinkFunction does not support exactly-once mode with MySQL or other databases
+ * that do not support multiple XA transaction per connection. We will improve the support in
+ * FLINK-22239.
+ *
+ * @since 1.13
  */
 @Internal
 public class JdbcXaSinkFunction<T> extends AbstractRichFunction
@@ -217,26 +221,26 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
         super.open(configuration);
         xidGenerator.open();
         xaFacade.open();
-        outputFormat.setRuntimeContext(getRuntimeContext());
-        outputFormat.open(
-                getRuntimeContext().getIndexOfThisSubtask(),
-                getRuntimeContext().getNumberOfParallelSubtasks());
         hangingXids = new LinkedList<>(xaGroupOps.failOrRollback(hangingXids).getForRetry());
         commitUpToCheckpoint(Optional.empty());
         if (options.isDiscoverAndRollbackOnRecovery()) {
-            // todo: consider doing recover-rollback later (e.g. after the 1st checkpoint)
-            // when we are sure that all other subtasks started and committed any of their prepared
-            // transactions
-            // this would require to distinguish between this job Xids and other Xids
-            xaGroupOps.recoverAndRollback();
+            // Pending transactions which are not included into the checkpoint might hold locks and
+            // should be rolled back. However, rolling back ALL transactions can cause data loss. So
+            // each subtask first commits transactions from its state and then rolls back discovered
+            // transactions if they belong to it.
+            xaGroupOps.recoverAndRollback(getRuntimeContext(), xidGenerator);
         }
         beginTx(0L);
+        outputFormat.setRuntimeContext(getRuntimeContext());
+        // open format only after starting the transaction so it gets a ready to  use connection
+        outputFormat.open(
+                getRuntimeContext().getIndexOfThisSubtask(),
+                getRuntimeContext().getNumberOfParallelSubtasks());
     }
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         LOG.debug("snapshot state, checkpointId={}", context.getCheckpointId());
-        rollbackPreparedFromCheckpoint(context.getCheckpointId());
         prepareCurrentTx(context.getCheckpointId());
         beginTx(context.getCheckpointId() + 1);
         stateHandler.store(of(preparedXids, hangingXids));
@@ -262,7 +266,7 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
         if (currentXid != null && xaFacade.isOpen()) {
             try {
                 LOG.debug("remove current transaction before closing, xid={}", currentXid);
-                xaFacade.failOrRollback(currentXid);
+                xaFacade.failAndRollback(currentXid);
             } catch (Exception e) {
                 LOG.warn("unable to fail/rollback current transaction, xid={}", currentXid, e);
             }
@@ -290,16 +294,22 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                     "empty XA transaction (skip), xid: {}, checkpoint {}",
                     currentXid,
                     checkpointId);
+        } catch (Exception e) {
+            ExceptionUtils.rethrowIOException(e);
         }
         currentXid = null;
     }
 
     /** @param checkpointId to associate with the new transaction. */
-    private void beginTx(long checkpointId) {
+    private void beginTx(long checkpointId) throws Exception {
         Preconditions.checkState(currentXid == null, "currentXid not null");
         currentXid = xidGenerator.generateXid(getRuntimeContext(), checkpointId);
         hangingXids.offerLast(currentXid);
         xaFacade.start(currentXid);
+        if (checkpointId > 0) {
+            // associate outputFormat with a new connection that might have been opened in start()
+            outputFormat.updateExecutor(false);
+        }
     }
 
     private void commitUpToCheckpoint(Optional<Long> checkpointInclusive) {
@@ -318,26 +328,6 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                                     options.getMaxCommitAttempts())
                             .getForRetry());
         }
-    }
-
-    private void rollbackPreparedFromCheckpoint(long fromCheckpointInclusive) {
-        Tuple2<List<CheckpointAndXid>, List<CheckpointAndXid>> splittedXids =
-                split(preparedXids, fromCheckpointInclusive, false);
-        if (splittedXids.f1.isEmpty()) {
-            return;
-        }
-        preparedXids = splittedXids.f0;
-        LOG.warn(
-                "state snapshots have already been taken for checkpoint >= {}, rolling back {} transactions",
-                fromCheckpointInclusive,
-                splittedXids.f1.size());
-        xaGroupOps
-                .failOrRollback(
-                        splittedXids.f1.stream()
-                                .map(CheckpointAndXid::getXid)
-                                .collect(Collectors.toList()))
-                .getForRetry()
-                .forEach(hangingXids::offerFirst);
     }
 
     private Tuple2<List<CheckpointAndXid>, List<CheckpointAndXid>> split(

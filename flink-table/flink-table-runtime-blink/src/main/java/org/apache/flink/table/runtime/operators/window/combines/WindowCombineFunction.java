@@ -21,10 +21,11 @@ package org.apache.flink.table.runtime.operators.window.combines;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
 import org.apache.flink.table.runtime.util.WindowKey;
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -47,7 +48,10 @@ public interface WindowCombineFunction {
 
     // ------------------------------------------------------------------------
 
-    /** A factory that creates a {@link WindowCombineFunction}. */
+    /**
+     * A factory that creates a {@link WindowCombineFunction} for combining at global stage, i.e.
+     * keyed operator where combine into keyed state.
+     */
     @FunctionalInterface
     interface Factory extends Serializable {
 
@@ -63,10 +67,16 @@ public interface WindowCombineFunction {
          */
         WindowCombineFunction create(
                 RuntimeContext runtimeContext,
-                InternalTimerService<Long> timerService,
+                WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
                 WindowState<Long> windowState,
                 boolean isEventTime)
+                throws Exception;
+    }
+
+    /** A factory that creates a {@link WindowCombineFunction} used for combining at local stage. */
+    interface LocalFactory extends Serializable {
+        WindowCombineFunction create(RuntimeContext runtimeContext, Collector<RowData> collector)
                 throws Exception;
     }
 }

@@ -74,6 +74,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationRejection;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -230,6 +231,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public final void onStart() throws Exception {
         try {
+            log.info("Starting the resource manager.");
             startResourceManagerServices();
         } catch (Throwable t) {
             final ResourceManagerException exception =
@@ -509,12 +511,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void disconnectJobManager(
             final JobID jobId, JobStatus jobStatus, final Exception cause) {
-        closeJobManagerConnection(
-                jobId,
-                jobStatus.isGloballyTerminalState()
-                        ? ResourceRequirementHandling.CLEAR
-                        : ResourceRequirementHandling.RETAIN,
-                cause);
+        if (jobStatus.isGloballyTerminalState()) {
+            removeJob(jobId, cause);
+        } else {
+            closeJobManagerConnection(jobId, ResourceRequirementHandling.RETAIN, cause);
+        }
     }
 
     @Override
@@ -564,11 +565,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         if (null != jobManagerRegistration) {
             if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
-                log.info(
-                        "Received resource declaration for job {}: {}",
-                        jobId,
-                        resourceRequirements.getResourceRequirements());
-
                 slotManager.processResourceRequirements(resourceRequirements);
 
                 return CompletableFuture.completedFuture(Acknowledge.get());
@@ -847,6 +843,20 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
+    @Override
+    public CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
+            ResourceID taskManagerId, Time timeout) {
+
+        final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
+
+        if (taskExecutor == null) {
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        } else {
+            return CompletableFuture.completedFuture(taskExecutor.getTaskExecutorGateway());
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Internal methods
     // ------------------------------------------------------------------------
@@ -1045,8 +1055,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             jmResourceIdRegistrations.remove(jobManagerResourceId);
 
             if (resourceRequirementHandling == ResourceRequirementHandling.CLEAR) {
-                slotManager.processResourceRequirements(
-                        ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+                slotManager.clearResourceRequirements(jobId);
             }
 
             // tell the job manager about the disconnect
@@ -1087,7 +1096,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
-    protected void removeJob(JobID jobId) {
+    protected void removeJob(JobID jobId, Exception cause) {
         try {
             jobLeaderIdService.removeJob(jobId);
         } catch (Exception e) {
@@ -1098,10 +1107,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         if (jobManagerRegistrations.containsKey(jobId)) {
-            closeJobManagerConnection(
-                    jobId,
-                    ResourceRequirementHandling.CLEAR,
-                    new Exception("Job " + jobId + "was removed"));
+            closeJobManagerConnection(jobId, ResourceRequirementHandling.CLEAR, cause);
         }
     }
 
@@ -1463,7 +1469,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         @Override
                         public void run() {
                             if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
-                                removeJob(jobId);
+                                removeJob(
+                                        jobId,
+                                        new Exception(
+                                                "Job " + jobId + "was removed because of timeout"));
                             }
                         }
                     });

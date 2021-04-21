@@ -20,11 +20,12 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -51,12 +52,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
@@ -73,12 +74,15 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
@@ -103,6 +107,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -142,7 +147,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private final BoundedFIFOQueue<ExceptionHistoryEntry> exceptionHistory;
+    private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -207,10 +212,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.operatorCoordinatorHandler =
                 new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
-        exceptionHistory =
+
+        this.exceptionHistory =
                 new BoundedFIFOQueue<>(
-                        jobMasterConfiguration.getInteger(
-                                JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                        jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -239,6 +244,91 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         }
     }
 
+    private static int normalizeParallelism(int parallelism) {
+        if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+            return 1;
+        }
+        return parallelism;
+    }
+
+    /**
+     * Get a default value to use for a given vertex's max parallelism if none was specified.
+     *
+     * @param vertex the vertex to compute a default max parallelism for
+     * @return the computed max parallelism
+     */
+    public static int getDefaultMaxParallelism(JobVertex vertex) {
+        return KeyGroupRangeAssignment.computeDefaultMaxParallelism(
+                normalizeParallelism(vertex.getParallelism()));
+    }
+
+    /**
+     * Compute the {@link VertexParallelismStore} for all given vertices, which will set defaults
+     * and ensure that the returned store contains valid parallelisms, with a custom function for
+     * default max parallelism calculation.
+     *
+     * @param vertices the vertices to compute parallelism for
+     * @param defaultMaxParallelismFunc a function for computing a default max parallelism if none
+     *     is specified on a given vertex
+     * @return the computed parallelism store
+     */
+    public static VertexParallelismStore computeVertexParallelismStore(
+            Iterable<JobVertex> vertices, Function<JobVertex, Integer> defaultMaxParallelismFunc) {
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        for (JobVertex vertex : vertices) {
+            int parallelism = normalizeParallelism(vertex.getParallelism());
+
+            int maxParallelism = vertex.getMaxParallelism();
+            final boolean autoConfigured;
+            // if no max parallelism was configured by the user, we calculate and set a default
+            if (maxParallelism == JobVertex.MAX_PARALLELISM_DEFAULT) {
+                maxParallelism = defaultMaxParallelismFunc.apply(vertex);
+                autoConfigured = true;
+            } else {
+                autoConfigured = false;
+            }
+
+            VertexParallelismInformation parallelismInfo =
+                    new DefaultVertexParallelismInfo(
+                            parallelism,
+                            maxParallelism,
+                            // Allow rescaling if the max parallelism was not set explicitly by the
+                            // user
+                            (newMax) ->
+                                    autoConfigured
+                                            ? Optional.empty()
+                                            : Optional.of(
+                                                    "Cannot override a configured max parallelism."));
+            store.setParallelismInfo(vertex.getID(), parallelismInfo);
+        }
+
+        return store;
+    }
+
+    /**
+     * Compute the {@link VertexParallelismStore} for all given vertices, which will set defaults
+     * and ensure that the returned store contains valid parallelisms.
+     *
+     * @param vertices the vertices to compute parallelism for
+     * @return the computed parallelism store
+     */
+    public static VertexParallelismStore computeVertexParallelismStore(
+            Iterable<JobVertex> vertices) {
+        return computeVertexParallelismStore(vertices, SchedulerBase::getDefaultMaxParallelism);
+    }
+
+    /**
+     * Compute the {@link VertexParallelismStore} for all vertices of a given job graph, which will
+     * set defaults and ensure that the returned store contains valid parallelisms.
+     *
+     * @param jobGraph the job graph to retrieve vertices from
+     * @return the computed parallelism store
+     */
+    public static VertexParallelismStore computeVertexParallelismStore(JobGraph jobGraph) {
+        return computeVertexParallelismStore(jobGraph.getVertices());
+    }
+
     private ExecutionGraph createAndRestoreExecutionGraph(
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
@@ -258,6 +348,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                 jobGraph.getJobType()),
                         initializationTimestamp,
                         new DefaultVertexAttemptNumberStore(),
+                        computeVertexParallelismStore(jobGraph),
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(
@@ -357,7 +448,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private void notifyCoordinatorsOfEmptyGlobalRestore() throws Exception {
         for (final ExecutionJobVertex ejv : getExecutionGraph().getAllVertices().values()) {
-            for (final OperatorCoordinator coordinator : ejv.getOperatorCoordinators()) {
+            for (final OperatorCoordinatorHolder coordinator : ejv.getOperatorCoordinators()) {
                 coordinator.resetToCheckpoint(OperatorCoordinator.NO_CHECKPOINT, null);
             }
         }
@@ -398,9 +489,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                 .transitionState(ExecutionState.SCHEDULED));
     }
 
-    protected void setGlobalFailureCause(@Nullable final Throwable cause) {
+    protected void setGlobalFailureCause(@Nullable final Throwable cause, long timestamp) {
         if (cause != null) {
-            executionGraph.initFailureCause(cause);
+            executionGraph.initFailureCause(cause, timestamp);
         }
     }
 
@@ -408,9 +499,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return mainThreadExecutor;
     }
 
-    protected void failJob(Throwable cause) {
+    protected void failJob(Throwable cause, long timestamp) {
         incrementVersionsOfAllVertices();
-        executionGraph.failJob(cause);
+        executionGraph.failJob(cause, timestamp);
         getJobTerminationFuture().thenRun(() -> archiveGlobalFailure(cause));
     }
 
@@ -535,38 +626,42 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return executionGraph.getTerminationFuture();
     }
 
-    protected final void archiveGlobalFailure(@Nullable Throwable failure) {
-        archiveGlobalFailure(failure, executionGraph.getStatusTimestamp(JobStatus.FAILED));
+    protected final void archiveGlobalFailure(Throwable failure) {
+        archiveGlobalFailure(
+                failure,
+                executionGraph.getStatusTimestamp(JobStatus.FAILED),
+                StreamSupport.stream(executionGraph.getAllExecutionVertices().spliterator(), false)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .collect(Collectors.toSet()));
     }
 
-    protected final void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
-        exceptionHistory.add(ExceptionHistoryEntry.fromGlobalFailure(failure, timestamp));
+    private void archiveGlobalFailure(
+            Throwable failure, long timestamp, Iterable<Execution> executions) {
+        exceptionHistory.add(
+                RootExceptionHistoryEntry.fromGlobalFailure(failure, timestamp, executions));
         log.debug("Archive global failure.", failure);
     }
 
     protected final void archiveFromFailureHandlingResult(
-            FailureHandlingResult failureHandlingResult) {
-        final Optional<Execution> executionOptional =
-                failureHandlingResult
-                        .getExecutionVertexIdOfFailedTask()
-                        .map(this::getExecutionVertex)
-                        .map(ExecutionVertex::getCurrentExecutionAttempt);
+            FailureHandlingResultSnapshot failureHandlingResult) {
+        if (failureHandlingResult.getRootCauseExecution().isPresent()) {
+            final Execution rootCauseExecution =
+                    failureHandlingResult.getRootCauseExecution().get();
 
-        if (executionOptional.isPresent()) {
-            final Execution failedExecution = executionOptional.get();
-            final ExceptionHistoryEntry exceptionHistoryEntry =
-                    ExceptionHistoryEntry.fromFailedExecution(
-                            failedExecution,
-                            failedExecution.getVertex().getTaskNameWithSubtaskIndex());
-            exceptionHistory.add(exceptionHistoryEntry);
+            final RootExceptionHistoryEntry rootEntry =
+                    RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(
+                            failureHandlingResult);
+            exceptionHistory.add(rootEntry);
+
             log.debug(
                     "Archive local failure causing attempt {} to fail: {}",
-                    failedExecution.getAttemptId(),
-                    exceptionHistoryEntry.getExceptionAsString());
+                    rootCauseExecution.getAttemptId(),
+                    rootEntry.getExceptionAsString());
         } else {
-            // fallback in case of a global fail over - no failed state is set and, therefore, no
-            // timestamp was taken
-            archiveGlobalFailure(failureHandlingResult.getError(), System.currentTimeMillis());
+            archiveGlobalFailure(
+                    failureHandlingResult.getRootCause(),
+                    failureHandlingResult.getTimestamp(),
+                    failureHandlingResult.getConcurrentlyFailedExecution());
         }
     }
 
@@ -650,14 +745,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected void notifyPartitionDataAvailableInternal(
             IntermediateResultPartitionID resultPartitionId) {}
 
-    /**
-     * Returns a copy of the current history of task failures.
-     *
-     * @return a copy of the current history of task failures.
-     */
     @VisibleForTesting
-    protected Iterable<ExceptionHistoryEntry> getExceptionHistory() {
-        final Collection<ExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
+    Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
+        final Collection<RootExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
         exceptionHistory.forEach(copy::add);
 
         return copy;

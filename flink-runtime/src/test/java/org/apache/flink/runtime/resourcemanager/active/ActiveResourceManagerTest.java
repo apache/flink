@@ -66,6 +66,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 /** Tests for {@link ActiveResourceManager}. */
 public class ActiveResourceManagerTest extends TestLogger {
@@ -782,13 +783,21 @@ public class ActiveResourceManagerTest extends TestLogger {
                                 fail();
                             }
 
+                            final long start = System.nanoTime();
+
                             runInMainThread(() -> requestResourceFuture.complete(tmResourceId));
 
                             // worker registered, verify not released due to timeout
-                            CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
-                                    registerTaskExecutor(tmResourceId);
+                            RegistrationResponse registrationResponse =
+                                    registerTaskExecutor(tmResourceId).join();
+
+                            final long registrationTime = (System.nanoTime() - start) / 1_000_000;
+
+                            assumeTrue(
+                                    "The registration must not take longer than the start worker timeout. If it does, then this indicates a very slow machine.",
+                                    registrationTime < TESTING_START_WORKER_TIMEOUT_MS);
                             assertThat(
-                                    registerTaskExecutorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
+                                    registrationResponse,
                                     instanceOf(RegistrationResponse.Success.class));
                             assertFalse(releaseResourceFuture.isDone());
                         });

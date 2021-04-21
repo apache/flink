@@ -18,18 +18,10 @@
 ################################################################################
 
 function prepare_debug_files {
-	MODULE=$1
-	export DEBUG_FILES_OUTPUT_DIR="$AGENT_TEMPDIRECTORY/debug_files/"
-	export DEBUG_FILES_NAME="$(echo $MODULE | tr -dc '[:alnum:]\n\r')-$(date +%s)"
+	MODULE=$@
+	export DEBUG_FILES_OUTPUT_DIR="$AGENT_TEMPDIRECTORY/debug_files"
+	export DEBUG_FILES_NAME="$(echo $MODULE | tr -c '[:alnum:]\n\r' '_')-$(date +%s)"
 	echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]$DEBUG_FILES_OUTPUT_DIR"
 	echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
-	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create log directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
-}
-
-function compress_debug_files {
-	echo "Compressing debug files"
-	tar -zcvf /tmp/$DEBUG_FILES_NAME.tgz -C $DEBUG_FILES_OUTPUT_DIR .
-	# clean directory
-	rm -rf $DEBUG_FILES_OUTPUT_DIR ; mkdir -p $DEBUG_FILES_OUTPUT_DIR
-	mv /tmp/$DEBUG_FILES_NAME.tgz $DEBUG_FILES_OUTPUT_DIR
+	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create debug files directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
 }

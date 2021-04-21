@@ -167,9 +167,9 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 if [ -z "$_FLINK_HOME_DETERMINED" ]; then
     FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
 fi
-FLINK_LIB_DIR=$FLINK_HOME/lib
-FLINK_PLUGINS_DIR=$FLINK_HOME/plugins
-FLINK_OPT_DIR=$FLINK_HOME/opt
+if [ -z "$FLINK_LIB_DIR" ]; then FLINK_LIB_DIR=$FLINK_HOME/lib; fi
+if [ -z "$FLINK_PLUGINS_DIR" ]; then FLINK_PLUGINS_DIR=$FLINK_HOME/plugins; fi
+if [ -z "$FLINK_OPT_DIR" ]; then FLINK_OPT_DIR=$FLINK_HOME/opt; fi
 
 
 # These need to be mangled because they are directly passed to java.

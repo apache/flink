@@ -25,10 +25,11 @@ import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFun
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.ZoneId;
 
 /**
  * A buffer that buffers data in memory and flushes many values to state together at a time to avoid
- * frequently accessing state.
+ * frequently accessing state, or flushes to output to reduce shuffling data.
  */
 @Internal
 public interface WindowBuffer {
@@ -51,9 +52,9 @@ public interface WindowBuffer {
      * Advances the progress time, the progress time is watermark if working in event-time mode, or
      * current processing time if working in processing-time mode.
      *
-     * <p>This will potentially flush buffered data into states, because the watermark advancement
-     * may be in a very small step, but we don't need to flush buffered data for every watermark
-     * advancement.
+     * <p>This will potentially flush buffered data into states or to the output stream, because the
+     * watermark advancement may be in a very small step, but we don't need to flush buffered data
+     * for every watermark advancement.
      *
      * @param progress the current progress time
      */
@@ -83,13 +84,15 @@ public interface WindowBuffer {
          * @param memoryManager the manager that governs memory by Flink framework
          * @param memorySize the managed memory size can be used by this operator
          * @param combineFunction the combine function used to combine buffered data into state
+         * @param shiftTimeZone the shit timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
         WindowBuffer create(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowCombineFunction combineFunction)
+                WindowCombineFunction combineFunction,
+                ZoneId shiftTimeZone)
                 throws IOException;
     }
 }

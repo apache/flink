@@ -124,6 +124,16 @@ public class WebOptions {
                     .withDeprecatedKeys("jobmanager.web.checkpoints.history")
                     .withDescription("Number of checkpoints to remember for recent history.");
 
+    /** The maximum number of failures kept in the exception history. */
+    // the parameter is referenced in the UI and might need to be updated there as well
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Integer> MAX_EXCEPTION_HISTORY_SIZE =
+            key("web.exception-history-size")
+                    .intType()
+                    .defaultValue(16)
+                    .withDescription(
+                            "The maximum number of failures collected by the exception history per job.");
+
     /** @deprecated - no longer used. */
     @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_CLEANUP_INTERVAL =

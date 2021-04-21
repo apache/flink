@@ -132,14 +132,17 @@ public class TypeInfoDataTypeConverter {
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 LocalZonedTimestampType lzTs = (LocalZonedTimestampType) logicalType;
                 int precisionLzTs = lzTs.getPrecision();
-                return clazz == TimestampData.class
-                        ? new TimestampDataTypeInfo(precisionLzTs)
-                        : (clazz == Instant.class
-                                ? ((3 == precisionLzTs)
-                                        ? Types.INSTANT
-                                        : new LegacyInstantTypeInfo(precisionLzTs))
-                                : TypeConversions.fromDataTypeToLegacyInfo(dataType));
-
+                if (lzTs.getKind() == TimestampKind.REGULAR) {
+                    return clazz == TimestampData.class
+                            ? new TimestampDataTypeInfo(precisionLzTs)
+                            : (clazz == Instant.class
+                                    ? ((3 == precisionLzTs)
+                                            ? Types.INSTANT
+                                            : new LegacyInstantTypeInfo(precisionLzTs))
+                                    : TypeConversions.fromDataTypeToLegacyInfo(dataType));
+                } else {
+                    return TypeConversions.fromDataTypeToLegacyInfo(dataType);
+                }
             case DECIMAL:
                 DecimalType decimalType = (DecimalType) logicalType;
                 return clazz == DecimalData.class

@@ -92,7 +92,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
     /**
      * Invoke the callable and handover the return value to the handler which will be executed by
-     * the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>
+     * the source coordinator. When this method is invoked multiple times, The <code>Callable</code>
      * s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,

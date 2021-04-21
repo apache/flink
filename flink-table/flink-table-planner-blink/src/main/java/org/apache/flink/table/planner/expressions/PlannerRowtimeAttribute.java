@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -44,8 +45,12 @@ public class PlannerRowtimeAttribute extends AbstractPlannerWindowProperty {
             LogicalType resultType = reference.getType().get();
             if (resultType instanceof TimestampType
                     && ((TimestampType) resultType).getKind() == TimestampKind.ROWTIME) {
-                // rowtime window
+                // rowtime window with TIMESTAMP type
                 return new TimestampType(true, TimestampKind.ROWTIME, 3);
+            } else if (resultType instanceof LocalZonedTimestampType
+                    && ((LocalZonedTimestampType) resultType).getKind() == TimestampKind.ROWTIME) {
+                // rowtime window with TIMESTAMP_LTZ type
+                return new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 3);
             } else if (resultType instanceof BigIntType || resultType instanceof TimestampType) {
                 // batch time window
                 return new TimestampType(3);

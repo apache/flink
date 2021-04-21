@@ -63,7 +63,7 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 以下文档描述了 IntelliJ IDEA 2020.3 ([https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/)) 的设置步骤以及 Flink 的导入步骤。
 
-<a name="install--scala-plugin" />
+<a name="install-scala-plugin" />
 
 ### 安装 Scala 插件
 
@@ -90,11 +90,11 @@ IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请�
 
 ### 代码格式化
 
-我们使用 [Spotless plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) 和 [google-java-format](https://github.com/google/google-java-format) 一起格式化我们的 Java 代码。由于 [FLINK-21106](https://issues.apache.org/jira/browse/FLINK-21106)，IntelliJ 需要一个特定版本的补丁才能正常工作。
+我们使用 [Spotless plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) 和 [google-java-format](https://github.com/google/google-java-format) 一起格式化我们的 Java 代码。
                                                                                                                                                                                                                                               
 你可以通过以下步骤来将 IDE 配置为在保存时自动应用格式设置：
 
-1. 下载 [google-java-format plugin v1.7.0.5](https://issues.apache.org/jira/secure/attachment/13019264/google-java-format-1.7-patched.zip)
+1. 下载 [google-java-format plugin v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)
 2. 打开 Settings → Plugins，点击齿轮图标并选择 "Install Plugin from Disk"。导航到下载的 zip 文件并选择它。
 3. 在插件设置中，启用插件并将代码样式更改为 "AOSP"（4 个空格的缩进）。
 4. 请记住不要将此插件更新为更高版本！
@@ -208,7 +208,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 
 如果你使用 PyCharm 打开了一个项目：
 
-1. 选择 File → Open
+1. 选择 File → Open。
 2. 在克隆的 Flink 仓库中选择 flink-python 文件夹。
 
 <a name="python-checkstyle" />
@@ -221,10 +221,10 @@ Apache Flink 的 Python 代码检查样式应在项目中引入 flake8 的外部
 3. 将 "Name" 设置为 "flake8"。
 4. 将 "Description" 设置为 "code style check"。
 5. 将 "Program" 设置为 Python 解释器路径（例如 /usr/bin/python）。
-6. 将 "Arguments" 设置为 "-m flake8 \-\-config=tox.ini"
-7. 将 "Working directory" 设置为 "$ProjectFileDir$"
+6. 将 "Arguments" 设置为 "-m flake8 \-\-config=tox.ini"。
+7. 将 "Working directory" 设置为 "$ProjectFileDir$"。
 
 现在，你可以通过以下操作来检查你的 Python 代码样式：
-"右键单击 flink-python 项目中的任何文件或文件夹 → External Tools → flake8"
+"右键单击 flink-python 项目中的任何文件或文件夹 → External Tools → flake8"。
 
 {{< top >}}

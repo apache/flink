@@ -150,9 +150,20 @@ public final class TypeInfoDataTypeConverter {
     }
 
     /** Converts the given {@link TypeInformation} into {@link DataType}. */
-    @SuppressWarnings("rawtypes")
     public static DataType toDataType(
             DataTypeFactory dataTypeFactory, TypeInformation<?> typeInfo) {
+        return toDataType(dataTypeFactory, typeInfo, false);
+    }
+
+    /**
+     * Converts the given {@link TypeInformation} into {@link DataType} but allows to make all
+     * fields nullable independent of the nullability in the serialization stack.
+     */
+    @SuppressWarnings("rawtypes")
+    public static DataType toDataType(
+            DataTypeFactory dataTypeFactory,
+            TypeInformation<?> typeInfo,
+            boolean forceNullability) {
         if (typeInfo instanceof DataTypeQueryable) {
             return ((DataTypeQueryable) typeInfo).getDataType();
         }
@@ -186,7 +197,8 @@ public final class TypeInfoDataTypeConverter {
                     ((MapTypeInfo) typeInfo).getKeyTypeInfo(),
                     ((MapTypeInfo) typeInfo).getValueTypeInfo());
         } else if (typeInfo instanceof CompositeType) {
-            return convertToStructuredType(dataTypeFactory, (CompositeType) typeInfo);
+            return convertToStructuredType(
+                    dataTypeFactory, (CompositeType) typeInfo, forceNullability);
         }
 
         // treat everything else as RAW type
@@ -248,7 +260,9 @@ public final class TypeInfoDataTypeConverter {
     }
 
     private static DataType convertToStructuredType(
-            DataTypeFactory dataTypeFactory, CompositeType<?> compositeType) {
+            DataTypeFactory dataTypeFactory,
+            CompositeType<?> compositeType,
+            boolean forceNullability) {
         final int arity = compositeType.getArity();
         final String[] fieldNames = compositeType.getFieldNames();
         final Class<?> typeClass = compositeType.getTypeClass();
@@ -299,7 +313,7 @@ public final class TypeInfoDataTypeConverter {
         // for tuples and case classes
         else {
             // serializers don't support top-level nulls
-            isNullable = false;
+            isNullable = forceNullability;
 
             // based on type information all fields are boxed classes,
             // but case classes might contain primitives

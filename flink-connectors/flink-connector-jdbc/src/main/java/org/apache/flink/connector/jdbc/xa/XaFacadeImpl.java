@@ -18,6 +18,7 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -80,14 +81,14 @@ class XaFacadeImpl implements XaFacade {
     private transient Connection connection;
     private transient XAConnection xaConnection;
 
-    /** @return a non-serializable instance. */
+    @VisibleForTesting
     static XaFacadeImpl fromXaDataSource(XADataSource ds) {
-        return new XaFacadeImpl(() -> ds, empty());
+        return new XaFacadeImpl(() -> ds, null);
     }
 
-    XaFacadeImpl(Supplier<XADataSource> dataSourceSupplier, Optional<Integer> timeoutSec) {
+    XaFacadeImpl(Supplier<XADataSource> dataSourceSupplier, Integer timeoutSec) {
         this.dataSourceSupplier = Preconditions.checkNotNull(dataSourceSupplier);
-        this.timeoutSec = timeoutSec.orElse(null);
+        this.timeoutSec = timeoutSec;
     }
 
     @Override
@@ -114,10 +115,6 @@ class XaFacadeImpl implements XaFacade {
         if (connection != null) {
             connection.close();
             connection = null;
-        }
-        if (xaConnection != null) {
-            xaConnection.close();
-            xaConnection = null;
         }
         xaResource = null;
     }
@@ -173,12 +170,15 @@ class XaFacadeImpl implements XaFacade {
     }
 
     @Override
-    public void failOrRollback(Xid xid) {
+    public void failAndRollback(Xid xid) {
         execute(
                 Command.fromRunnable(
                         "end (fail)",
                         xid,
-                        () -> xaResource.end(xid, XAResource.TMFAIL),
+                        () -> {
+                            xaResource.end(xid, XAResource.TMFAIL);
+                            xaResource.rollback(xid);
+                        },
                         err -> {
                             if (err.errorCode >= XA_RBBASE) {
                                 rollback(xid);

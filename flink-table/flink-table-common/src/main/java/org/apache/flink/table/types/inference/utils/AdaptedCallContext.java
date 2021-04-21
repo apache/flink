@@ -106,6 +106,11 @@ public final class AdaptedCallContext implements CallContext {
         return Optional.ofNullable(outputDataType);
     }
 
+    @Override
+    public boolean isGroupedAggregation() {
+        return originalContext.isGroupedAggregation();
+    }
+
     private boolean isCasted(int pos) {
         final LogicalType originalType =
                 originalContext.getArgumentDataTypes().get(pos).getLogicalType();

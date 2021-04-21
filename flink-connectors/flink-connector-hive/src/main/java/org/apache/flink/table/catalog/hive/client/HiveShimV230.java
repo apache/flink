@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -39,6 +40,27 @@ import java.util.List;
 
 /** Shim for Hive version 2.3.0. */
 public class HiveShimV230 extends HiveShimV220 {
+
+    private static Method isMaterializedView;
+
+    private static boolean inited = false;
+
+    private static void init() {
+        if (!inited) {
+            synchronized (HiveShimV230.class) {
+                if (!inited) {
+                    try {
+                        isMaterializedView =
+                                org.apache.hadoop.hive.ql.metadata.Table.class.getDeclaredMethod(
+                                        "isMaterializedView");
+                        inited = true;
+                    } catch (Exception e) {
+                        throw new FlinkHiveException(e);
+                    }
+                }
+            }
+        }
+    }
 
     @Override
     public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -97,6 +119,16 @@ public class HiveShimV230 extends HiveShimV220 {
                 | InstantiationException
                 | InvocationTargetException e) {
             throw new CatalogException("Failed to create SimpleGenericUDAFParameterInfo", e);
+        }
+    }
+
+    @Override
+    public boolean isMaterializedView(org.apache.hadoop.hive.ql.metadata.Table table) {
+        init();
+        try {
+            return (boolean) isMaterializedView.invoke(table);
+        } catch (Exception e) {
+            throw new FlinkHiveException(e);
         }
     }
 }

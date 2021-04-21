@@ -48,12 +48,10 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
         return Arrays.asList(
                 new Object[][] {
                     {
-                        true,
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 JobManagerCheckpointStorage::new
                     },
                     {
-                        false,
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 () -> {
                                     String checkpointPath =
@@ -64,15 +62,12 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
                 });
     }
 
-    @Parameterized.Parameter(value = 0)
-    public boolean useAsyncMode;
-
-    @Parameterized.Parameter(value = 1)
+    @Parameterized.Parameter
     public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     @Override
     protected HashMapStateBackend getStateBackend() {
-        return new HashMapStateBackend(useAsyncMode);
+        return new HashMapStateBackend();
     }
 
     @Override
@@ -82,7 +77,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
 
     @Override
     protected boolean supportsAsynchronousSnapshots() {
-        return useAsyncMode;
+        return true;
     }
 
     @Override

@@ -161,4 +161,14 @@ class CalcTest extends TableTestBase {
   def testCollationDeriveOnCalc(): Unit = {
     util.verifyExecPlan("SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)")
   }
+
+  @Test
+  def testOrWithIsNullPredicate(): Unit = {
+    util.verifyExecPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL")
+  }
+
+  @Test
+  def testOrWithIsNullInIf(): Unit = {
+    util.verifyExecPlan("SELECT IF(c = '' OR c IS NULL, 'a', 'b') FROM MyTable")
+  }
 }

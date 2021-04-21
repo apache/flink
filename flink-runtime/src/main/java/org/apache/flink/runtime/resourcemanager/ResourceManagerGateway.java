@@ -44,7 +44,9 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 
 import javax.annotation.Nullable;
 
@@ -267,5 +269,14 @@ public interface ResourceManagerGateway
      * @return Future containing the thread dump information
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+    /**
+     * Requests the {@link TaskExecutorGateway}.
+     *
+     * @param taskManagerId identifying the {@link TaskExecutor}.
+     * @return Future containing the task executor gateway.
+     */
+    CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

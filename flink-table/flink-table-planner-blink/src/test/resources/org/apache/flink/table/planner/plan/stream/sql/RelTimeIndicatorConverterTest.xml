@@ -244,7 +244,7 @@ LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
-+- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
++- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, BIGINT long, INTEGER int, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>

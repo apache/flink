@@ -216,12 +216,11 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
-        long timestamp = timer.getTimestamp();
-        if (timestamp > lastTriggeredProcessingTime) {
+        if (timer.getTimestamp() > lastTriggeredProcessingTime) {
             // similar to the watermark advance,
             // we need to notify WindowProcessor first to flush buffer into state
-            lastTriggeredProcessingTime = timestamp;
-            windowProcessor.advanceProgress(timestamp);
+            lastTriggeredProcessingTime = timer.getTimestamp();
+            windowProcessor.advanceProgress(timer.getTimestamp());
             // timers registered in advanceProgress() should always be smaller than current timer
             // so, it should be safe to trigger current timer straightforwards.
         }

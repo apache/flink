@@ -3938,9 +3938,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "06:55:44")
 
     // test TIMESTAMP, TIMESTAMP
-    testSqlApi(
-      "IF(f7 < 5, f18, f52)",
-      "1996-11-10 06:55:44.333")
+// temporarily disabled until FLIP-162 is ready
+//    testSqlApi(
+//      "IF(f7 < 5, f18, f52)",
+//      "1996-11-10 06:55:44.333")
   }
 
   @Test
@@ -4059,5 +4060,77 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "f55=f57",
       "true")
+  }
+
+  @Test
+  def testStringFunctionAndExpressionResultType(): Unit = {
+    // this test is to check if the `resultType` of the `GeneratedExpression`
+    // of these string functions match their definition in `FlinkSqlOperatorTable`,
+    // if not exceptions will be thrown from BridgingFunctionGenUtil#verifyArgumentTypes
+
+    val str1 = "CAST('Hello' AS VARCHAR(5))"
+    val str2 = "CAST('Hi' AS VARCHAR(2))"
+    val str3 = "CAST('hello world' AS VARCHAR(11))"
+    val str4 = "CAST(' hello ' AS VARCHAR(7))"
+    val url = "CAST('http://user:pass@host' AS VARCHAR(50))"
+    val base64 = "CAST('aGVsbG8gd29ybGQ=' AS VARCHAR(20))"
+
+    testSqlApi(s"IFNULL(SUBSTR($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(SUBSTRING($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(LEFT($str1, 3), $str2)", "Hel")
+    testSqlApi(s"IFNULL(RIGHT($str1, 3), $str2)", "llo")
+    testSqlApi(s"IFNULL(REGEXP_EXTRACT($str1, 'H(.+?)l(.+?)$$', 2), $str2)", "lo")
+    testSqlApi(s"IFNULL(REGEXP_REPLACE($str1, 'e.l', 'EXL'), $str2)", "HEXLo")
+    testSqlApi(s"IFNULL(UPPER($str1), $str2)", "HELLO")
+    testSqlApi(s"IFNULL(LOWER($str1), $str2)", "hello")
+    testSqlApi(s"IFNULL(INITCAP($str3), $str2)", "Hello World")
+    testSqlApi(s"IFNULL(OVERLAY($str1 PLACING $str3 FROM 2 FOR 3), $str2)", "Hhello worldo")
+    testSqlApi(s"IFNULL(LPAD($str1, 7, $str3), $str2)", "heHello")
+    testSqlApi(s"IFNULL(RPAD($str1, 7, $str3), $str2)", "Hellohe")
+    testSqlApi(s"IFNULL(REPEAT($str1, 2), $str2)", "HelloHello")
+    testSqlApi(s"IFNULL(REVERSE($str1), $str2)", "olleH")
+    testSqlApi(s"IFNULL(REPLACE($str3, ' ', '_'), $str2)", "hello_world")
+    testSqlApi(s"IFNULL(SPLIT_INDEX($str3, ' ', 1), $str2)", "world")
+    testSqlApi(s"IFNULL(MD5($str1), $str2)", "8b1a9953c4611296a827abf8c47804d7")
+    testSqlApi(s"IFNULL(SHA1($str1), $str2)", "f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0")
+    testSqlApi(
+      s"IFNULL(SHA224($str1), $str2)",
+      "4149da18aa8bfc2b1e382c6c26556d01a92c261b6436dad5e3be3fcc")
+    testSqlApi(
+      s"IFNULL(SHA256($str1), $str2)",
+      "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969")
+    testSqlApi(
+      s"IFNULL(SHA384($str1), $str2)",
+      "3519fe5ad2c596efe3e276a6f351b8fc0b03db861782490d45" +
+        "f7598ebd0ab5fd5520ed102f38c4a5ec834e98668035fc")
+    testSqlApi(
+      s"IFNULL(SHA512($str1), $str2)",
+      "3615f80c9d293ed7402687f94b22d58e529b8cc7916f8fac7fddf7fbd5af4cf777d" +
+        "3d795a7a00a16bf7e7f3fb9561ee9baae480da9fe7a18769e71886b03f315")
+    testSqlApi(
+      s"IFNULL(SHA2($str1, 256), $str2)",
+      "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969")
+    testSqlApi(s"IFNULL(PARSE_URL($url, 'HOST'), $str2)", "host")
+    testSqlApi(s"IFNULL(FROM_BASE64($base64), $str2)", "hello world")
+    testSqlApi(s"IFNULL(TO_BASE64($str3), $str2)", "aGVsbG8gd29ybGQ=")
+    testSqlApi(s"IFNULL(CHR(65), $str2)", "A")
+    testSqlApi(s"IFNULL(BIN(10), $str2)", "1010")
+    testSqlApi(s"IFNULL(CONCAT($str1, $str2), $str2)", "HelloHi")
+    testSqlApi(s"IFNULL(CONCAT_WS('~', $str1, $str2), $str2)", "Hello~Hi")
+    testSqlApi(s"IFNULL(TRIM($str4), $str2)", "hello")
+    testSqlApi(s"IFNULL(LTRIM($str4), $str2)", "hello ")
+    testSqlApi(s"IFNULL(RTRIM($str4), $str2)", " hello")
+    testSqlApi(s"IFNULL($str1 || $str2, $str2)", "HelloHi")
+    testSqlApi(s"IFNULL(SUBSTRING(UUID(), 9, 1), $str2)", "-")
+    testSqlApi(s"IFNULL(DECODE(ENCODE($str1, 'utf-8'), 'utf-8'), $str2)", "Hello")
+
+    testSqlApi(s"IFNULL(CAST(DATE '2021-04-06' AS VARCHAR(10)), $str2)", "2021-04-06")
+    testSqlApi(s"IFNULL(CAST(TIME '11:05:30' AS VARCHAR(8)), $str2)", "11:05:30")
+    testSqlApi(
+      s"IFNULL(CAST(TIMESTAMP '2021-04-06 11:05:30' AS VARCHAR(19)), $str2)",
+      "2021-04-06 11:05:30")
+    testSqlApi(s"IFNULL(CAST(INTERVAL '2' YEAR AS VARCHAR(20)), $str2)", "+2-00")
+    testSqlApi(s"IFNULL(CAST(INTERVAL '2' DAY AS VARCHAR(20)), $str2)", "+2 00:00:00.000")
+    testSqlApi(s"IFNULL(CAST(f53 AS VARCHAR(100)), $str2)", "hello world")
   }
 }

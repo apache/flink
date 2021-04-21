@@ -131,11 +131,31 @@ abstract class RexNodeTestBase {
       .nestedField("with", withRowType)
       .build
 
+    // deep field access with array/map
+    val valueInnerType = inputOf(typeFactory)
+      .field("val_inner", VARCHAR)
+      .field("val_entry", VARCHAR)
+      .build
+
+    val mapType = inputOf(typeFactory)
+      .nestedField("deep_map",
+        typeFactory.createMapType(typeFactory.createSqlType(INTEGER), valueInnerType))
+      .build
+
+    val arrayInnerType = inputOf(typeFactory)
+      .nestedField("deep_array", typeFactory.createArrayType(mapType, -1))
+      .build
+
+    val deepItems = inputOf(typeFactory)
+      .field("outer", INTEGER)
+      .nestedField("inner", arrayInnerType)
+      .build
+
     val rowType = typeFactory.createStructType(
       Seq(
-      personRow, paymentRow, fieldRowType),
+      personRow, paymentRow, fieldRowType, deepItems),
       Seq(
-        "persons", "payments", "field"
+        "persons", "payments", "field", "items"
       )
     )
 
@@ -146,12 +166,18 @@ abstract class RexNodeTestBase {
     //   field:    [ with: [ deep: [ entry: VARCHAR ],
     //                       deeper: [ entry: [ inside: [entry: VARCHAR ] ] ]
     //             ] ]
+    //   items:    [ outer: INT,
+    //               inner: [ deep_array:
+    //               [ deep_map: key INT - [val_inner VARCHAR, val_entry VARCHAR ] ] ]
+    //             ]
     // ]
 
     val t0 = rexBuilder.makeInputRef(personRow, 0)
     val t1 = rexBuilder.makeInputRef(paymentRow, 1)
     val t2 = rexBuilder.makeInputRef(fieldRowType, 2)
-    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(10L))
+    val t3 = rexBuilder.makeInputRef(deepItems, 3)
+    val t4 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(10L))
+    val t5 = rexBuilder.makeLiteral("item")
 
     // person
     val person$pass = rexBuilder.makeFieldAccess(t0, "passport", false)
@@ -159,7 +185,7 @@ abstract class RexNodeTestBase {
 
     // payment
     val pay$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
-    val multiplyAmount = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, pay$amount, t3)
+    val multiplyAmount = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, pay$amount, t4)
 
     // field
     val field$with = rexBuilder.makeFieldAccess(t2, "with", false)
@@ -172,6 +198,21 @@ abstract class RexNodeTestBase {
     val field$with$deeper$entry$inside$entry = rexBuilder
       .makeFieldAccess(field$with$deeper$entry$inside, "entry", false)
 
+    // items
+    val items$outer = rexBuilder.makeFieldAccess(t3, "outer", false)
+    val items$inner = rexBuilder.makeFieldAccess(t3, "inner", false)
+    val items$inner$deep_array =
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.ITEM,
+        rexBuilder.makeFieldAccess(items$inner, "deep_array", false),
+        items$outer)
+    val items$inner$deep_array$deep_map =
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.ITEM,
+        rexBuilder.makeFieldAccess(items$inner$deep_array, "deep_map",
+          false),
+        t5)
+
     // Program
     // (
     //   payments.amount * 10),
@@ -182,7 +223,8 @@ abstract class RexNodeTestBase {
     //   persons
     // )
     (List(multiplyAmount, person$pass$stat, field$with$deep$entry,
-      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0).asJava,
+      field$with$deeper$entry$inside$entry, field$with$deeper$entry, t0,
+      items$inner$deep_array$deep_map).asJava,
       rowType)
   }
 

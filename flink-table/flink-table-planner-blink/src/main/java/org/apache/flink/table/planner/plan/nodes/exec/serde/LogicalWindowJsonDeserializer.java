@@ -134,6 +134,6 @@ public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow
         int inputIndex = input.get(FIELD_NAME_INPUT_INDEX).asInt();
         LogicalType type =
                 mapper.readValue(input.get(FIELD_NAME_FIELD_TYPE).toString(), LogicalType.class);
-        return new FieldReferenceExpression(name, new AtomicDataType(type), fieldIndex, inputIndex);
+        return new FieldReferenceExpression(name, new AtomicDataType(type), inputIndex, fieldIndex);
     }
 }

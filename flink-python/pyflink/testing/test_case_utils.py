@@ -399,37 +399,3 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
-
-
-class MLTestCase(PyFlinkTestCase):
-    """
-    Base class for testing ML.
-    """
-
-    _inited = False
-
-    @staticmethod
-    def _ensure_path(pattern):
-        if not glob.glob(pattern):
-            raise unittest.SkipTest(
-                "'%s' is not available. Will skip the related tests." % pattern)
-
-    @classmethod
-    def _ensure_initialized(cls):
-        if MLTestCase._inited:
-            return
-
-        flink_source_root_dir = _find_flink_source_root()
-        api_path_pattern = (
-            "flink-ml-parent/flink-ml-api/target/flink-ml-api*-SNAPSHOT.jar")
-        lib_path_pattern = (
-            "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*-SNAPSHOT.jar")
-
-        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, api_path_pattern))
-        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, lib_path_pattern))
-
-        MLTestCase._inited = True
-
-    def setUp(self):
-        super(MLTestCase, self).setUp()
-        MLTestCase._ensure_initialized()

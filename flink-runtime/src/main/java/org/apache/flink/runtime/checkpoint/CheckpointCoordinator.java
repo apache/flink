@@ -884,7 +884,10 @@ public class CheckpointCoordinator {
                     abortPendingCheckpoint(checkpoint, cause);
                 }
             } else {
-                LOG.warn("Failed to trigger checkpoint for job {}.)", job, throwable);
+                LOG.info(
+                        "Failed to trigger checkpoint for job {} since {}",
+                        job,
+                        throwable.getMessage());
             }
         } finally {
             isTriggering = false;

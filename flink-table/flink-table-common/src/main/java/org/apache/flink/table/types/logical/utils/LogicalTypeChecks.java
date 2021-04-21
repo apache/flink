@@ -109,15 +109,27 @@ public final class LogicalTypeChecks {
     }
 
     public static boolean isTimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) != TimestampKind.REGULAR;
+        return isRowtimeAttribute(logicalType) || isProctimeAttribute(logicalType);
     }
 
     public static boolean isRowtimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.ROWTIME;
+        return (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
+                        || hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE))
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.ROWTIME;
     }
 
     public static boolean isProctimeAttribute(LogicalType logicalType) {
-        return logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+        return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                && logicalType.accept(TIMESTAMP_KIND_EXTRACTOR) == TimestampKind.PROCTIME;
+    }
+
+    public static boolean canBeTimeAttributeType(LogicalType logicalType) {
+        LogicalTypeRoot typeRoot = logicalType.getTypeRoot();
+        if (typeRoot == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+                || typeRoot == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+            return true;
+        }
+        return false;
     }
 
     /**

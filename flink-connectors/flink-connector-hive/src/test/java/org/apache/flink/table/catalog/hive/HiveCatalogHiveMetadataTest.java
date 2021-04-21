@@ -18,18 +18,16 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
@@ -44,6 +42,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
 
@@ -59,7 +58,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -79,27 +77,6 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     // =====================
 
     public void testCreateTable_Streaming() throws Exception {}
-
-    @Override
-    @Test
-    public void testAlterDb() throws Exception {
-        // altering Hive DB merges properties, which is different from generic DB
-        CatalogDatabase db = createDb();
-        catalog.createDatabase(db1, db, false);
-
-        CatalogDatabase newDb = createAnotherDb();
-        newDb.getProperties().put(ALTER_DATABASE_OP, AlterHiveDatabaseOp.CHANGE_PROPS.name());
-        catalog.alterDatabase(db1, newDb, false);
-
-        Map<String, String> mergedProps = new HashMap<>(db.getProperties());
-        mergedProps.putAll(newDb.getProperties());
-
-        assertTrue(
-                catalog.getDatabase(db1)
-                        .getProperties()
-                        .entrySet()
-                        .containsAll(mergedProps.entrySet()));
-    }
 
     @Test
     // verifies that input/output formats and SerDe are set for Hive tables
@@ -266,7 +243,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, "false");
+        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));

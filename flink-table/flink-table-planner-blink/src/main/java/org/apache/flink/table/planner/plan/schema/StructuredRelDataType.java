@@ -28,6 +28,7 @@ import org.apache.calcite.rel.type.RelDataTypeComparability;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.ObjectSqlType;
@@ -46,6 +47,10 @@ import java.util.stream.Collectors;
  */
 @Internal
 public final class StructuredRelDataType extends ObjectSqlType {
+
+    private static final String IDENTIFIER_FORMAT = "*%s*";
+
+    private static final String DIGEST_FORMAT = "*%s(%s)*%s";
 
     private final StructuredType structuredType;
 
@@ -87,6 +92,11 @@ public final class StructuredRelDataType extends ObjectSqlType {
     }
 
     @Override
+    public StructKind getStructKind() {
+        return StructKind.PEEK_FIELDS_NO_EXPAND;
+    }
+
+    @Override
     public RelDataTypeFamily getFamily() {
         return this; // every user-defined type is its own family
     }
@@ -101,17 +111,21 @@ public final class StructuredRelDataType extends ObjectSqlType {
             if (structuredType.getObjectIdentifier().isPresent()) {
                 sb.append(structuredType.asSerializableString());
             }
-            // in case of inline structured type we are using a temporary identifier
+            // in case of inline structured types we are using a temporary digest
             // that includes both the implementation class plus its children for cases with classes
             // that use generics
             else {
-                sb.append(structuredType.asSummaryString());
-                sb.append("(");
                 sb.append(
-                        fieldList.stream()
-                                .map(field -> field.getType().getFullTypeString())
-                                .collect(Collectors.joining(", ")));
-                sb.append(")");
+                        String.format(
+                                DIGEST_FORMAT,
+                                structuredType
+                                        .getImplementationClass()
+                                        .map(Class::getName)
+                                        .orElseThrow(IllegalStateException::new),
+                                fieldList.stream()
+                                        .map(field -> field.getType().getFullTypeString())
+                                        .collect(Collectors.joining(", ")),
+                                structuredType.isNullable() ? "" : " NOT NULL"));
             }
         } else {
             sb.append(structuredType.asSummaryString());
@@ -132,7 +146,13 @@ public final class StructuredRelDataType extends ObjectSqlType {
                 .orElseGet(
                         () ->
                                 new SqlIdentifier(
-                                        structuredType.asSummaryString(), SqlParserPos.ZERO));
+                                        String.format(
+                                                IDENTIFIER_FORMAT,
+                                                structuredType
+                                                        .getImplementationClass()
+                                                        .map(Class::getName)
+                                                        .orElseThrow(IllegalStateException::new)),
+                                        SqlParserPos.ZERO));
     }
 
     private static RelDataTypeComparability createRelDataTypeComparability(

@@ -43,4 +43,5 @@ export interface TaskStatusInterface {
   RUNNING: number;
   SCHEDULED: number;
   TOTAL: number;
+  INITIALIZING: number;
 }

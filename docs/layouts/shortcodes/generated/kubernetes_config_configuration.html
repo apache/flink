@@ -15,10 +15,16 @@
             <td>If configured, Flink will add "resources.limits.&lt;config-key&gt;" and "resources.requests.&lt;config-key&gt;" to the main container of TaskExecutor and set the value to the value of external-resource.&lt;resource_name&gt;.amount.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.client.io-pool.size</h5></td>
+            <td style="word-wrap: break-word;">4</td>
+            <td>Integer</td>
+            <td>The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations (e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). Increasing the pool size allows to run more IO operations concurrently.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <span markdown="span">`[a-z]([-a-z0-9]*[a-z0-9])`</span>. If not set, the client will automatically generate it with a random ID.</td>
+            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <code class="highlighter-rouge">[a-z]([-a-z0-9]*[a-z0-9])</code>. If not set, the client will automatically generate it with a random ID.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.config.file</h5></td>
@@ -60,7 +66,7 @@
             <td><h5>kubernetes.env.secretKeyRef</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
-            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <span markdown="span">`env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key`</span>.</td>
+            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <code class="highlighter-rouge">env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key</code>.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.flink.conf.dir</h5></td>
@@ -162,7 +168,7 @@
             <td><h5>kubernetes.secrets</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
-            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
+            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <code class="highlighter-rouge">foo:/opt/secrets-foo,bar:/opt/secrets-bar</code>.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.service-account</h5></td>
@@ -210,7 +216,7 @@
             <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
-            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <span markdown="span">`FlinkKubeClient#checkAndUpdateConfigMap`</span>.</td>
+            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <code class="highlighter-rouge">FlinkKubeClient#checkAndUpdateConfigMap</code>.</td>
         </tr>
     </tbody>
 </table>

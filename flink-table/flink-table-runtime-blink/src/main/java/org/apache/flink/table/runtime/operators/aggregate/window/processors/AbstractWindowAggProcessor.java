@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
@@ -33,8 +32,17 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowB
 import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
+
+import java.time.ZoneId;
+import java.util.TimeZone;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A base implementation of {@link SlicingWindowProcessor} for window aggregate. */
 public abstract class AbstractWindowAggProcessor implements SlicingWindowProcessor<Long> {
@@ -46,16 +54,24 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
     protected final SliceAssigner sliceAssigner;
     protected final TypeSerializer<RowData> accSerializer;
     protected final boolean isEventTime;
+    protected final long windowInterval;
+    protected final ZoneId shiftTimeZone;
+
+    /** The shift timezone is using DayLightSaving time or not. */
+    protected final boolean useDayLightSaving;
 
     // ----------------------------------------------------------------------------------------
 
     protected transient long currentProgress;
 
+    /** The next progress to trigger windows. */
+    private transient long nextTriggerProgress;
+
     protected transient Context<Long> ctx;
 
     protected transient ClockService clockService;
 
-    protected transient InternalTimerService<Long> timerService;
+    protected transient WindowTimerService<Long> windowTimerService;
 
     protected transient NamespaceAggsHandleFunction<Long> aggregator;
 
@@ -71,13 +87,17 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
             WindowBuffer.Factory bufferFactory,
             WindowCombineFunction.Factory combinerFactory,
             SliceAssigner sliceAssigner,
-            TypeSerializer<RowData> accSerializer) {
+            TypeSerializer<RowData> accSerializer,
+            ZoneId shiftTimeZone) {
         this.genAggsHandler = genAggsHandler;
         this.windowBufferFactory = bufferFactory;
         this.combineFactory = combinerFactory;
         this.sliceAssigner = sliceAssigner;
         this.accSerializer = accSerializer;
         this.isEventTime = sliceAssigner.isEventTime();
+        this.windowInterval = sliceAssigner.getSliceEndInterval();
+        this.shiftTimeZone = shiftTimeZone;
+        this.useDayLightSaving = TimeZone.getTimeZone(shiftTimeZone).useDaylightTime();
     }
 
     @Override
@@ -92,7 +112,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         this.windowState =
                 new WindowValueState<>((InternalValueState<RowData, Long, RowData>) state);
         this.clockService = ClockService.of(ctx.getTimerService());
-        this.timerService = ctx.getTimerService();
+        this.windowTimerService = new WindowTimerServiceImpl(ctx.getTimerService(), shiftTimeZone);
         this.aggregator =
                 genAggsHandler.newInstance(ctx.getRuntimeContext().getUserCodeClassLoader());
         this.aggregator.open(
@@ -101,7 +121,7 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         final WindowCombineFunction combineFunction =
                 combineFactory.create(
                         ctx.getRuntimeContext(),
-                        ctx.getTimerService(),
+                        windowTimerService,
                         ctx.getKeyedStateBackend(),
                         windowState,
                         isEventTime);
@@ -110,10 +130,12 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
                         ctx.getOperatorOwner(),
                         ctx.getMemoryManager(),
                         ctx.getMemorySize(),
-                        combineFunction);
+                        combineFunction,
+                        shiftTimeZone);
 
         this.reuseOutput = new JoinedRowData();
         this.currentProgress = Long.MIN_VALUE;
+        this.nextTriggerProgress = Long.MIN_VALUE;
     }
 
     @Override
@@ -121,21 +143,58 @@ public abstract class AbstractWindowAggProcessor implements SlicingWindowProcess
         long sliceEnd = sliceAssigner.assignSliceEnd(element, clockService);
         if (!isEventTime) {
             // always register processing time for every element when processing time mode
-            timerService.registerProcessingTimeTimer(sliceEnd, sliceEnd - 1);
+            windowTimerService.registerProcessingTimeWindowTimer(sliceEnd);
         }
-        if (isEventTime && sliceEnd - 1 <= currentProgress) {
-            // element is late and should be dropped
-            return true;
+
+        if (isEventTime && isWindowFired(sliceEnd, currentProgress, shiftTimeZone)) {
+            // the assigned slice has been triggered, which means current element is late,
+            // but maybe not need to drop
+            long lastWindowEnd = sliceAssigner.getLastWindowEnd(sliceEnd);
+            if (isWindowFired(lastWindowEnd, currentProgress, shiftTimeZone)) {
+                // the last window has been triggered, so the element can be dropped now
+                return true;
+            } else {
+                windowBuffer.addElement(key, sliceStateMergeTarget(sliceEnd), element);
+                // we need to register a timer for the next unfired window,
+                // because this may the first time we see elements under the key
+                long unfiredFirstWindow = sliceEnd;
+                while (isWindowFired(unfiredFirstWindow, currentProgress, shiftTimeZone)) {
+                    unfiredFirstWindow += windowInterval;
+                }
+                windowTimerService.registerEventTimeWindowTimer(unfiredFirstWindow);
+                return false;
+            }
+        } else {
+            // the assigned slice hasn't been triggered, accumulate into the assigned slice
+            windowBuffer.addElement(key, sliceEnd, element);
+            return false;
         }
-        windowBuffer.addElement(key, sliceEnd, element);
-        return false;
     }
+
+    /**
+     * Returns the slice state target to merge the given slice into when firing windows. For
+     * unshared windows, there should no merging happens, so the merge target should be just the
+     * given {@code sliceToMerge}. For shared windows, the merge target should be the shared slice
+     * state.
+     *
+     * @see SliceSharedAssigner#mergeSlices(long, SliceSharedAssigner.MergeCallback)
+     */
+    protected abstract long sliceStateMergeTarget(long sliceToMerge) throws Exception;
 
     @Override
     public void advanceProgress(long progress) throws Exception {
         if (progress > currentProgress) {
             currentProgress = progress;
-            windowBuffer.advanceProgress(currentProgress);
+            if (currentProgress >= nextTriggerProgress) {
+                // in order to buffer as much as possible data, we only need to call
+                // advanceProgress() when currentWatermark may trigger window.
+                // this is a good optimization when receiving late but un-dropped events, because
+                // they will register small timers and normal watermark will flush the buffer
+                windowBuffer.advanceProgress(currentProgress);
+                nextTriggerProgress =
+                        getNextTriggerWatermark(
+                                currentProgress, windowInterval, shiftTimeZone, useDayLightSaving);
+            }
         }
     }
 

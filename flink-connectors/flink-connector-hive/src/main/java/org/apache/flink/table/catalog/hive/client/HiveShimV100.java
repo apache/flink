@@ -23,6 +23,7 @@ import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.orc.nohive.OrcNoHiveBulkWriterFactory;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -92,6 +93,12 @@ import java.util.stream.Collectors;
 
 /** Shim for Hive version 1.0.0. */
 public class HiveShimV100 implements HiveShim {
+
+    private static final Method registerTemporaryFunction =
+            HiveReflectionUtils.tryGetMethod(
+                    FunctionRegistry.class,
+                    "registerTemporaryFunction",
+                    new Class[] {String.class, Class.class});
 
     @Override
     public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -407,6 +414,15 @@ public class HiveShimV100 implements HiveShim {
     public BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
             Configuration conf, String schema, LogicalType[] fieldTypes) {
         return new OrcNoHiveBulkWriterFactory(conf, schema, fieldTypes);
+    }
+
+    @Override
+    public void registerTemporaryFunction(String funcName, Class funcClass) {
+        try {
+            registerTemporaryFunction.invoke(null, funcName, funcClass);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to register temp function", e);
+        }
     }
 
     boolean isBuiltInFunctionInfo(FunctionInfo info) {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -59,6 +60,42 @@ class LegacySinkTest extends TableTestBase {
     val sink2 = util.createCollectTableSink(Array("total_min"), Array(INT))
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
+
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testTableHints(): Unit = {
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin)
+
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'OPTIONS',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+    val stmtSet= util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "insert into MySink /*+ OPTIONS('path' = '/tmp1') */ select * from MyTable")
+    stmtSet.addInsertSql(
+      "insert into MySink /*+ OPTIONS('path' = '/tmp2') */ select * from MyTable")
 
     util.verifyExecPlan(stmtSet)
   }

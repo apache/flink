@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -43,12 +45,14 @@ import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.JavaExternalQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
 import org.apache.flink.table.operations.ScalaDataStreamQueryOperation;
+import org.apache.flink.table.operations.ScalaExternalQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SortQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -59,6 +63,7 @@ import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerProctimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
@@ -83,6 +88,7 @@ import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -427,7 +433,29 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return ((PlannerQueryOperation) other).getCalciteTree();
             } else if (other instanceof DataStreamQueryOperation) {
                 return convertToDataStreamScan((DataStreamQueryOperation<?>) other);
-            } else if (other instanceof JavaDataStreamQueryOperation) {
+            } else if (other instanceof JavaExternalQueryOperation) {
+                final JavaExternalQueryOperation<?> externalQueryOperation =
+                        (JavaExternalQueryOperation<?>) other;
+                return convertToExternalScan(
+                        externalQueryOperation.getIdentifier(),
+                        externalQueryOperation.getDataStream(),
+                        externalQueryOperation.getPhysicalDataType(),
+                        externalQueryOperation.isTopLevelRecord(),
+                        externalQueryOperation.getChangelogMode(),
+                        externalQueryOperation.getResolvedSchema());
+            } else if (other instanceof ScalaExternalQueryOperation) {
+                final ScalaExternalQueryOperation<?> externalQueryOperation =
+                        (ScalaExternalQueryOperation<?>) other;
+                return convertToExternalScan(
+                        externalQueryOperation.getIdentifier(),
+                        externalQueryOperation.getDataStream(),
+                        externalQueryOperation.getPhysicalDataType(),
+                        externalQueryOperation.isTopLevelRecord(),
+                        externalQueryOperation.getChangelogMode(),
+                        externalQueryOperation.getResolvedSchema());
+            }
+            // legacy
+            else if (other instanceof JavaDataStreamQueryOperation) {
                 JavaDataStreamQueryOperation<?> dataStreamQueryOperation =
                         (JavaDataStreamQueryOperation<?>) other;
                 return convertToDataStreamScan(
@@ -500,6 +528,27 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                             ConnectorCatalogTable.source(tableSource, isBatch));
             return LogicalTableScan.create(
                     relBuilder.getCluster(), tableSourceTable, Collections.emptyList());
+        }
+
+        private RelNode convertToExternalScan(
+                ObjectIdentifier identifier,
+                DataStream<?> dataStream,
+                DataType physicalDataType,
+                boolean isTopLevelRecord,
+                ChangelogMode changelogMode,
+                ResolvedSchema resolvedSchema) {
+            final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
+            final ReadableConfig config = flinkContext.getTableConfig().getConfiguration();
+            return DynamicSourceUtils.convertDataStreamToRel(
+                    true,
+                    config,
+                    relBuilder,
+                    identifier,
+                    resolvedSchema,
+                    dataStream,
+                    physicalDataType,
+                    isTopLevelRecord,
+                    changelogMode);
         }
 
         private RelNode convertToDataStreamScan(DataStreamQueryOperation<?> operation) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
 import org.apache.flink.table.catalog.stats.Date;
@@ -31,9 +32,14 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.thrift.TException;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Set;
@@ -41,6 +47,43 @@ import java.util.stream.Collectors;
 
 /** Shim for Hive version 1.2.0. */
 public class HiveShimV120 extends HiveShimV111 {
+
+    private static PrimitiveTypeInfo intervalYearMonthTypeInfo;
+    private static PrimitiveTypeInfo intervalDayTimeTypeInfo;
+    private static Class funcResourceClz;
+    private static Method registerTemporaryUDF;
+
+    private static boolean inited = false;
+
+    private static void init() {
+        if (!inited) {
+            synchronized (HiveShimV120.class) {
+                if (!inited) {
+                    try {
+                        Field field =
+                                TypeInfoFactory.class.getDeclaredField("intervalYearMonthTypeInfo");
+                        intervalYearMonthTypeInfo = (PrimitiveTypeInfo) field.get(null);
+                        field = TypeInfoFactory.class.getDeclaredField("intervalDayTimeTypeInfo");
+                        intervalDayTimeTypeInfo = (PrimitiveTypeInfo) field.get(null);
+                        funcResourceClz =
+                                Thread.currentThread()
+                                        .getContextClassLoader()
+                                        .loadClass(
+                                                "org.apache.hadoop.hive.ql.exec.FunctionInfo$FunctionResource");
+                        registerTemporaryUDF =
+                                FunctionRegistry.class.getDeclaredMethod(
+                                        "registerTemporaryUDF",
+                                        String.class,
+                                        Class.class,
+                                        Array.newInstance(funcResourceClz, 0).getClass());
+                        inited = true;
+                    } catch (Exception e) {
+                        throw new FlinkHiveException(e);
+                    }
+                }
+            }
+        }
+    }
 
     @Override
     public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -185,6 +228,41 @@ public class HiveShimV120 extends HiveShimV111 {
             return (boolean) method.invoke(info);
         } catch (Exception ex) {
             throw new CatalogException("Failed to invoke FunctionInfo.isBuiltIn()", ex);
+        }
+    }
+
+    @Override
+    public PrimitiveTypeInfo getIntervalYearMonthTypeInfo() {
+        init();
+        return intervalYearMonthTypeInfo;
+    }
+
+    @Override
+    public PrimitiveTypeInfo getIntervalDayTimeTypeInfo() {
+        init();
+        return intervalDayTimeTypeInfo;
+    }
+
+    @Override
+    public boolean isIntervalYearMonthType(
+            PrimitiveObjectInspector.PrimitiveCategory primitiveCategory) {
+        return getIntervalYearMonthTypeInfo().getPrimitiveCategory() == primitiveCategory;
+    }
+
+    @Override
+    public boolean isIntervalDayTimeType(
+            PrimitiveObjectInspector.PrimitiveCategory primitiveCategory) {
+        return getIntervalDayTimeTypeInfo().getPrimitiveCategory() == primitiveCategory;
+    }
+
+    @Override
+    public void registerTemporaryFunction(String funcName, Class funcClass) {
+        init();
+        try {
+            registerTemporaryUDF.invoke(
+                    null, funcName, funcClass, Array.newInstance(funcResourceClz, 0));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new FlinkHiveException("Failed to register temp function", e);
         }
     }
 }

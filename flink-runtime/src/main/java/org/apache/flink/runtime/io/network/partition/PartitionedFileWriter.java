@@ -83,6 +83,9 @@ public class PartitionedFileWriter implements AutoCloseable {
     /** Number of regions written to the target {@link PartitionedFile}. */
     private int numRegions;
 
+    /** Total number of buffers in the data file. */
+    private long numBuffers;
+
     /** Current subpartition to write buffers to. */
     private int currentSubpartition = -1;
 
@@ -215,6 +218,7 @@ public class PartitionedFileWriter implements AutoCloseable {
             return;
         }
 
+        numBuffers += bufferWithChannels.size();
         long expectedBytes;
         ByteBuffer[] bufferWithHeaders = new ByteBuffer[2 * bufferWithChannels.size()];
 
@@ -300,6 +304,8 @@ public class PartitionedFileWriter implements AutoCloseable {
         flushIndexBuffer();
         indexBuffer.rewind();
 
+        long dataFileSize = dataFileChannel.size();
+        long indexFileSize = indexFileChannel.size();
         close();
 
         ByteBuffer indexEntryCache = null;
@@ -308,7 +314,14 @@ public class PartitionedFileWriter implements AutoCloseable {
         }
         indexBuffer = null;
         return new PartitionedFile(
-                numRegions, numSubpartitions, dataFilePath, indexFilePath, indexEntryCache);
+                numRegions,
+                numSubpartitions,
+                dataFilePath,
+                indexFilePath,
+                dataFileSize,
+                indexFileSize,
+                numBuffers,
+                indexEntryCache);
     }
 
     /** Used to close and delete the failed {@link PartitionedFile} when any exception occurs. */

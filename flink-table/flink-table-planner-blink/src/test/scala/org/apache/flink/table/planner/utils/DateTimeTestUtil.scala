@@ -23,8 +23,7 @@ import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.avatica.util.DateTimeUtils.dateStringToUnixDate
-
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 object DateTimeTestUtil {
 
@@ -50,5 +49,9 @@ object DateTimeTestUtil {
     } else {
       SqlDateTimeUtils.toTimestampData(s).toLocalDateTime
     }
+  }
+
+  def toEpochMills(s: String, zone: ZoneId): Long = {
+    LocalDateTime.parse(s).atZone(zone).toInstant.toEpochMilli
   }
 }

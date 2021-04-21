@@ -32,6 +32,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -99,11 +100,13 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
 
         FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(calc);
         RexBuilder builder = call.builder().getRexBuilder();
-        // cast timestamp type to rowtime type.
+        // cast timestamp/timestamp_ltz type to rowtime type.
         RexNode newRowTimeColumn =
                 builder.makeReinterpretCast(
                         typeFactory.createRowtimeIndicatorType(
-                                rowTimeColumn.getType().isNullable()),
+                                rowTimeColumn.getType().isNullable(),
+                                rowTimeColumn.getType().getSqlTypeName()
+                                        == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE),
                         rowTimeColumn,
                         null);
 

@@ -57,7 +57,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
             Map<Integer, LookupKey> lookupKeys,
             int[] lookupKeyOrder,
             LogicalType lookupType) {
-        super(dataTypeFactory, function, function.functionIdentifier());
+        super(dataTypeFactory, function, function.functionIdentifier(), false);
         this.lookupKeys = lookupKeys;
         this.lookupKeyOrder = lookupKeyOrder;
         this.argumentDataTypes =

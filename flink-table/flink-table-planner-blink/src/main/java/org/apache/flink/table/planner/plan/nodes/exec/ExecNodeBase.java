@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -62,6 +63,12 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     public static int getNewNodeId() {
         idCounter++;
         return idCounter;
+    }
+
+    /** Reset the id counter to 0. */
+    @VisibleForTesting
+    public static void resetIdCounter() {
+        idCounter = 0;
     }
 
     // used for json creator

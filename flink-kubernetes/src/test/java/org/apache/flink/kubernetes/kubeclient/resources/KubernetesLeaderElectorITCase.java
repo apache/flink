@@ -21,9 +21,8 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.KubernetesResource;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
-import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -45,7 +44,7 @@ public class KubernetesLeaderElectorITCase extends TestLogger {
 
     private static final long TIMEOUT = 120L * 1000L;
 
-    private final KubeClientFactory kubeClientFactory = new DefaultKubeClientFactory();
+    private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
 
     private static final String LEADER_CONFIGMAP_NAME_PREFIX = "leader-test-cluster";
 
@@ -65,7 +64,7 @@ public class KubernetesLeaderElectorITCase extends TestLogger {
 
         try {
             for (int i = 0; i < leaderNum; i++) {
-                kubeClients[i] = kubeClientFactory.fromConfiguration(configuration);
+                kubeClients[i] = kubeClientFactory.fromConfiguration(configuration, "testing");
                 leaderCallbackHandlers[i] =
                         new TestingLeaderCallbackHandler(UUID.randomUUID().toString());
                 final KubernetesLeaderElectionConfiguration leaderConfig =
