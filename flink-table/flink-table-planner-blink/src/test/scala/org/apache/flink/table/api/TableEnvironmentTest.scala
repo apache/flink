@@ -1360,13 +1360,14 @@ class TableEnvironmentTest {
         Row.of("f25", "STRING", Boolean.box(false), null, null, null),
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
-      Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
-      Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
-      Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
-      Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null, "AS CURRENT_TIMESTAMP", null),
-      Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
-        "AS CURRENT_ROW_TIMESTAMP()", null),
-      Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
+        Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
+        Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
+        Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
+        Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_TIMESTAMP", null),
+        Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_ROW_TIMESTAMP()", null),
+        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
           "`ts` - INTERVAL '1' SECOND"))
     val tableResult1 = tableEnv.executeSql("describe T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
