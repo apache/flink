@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank}
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.`type`.RelDataTypeFieldImpl
 import org.apache.calcite.rel.{RelCollations, RelNode}
@@ -620,6 +619,35 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
     (0 until testRel.getRowType.getFieldCount).foreach { idx =>
       assertNull(mq.areColumnsUnique(testRel, ImmutableBitSet.of(idx)))
     }
+  }
+
+  @Test
+  def testAreColumnsUniqueOnTableSourceTable(): Unit = {
+    Array(
+      tableSourceTableLogicalScan,
+      tableSourceTableFlinkLogicalScan,
+      tableSourceTableBatchScan,
+      tableSourceTableStreamScan
+    )
+      .foreach { scan =>
+        assertTrue(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(1, 2)))
+        assertTrue(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0)))
+      }
+  }
+
+  @Test
+  def testAreColumnsUniqueOntableSourceTableNonKeyNonKey(): Unit = {
+    Array(
+      tableSourceTableNonKeyLogicalScan,
+      tableSourceTableNonKeyFlinkLogicalScan,
+      tableSourceTableNonKeyBatchScan,
+      tableSourceTableNonKeyStreamScan
+    )
+      .foreach { scan =>
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+      }
   }
 
 }
