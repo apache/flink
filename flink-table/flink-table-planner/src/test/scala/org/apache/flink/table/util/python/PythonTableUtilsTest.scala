@@ -36,18 +36,18 @@ class PythonTableUtilsTest {
     val originalZone = TimeZone.getDefault
     try {
       // Daylight Saving Time Test
-      TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("PST", ZoneId.SHORT_IDS)))
+      TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("America/Los_Angeles")))
 
-      // 2018-03-11 01:59:59.0 PST
+      // 2018-03-11 01:59:59.0 America/Los_Angeles
       testOffset(DateTimeUtils.timestampStringToUnixDate("2018-03-11 01:59:59.0"), -28800000)
 
-      // 2018-03-11 03:00:00.0 PST
+      // 2018-03-11 03:00:00.0 America/Los_Angeles
       testOffset(DateTimeUtils.timestampStringToUnixDate("2018-03-11 03:00:00.0"), -25200000)
 
-      // 2018-11-04 00:59:59.0 PST
+      // 2018-11-04 00:59:59.0 America/Los_Angeles
       testOffset(DateTimeUtils.timestampStringToUnixDate("2018-11-04 00:59:59.0"), -25200000)
 
-      // 2018-11-04 02:00:00.0 PST
+      // 2018-11-04 02:00:00.0 America/Los_Angeles
       testOffset(DateTimeUtils.timestampStringToUnixDate("2018-11-04 02:00:00.0"), -28800000)
     } finally {
       TimeZone.setDefault(originalZone)
