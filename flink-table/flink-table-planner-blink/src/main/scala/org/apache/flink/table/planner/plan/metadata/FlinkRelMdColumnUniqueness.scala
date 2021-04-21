@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
@@ -27,11 +28,10 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
-
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
@@ -43,9 +43,8 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
-
 import java.util
-
+import com.google.common.collect.ImmutableSet
 import scala.collection.JavaConversions._
 
 /**
@@ -81,9 +80,31 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       return false
     }
 
-    // TODO get uniqueKeys from TableSchema of TableSource
-
     relOptTable match {
+      case sourceTable: TableSourceTable =>
+        val catalogTable = sourceTable.catalogTable
+        catalogTable match {
+          case act: CatalogTable =>
+            val schema = act.getSchema
+            val uniqueKeys = if (schema.getPrimaryKey.isPresent) {
+              val columns = schema.getFieldNames
+              val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
+                columns.indexOf(c)
+              }
+              val builder = ImmutableSet.builder[ImmutableBitSet]()
+              builder.add(ImmutableBitSet.of(columnIndices:_*))
+              val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
+              if (uniqueSet != null) {
+                builder.addAll(uniqueSet)
+              }
+              builder.build()
+            } else {
+              sourceTable.uniqueKeysSet.orElse(null)
+            }
+            uniqueKeys.exists {
+              uniqueKey => uniqueKey.forall(columns.toArray.contains(_))
+            }
+        }
       case table: FlinkPreparingTableBase => {
         val ukOptional = table.uniqueKeysSet
         if (ukOptional.isPresent) {
