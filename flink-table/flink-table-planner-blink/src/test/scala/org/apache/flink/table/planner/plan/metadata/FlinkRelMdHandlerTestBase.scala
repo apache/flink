@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.Top3
@@ -48,7 +48,6 @@ import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.CatalogManagerMocks
-
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -69,7 +68,6 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
-
 import java.math.BigDecimal
 import java.util
 import java.util.Collections
@@ -166,6 +164,24 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), batchPhysicalTraits)
   protected lazy val empStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
+
+  protected lazy val tableSourceTableLogicalScan: LogicalTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), logicalTraits)
+  protected lazy val tableSourceTableFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), flinkLogicalTraits)
+  protected lazy val tableSourceTableBatchScan: BatchPhysicalBoundedStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
+  protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+  
+  protected lazy val tableSourceTableNonKeyLogicalScan: LogicalTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), logicalTraits)
+  protected lazy val tableSourceTableNonKeyFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), flinkLogicalTraits)
+  protected lazy val tableSourceTableNonKeyBatchScan: BatchPhysicalBoundedStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), batchPhysicalTraits)
+  protected lazy val tableSourceTableNonKeyStreamScan: StreamPhysicalDataStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
@@ -2583,6 +2599,30 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable2")
     .minus(false).build()
 
+  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.b = TableSourceTable2.b
+  protected lazy val logicalLeftJoinOnContainedUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable2")
+    .join(JoinRelType.LEFT,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .build
+
+  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
+  protected lazy val logicalLeftJoinOnDisjointUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable2")
+    .join(JoinRelType.LEFT,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build
+
+  // select * from TableSourceTable1 left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
+  protected lazy val logicalLeftJoinWithNonKeyTableUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable3")
+    .join(JoinRelType.LEFT,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build
+
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
@@ -2590,6 +2630,33 @@ class FlinkRelMdHandlerTestBase {
       .asInstanceOf[CalciteCatalogReader]
       .getTable(tableNames)
       .asInstanceOf[FlinkPreparingTableBase]
+    val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
+    val scan = conventionTrait match {
+      case Convention.NONE =>
+        relBuilder.clear()
+        val scan = relBuilder.scan(tableNames).build()
+        scan.copy(traitSet, scan.getInputs)
+      case FlinkConventions.LOGICAL =>
+        new FlinkLogicalDataStreamTableScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table)
+      case FlinkConventions.BATCH_PHYSICAL =>
+        new BatchPhysicalBoundedStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
+      case FlinkConventions.STREAM_PHYSICAL =>
+        new StreamPhysicalDataStreamScan(
+          cluster, traitSet, Collections.emptyList[RelHint](), table, table.getRowType)
+      case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
+    }
+    scan.asInstanceOf[T]
+  }
+
+  protected def createDataStreamScanForTableSourceTable[T](
+                                         tableNames: util.List[String], traitSet: RelTraitSet): T = {
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(tableNames)
+      .asInstanceOf[TableSourceTable]
     val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
     val scan = conventionTrait match {
       case Convention.NONE =>
