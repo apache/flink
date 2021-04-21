@@ -50,7 +50,7 @@ public class PrintUtilsTest {
 
     @Test
     public void testArrayToString() {
-        Row row = new Row(6);
+        Row row = new Row(7);
         row.setField(0, new int[] {1, 2});
         row.setField(1, new Integer[] {3, 4});
         row.setField(2, new Object[] {new int[] {5, 6}, new int[] {7, 8}});
@@ -67,6 +67,7 @@ public class PrintUtilsTest {
                     new Instant[] {Instant.ofEpochMilli(1), Instant.ofEpochMilli(10)},
                     new Instant[] {Instant.ofEpochSecond(1), Instant.ofEpochSecond(10)}
                 });
+        row.setField(6, new int[] {1123, 2123});
 
         ResolvedSchema resolvedSchema =
                 ResolvedSchema.of(
@@ -81,18 +82,20 @@ public class PrintUtilsTest {
                                 Column.physical(
                                         "f5",
                                         DataTypes.ARRAY(
-                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3))))));
+                                                DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)))),
+                                Column.physical("f6", DataTypes.ARRAY(DataTypes.TIME()))));
         assertEquals(
                 "[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]],"
                         + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
                         + " [[1970-01-01 00:00:00.001, 1970-01-01 00:00:00.010],"
-                        + " [1970-01-01 00:00:01.000, 1970-01-01 00:00:10.000]]]",
+                        + " [1970-01-01 00:00:01.000, 1970-01-01 00:00:10.000]],"
+                        + " [00:00:01, 00:00:02]]",
                 Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
 
     @Test
     public void testNestedRowToString() {
-        Row row = new Row(3);
+        Row row = new Row(4);
         row.setField(0, new int[] {1, 2});
         Row row1 = new Row(4);
         row1.setField(0, "hello");
@@ -111,6 +114,7 @@ public class PrintUtilsTest {
                     new int[] {1, 10},
                     new int[] {2, 20}
                 });
+        row.setField(3, new Integer[] {3000, 4000});
 
         ResolvedSchema resolvedSchema =
                 ResolvedSchema.of(
@@ -124,11 +128,13 @@ public class PrintUtilsTest {
                                                 DataTypes.ARRAY(DataTypes.TIMESTAMP(6)),
                                                 DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(6)))),
                                 Column.physical(
-                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))));
+                                        "f2", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))),
+                                Column.physical("f3", DataTypes.ARRAY(DataTypes.TIME()))));
         assertEquals(
                 "[[1, 2], +I[hello, [true, false],"
                         + " [2021-04-18 18:00:00.123456, 2021-04-18 18:00:00.000001],"
-                        + " [1970-01-01 00:00:00.100000, 1970-01-01 00:00:00.200000]], [[1, 10], [2, 20]]]",
+                        + " [1970-01-01 00:00:00.100000, 1970-01-01 00:00:00.200000]], [[1, 10], [2, 20]],"
+                        + " [00:00:03, 00:00:04]]",
                 Arrays.toString(PrintUtils.rowToString(row, resolvedSchema, UTC_ZONE_ID)));
     }
 
