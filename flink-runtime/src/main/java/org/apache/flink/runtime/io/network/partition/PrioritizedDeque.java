@@ -26,7 +26,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -140,6 +142,27 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
     /** Returns an unmodifiable collection view. */
     public Collection<T> asUnmodifiableCollection() {
         return Collections.unmodifiableCollection(deque);
+    }
+
+    /**
+     * Find first element matching the {@link Predicate}, remove it from the {@link
+     * PrioritizedDeque} and return it.
+     *
+     * @return removed element
+     */
+    public T getAndRemove(Predicate<T> preCondition) {
+        Iterator<T> iterator = deque.iterator();
+        for (int i = 0; iterator.hasNext(); i++) {
+            T next = iterator.next();
+            if (preCondition.test(next)) {
+                if (i < numPriorityElements) {
+                    numPriorityElements--;
+                }
+                iterator.remove();
+                return next;
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     /**
