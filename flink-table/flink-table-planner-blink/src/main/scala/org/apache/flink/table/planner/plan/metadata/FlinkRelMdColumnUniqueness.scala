@@ -86,21 +86,19 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
         catalogTable match {
           case act: CatalogTable =>
             val schema = act.getSchema
-            val uniqueKeys = if (schema.getPrimaryKey.isPresent) {
+            val builder = ImmutableSet.builder[ImmutableBitSet]()
+            if (schema.getPrimaryKey.isPresent) {
               val columns = schema.getFieldNames
               val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
                 columns.indexOf(c)
               }
-              val builder = ImmutableSet.builder[ImmutableBitSet]()
-              builder.add(ImmutableBitSet.of(columnIndices:_*))
-              val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
-              if (uniqueSet != null) {
-                builder.addAll(uniqueSet)
-              }
-              builder.build()
-            } else {
-              sourceTable.uniqueKeysSet.orElse(null)
+              builder.add(ImmutableBitSet.of(columnIndices: _*))
             }
+            val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
+            if (uniqueSet != null) {
+              builder.addAll(uniqueSet)
+            }
+            val uniqueKeys = builder.build()
             uniqueKeys.exists {
               uniqueKey => uniqueKey.forall(columns.toArray.contains(_))
             }

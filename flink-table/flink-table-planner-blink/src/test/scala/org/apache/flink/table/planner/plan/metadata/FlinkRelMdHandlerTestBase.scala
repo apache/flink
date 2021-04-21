@@ -173,6 +173,15 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
   protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
     createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+  
+  protected lazy val tableSourceTableNonKeyLogicalScan: LogicalTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), logicalTraits)
+  protected lazy val tableSourceTableNonKeyFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), flinkLogicalTraits)
+  protected lazy val tableSourceTableNonKeyBatchScan: BatchPhysicalBoundedStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), batchPhysicalTraits)
+  protected lazy val tableSourceTableNonKeyStreamScan: StreamPhysicalDataStreamScan =
+    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
@@ -2590,7 +2599,7 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable2")
     .minus(false).build()
 
-  // select * from TableSourceTable1 left join TableSourceTable1 on TableSourceTable1.b = TableSourceTable2.b
+  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.b = TableSourceTable2.b
   protected lazy val logicalLeftJoinOnContainedUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable2")
@@ -2598,10 +2607,18 @@ class FlinkRelMdHandlerTestBase {
       relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
     .build
 
-  // select * from TableSourceTable1 left join TableSourceTable1 on TableSourceTable1.a = TableSourceTable2.a
+  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
   protected lazy val logicalLeftJoinOnDisjointUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable2")
+    .join(JoinRelType.LEFT,
+      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .build
+
+  // select * from TableSourceTable1 left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
+  protected lazy val logicalLeftJoinWithNoneKeyTableUniqueKeys: RelNode = relBuilder
+    .scan("TableSourceTable1")
+    .scan("TableSourceTable3")
     .join(JoinRelType.LEFT,
       relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
     .build

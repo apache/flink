@@ -632,4 +632,12 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
       }
   }
 
+  @Test
+  def testAreColumnsUniqueOntableSourceTableNonKeyNonKey(): Unit = {
+    Array(tableSourceTableNonKeyLogicalScan, tableSourceTableNonKeyFlinkLogicalScan, tableSourceTableNonKeyBatchScan, tableSourceTableNonKeyStreamScan)
+      .foreach { scan =>
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+      }
+  }
+
 }

@@ -318,6 +318,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   def testGetUniqueKeysOnTableScanTable(): Unit = {
     assertEquals(uniqueKeys(Array(0, 1), Array(0, 1, 5)), mq.getUniqueKeys(logicalLeftJoinOnContainedUniqueKeys).toSet)
     assertEquals(uniqueKeys(Array(0, 1, 5)), mq.getUniqueKeys(logicalLeftJoinOnDisjointUniqueKeys).toSet)
+    assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalLeftJoinWithNoneKeyTableUniqueKeys).toSet)
   }
 
   private def uniqueKeys(keys: Array[Int]*): Set[ImmutableBitSet] = {
