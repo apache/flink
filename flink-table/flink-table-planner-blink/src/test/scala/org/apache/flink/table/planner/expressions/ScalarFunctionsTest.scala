@@ -3035,7 +3035,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "10")
 
     // e.g: 12:13:43
-    // TODO
     testAllApis(
       localTime().cast(DataTypes.STRING).charLength(),
       "localTime().cast(STRING).charLength()",

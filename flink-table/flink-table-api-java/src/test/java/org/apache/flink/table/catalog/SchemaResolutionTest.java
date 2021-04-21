@@ -202,7 +202,8 @@ public class SchemaResolutionTest {
                         .column("ts", DataTypes.BOOLEAN())
                         .watermark("ts", callSql(WATERMARK_SQL))
                         .build(),
-                "Invalid data type of time field for watermark definition. The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
+                "Invalid data type of time field for watermark definition."
+                        + " The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, but the time field type is BOOLEAN");
 
         testError(
                 Schema.newBuilder()
