@@ -561,19 +561,24 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.ANY),
                     SqlFunctionCategory.STRING);
 
+    // Flink timestamp functions
+    public static final SqlFunction LOCALTIMESTAMP =
+            new FlinkSqlTimestampFunction("LOCALTIMESTAMP", SqlTypeName.TIMESTAMP, 3);
+
+    public static final SqlFunction CURRENT_TIMESTAMP =
+            new FlinkSqlTimestampFunction(
+                    "CURRENT_TIMESTAMP", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3);
+
     public static final SqlFunction NOW =
-            new SqlCurrentTimestampFunction("NOW") {
+            new FlinkSqlTimestampFunction("NOW", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3) {
                 @Override
                 public SqlSyntax getSyntax() {
                     return SqlSyntax.FUNCTION;
                 }
             };
-
-    public static final SqlFunction CURRENT_TIMESTAMP =
-            new SqlCurrentTimestampFunction("CURRENT_TIMESTAMP");
-
     public static final SqlFunction CURRENT_ROW_TIMESTAMP =
-            new SqlCurrentTimestampFunction("CURRENT_ROW_TIMESTAMP") {
+            new FlinkSqlTimestampFunction(
+                    "CURRENT_ROW_TIMESTAMP", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3) {
 
                 @Override
                 public SqlSyntax getSyntax() {
@@ -1103,7 +1108,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction FLOOR = SqlStdOperatorTable.FLOOR;
     public static final SqlFunction CEIL = SqlStdOperatorTable.CEIL;
     public static final SqlFunction LOCALTIME = SqlStdOperatorTable.LOCALTIME;
-    public static final SqlFunction LOCALTIMESTAMP = SqlStdOperatorTable.LOCALTIMESTAMP;
     public static final SqlFunction CURRENT_TIME = SqlStdOperatorTable.CURRENT_TIME;
     public static final SqlFunction CURRENT_DATE = SqlStdOperatorTable.CURRENT_DATE;
     public static final SqlFunction CAST = SqlStdOperatorTable.CAST;

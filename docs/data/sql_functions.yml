@@ -417,10 +417,10 @@ temporal:
     description: Creates an interval of NUMERIC milliseconds.
   - sql: LOCALTIME
     table: localTime()
-    description: Returns the current SQL time in the local time zone. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+    description: Returns the current SQL time in the local time zone, the return type is TIME(0). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: LOCALTIMESTAMP
     table: localTimestamp()
-    description: Returns the current SQL timestamp in local time zone, the return type is TIMESTAMP WITHOUT ITME ZONE. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+    description: Returns the current SQL timestamp in local time zone, the return type is TIMESTAMP(3). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: CURRENT_TIME
     table: currentTime()
     description: Returns the current SQL time in the local time zone, this is a synonym of LOCAL_TIME.
@@ -429,11 +429,11 @@ temporal:
     description: Returns the current SQL date in the local time zone. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: CURRENT_TIMESTAMP
     table: currentTimestamp()
-    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP WITH LOCAL TIME ZONE. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP_LTZ(3). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: NOW()
     description: Returns the current SQL timestamp in the local time zone, this is a synonym of CURRENT_TIMESTAMP.
   - sql: CURRENT_ROW_TIMESTAMP()
-    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP WITH LOCAL TIME ZONE. It is evaluated for each record no matter in batch or streaming mode.
+    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP_LTZ(3). It is evaluated for each record no matter in batch or streaming mode.
   - sql: EXTRACT(timeinteravlunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
     description: Returns a long value extracted from the timeintervalunit part of temporal. E.g., EXTRACT(DAY FROM DATE '2006-06-05') returns 5.
