@@ -115,7 +115,7 @@ public abstract class TypeSerializer<T> {
 
 ### How Flink interacts with the `TypeSerializer` and `TypeSerializerSnapshot` abstractions
 
-总结一下，本节总结了 Flink，或者更具体的说状态后端，是如何与这些抽象交互。根据状态后端的不同，交互方式略有不同，但这与序列化器以及序列化器快照的实现是正交的。
+总结一下，本节阐述了 Flink，或者更具体的说状态后端，是如何与这些抽象交互。根据状态后端的不同，交互方式略有不同，但这与序列化器以及序列化器快照的实现是正交的。
 
 #### Off-heap state backends (e.g. `RocksDBStateBackend`)
 
