@@ -166,22 +166,22 @@ class FlinkRelMdHandlerTestBase {
     createDataStreamScan(ImmutableList.of("emp"), streamPhysicalTraits)
 
   protected lazy val tableSourceTableLogicalScan: LogicalTableScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), logicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), logicalTraits)
   protected lazy val tableSourceTableFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), flinkLogicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), flinkLogicalTraits)
   protected lazy val tableSourceTableBatchScan: BatchPhysicalBoundedStreamScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
   protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
-  
+    createTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+
   protected lazy val tableSourceTableNonKeyLogicalScan: LogicalTableScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), logicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), logicalTraits)
   protected lazy val tableSourceTableNonKeyFlinkLogicalScan: FlinkLogicalDataStreamTableScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), flinkLogicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), flinkLogicalTraits)
   protected lazy val tableSourceTableNonKeyBatchScan: BatchPhysicalBoundedStreamScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), batchPhysicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), batchPhysicalTraits)
   protected lazy val tableSourceTableNonKeyStreamScan: StreamPhysicalDataStreamScan =
-    createDataStreamScanForTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
+    createTableSourceTable(ImmutableList.of("TableSourceTable3"), streamPhysicalTraits)
 
   private lazy val valuesType = relBuilder.getTypeFactory
     .builder()
@@ -402,7 +402,7 @@ class FlinkRelMdHandlerTestBase {
       flinkLogicalTraits.replace(collection), studentFlinkLogicalScan, collection, offset, fetch)
 
     val batchSortLimit = new BatchPhysicalSortLimit(
-        cluster, batchPhysicalTraits.replace(collection),
+      cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
@@ -414,7 +414,7 @@ class FlinkRelMdHandlerTestBase {
       relBuilder.literal(SortUtil.getLimitEnd(offset, fetch)),
       false)
     val batchSortGlobal = new BatchPhysicalSortLimit(
-        cluster, batchPhysicalTraits.replace(collection),
+      cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocalLimit,
         FlinkRelDistribution.SINGLETON),
@@ -1119,10 +1119,10 @@ class FlinkRelMdHandlerTestBase {
     relBuilder.push(calcOnStudentScan)
 
     def createSingleArgAggWithFilter(
-        aggFunction: SqlAggFunction,
-        argIndex: Int,
-        filterArg: Int,
-        name: String): AggregateCall = {
+                                      aggFunction: SqlAggFunction,
+                                      argIndex: Int,
+                                      filterArg: Int,
+                                      name: String): AggregateCall = {
       AggregateCall.create(
         aggFunction,
         false,
@@ -1408,7 +1408,7 @@ class FlinkRelMdHandlerTestBase {
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
   private lazy val windowRef: PlannerWindowReference =
-    new PlannerWindowReference("w$", new TimestampType(3))
+  new PlannerWindowReference("w$", new TimestampType(3))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -2599,32 +2599,51 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable2")
     .minus(false).build()
 
-  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.b = TableSourceTable2.b
+  // select * from TableSourceTable1
+  // left join TableSourceTable2 on TableSourceTable1.b = TableSourceTable2.b
   protected lazy val logicalLeftJoinOnContainedUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 1),
+        relBuilder.field(2, 1, 1)
+      )
+    )
     .build
 
   // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
   protected lazy val logicalLeftJoinOnDisjointUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable2")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 0),
+        relBuilder.field(2, 1, 0)
+      )
+    )
     .build
 
   // select * from TableSourceTable1 left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
-  protected lazy val logicalLeftJoinWithNonKeyTableUniqueKeys: RelNode = relBuilder
+  protected lazy val logicalLeftJoinWithNoneKeyTableUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable3")
-    .join(JoinRelType.LEFT,
-      relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
+    .join(
+      JoinRelType.LEFT,
+      relBuilder.call(
+        EQUALS,
+        relBuilder.field(2, 0, 0),
+        relBuilder.field(2, 1, 0)
+      )
+    )
     .build
 
   protected def createDataStreamScan[T](
-      tableNames: util.List[String], traitSet: RelTraitSet): T = {
+                                         tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
       .getRelOptSchema
       .asInstanceOf[CalciteCatalogReader]
@@ -2650,8 +2669,8 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
-  protected def createDataStreamScanForTableSourceTable[T](
-                                         tableNames: util.List[String], traitSet: RelTraitSet): T = {
+  protected def createTableSourceTable[T](
+                                                            tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
       .getRelOptSchema
       .asInstanceOf[CalciteCatalogReader]
@@ -2678,8 +2697,8 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected def createLiteralList(
-      rowType: RelDataType,
-      literalValues: Seq[String]): util.List[RexLiteral] = {
+                                   rowType: RelDataType,
+                                   literalValues: Seq[String]): util.List[RexLiteral] = {
     require(literalValues.length == rowType.getFieldCount)
     val rexBuilder = relBuilder.getRexBuilder
     literalValues.zipWithIndex.map {
@@ -2700,15 +2719,15 @@ class FlinkRelMdHandlerTestBase {
             case VARCHAR => rexBuilder.makeLiteral(v)
             case _ => throw new TableException(s"${fieldType.getSqlTypeName} is not supported!")
           }
-        }.asInstanceOf[RexLiteral]
+          }.asInstanceOf[RexLiteral]
     }.toList
   }
 
   protected def createLogicalCalc(
-      input: RelNode,
-      outputRowType: RelDataType,
-      projects: util.List[RexNode],
-      conditions: util.List[RexNode]): Calc = {
+                                   input: RelNode,
+                                   outputRowType: RelDataType,
+                                   projects: util.List[RexNode],
+                                   conditions: util.List[RexNode]): Calc = {
     val predicate: RexNode = if (conditions == null || conditions.isEmpty) {
       null
     } else {
@@ -2724,10 +2743,10 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected def makeLiteral(
-      value: Any,
-      internalType: LogicalType,
-      isNullable: Boolean = false,
-      allowCast: Boolean = true): RexNode = {
+                             value: Any,
+                             internalType: LogicalType,
+                             isNullable: Boolean = false,
+                             allowCast: Boolean = true): RexNode = {
     rexBuilder.makeLiteral(
       value,
       typeFactory.createFieldTypeFromLogicalType(internalType.copy(isNullable)),
@@ -2737,9 +2756,9 @@ class FlinkRelMdHandlerTestBase {
 }
 
 class TestRel(
-    cluster: RelOptCluster,
-    traits: RelTraitSet,
-    input: RelNode) extends SingleRel(cluster, traits, input) {
+               cluster: RelOptCluster,
+               traits: RelTraitSet,
+               input: RelNode) extends SingleRel(cluster, traits, input) {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     planner.getCostFactory.makeCost(1.0, 1.0, 1.0)

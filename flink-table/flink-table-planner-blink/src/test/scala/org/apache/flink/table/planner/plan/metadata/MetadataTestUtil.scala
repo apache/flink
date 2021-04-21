@@ -58,6 +58,7 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable3", createTemporalTable3())
     rootSchema.add("TableSourceTable1", createTableSourceTable1())
     rootSchema.add("TableSourceTable2", createTableSourceTable2())
+    rootSchema.add("TableSourceTable3", createTableSourceTable3())
     rootSchema.add("projected_table_source_table", createProjectedTableSourceTable())
     rootSchema.add(
       "projected_table_source_table_with_partial_pk",
@@ -362,6 +363,44 @@ object MetadataTestUtil {
 
     new MockTableSourceTable(
       ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable2"),
+      rowType,
+      new TestTableSource(),
+      true,
+      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      Array("project=[a, b, c, d]"))
+  }
+
+  private def createTableSourceTable3(): Table = {
+    val catalogTable = CatalogTable.fromProperties(
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true",
+        "schema.0.name" -> "a",
+        "schema.0.data-type" -> "BIGINT NOT NULL",
+        "schema.1.name" -> "b",
+        "schema.1.data-type" -> "INT  NOT NULL",
+        "schema.2.name" -> "c",
+        "schema.2.data-type" -> "VARCHAR(2147483647)  NOT NULL",
+        "schema.3.name" -> "d",
+        "schema.3.data-type" -> "BIGINT NOT NULL")
+    )
+
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT().notNull()),
+        Column.physical("c", DataTypes.STRING().notNull()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      null)
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
+
+    new MockTableSourceTable(
+      ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable3"),
       rowType,
       new TestTableSource(),
       true,
