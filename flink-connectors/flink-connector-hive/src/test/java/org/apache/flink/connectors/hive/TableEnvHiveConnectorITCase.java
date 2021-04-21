@@ -107,8 +107,7 @@ public class TableEnvHiveConnectorITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from dest order by key").collect());
-            assertEquals(
-                    "[+I[3, val3], +I[3, val3], +I[4, null], +I[4, null]]", results.toString());
+            assertEquals("[3,val3, 3,val3, 4,null, 4,null]", results.toString());
         } finally {
             tableEnv.useDatabase("default");
             tableEnv.executeSql("drop database db1 cascade");
