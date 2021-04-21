@@ -108,6 +108,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -145,6 +146,7 @@ public class HiveCatalog extends AbstractCatalog {
     public static final String DEFAULT_DB = "default";
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
+    public static final String HIVE_SITE_FILE = "hive-site.xml";
 
     // Prefix used to distinguish scala/python functions
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
@@ -217,8 +219,8 @@ public class HiveCatalog extends AbstractCatalog {
         LOG.info("Created HiveCatalog '{}'", catalogName);
     }
 
-    private static HiveConf createHiveConf(
-            @Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
+    @VisibleForTesting
+    static HiveConf createHiveConf(@Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
         // create HiveConf from hadoop configuration with hadoop conf directory configured.
         Configuration hadoopConf = null;
         if (isNullOrWhitespaceOnly(hadoopConfDir)) {
@@ -246,12 +248,16 @@ public class HiveCatalog extends AbstractCatalog {
         if (hadoopConf == null) {
             hadoopConf = new Configuration();
         }
+        // ignore all the static conf file URLs that HiveConf may have set
+        HiveConf.setHiveSiteLocation(null);
+        HiveConf.setLoadMetastoreConfig(false);
+        HiveConf.setLoadHiveServer2Config(false);
         HiveConf hiveConf = new HiveConf(hadoopConf, HiveConf.class);
 
         LOG.info("Setting hive conf dir as {}", hiveConfDir);
 
         if (hiveConfDir != null) {
-            Path hiveSite = new Path(hiveConfDir, "hive-site.xml");
+            Path hiveSite = new Path(hiveConfDir, HIVE_SITE_FILE);
             if (!hiveSite.toUri().isAbsolute()) {
                 // treat relative URI as local file to be compatible with previous behavior
                 hiveSite = new Path(new File(hiveSite.toString()).toURI());
@@ -263,6 +269,14 @@ public class HiveCatalog extends AbstractCatalog {
             } catch (IOException e) {
                 throw new CatalogException(
                         "Failed to load hive-site.xml from specified path:" + hiveSite, e);
+            }
+        } else {
+            // user doesn't provide hive conf dir, we try to find it in classpath
+            URL hiveSite =
+                    Thread.currentThread().getContextClassLoader().getResource(HIVE_SITE_FILE);
+            if (hiveSite != null) {
+                LOG.info("Found {} in classpath: {}", HIVE_SITE_FILE, hiveSite);
+                hiveConf.addResource(hiveSite);
             }
         }
         return hiveConf;
