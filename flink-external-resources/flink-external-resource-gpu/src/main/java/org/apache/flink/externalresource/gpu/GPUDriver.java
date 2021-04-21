@@ -134,9 +134,13 @@ class GPUDriver implements ExternalResourceDriver {
         final String cmd = discoveryScript.getAbsolutePath() + " " + gpuAmount + " " + args;
         final Process process = Runtime.getRuntime().exec(cmd);
         try (final BufferedReader stdoutReader =
-                        new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        process.getInputStream(), StandardCharsets.UTF_8));
                 final BufferedReader stderrReader =
-                        new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        process.getErrorStream(), StandardCharsets.UTF_8))) {
             final boolean hasProcessTerminated =
                     process.waitFor(DISCOVERY_SCRIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             if (!hasProcessTerminated) {

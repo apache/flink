@@ -155,7 +155,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.memsize");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -192,7 +194,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("sysctl hw.physmem");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line;
             while ((line = bi.readLine()) != null) {
@@ -235,7 +239,9 @@ public class Hardware {
         try {
             Process proc = Runtime.getRuntime().exec("wmic memorychip get capacity");
 
-            bi = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
+            bi =
+                    new BufferedReader(
+                            new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8));
 
             String line = bi.readLine();
             if (line == null) {
