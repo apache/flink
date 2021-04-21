@@ -28,7 +28,7 @@ planning to upgrade your Flink version to 1.13.
 
 ### Failover
 
-#### Remove `state.backend.async` option.
+#### Remove state.backend.async option.
 
 ##### [FLINK-21935](https://issues.apache.org/jira/browse/FLINK-21935)
 
@@ -38,14 +38,14 @@ by default before) and there is no option to configure a synchronous snapshot an
 The constructors of `FsStateBackend` and `MemoryStateBackend` that take a flag for sync/async
 snapshots are kept for API compatibility, but the flags are ignored now.
 
-#### Unify Binary format for Keyed State savepoints
+#### Unify binary format for Keyed State savepoints
 
 ##### [FLINK-20976](https://issues.apache.org/jira/browse/FLINK-20976)
 
 Flink’s savepoint binary format is unified across all state backends. That means you can take a
 savepoint with one state backend and then restore it using another.
 
-If you want to switch the state backend you should first upgrade your Flink version to 1.13 then
+If you want to switch the state backend you should first upgrade your Flink version to 1.13, then
 take a savepoint with the new version, and only after that, you can restore it with a different
 state backend.
 
@@ -53,7 +53,7 @@ state backend.
 
 ##### [FLINK-20752](https://issues.apache.org/jira/browse/FLINK-20752)
 
-The Failure Rate Restart Strategy was allowing 1 less restart per interval as configured. Users
+The Failure Rate Restart Strategy was allowing 1 less restart per interval than configured. Users
 wishing to keep the current behavior should reduce the maximum number of allowed failures per
 interval by 1.
 
@@ -61,7 +61,7 @@ interval by 1.
 
 ##### [FLINK-20654](https://issues.apache.org/jira/browse/FLINK-20654)
 
-Using unaligned checkpoints in Flink 1.12.0 combined with two/multiple inputs tasks or with union
+Using unaligned checkpoints in Flink 1.12.0 combined with two/multiple input tasks or with union
 inputs for single input tasks can result in corrupted state.
 
 This can happen if a new checkpoint is triggered before recovery is fully completed. For state to be
@@ -106,14 +106,14 @@ e.g.
 `CAST(numeric AS TIMESTAMP(3))` is disabled and should use `TO_TIMESTAMP(FROM_UNIXTIME(numeric))`
 instead.
 
-#### Support 'USE MODULES' syntax
+#### Support USE MODULES syntax
 
 ##### [FLINK-21298](https://issues.apache.org/jira/browse/FLINK-21298)
 
 The term MODULES is a reserved keyword now. Use backticks to escape column names and other
 identifiers with this name.
 
-#### Update `TableResult.collect()/TableResult.print()` to the new type system
+#### Update TableResult.collect()/TableResult.print() to the new type system
 
 ##### [FLINK-20613](https://issues.apache.org/jira/browse/FLINK-20613)
 
@@ -123,7 +123,7 @@ identifiers with this name.
 
 ##### [FLINK-18090](https://issues.apache.org/jira/browse/FLINK-18090)
 
-The Row.toSting method has been reworked. This is an incompatible change. If the legacy
+The `Row.toSting()` method has been reworked. This is an incompatible change. If the legacy
 representation is still required for tests, the old behavior can be restored via the flag
 `RowUtils.USE_LEGACY_TO_STRING` for the local JVM. However, relying on the row's string
 representation for tests is not a good idea in general as field data types are not verified.
@@ -178,7 +178,7 @@ enabled.
 
 ##### [FLINK-21819](https://issues.apache.org/jira/browse/FLINK-21819)
 
-The Swift FileSystem is no longer being actively developed and has been removed from the project and
+The Swift filesystem is no longer being actively developed and has been removed from the project and
 distribution.
 
 ### Monitoring & debugging
@@ -188,14 +188,14 @@ distribution.
 ##### [FLINK-21736](https://issues.apache.org/jira/browse/FLINK-21736)
 
 State access latency metrics are introduced to track all kinds of keyed state access to help debug
-state performance. This feature is not enabled by default and could be turned on once
-setting `state.backend.latency-track.keyed-state-enabled` as true.
+state performance. This feature is not enabled by default and can be turned on by
+setting `state.backend.latency-track.keyed-state-enabled` to true.
 
-#### Support for CPU FlameGraphs in new web UI
+#### Support for CPU flame graphs in web UI
 
 ##### [FLINK-13550](https://issues.apache.org/jira/browse/FLINK-13550)
 
-Flink now offers Flamegraphs for each node in the job graph. Please enable this experimental feature
+Flink now offers flame graphs for each node in the job graph. Please enable this experimental feature
 by setting the respective configuration flag `rest.flamegraph.enabled`.
 
 #### Display last n exceptions/causes for job restarts in Web UI
@@ -245,5 +245,5 @@ recovered.
 ##### [FLINK-22352](https://issues.apache.org/jira/browse/FLINK-22352)
 
 The community decided to deprecate the Apache Mesos support for Apache Flink. It is subject to
-removal in the future. Users are encourage to switch to a different resource manager.
+removal in the future. Users are encouraged to switch to a different resource manager.
 
