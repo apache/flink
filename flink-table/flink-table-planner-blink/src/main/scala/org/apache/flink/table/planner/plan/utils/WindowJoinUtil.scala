@@ -93,7 +93,7 @@ object WindowJoinUtil {
       val rightChildFieldsType = join.getRight.getRowType.getFieldList
       val leftFieldCnt = join.getLeft.getRowType.getFieldCount
       val rexBuilder = join.getCluster.getRexBuilder
-      val remainEquals = mutable.ArrayBuffer[RexNode]()
+      val remainingConditions = mutable.ArrayBuffer[RexNode]()
       val remainLeftKeysArray = mutable.ArrayBuffer[Int]()
       val remainRightKeysArray = mutable.ArrayBuffer[Int]()
       // convert remain pairs to RexInputRef tuple for building SqlStdOperatorTable.EQUALS calls
@@ -113,20 +113,20 @@ object WindowJoinUtil {
             SqlStdOperatorTable.IS_NOT_DISTINCT_FROM
           }
           val remainEqual = rexBuilder.makeCall(op, leftInputRef, rightInputRef)
-          remainEquals += remainEqual
+          remainingConditions += remainEqual
           remainLeftKeysArray += source
           remainRightKeysArray += target
         }
       }
       val notEquiCondition = joinSpec.getNonEquiCondition
       if (notEquiCondition.isPresent) {
-        remainEquals += notEquiCondition.get()
+        remainingConditions += notEquiCondition.get()
       }
       (
         remainLeftKeysArray.toArray,
         remainRightKeysArray.toArray,
         // build a new condition
-        RexUtil.composeConjunction(rexBuilder, remainEquals.toList))
+        RexUtil.composeConjunction(rexBuilder, remainingConditions.toList))
     } else {
       (joinSpec.getLeftKeys, joinSpec.getRightKeys, join.getCondition)
     }
