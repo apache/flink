@@ -54,30 +54,36 @@ public class RetryRule implements TestRule {
         RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
         RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
 
-        // sanity check that we don't use expected exceptions with the RetryOnX annotations
-        if (retryOnFailure != null || retryOnException != null) {
-            Test test = description.getAnnotation(Test.class);
-            if (test.expected() != Test.None.class) {
-                throw new IllegalArgumentException(
-                        "You cannot combine the RetryOnFailure "
-                                + "annotation with the Test(expected) annotation.");
-            }
-        }
-
         // sanity check that we don't use both annotations
         if (retryOnFailure != null && retryOnException != null) {
             throw new IllegalArgumentException(
                     "You cannot combine the RetryOnFailure and RetryOnException annotations.");
         }
 
+        final Class<? extends Throwable> whitelistedException = getExpectedException(description);
+
         if (retryOnFailure != null) {
-            return new RetryOnFailureStatement(retryOnFailure.times(), statement);
+            return new RetryOnFailureStatement(
+                    retryOnFailure.times(), statement, whitelistedException);
         } else if (retryOnException != null) {
             return new RetryOnExceptionStatement(
-                    retryOnException.times(), retryOnException.exception(), statement);
+                    retryOnException.times(),
+                    retryOnException.exception(),
+                    statement,
+                    whitelistedException);
         } else {
             return statement;
         }
+    }
+
+    @Nullable
+    private static Class<? extends Throwable> getExpectedException(Description description) {
+        Test test = description.getAnnotation(Test.class);
+        if (test.expected() != Test.None.class) {
+            return test.expected();
+        }
+
+        return null;
     }
 
     /** Retries a test in case of a failure. */
@@ -88,8 +94,13 @@ public class RetryRule implements TestRule {
         private int currentRun;
 
         private final Statement statement;
+        @Nullable private final Class<? extends Throwable> expectedException;
 
-        private RetryOnFailureStatement(int timesOnFailure, Statement statement) {
+        private RetryOnFailureStatement(
+                int timesOnFailure,
+                Statement statement,
+                @Nullable Class<? extends Throwable> expectedException) {
+            this.expectedException = expectedException;
             if (timesOnFailure < 0) {
                 throw new IllegalArgumentException("Negatives number of retries on failure");
             }
@@ -109,6 +120,11 @@ public class RetryRule implements TestRule {
                     statement.evaluate();
                     break; // success
                 } catch (Throwable t) {
+                    if (expectedException != null
+                            && expectedException.isAssignableFrom(t.getClass())) {
+                        throw t;
+                    }
+
                     LOG.warn(
                             String.format(
                                     "Test run failed (%d/%d).", currentRun, timesOnFailure + 1),
@@ -129,13 +145,15 @@ public class RetryRule implements TestRule {
         private final Class<? extends Throwable> exceptionClass;
         private final int timesOnFailure;
         private final Statement statement;
+        @Nullable private final Class<? extends Throwable> expectedException;
 
         private int currentRun;
 
         private RetryOnExceptionStatement(
                 int timesOnFailure,
                 Class<? extends Throwable> exceptionClass,
-                Statement statement) {
+                Statement statement,
+                @Nullable Class<? extends Throwable> expectedException) {
             if (timesOnFailure < 0) {
                 throw new IllegalArgumentException("Negatives number of retries on failure");
             }
@@ -146,6 +164,7 @@ public class RetryRule implements TestRule {
             this.exceptionClass = (exceptionClass);
             this.timesOnFailure = timesOnFailure;
             this.statement = statement;
+            this.expectedException = expectedException;
         }
 
         /**
@@ -160,6 +179,11 @@ public class RetryRule implements TestRule {
                     statement.evaluate();
                     break; // success
                 } catch (Throwable t) {
+                    if (expectedException != null
+                            && expectedException.isAssignableFrom(t.getClass())) {
+                        throw t;
+                    }
+
                     LOG.warn(
                             String.format(
                                     "Test run failed (%d/%d).", currentRun, timesOnFailure + 1),
