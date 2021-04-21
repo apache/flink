@@ -119,6 +119,21 @@ class SourceWatermarkTest extends TableTestBase {
          |   'readable-metadata' = 'originTime:BIGINT'
          | )
          """.stripMargin)
+
+    util.tableEnv.executeSql(
+      s"""
+         | CREATE TABLE timeTestTable(
+         |   a INT,
+         |   b BIGINT,
+         |   rowtime AS TO_TIMESTAMP_LTZ(b, 0),
+         |   WATERMARK FOR rowtime AS rowtime
+         | ) WITH (
+         |   'connector' = 'values',
+         |   'enable-watermark-push-down' = 'true',
+         |   'bounded' = 'false',
+         |   'disable-lookup' = 'true'
+         | )
+         """.stripMargin)
   }
 
   @Test
@@ -154,6 +169,11 @@ class SourceWatermarkTest extends TableTestBase {
   @Test
   def testWatermarkOnTimestampLtzCol(): Unit = {
     util.verifyExecPlan("SELECT a, b FROM MyLtzTable")
+  }
+
+  @Test
+  def testWatermarkOnCurrentRowTimestampFunction(): Unit = {
+    util.verifyExecPlan("SELECT * FROM timeTestTable")
   }
 
   @Test

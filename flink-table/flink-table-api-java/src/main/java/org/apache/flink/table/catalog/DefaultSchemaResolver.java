@@ -222,10 +222,11 @@ class DefaultSchemaResolver implements SchemaResolver {
                             columns.stream().map(Column::getName).collect(Collectors.toList())));
         }
         final LogicalType timeFieldType = timeColumn.get().getDataType().getLogicalType();
-        if (!canBeTimeAttributeType(timeFieldType) || getPrecision(timeFieldType) != 3) {
+        if (!canBeTimeAttributeType(timeFieldType) || getPrecision(timeFieldType) > 3) {
             throw new ValidationException(
                     "Invalid data type of time field for watermark definition. "
-                            + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
+                            + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p),"
+                            + " the supported precision 'p' is from 0 to 3.");
         }
         if (isProctimeAttribute(timeFieldType)) {
             throw new ValidationException(
@@ -235,10 +236,11 @@ class DefaultSchemaResolver implements SchemaResolver {
     }
 
     private void validateWatermarkExpression(LogicalType watermarkType) {
-        if (!canBeTimeAttributeType(watermarkType) || getPrecision(watermarkType) != 3) {
+        if (!canBeTimeAttributeType(watermarkType) || getPrecision(watermarkType) > 3) {
             throw new ValidationException(
                     "Invalid data type of expression for watermark definition. "
-                            + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
+                            + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p),"
+                            + " the supported precision 'p' is from 0 to 3.");
         }
     }
 
@@ -277,7 +279,8 @@ class DefaultSchemaResolver implements SchemaResolver {
                 default:
                     throw new ValidationException(
                             "Invalid data type of expression for rowtime definition. "
-                                    + "The field must be of type TIMESTAMP(3) or TIMESTAMP_LTZ(3).");
+                                    + "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p),"
+                                    + " the supported precision 'p' is from 0 to 3.");
             }
         }
         return column;
