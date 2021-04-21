@@ -314,6 +314,9 @@ public class HiveInspectors {
         if (inspector instanceof ListObjectInspector) {
             ListObjectInspector listInspector = (ListObjectInspector) inspector;
             List<?> list = listInspector.getList(data);
+            if (list == null) {
+                return null;
+            }
 
             // flink expects a specific array type (e.g. Integer[] instead of Object[]), so we have
             // to get the element class
@@ -332,6 +335,9 @@ public class HiveInspectors {
         if (inspector instanceof MapObjectInspector) {
             MapObjectInspector mapInspector = (MapObjectInspector) inspector;
             Map<?, ?> map = mapInspector.getMap(data);
+            if (map == null) {
+                return null;
+            }
 
             Map<Object, Object> result = new HashMap<>(map.size());
             for (Map.Entry<?, ?> entry : map.entrySet()) {

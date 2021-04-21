@@ -531,6 +531,31 @@ public class TableEnvHiveConnectorITCase {
         }
     }
 
+    @Test
+    public void testReadHiveDataWithEmptyMapForHiveShim20X() throws Exception {
+        Assume.assumeTrue(HiveShimLoader.getHiveVersion().compareTo("2.0.0") <= 0);
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        try {
+            String format = "parquet";
+            // test.parquet data: hehuiyuan	{}	[]
+            String folderURI = this.getClass().getResource("/parquet").getPath();
+
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.executeSql(
+                    String.format(
+                            "create external table src_t (a string, b map<string, string>, c array<string>) stored as %s location 'file://%s'",
+                            format, folderURI));
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery("select * from src_t").execute().collect());
+        } finally {
+            tableEnv.executeSql("drop table if exists src_t");
+        }
+    }
+
     private TableEnvironment getTableEnvWithHiveCatalog() {
         TableEnvironment tableEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
