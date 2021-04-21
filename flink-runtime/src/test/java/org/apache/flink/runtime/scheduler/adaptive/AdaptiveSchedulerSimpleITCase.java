@@ -43,6 +43,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -61,6 +62,8 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
+        configuration.set(
+                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
 
         return configuration;
     }

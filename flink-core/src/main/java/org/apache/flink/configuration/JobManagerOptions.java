@@ -427,7 +427,7 @@ public class JobManagerOptions {
     public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
                     .durationType()
-                    .defaultValue(RESOURCE_WAIT_TIMEOUT.defaultValue())
+                    .defaultValue(Duration.ofSeconds(10L))
                     .withDescription(
                             Description.builder()
                                     .text(
