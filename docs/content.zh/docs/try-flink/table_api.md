@@ -47,7 +47,7 @@ If you get stuck, check out the [community support resources](https://flink.apac
 In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
 
 {{< hint info >}}
-If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
+If running docker on Windows and your data generator container is failing to start, then please ensure that you're using the right shell.
 For example **docker-entrypoint.sh** for **table-walkthrough_data-generator_1** container requires bash.
 If unavailable, it will throw an error **standard_init_linux.go:211: exec user process caused "no such file or directory"**.
 A workaround is to switch the shell to **sh** on the first line of **docker-entrypoint.sh**.
@@ -200,7 +200,7 @@ This means the timestamp column needs be be rounded down from millisecond to hou
 Flink supports developing relational applications in pure [SQL]({{< ref "docs/dev/table/sql/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
 The Table API is a fluent DSL inspired by SQL, that can be written in Python, Java, or Scala and supports strong IDE integration.
 Just like a SQL query, Table programs can select the required fields and group by your keys.
-These features, allong with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, you can write this report.
+These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, you can write this report.
 
 ```java
 public static Table report(Table transactions) {

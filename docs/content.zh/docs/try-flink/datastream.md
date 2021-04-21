@@ -3,7 +3,7 @@ title: '基于 DataStream API 实现欺诈检测'
 nav-title: '基于 DataStream API 实现欺诈检测'
 weight: 3
 type: docs
-aliaes:
+aliases:
   - /zh/try-flink/datastream_api.html
   - /zh/getting-started/walkthroughs/datastream_api.html
   - /zh/quickstart/run_example_quickstart.html
