@@ -689,7 +689,7 @@ public final class FileUtils {
 
     /**
      * Converts the given {@link java.nio.file.Path} into a file {@link URL}. The resulting url is
-     * relative iff the given path is relative.
+     * relative if the given path is relative.
      *
      * @param path to convert into a {@link URL}.
      * @return URL
