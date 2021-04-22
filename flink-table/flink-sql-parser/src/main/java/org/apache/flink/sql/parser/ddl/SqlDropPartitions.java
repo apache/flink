@@ -70,11 +70,14 @@ public class SqlDropPartitions extends SqlAlterTable {
         }
         int opLeftPrec = getOperator().getLeftPrec();
         int opRightPrec = getOperator().getRightPrec();
+        final SqlWriter.Frame frame = writer.startList("", "");
         for (SqlNodeList partSpec : partSpecs) {
+            writer.sep(",");
             writer.newlineAndIndent();
             writer.keyword("PARTITION");
             partSpec.unparse(writer, opLeftPrec, opRightPrec);
         }
+        writer.endList(frame);
     }
 
     @Nonnull
