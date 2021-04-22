@@ -70,9 +70,11 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
         final RowData rowData = element.getValue();
 
         if (consumeRowtimeMetadata) {
+            // timestamp is TIMESTAMP_LTZ
             final long rowtime = rowData.getTimestamp(rowData.getArity() - 1, 3).getMillisecond();
             outRecord.setTimestamp(rowtime);
         } else if (rowtimeIndex != -1) {
+            // timestamp might be TIMESTAMP or TIMESTAMP_LTZ
             final long rowtime = rowData.getTimestamp(rowtimeIndex, 3).getMillisecond();
             outRecord.setTimestamp(rowtime);
         }

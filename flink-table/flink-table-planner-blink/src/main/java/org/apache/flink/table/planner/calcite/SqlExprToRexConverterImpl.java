@@ -31,6 +31,8 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.FrameworkConfig;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Properties;
 import java.util.stream.Stream;
@@ -42,14 +44,17 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
 
     private final SqlDialect sqlDialect;
 
-    private final RelDataType tableRowType;
+    private final RelDataType inputRowType;
+
+    private final @Nullable RelDataType outputType;
 
     public SqlExprToRexConverterImpl(
             FrameworkConfig config,
             FlinkTypeFactory typeFactory,
             RelOptCluster cluster,
             SqlDialect sqlDialect,
-            RelDataType tableRowType) {
+            RelDataType inputRowType,
+            @Nullable RelDataType outputType) {
         this.planner =
                 new FlinkPlannerImpl(
                         config,
@@ -57,20 +62,22 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
                         typeFactory,
                         cluster);
         this.sqlDialect = sqlDialect;
-        this.tableRowType = tableRowType;
+        this.inputRowType = inputRowType;
+        this.outputType = outputType;
     }
 
     @Override
     public String expand(String expr) {
         final CalciteParser parser = planner.parser();
         final SqlNode node = parser.parseExpression(expr);
-        final SqlNode validated = planner.validateExpression(node, tableRowType);
+        final SqlNode validated = planner.validateExpression(node, inputRowType, outputType);
         return validated.toSqlString(sqlDialect).getSql();
     }
 
     @Override
     public RexNode convertToRexNode(String expr) {
-        return convertToRexNodes(new String[] {expr})[0];
+        final CalciteParser parser = planner.parser();
+        return planner.rex(parser.parseExpression(expr), inputRowType, outputType);
     }
 
     @Override
@@ -78,7 +85,7 @@ public class SqlExprToRexConverterImpl implements SqlExprToRexConverter {
         final CalciteParser parser = planner.parser();
         return Stream.of(exprs)
                 .map(parser::parseExpression)
-                .map(node -> planner.rex(node, tableRowType))
+                .map(node -> planner.rex(node, inputRowType, null))
                 .toArray(RexNode[]::new);
     }
 
