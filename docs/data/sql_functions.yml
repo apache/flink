@@ -537,7 +537,13 @@ conditional:
     description: Returns true if all characters in string are digit, otherwise false.
   - table: BOOLEAN.?(VALUE1, VALUE2)
     description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-   
+  - sql: GREATEST(value1[, value2]*)
+    table: greatest(VALUE1, VALUE2, ...)
+    description: Returns the greatest VALUE if no VALUE is NULL. Returns NULL if at least one VALUE is NULL.
+  - sql: LEAST(value1[, value2]*)
+    table: least(VALUE1, VALUE2, ...)
+    description: Returns the least VALUE if no VALUE is NULL. Returns NULL if at least one VALUE is NULL.
+
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)

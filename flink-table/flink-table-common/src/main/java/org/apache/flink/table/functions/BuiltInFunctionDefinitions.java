@@ -283,6 +283,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
                     .build();
 
+    public static final BuiltInFunctionDefinition GREATEST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("greatest")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.from(1), StructuredComparision.FULL))
+                    .outputTypeStrategy(nullable(TypeStrategies.GREATEST_LEAST))
+                    .build();
+
+    public static final BuiltInFunctionDefinition LEAST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("least")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.from(1), StructuredComparision.FULL))
+                    .outputTypeStrategy(nullable(TypeStrategies.GREATEST_LEAST))
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Aggregate functions
     // --------------------------------------------------------------------------------------------

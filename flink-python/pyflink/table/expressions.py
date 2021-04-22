@@ -525,6 +525,34 @@ def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) ->
     return _ternary_op("ifThenElse", condition, if_true, if_false)
 
 
+def greatest(head, *tail) -> Expression:
+    """
+    Returns the greatest element if there is no null elements.
+    Returns null if there is at least one null element.
+
+    e.g. greatest(1, 2, 3) leads to 3
+
+    .. seealso:: :func:`~pyflink.table.expressions.least`
+    """
+    gateway = get_gateway()
+    tail = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tail])
+    return _binary_op("greatest", head, tail)
+
+
+def least(head, *tail) -> Expression:
+    """
+    Returns the least element if there is no null elements.
+    Returns null if there is at least one null element.
+
+    e.g. least(1, 2, 3) leads to 1
+
+    .. seealso:: :func:`~pyflink.table.expressions.greatest`
+    """
+    gateway = get_gateway()
+    tail = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tail])
+    return _binary_op("least", head, tail)
+
+
 def with_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects a range of columns. It can be used wherever an array of

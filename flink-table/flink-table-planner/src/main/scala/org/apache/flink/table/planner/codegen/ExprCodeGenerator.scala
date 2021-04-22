@@ -727,6 +727,18 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case MAP_VALUE_CONSTRUCTOR =>
         generateMap(ctx, resultType, operands)
 
+      case GREATEST =>
+        operands.foreach { operand =>
+          requireComparable(operand)
+        }
+        generateGreatestLeast(resultType, operands)
+
+      case LEAST =>
+        operands.foreach { operand =>
+          requireComparable(operand)
+        }
+        generateGreatestLeast(resultType, operands, greatest = false)
+
       case ITEM =>
         operands.head.resultType.getTypeRoot match {
           case LogicalTypeRoot.ARRAY =>

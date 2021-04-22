@@ -729,6 +729,26 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Returns the greatest value from the input if input consists from non null values.
+   * Returns null if there is at least one null value in the input.
+   *
+   * e.g. greatest(1, 2, 3) leads to 3
+   */
+  def greatest(head: Expression, tail: Expression): Expression = {
+    Expressions.greatest(head, tail)
+  }
+
+  /**
+   * Returns the least value from the input if input consists from non null values.
+   * Returns null if there is at least one null value in the input.
+   *
+   * e.g. least(1, 2, 3) leads to 1
+   */
+  def least(head: Expression, tail: Expression): Expression = {
+    Expressions.least(head, tail)
+  }
+
+  /**
     * Creates an expression that selects a range of columns. It can be used wherever an array of
     * expression is accepted such as function calls, projections, or groupings.
     *
