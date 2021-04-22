@@ -832,7 +832,10 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param jobName Desired name of the job
     * @return The result of the job execution, containing elapsed time and accumulators.
     * @throws Exception which occurs during job execution.
+    * @deprecated Use [[StreamExecutionEnvironment.execute(String)]] instead or directly call
+    *             the execute methods of the Table API such as [[executeSql(String)]].
     */
+  @deprecated
   @throws[Exception]
   override def execute(jobName: String): JobExecutionResult
 

@@ -1149,7 +1149,10 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param jobName Desired name of the job
      * @return The result of the job execution, containing elapsed time and accumulators.
      * @throws Exception which occurs during job execution.
+     * @deprecated Use {@link StreamExecutionEnvironment#execute(String)} instead or directly call
+     *     the execute methods of the Table API such as {@link #executeSql(String)}.
      */
+    @Deprecated
     @Override
     JobExecutionResult execute(String jobName) throws Exception;
 }
