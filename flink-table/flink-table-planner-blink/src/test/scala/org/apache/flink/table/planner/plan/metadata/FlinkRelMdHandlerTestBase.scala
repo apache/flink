@@ -2671,7 +2671,7 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
-  protected def createDataStreamScanForTableSourceTable[T](
+  protected def createTableSourceTable[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
       .getRelOptSchema
