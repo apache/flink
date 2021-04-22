@@ -402,7 +402,7 @@ class FlinkRelMdHandlerTestBase {
       flinkLogicalTraits.replace(collection), studentFlinkLogicalScan, collection, offset, fetch)
 
     val batchSortLimit = new BatchPhysicalSortLimit(
-      cluster, batchPhysicalTraits.replace(collection),
+        cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
@@ -414,7 +414,7 @@ class FlinkRelMdHandlerTestBase {
       relBuilder.literal(SortUtil.getLimitEnd(offset, fetch)),
       false)
     val batchSortGlobal = new BatchPhysicalSortLimit(
-      cluster, batchPhysicalTraits.replace(collection),
+        cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocalLimit,
         FlinkRelDistribution.SINGLETON),
@@ -1119,10 +1119,10 @@ class FlinkRelMdHandlerTestBase {
     relBuilder.push(calcOnStudentScan)
 
     def createSingleArgAggWithFilter(
-                                      aggFunction: SqlAggFunction,
-                                      argIndex: Int,
-                                      filterArg: Int,
-                                      name: String): AggregateCall = {
+        aggFunction: SqlAggFunction,
+        argIndex: Int,
+        filterArg: Int,
+        name: String): AggregateCall = {
       AggregateCall.create(
         aggFunction,
         false,
@@ -1408,7 +1408,7 @@ class FlinkRelMdHandlerTestBase {
   // only for row_time we distinguish by batch row time, for what we hard code DataTypes.TIMESTAMP,
   // which is ok here for testing.
   private lazy val windowRef: PlannerWindowReference =
-  new PlannerWindowReference("w$", new TimestampType(3))
+    new PlannerWindowReference("w$", new TimestampType(3))
 
   protected lazy val tumblingGroupWindow: LogicalWindow =
     TumblingGroupWindow(
@@ -2614,7 +2614,8 @@ class FlinkRelMdHandlerTestBase {
     )
     .build
 
-  // select * from TableSourceTable1 left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
+  // select * from TableSourceTable1
+  // left join TableSourceTable2 on TableSourceTable1.a = TableSourceTable2.a
   protected lazy val logicalLeftJoinOnDisjointUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable2")
@@ -2628,7 +2629,8 @@ class FlinkRelMdHandlerTestBase {
     )
     .build
 
-  // select * from TableSourceTable1 left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
+  // select * from TableSourceTable1
+  // left join TableSourceTable3 on TableSourceTable1.a = TableSourceTable3.a
   protected lazy val logicalLeftJoinWithNoneKeyTableUniqueKeys: RelNode = relBuilder
     .scan("TableSourceTable1")
     .scan("TableSourceTable3")
@@ -2643,7 +2645,7 @@ class FlinkRelMdHandlerTestBase {
     .build
 
   protected def createDataStreamScan[T](
-                                         tableNames: util.List[String], traitSet: RelTraitSet): T = {
+      tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
       .getRelOptSchema
       .asInstanceOf[CalciteCatalogReader]
@@ -2669,8 +2671,8 @@ class FlinkRelMdHandlerTestBase {
     scan.asInstanceOf[T]
   }
 
-  protected def createTableSourceTable[T](
-                                                            tableNames: util.List[String], traitSet: RelTraitSet): T = {
+  protected def createDataStreamScanForTableSourceTable[T](
+      tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder
       .getRelOptSchema
       .asInstanceOf[CalciteCatalogReader]
@@ -2697,8 +2699,8 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected def createLiteralList(
-                                   rowType: RelDataType,
-                                   literalValues: Seq[String]): util.List[RexLiteral] = {
+      rowType: RelDataType,
+      literalValues: Seq[String]): util.List[RexLiteral] = {
     require(literalValues.length == rowType.getFieldCount)
     val rexBuilder = relBuilder.getRexBuilder
     literalValues.zipWithIndex.map {
@@ -2719,15 +2721,15 @@ class FlinkRelMdHandlerTestBase {
             case VARCHAR => rexBuilder.makeLiteral(v)
             case _ => throw new TableException(s"${fieldType.getSqlTypeName} is not supported!")
           }
-          }.asInstanceOf[RexLiteral]
+        }.asInstanceOf[RexLiteral]
     }.toList
   }
 
   protected def createLogicalCalc(
-                                   input: RelNode,
-                                   outputRowType: RelDataType,
-                                   projects: util.List[RexNode],
-                                   conditions: util.List[RexNode]): Calc = {
+      input: RelNode,
+      outputRowType: RelDataType,
+      projects: util.List[RexNode],
+      conditions: util.List[RexNode]): Calc = {
     val predicate: RexNode = if (conditions == null || conditions.isEmpty) {
       null
     } else {
@@ -2743,10 +2745,10 @@ class FlinkRelMdHandlerTestBase {
   }
 
   protected def makeLiteral(
-                             value: Any,
-                             internalType: LogicalType,
-                             isNullable: Boolean = false,
-                             allowCast: Boolean = true): RexNode = {
+      value: Any,
+      internalType: LogicalType,
+      isNullable: Boolean = false,
+      allowCast: Boolean = true): RexNode = {
     rexBuilder.makeLiteral(
       value,
       typeFactory.createFieldTypeFromLogicalType(internalType.copy(isNullable)),
@@ -2756,9 +2758,9 @@ class FlinkRelMdHandlerTestBase {
 }
 
 class TestRel(
-               cluster: RelOptCluster,
-               traits: RelTraitSet,
-               input: RelNode) extends SingleRel(cluster, traits, input) {
+    cluster: RelOptCluster,
+    traits: RelTraitSet,
+    input: RelNode) extends SingleRel(cluster, traits, input) {
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
     planner.getCostFactory.makeCost(1.0, 1.0, 1.0)
