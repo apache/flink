@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{TableEnvironment, _}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.connector.sink.DynamicTableSink
+import org.apache.flink.table.connector.source.DynamicTableSource
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction}
@@ -196,7 +199,7 @@ trait StreamTableEnvironment extends TableEnvironment {
    *     // physical columns will be derived automatically
    *
    *     Schema.newBuilder()
-   *         .columnByMetadata("rowtime", "TIMESTAMP(3)") // extract timestamp into a table column
+   *         .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)") // extract timestamp into a column
    *         .watermark("rowtime", "SOURCE_WATERMARK()")  // declare watermarks propagation
    *         .build()
    *
@@ -210,11 +213,119 @@ trait StreamTableEnvironment extends TableEnvironment {
    * }}}
    *
    * @param dataStream The [[DataStream]] to be converted.
-   * @param schema customized schema for the final table.
+   * @param schema The customized schema for the final table.
    * @tparam T The external type of the [[DataStream]].
    * @return The converted [[Table]].
    */
   def fromDataStream[T](dataStream: DataStream[T], schema: Schema): Table
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * Compared to [[fromDataStream(DataStream)]], this method consumes instances of [[Row]] and
+   * evaluates the [[RowKind]] flag that is contained in every record during runtime.
+   * The runtime behavior is similar to that of a [[DynamicTableSource]].
+   *
+   * This method expects a changelog containing all kinds of changes (enumerated in [[RowKind]])
+   * as the default [[ChangelogMode]]. Use [[fromChangelogStream(DataStream, Schema,
+   * ChangelogMode)]] to limit the kinds of changes (e.g. for upsert mode).
+   *
+   * Column names and types of the [[Table]] are automatically derived from the [[TypeInformation]]
+   * of the [[DataStream]]. If the outermost record's [[TypeInformation]] is a [[CompositeType]],
+   * it will be flattened in the first level. [[TypeInformation]] that cannot be represented as one
+   * of the listed [[DataTypes]] will be treated as a black-box
+   * [[DataTypes.RAW(Class, TypeSerializer)]] type. Thus, composite nested fields will not be
+   * accessible.
+   *
+   * By default, the stream record's timestamp and watermarks are not propagated unless
+   * explicitly declared via [[fromChangelogStream(DataStream, Schema)]].
+   *
+   * @param dataStream The changelog stream of [[Row]].
+   * @return The converted [[Table]].
+   */
+  def fromChangelogStream(dataStream: DataStream[Row]): Table
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * Compared to [[fromDataStream(DataStream)]], this method consumes instances of [[Row]] and
+   * evaluates the [[RowKind]] flag that is contained in every record during runtime.
+   * The runtime behavior is similar to that of a [[DynamicTableSource]].
+   *
+   * This method expects a changelog containing all kinds of changes (enumerated in [[RowKind]]) as
+   * the default [[ChangelogMode]]. Use [[fromChangelogStream(DataStream, Schema, ChangelogMode)]]
+   * to limit the kinds of changes (e.g. for upsert mode).
+   *
+   * Column names and types of the [[Table]] are automatically derived from the [[TypeInformation]]
+   * of the [[DataStream]]. If the outermost record's [[TypeInformation]] is a [[CompositeType]],
+   * it will be flattened in the first level. [[TypeInformation]] that cannot be represented as one
+   * of the listed [[DataTypes]] will be treated as a black-box
+   * [[DataTypes.RAW(Class, TypeSerializer)]] type. Thus, composite nested fields will not be
+   * accessible.
+   *
+   * By default, the stream record's timestamp and watermarks are not propagated unless explicitly
+   * declared.
+   *
+   * This method allows to declare a [[Schema]] for the resulting table. The declaration is
+   * similar to a `CREATE TABLE` DDL in SQL and allows to:
+   *
+   * - enrich or overwrite automatically derived columns with a custom [[DataType]]
+   * - reorder columns
+   * - add computed or metadata columns next to the physical columns
+   * - access a stream record's timestamp
+   * - declare a watermark strategy or propagate the [[DataStream]] watermarks
+   * - declare a primary key
+   *
+   * See [[fromDataStream(DataStream, Schema)]] for more information and examples on how
+   * to declare a [[Schema]].
+   *
+   * @param dataStream The changelog stream of [[Row]].
+   * @param schema The customized schema for the final table.
+   * @return The converted [[Table]].
+   */
+  def fromChangelogStream(dataStream: DataStream[Row], schema: Schema): Table
+
+  /**
+   * Converts the given [[DataStream]] of changelog entries into a [[Table]].
+   *
+   * Compared to [[fromDataStream(DataStream)]], this method consumes instances of [[Row]] and
+   * evaluates the [[RowKind]] flag that is contained in every record during runtime.
+   * The runtime behavior is similar to that of a [[DynamicTableSource]].
+   *
+   * This method requires an explicitly declared [[ChangelogMode]]. For example, use
+   * [[ChangelogMode.upsert()]] if the stream will not contain [[RowKind.UPDATE_BEFORE]], or
+   * [[ChangelogMode.insertOnly()]] for non-updating streams.
+   *
+   * Column names and types of the [[Table]] are automatically derived from the [[TypeInformation]]
+   * of the [[DataStream]]. If the outermost record's [[TypeInformation]] is a [[CompositeType]],
+   * it will be flattened in the first level. [[TypeInformation]] that cannot be represented as one
+   * of the listed [[DataTypes]] will be treated as a black-box
+   * [[DataTypes.RAW(Class, TypeSerializer)]] type. Thus, composite nested fields will not be
+   * accessible.
+   *
+   * By default, the stream record's timestamp and watermarks are not propagated unless
+   * explicitly declared.
+   *
+   * This method allows to declare a [[Schema]] for the resulting table. The declaration is
+   * similar to a `CREATE TABLE` DDL in SQL and allows to:
+   *
+   * - enrich or overwrite automatically derived columns with a custom [[DataType]]
+   * - reorder columns
+   * - add computed or metadata columns next to the physical columns
+   * - access a stream record's timestamp
+   * - declare a watermark strategy or propagate the [[DataStream]] watermarks
+   * - declare a primary key
+   *
+   * See [[fromDataStream(DataStream, Schema)]] for more information and examples on how
+   * to declare a [[Schema]].
+   *
+   * @param dataStream The changelog stream of [[Row]].
+   * @param schema The customized schema for the final table.
+   * @param changelogMode The expected kinds of changes in the incoming changelog.
+   * @return The converted [[Table]].
+   */
+  def fromChangelogStream(
+      dataStream: DataStream[Row], schema: Schema,  changelogMode: ChangelogMode): Table
 
   /**
    * Creates a view from the given [[DataStream]] in a given path.
@@ -247,7 +358,7 @@ trait StreamTableEnvironment extends TableEnvironment {
    *
    * @param path The path under which the [[DataStream]] is created.
    *             See also the [[TableEnvironment]] class description for the format of the path.
-   * @param schema customized schema for the final table.
+   * @param schema The customized schema for the final table.
    * @param dataStream The [[DataStream]] out of which to create the view.
    * @tparam T The type of the [[DataStream]].
    */
@@ -272,7 +383,7 @@ trait StreamTableEnvironment extends TableEnvironment {
    * If the input table contains a single rowtime column, it will be propagated into a stream
    * record's timestamp. Watermarks will be propagated as well.
    *
-   * @param table The [[Table]] to convert.
+   * @param table The [[Table]] to convert. It must be insert-only.
    * @return The converted [[DataStream]].
    * @see [[toDataStream(Table, AbstractDataType)]]
    */
@@ -287,12 +398,12 @@ trait StreamTableEnvironment extends TableEnvironment {
    * This method is a shortcut for:
    *
    * {{{
-   *     tableEnv.toDataStream(table, DataTypes.of(class))
+   *     tableEnv.toDataStream(table, DataTypes.of(targetClass))
    * }}}
    *
    * Calling this method with a class of [[Row]] will redirect to [[toDataStream(Table)]].
    *
-   * @param table       The [[Table]] to convert.
+   * @param table The [[Table]] to convert. It must be insert-only.
    * @param targetClass The [[Class]] that decides about the final external representation in
    *                    [[DataStream]] records.
    * @tparam T External record.
@@ -327,7 +438,7 @@ trait StreamTableEnvironment extends TableEnvironment {
    * If the input table contains a single rowtime column, it will be propagated into a stream
    * record's timestamp. Watermarks will be propagated as well.
    *
-   * @param table          The [[Table]] to convert.
+   * @param table The [[Table]] to convert. It must be insert-only.
    * @param targetDataType The [[DataType]] that decides about the final external
    *                       representation in [[DataStream]] records.
    * @tparam T External record.
@@ -335,6 +446,143 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @see [[toDataStream(Table)]]
    */
   def toDataStream[T](table: Table, targetDataType: AbstractDataType[_]): DataStream[T]
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * Compared to [[toDataStream(Table)]], this method produces instances of [[Row]]
+   * and sets the [[RowKind]] flag that is contained in every record during runtime. The
+   * runtime behavior is similar to that of a [[DynamicTableSink]].
+   *
+   * This method can emit a changelog containing all kinds of changes (enumerated in [[RowKind]])
+   * that the given updating table requires as the default [[ChangelogMode]]. Use
+   * [[toChangelogStream(Table, Schema, ChangelogMode)]] to limit the kinds of changes (e.g.
+   * for upsert mode).
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream
+   * API. The table runtime will make sure to properly serialize the output records to the first
+   * operator of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]]
+   * semantics of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well.
+   *
+   * @param table The [[Table]] to convert. It can be updating or insert-only.
+   * @return The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream(table: Table): DataStream[Row]
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * Compared to [[toDataStream(Table)]], this method produces instances of [[Row]]
+   * and sets the [[RowKind]] flag that is contained in every record during runtime. The
+   * runtime behavior is similar to that of a [[DynamicTableSink]].
+   *
+   * This method can emit a changelog containing all kinds of changes (enumerated in [[RowKind]])
+   * that the given updating table requires as the default [[ChangelogMode]]. Use
+   * [[toChangelogStream(Table, Schema, ChangelogMode)]] to limit the kinds of changes (e.g.
+   * for upsert mode).
+   *
+   * The given [[Schema]] is used to configure the table runtime to convert columns and
+   * internal data structures to the desired representation. The following example shows how to
+   * convert a table column into a POJO type.
+   *
+   * {{{
+   *     // given a Table of (id BIGINT, payload ROW < name STRING , age INT >)
+   *
+   *     case class MyPojo(var name: String, var age: java.lang.Integer)
+   *
+   *     tableEnv.toChangelogStream(
+   *         table,
+   *         Schema.newBuilder()
+   *             .column("id", DataTypes.BIGINT())
+   *             .column("payload", DataTypes.of(classOf[MyPojo])) // force an implicit conversion
+   *             .build())
+   * }}}
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream
+   * API. The table runtime will make sure to properly serialize the output records to the first
+   * operator of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]]
+   * semantics of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well.
+   *
+   * If the rowtime should not be a concrete field in the final [[Row]] anymore, or the schema
+   * should be symmetrical for both [[fromChangelogStream]] and [[toChangelogStream]], the rowtime
+   * can also be declared as a metadata column that will be propagated into a stream record's
+   * timestamp. It is possible to declare a schema without physical/regular columns. In this case,
+   * those columns will be automatically derived and implicitly put at the beginning of the schema
+   * declaration.
+   *
+   * The following examples illustrate common schema declarations and their semantics:
+   *
+   * {{{
+   *     // given a Table of (id INT, name STRING, my_rowtime TIMESTAMP_LTZ(3))
+   *
+   *     // === EXAMPLE 1 ===
+   *
+   *     // no physical columns defined, they will be derived automatically,
+   *     // the last derived physical column will be skipped in favor of the metadata column
+   *
+   *     Schema.newBuilder()
+   *         .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
+   *         .build()
+   *
+   *     // equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+   *
+   *     // === EXAMPLE 2 ===
+   *
+   *     // physical columns defined, all columns must be defined
+   *
+   *     Schema.newBuilder()
+   *         .column("id", "INT")
+   *         .column("name", "STRING")
+   *         .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
+   *         .build()
+   *
+   *     // equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+   * }}}
+   *
+   * @param table The [[Table]] to convert. It can be updating or insert-only.
+   * @param targetSchema The [[Schema]] that decides about the final external representation
+   *                     in [[DataStream]] records.
+   * @return The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream(table: Table, targetSchema: Schema): DataStream[Row]
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * Compared to [[toDataStream(Table)]], this method produces instances of [[Row]]
+   * and sets the [[RowKind]] flag that is contained in every record during runtime. The
+   * runtime behavior is similar to that of a [[DynamicTableSink]].
+   *
+   * This method requires an explicitly declared [[ChangelogMode]]. For example, use
+   * [[ChangelogMode.upsert()]] if the stream will not contain [[RowKind.UPDATE_BEFORE]], or
+   * [[ChangelogMode.insertOnly()]] for non-updating streams.
+   *
+   * Note that the type system of the table ecosystem is richer than the one of the DataStream
+   * API. The table runtime will make sure to properly serialize the output records to the first
+   * operator of the DataStream API. Afterwards, the [[org.apache.flink.api.common.typeinfo.Types]]
+   * semantics of the DataStream API need to be considered.
+   *
+   * If the input table contains a single rowtime column, it will be propagated into a stream
+   * record's timestamp. Watermarks will be propagated as well. However, it is also possible to
+   * write out the rowtime as a metadata column. See [[toChangelogStream(Table, Schema)]] for
+   * more information and examples on how to declare a [[Schema]].
+   *
+   * @param table The [[Table]] to convert. It can be updating or insert-only.
+   * @param targetSchema The [[Schema]] that decides about the final external representation
+   *                     in [[DataStream]] records.
+   * @param changelogMode The required kinds of changes in the result changelog. An exception will
+   *                      be thrown if the given updating table cannot be represented in this
+   *                      changelog mode.
+   * @return The converted changelog stream of [[Row]].
+   */
+   def toChangelogStream(
+        table: Table, targetSchema: Schema, changelogMode: ChangelogMode): DataStream[Row]
 
   /**
     * Converts the given [[DataStream]] into a [[Table]] with specified field names.
