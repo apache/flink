@@ -31,6 +31,7 @@ import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 
 import java.util.List;
 import java.util.Optional;
@@ -86,6 +87,9 @@ public interface ResolverRule {
 
         /** Access to available local references. */
         List<LocalReferenceExpression> getLocalReferences();
+
+        /** Access to the expected top-level output data type. */
+        Optional<DataType> getOutputDataType();
 
         /** Access to available local over windows. */
         Optional<LocalOverWindow> getOverWindow(Expression alias);

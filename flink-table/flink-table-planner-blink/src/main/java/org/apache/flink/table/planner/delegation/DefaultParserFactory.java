@@ -23,7 +23,6 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +32,6 @@ import java.util.Map;
 public class DefaultParserFactory implements ParserFactory {
     @Override
     public Parser create(CatalogManager catalogManager, PlannerContext plannerContext) {
-        SqlExprToRexConverterFactory sqlExprToRexConverterFactory =
-                plannerContext::createSqlExprToRexConverter;
         return new ParserImpl(
                 catalogManager,
                 () ->
@@ -42,9 +39,7 @@ public class DefaultParserFactory implements ParserFactory {
                                 catalogManager.getCurrentCatalog(),
                                 catalogManager.getCurrentDatabase()),
                 plannerContext::createCalciteParser,
-                tableSchema ->
-                        sqlExprToRexConverterFactory.create(
-                                plannerContext.getTypeFactory().buildRelNodeRowType(tableSchema)));
+                plannerContext.getSqlExprToRexConverterFactory());
     }
 
     @Override

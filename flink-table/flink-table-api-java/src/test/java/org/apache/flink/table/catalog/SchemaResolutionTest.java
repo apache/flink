@@ -21,17 +21,19 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -217,7 +219,8 @@ public class SchemaResolutionTest {
                         .column("ts", DataTypes.TIMESTAMP(3))
                         .watermark("ts", callSql(INVALID_WATERMARK_SQL))
                         .build(),
-                "The watermark output type TIMESTAMP_LTZ(3) is different from input time filed type TIMESTAMP(3).");
+                "The watermark declaration's output data type 'TIMESTAMP_LTZ(3)' is "
+                        + "different from the time field's data type 'TIMESTAMP(3)'.");
 
         testError(
                 Schema.newBuilder()
@@ -440,27 +443,27 @@ public class SchemaResolutionTest {
     }
 
     private static ResolvedExpression resolveSqlExpression(
-            String sqlExpression, TableSchema inputSchema) {
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
         switch (sqlExpression) {
             case COMPUTED_SQL:
                 assertThat(
-                        inputSchema.getFieldDataType("orig_ts").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP(3)));
+                        getType(inputRowType, "orig_ts"),
+                        equalTo(DataTypes.TIMESTAMP(3).getLogicalType()));
                 return COMPUTED_COLUMN_RESOLVED;
             case COMPUTED_SQL_WITH_TS_LTZ:
                 assertThat(
-                        inputSchema.getFieldDataType("ts_ltz").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP_LTZ(3)));
+                        getType(inputRowType, "ts_ltz"),
+                        equalTo(DataTypes.TIMESTAMP_LTZ(3).getLogicalType()));
                 return COMPUTED_COLUMN_RESOLVED_WITH_TS_LTZ;
             case WATERMARK_SQL:
                 assertThat(
-                        inputSchema.getFieldDataType("ts").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP(3)));
+                        getType(inputRowType, "ts"),
+                        equalTo(DataTypes.TIMESTAMP(3).getLogicalType()));
                 return WATERMARK_RESOLVED;
             case WATERMARK_SQL_WITH_TS_LTZ:
                 assertThat(
-                        inputSchema.getFieldDataType("ts1").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP_LTZ(3)));
+                        getType(inputRowType, "ts1"),
+                        equalTo(DataTypes.TIMESTAMP_LTZ(3).getLogicalType()));
                 return WATERMARK_RESOLVED_WITH_TS_LTZ;
             case PROCTIME_SQL:
                 return PROCTIME_RESOLVED;
@@ -477,5 +480,10 @@ public class SchemaResolutionTest {
                 .orElseThrow(IllegalStateException::new)
                 .getDataType()
                 .getLogicalType();
+    }
+
+    private static LogicalType getType(RowType inputRowType, String field) {
+        final int pos = inputRowType.getFieldIndex(field);
+        return inputRowType.getTypeAt(pos);
     }
 }

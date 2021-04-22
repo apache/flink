@@ -42,6 +42,7 @@ import org.apache.calcite.util.Static;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 
@@ -49,12 +50,28 @@ import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
 @Internal
 public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
 
+    // Enables CallContext#getOutputDataType() when validating SQL expressions.
+    private SqlNode sqlNodeForExpectedOutputType;
+    private RelDataType expectedOutputType;
+
     public FlinkCalciteSqlValidator(
             SqlOperatorTable opTab,
             SqlValidatorCatalogReader catalogReader,
             RelDataTypeFactory typeFactory,
             SqlValidator.Config config) {
         super(opTab, catalogReader, typeFactory, config);
+    }
+
+    public void setExpectedOutputType(SqlNode sqlNode, RelDataType expectedOutputType) {
+        this.sqlNodeForExpectedOutputType = sqlNode;
+        this.expectedOutputType = expectedOutputType;
+    }
+
+    public Optional<RelDataType> getExpectedOutputType(SqlNode sqlNode) {
+        if (sqlNode == sqlNodeForExpectedOutputType) {
+            return Optional.of(expectedOutputType);
+        }
+        return Optional.empty();
     }
 
     @Override

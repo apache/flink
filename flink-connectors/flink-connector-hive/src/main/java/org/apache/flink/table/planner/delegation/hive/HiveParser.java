@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.SqlParserException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -36,7 +35,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException;
@@ -80,7 +78,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** A Parser that uses Hive's planner to parse a statement. */
@@ -176,13 +173,12 @@ public class HiveParser extends ParserImpl {
             CatalogManager catalogManager,
             Supplier<FlinkPlannerImpl> validatorSupplier,
             Supplier<CalciteParser> calciteParserSupplier,
-            Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator,
             PlannerContext plannerContext) {
         super(
                 catalogManager,
                 validatorSupplier,
                 calciteParserSupplier,
-                sqlExprToRexConverterCreator);
+                plannerContext.getSqlExprToRexConverterFactory());
         this.plannerContext = plannerContext;
         this.catalogReader =
                 plannerContext.createCatalogReader(

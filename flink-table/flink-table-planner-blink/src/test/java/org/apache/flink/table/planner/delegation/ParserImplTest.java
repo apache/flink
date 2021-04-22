@@ -76,9 +76,7 @@ public class ParserImplTest {
                     catalogManager,
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
-                    t ->
-                            plannerContext.createSqlExprToRexConverter(
-                                    plannerContext.getTypeFactory().buildRelNodeRowType(t)));
+                    plannerContext.getSqlExprToRexConverterFactory());
 
     private static final List<TestSpec> TEST_SPECS =
             Arrays.asList(

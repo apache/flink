@@ -251,7 +251,7 @@ class FlinkRelMdHandlerTestBase {
       .unwrap(classOf[FlinkContext])
     val watermarkRexNode = flinkContext
       .getSqlExprToRexConverterFactory
-      .create(scan.getTable.getRowType)
+      .create(scan.getTable.getRowType, null)
       .convertToRexNode("rowtime - INTERVAL '10' SECOND")
 
     relBuilder.push(scan)

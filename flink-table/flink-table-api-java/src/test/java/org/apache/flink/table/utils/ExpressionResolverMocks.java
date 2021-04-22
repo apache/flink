@@ -47,7 +47,7 @@ public final class ExpressionResolverMocks {
 
     public static ExpressionResolverBuilder dummyResolver() {
         return forSqlExpression(
-                (sqlExpression, inputSchema) -> {
+                (sqlExpression, inputRowType, outputType) -> {
                     throw new UnsupportedOperationException();
                 });
     }
