@@ -48,38 +48,32 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
 
     private static final Duration TIMEOUT = Duration.ofMillis(2000L);
 
-    @Rule
-    public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
     @Test
     public void testKeepLeadershipOnConnectionLoss() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
-                zooKeeperResource.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 
         CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-        LeaderElectionDriverFactory leaderElectionDriverFactory = new ZooKeeperLeaderElectionDriverFactory(
-                client,
-                LATCH_PATH,
-                LEADER_PATH);
-        DefaultLeaderElectionService leaderElectionService = new DefaultLeaderElectionService(
-                leaderElectionDriverFactory);
+        LeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperLeaderElectionDriverFactory(client, LATCH_PATH, LEADER_PATH);
+        DefaultLeaderElectionService leaderElectionService =
+                new DefaultLeaderElectionService(leaderElectionDriverFactory);
 
         try {
             final OneShotLatch connectionLossLatch = new OneShotLatch();
             final OneShotLatch reconnectedLatch = new OneShotLatch();
-            client
-                    .getConnectionStateListenable()
-                    .addListener(new TestingConnectionStateListener(
-                            connectionLossLatch,
-                            reconnectedLatch));
+            client.getConnectionStateListenable()
+                    .addListener(
+                            new TestingConnectionStateListener(
+                                    connectionLossLatch, reconnectedLatch));
 
             final OneShotLatch grantLeadershipLatch = new OneShotLatch();
             final OneShotLatch revokeLeadershipLatch = new OneShotLatch();
-            leaderElectionService.start(new TestingContender(
-                    grantLeadershipLatch,
-                    revokeLeadershipLatch));
+            leaderElectionService.start(
+                    new TestingContender(grantLeadershipLatch, revokeLeadershipLatch));
 
             grantLeadershipLatch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
             zooKeeperResource.restart();
@@ -98,8 +92,7 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
         private final OneShotLatch revokeLeadershipLatch;
 
         public TestingContender(
-                OneShotLatch grantLeadershipLatch,
-                OneShotLatch revokeLeadershipLatch) {
+                OneShotLatch grantLeadershipLatch, OneShotLatch revokeLeadershipLatch) {
             this.grantLeadershipLatch = grantLeadershipLatch;
             this.revokeLeadershipLatch = revokeLeadershipLatch;
         }
@@ -126,16 +119,14 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
         private final OneShotLatch reconnectedLatch;
 
         public TestingConnectionStateListener(
-                OneShotLatch connectionLossLatch,
-                OneShotLatch reconnectedLatch) {
+                OneShotLatch connectionLossLatch, OneShotLatch reconnectedLatch) {
             this.connectionLossLatch = connectionLossLatch;
             this.reconnectedLatch = reconnectedLatch;
         }
 
         @Override
         public void stateChanged(
-                CuratorFramework curatorFramework,
-                ConnectionState connectionState) {
+                CuratorFramework curatorFramework, ConnectionState connectionState) {
             if (connectionState == ConnectionState.SUSPENDED) {
                 connectionLossLatch.trigger();
             }
@@ -144,7 +135,5 @@ public class ZooKeeperLeaderElectionConnectionLossTest extends TestLogger {
                 reconnectedLatch.trigger();
             }
         }
-
     }
-
 }
