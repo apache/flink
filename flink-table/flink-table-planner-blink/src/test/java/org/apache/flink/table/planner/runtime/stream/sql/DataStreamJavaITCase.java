@@ -28,11 +28,13 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Column;
@@ -48,6 +50,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Collector;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -57,6 +60,8 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
@@ -246,7 +251,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 tableEnv.fromDataStream(
                         dataStream,
                         Schema.newBuilder()
-                                .columnByMetadata("rowtime", "TIMESTAMP(3)")
+                                .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
                                 .watermark("rowtime", "SOURCE_WATERMARK()")
                                 .build());
 
@@ -257,12 +262,14 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 Column.physical("f0", DataTypes.BIGINT().notNull()),
                                 Column.physical("f1", DataTypes.INT().notNull()),
                                 Column.physical("f2", DataTypes.STRING()),
-                                Column.metadata("rowtime", DataTypes.TIMESTAMP(3), null, false)),
+                                Column.metadata(
+                                        "rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false)),
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "rowtime",
                                         ResolvedExpressionMock.of(
-                                                DataTypes.TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
+                                                DataTypes.TIMESTAMP_LTZ(3),
+                                                "`SOURCE_WATERMARK`()"))),
                         null));
 
         tableEnv.createTemporaryView("t", table);
@@ -305,7 +312,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 tableEnv.fromChangelogStream(
                         changelogStream,
                         Schema.newBuilder()
-                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP(3))
+                                .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
                                 .watermark("rowtime", "SOURCE_WATERMARK()")
                                 .build());
         tableEnv.createTemporaryView("t", table);
@@ -429,6 +436,62 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         Schema.newBuilder().primaryKey("f0").build(),
                         ChangelogMode.upsert()),
                 getOutput(inputOrOutput));
+    }
+
+    @Test
+    public void testToDataStreamCustomEventTime() throws Exception {
+        final TableConfig config = tableEnv.getConfig();
+
+        // session time zone should not have an impact on the conversion
+        final ZoneId originalZone = config.getLocalTimeZone();
+        config.setLocalTimeZone(ZoneId.of("Europe/Berlin"));
+
+        final LocalDateTime localDateTime1 = LocalDateTime.parse("1970-01-01T00:00:00.000");
+        final LocalDateTime localDateTime2 = LocalDateTime.parse("1970-01-01T01:00:00.000");
+
+        final DataStream<Tuple2<LocalDateTime, String>> dataStream =
+                env.fromElements(
+                        new Tuple2<>(localDateTime1, "alice"), new Tuple2<>(localDateTime2, "bob"));
+
+        final Table table =
+                tableEnv.fromDataStream(
+                        dataStream,
+                        Schema.newBuilder()
+                                .column("f0", "TIMESTAMP(3)")
+                                .column("f1", "STRING")
+                                .watermark("f0", "SOURCE_WATERMARK()")
+                                .build());
+
+        testSchema(
+                table,
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("f0", DataTypes.TIMESTAMP(3)),
+                                Column.physical("f1", DataTypes.STRING())),
+                        Collections.singletonList(
+                                WatermarkSpec.of(
+                                        "f0",
+                                        ResolvedExpressionMock.of(
+                                                DataTypes.TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
+                        null));
+
+        final DataStream<Long> rowtimeStream =
+                tableEnv.toDataStream(table)
+                        .process(
+                                new ProcessFunction<Row, Long>() {
+                                    @Override
+                                    public void processElement(
+                                            Row value, Context ctx, Collector<Long> out) {
+                                        out.collect(ctx.timestamp());
+                                    }
+                                });
+
+        testResult(
+                rowtimeStream,
+                localDateTime1.atOffset(ZoneOffset.UTC).toInstant().toEpochMilli(),
+                localDateTime2.atOffset(ZoneOffset.UTC).toInstant().toEpochMilli());
+
+        config.setLocalTimeZone(originalZone);
     }
 
     // --------------------------------------------------------------------------------------------

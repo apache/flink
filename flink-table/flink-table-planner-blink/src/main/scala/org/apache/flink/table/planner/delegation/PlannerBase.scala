@@ -92,11 +92,6 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
-  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
-    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
-      plannerContext.createSqlExprToRexConverter(tableRowType)
-  }
-
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
@@ -109,6 +104,8 @@ abstract class PlannerBase(
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
+
+  private val sqlExprToRexConverterFactory = plannerContext.getSqlExprToRexConverterFactory
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {

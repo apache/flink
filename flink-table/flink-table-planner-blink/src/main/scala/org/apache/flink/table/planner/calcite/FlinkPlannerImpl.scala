@@ -40,6 +40,8 @@ import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import org.apache.flink.sql.parser.ddl.SqlUseModules
 import org.apache.flink.table.planner.parse.CalciteParser
 
+import javax.annotation.Nullable
+
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
@@ -179,35 +181,43 @@ class FlinkPlannerImpl(
     }
   }
 
-  def validateExpression(sqlNode: SqlNode, inputRowType: RelDataType): SqlNode = {
-    validateExpression(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  def validateExpression(
+      sqlNode: SqlNode,
+      inputRowType: RelDataType,
+      @Nullable outputType: RelDataType): SqlNode = {
+    validateExpression(sqlNode, getOrCreateSqlValidator(), inputRowType, outputType)
   }
 
   private def validateExpression(
       sqlNode: SqlNode,
       sqlValidator: FlinkCalciteSqlValidator,
-      inputRowType: RelDataType): SqlNode = {
-      val nameToTypeMap = inputRowType
-        .getFieldList
+      inputRowType: RelDataType,
+      @Nullable outputType: RelDataType)
+    : SqlNode = {
+      val nameToTypeMap = new util.HashMap[String, RelDataType]()
+      inputRowType.getFieldList
         .asScala
-        .map { field =>
-          (field.getName, field.getType)
-        }
-        .toMap[String, RelDataType]
-        .asJava
+        .foreach(f => nameToTypeMap.put(f.getName, f.getType))
+      if (outputType != null) {
+        sqlValidator.setExpectedOutputType(sqlNode, outputType)
+      }
       sqlValidator.validateParameterizedExpression(sqlNode, nameToTypeMap)
   }
 
-  def rex(sqlNode: SqlNode, inputRowType: RelDataType): RexNode = {
-    rex(sqlNode, getOrCreateSqlValidator(), inputRowType)
+  def rex(
+      sqlNode: SqlNode,
+      inputRowType: RelDataType,
+      @Nullable outputType: RelDataType): RexNode = {
+    rex(sqlNode, getOrCreateSqlValidator(), inputRowType, outputType)
   }
 
   private def rex(
       sqlNode: SqlNode,
       sqlValidator: FlinkCalciteSqlValidator,
-      inputRowType: RelDataType) = {
+      inputRowType: RelDataType,
+      @Nullable outputType: RelDataType) = {
     try {
-      val validatedSqlNode = validateExpression(sqlNode, sqlValidator, inputRowType)
+      val validatedSqlNode = validateExpression(sqlNode, sqlValidator, inputRowType, outputType)
       val sqlToRelConverter = createSqlToRelConverter(sqlValidator)
       val nameToNodeMap = inputRowType
         .getFieldList

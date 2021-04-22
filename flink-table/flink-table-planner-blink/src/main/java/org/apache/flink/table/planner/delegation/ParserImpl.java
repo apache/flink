@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
@@ -28,11 +27,13 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.operations.SqlToOperationConverter;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rex.RexNode;
@@ -41,12 +42,13 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.advise.SqlAdvisor;
 import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -60,18 +62,18 @@ public class ParserImpl implements Parser {
     // multiple statements parsing
     private final Supplier<FlinkPlannerImpl> validatorSupplier;
     private final Supplier<CalciteParser> calciteParserSupplier;
-    private final Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator;
+    private final SqlExprToRexConverterFactory sqlExprToRexConverterFactory;
     private static final ExtendedParser EXTENDED_PARSER = ExtendedParser.INSTANCE;
 
     public ParserImpl(
             CatalogManager catalogManager,
             Supplier<FlinkPlannerImpl> validatorSupplier,
             Supplier<CalciteParser> calciteParserSupplier,
-            Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator) {
+            SqlExprToRexConverterFactory sqlExprToRexConverterFactory) {
         this.catalogManager = catalogManager;
         this.validatorSupplier = validatorSupplier;
         this.calciteParserSupplier = calciteParserSupplier;
-        this.sqlExprToRexConverterCreator = sqlExprToRexConverterCreator;
+        this.sqlExprToRexConverterFactory = sqlExprToRexConverterFactory;
     }
 
     /**
@@ -109,9 +111,10 @@ public class ParserImpl implements Parser {
     }
 
     @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+    public ResolvedExpression parseSqlExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
         final SqlExprToRexConverter sqlExprToRexConverter =
-                sqlExprToRexConverterCreator.apply(inputSchema);
+                sqlExprToRexConverterFactory.create(inputRowType, outputType);
         final RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
         final LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
         // expand expression for serializable expression strings similar to views

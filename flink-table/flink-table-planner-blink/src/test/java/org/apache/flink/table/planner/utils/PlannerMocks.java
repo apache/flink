@@ -59,9 +59,7 @@ public class PlannerMocks {
                         catalogManager,
                         () -> planner,
                         planner::parser,
-                        t ->
-                                plannerContext.createSqlExprToRexConverter(
-                                        plannerContext.getTypeFactory().buildRelNodeRowType(t)));
+                        plannerContext.getSqlExprToRexConverterFactory());
         catalogManager.initSchemaResolver(
                 isStreamingMode,
                 ExpressionResolver.resolverFor(
