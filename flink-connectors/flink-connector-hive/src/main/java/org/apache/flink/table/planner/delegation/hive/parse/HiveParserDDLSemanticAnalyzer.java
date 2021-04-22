@@ -1153,7 +1153,7 @@ public class HiveParserDDLSemanticAnalyzer {
         if (partSpec != null) {
             handleUnsupportedOperation("DESCRIBE PARTITION is not supported");
         }
-        if (colPath != null) {
+        if (!colPath.equals(tableName)) {
             handleUnsupportedOperation("DESCRIBE COLUMNS is not supported");
         }
 
