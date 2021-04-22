@@ -236,7 +236,7 @@ val windowedTable = tEnv
 Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
 If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
 
-Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。 如果数据源中包含时间戳，推荐在 TIMESTAMP 列上定义事件时间：
+Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。如果源数据中的时间戳数据表示为年-月-日-时-分-秒，则通常为不带时区信息的字符串值，例如 `2020-04-15 20:13:40.564`，建议将事件时间属性定义在 `TIMESTAMP` 列上:
 ```sql
 
 CREATE TABLE user_actions (
@@ -255,7 +255,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ```
 
-如果数据源中包含 long 类型的绝对时间，推荐在 TIMESTAMP_LTZ 列上定义事件时间：
+源数据中的时间戳数据表示为一个纪元 (epoch) 时间，通常是一个 long 值，例如 `1618989564564`，建议将事件时间属性定义在 `TIMESTAMP_LTZ` 列上：
  ```sql
 
 CREATE TABLE user_actions (
@@ -277,7 +277,8 @@ GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
 
 ### 在 DataStream 到 Table 转换时定义
 
-事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。
+事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{< ref "docs/concepts/time" >}}) 在这之前一定是在 `DataStream` 上已经定义好了。 
+在从 DataStream 转换到 Table 时，由于 `DataStream` 没有时区概念，因此 Flink 总是将 `rowtime` 属性解析成 `TIMESTAMP WITHOUT TIME ZONE` 类型，并且将所有事件时间的值都视为 UTC 时区的值。
 
 在从 `DataStream` 到 `Table` 转换时定义事件时间属性有两种方式。取决于用 `.rowtime` 后缀修饰的字段名字是否是已有字段，事件时间字段可以是：
 

@@ -60,7 +60,7 @@ Event time attributes can be defined in `CREATE` table DDL or during DataStream-
 The event time attribute is defined using a `WATERMARK` statement in `CREATE` table DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as the event time attribute. Please see [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more information about watermark statement and watermark strategies.
 
 Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
-If the data source contains timestamp literal, it's recommended to defining event time attribute on TIMESTAMP column:
+If the timestamp data in the source is represented as year-month-day-hour-minute-second, usually a string value without time-zone information, e.g. `2020-04-15 20:13:40.564`, it's recommended to define the event time attribute as a `TIMESTAMP` column::
 ```sql
 
 CREATE TABLE user_actions (
@@ -79,7 +79,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ```
 
-If the data source contains long epoch time, it's recommended to defining event time attribute on TIMESTAMP_LTZ.  
+If the timestamp data in the source is represented as a epoch time, usually a long value, e.g. `1618989564564`, it's recommended to define event time attribute as a `TIMESTAMP_LTZ` column:
 ```sql
 
 CREATE TABLE user_actions (
@@ -101,7 +101,7 @@ GROUP BY TUMBLE(time_ltz, INTERVAL '10' MINUTE);
 
 ### During DataStream-to-Table Conversion
 
-When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{< ref "docs/concepts/time" >}}) must have already been assigned in the `DataStream` being converted.
+When converting a `DataStream` to a table, an event time attribute can be defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{< ref "docs/concepts/time" >}}) must have already been assigned in the `DataStream` being converted. During the conversion, Flink always derives rowtime attribute as TIMESTAMP WITHOUT TIME ZONE, because DataStream doesn't have time zone notion, and treats all event time values as in UTC.
 
 There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream`, the timestamp is either (1) appended as a new column, or it
 (2) replaces an existing column.
