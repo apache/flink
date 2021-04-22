@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.state.api.utils.OperatorLatch;
+import org.apache.flink.state.api.utils.WaitingFunction;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -88,14 +90,15 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 
         DataStream<Integer> data = streamEnv.addSource(new SavepointSource()).rebalance();
 
+        StatefulOperator statefulOperator = new StatefulOperator(list, union, broadcast);
         data.connect(data.broadcast(broadcast))
-                .process(new StatefulOperator(list, union, broadcast))
+                .process(statefulOperator)
                 .uid(UID)
                 .addSink(new DiscardingSink<>());
 
         JobGraph jobGraph = streamEnv.getStreamGraph().getJobGraph();
 
-        String savepoint = takeSavepoint(jobGraph);
+        String savepoint = takeSavepoint(jobGraph, statefulOperator);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -165,7 +168,8 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
                 broadcastStateValues);
     }
 
-    private String takeSavepoint(JobGraph jobGraph) throws Exception {
+    private String takeSavepoint(JobGraph jobGraph, WaitingFunction waitingFunction)
+            throws Exception {
         SavepointSource.initializeForTest();
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
@@ -178,6 +182,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         try {
             JobID jobID = client.submitJob(jobGraph).get();
 
+            waitingFunction.await();
             boolean finished = false;
             while (deadline.hasTimeLeft()) {
                 if (SavepointSource.isFinished()) {
@@ -249,8 +254,8 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
     }
 
     private static class StatefulOperator extends BroadcastProcessFunction<Integer, Integer, Void>
-            implements CheckpointedFunction {
-
+            implements CheckpointedFunction, WaitingFunction {
+        private final OperatorLatch startLatch = new OperatorLatch();
         private final ListStateDescriptor<Integer> list;
         private final ListStateDescriptor<Integer> union;
         private final MapStateDescriptor<Integer, String> broadcast;
@@ -278,6 +283,8 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 
         @Override
         public void processElement(Integer value, ReadOnlyContext ctx, Collector<Void> out) {
+            startLatch.trigger();
+
             elements.add(value);
         }
 
@@ -303,6 +310,11 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
             listState = context.getOperatorStateStore().getListState(list);
 
             unionState = context.getOperatorStateStore().getUnionListState(union);
+        }
+
+        @Override
+        public void await() throws RuntimeException {
+            startLatch.await();
         }
     }
 }
