@@ -351,9 +351,14 @@ and [DQL](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select
 HiveQL supported by the Hive dialect.
 
 - [SORT/CLUSTER/DISTRIBUTE BY](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SortBy)
-- [Grouping Sets and GROUPING__ID function](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy#LanguageManualGroupBy-GroupingSets,Cubes,Rollups,andtheGROUPING__IDFunction)
-- [INSERT INTO dest schema](https://issues.apache.org/jira/browse/HIVE-9481)
+- [Group By](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy)
+- [Join](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Joins)
+- [Union](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Union)
 - [LATERAL VIEW](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+LateralView)
+- [Window Functions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+WindowingAndAnalytics)
+- [SubQueries](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SubQueries)
+- [CTE](https://cwiki.apache.org/confluence/display/Hive/Common+Table+Expression)
+- [INSERT INTO dest schema](https://issues.apache.org/jira/browse/HIVE-9481)
 - [Implicit type conversions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-AllowedImplicitConversions)
 
 In order to have better syntax and semantic compatibility, it's highly recommended to use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
@@ -361,6 +366,52 @@ and place it first in the module list, so that Hive built-in functions can be pi
 
 Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries" >}}). Please switch to `default`
 dialect if you'd like to write in Flink syntax.
+
+Following is an example of using hive dialect to run some queries.
+
+```bash
+Flink SQL> load module hive;
+[INFO] Execute statement succeed.
+
+Flink SQL> use modules hive,core;
+[INFO] Execute statement succeed.
+
+Flink SQL> set table.sql-dialect=hive;
+[INFO] Session property has been set.
+
+Flink SQL> select explode(array(1,2,3)); -- call hive udtf
++-----+
+| col |
++-----+
+|   1 |
+|   2 |
+|   3 |
++-----+
+3 rows in set
+
+Flink SQL> create table tbl (key int,value string);
+[INFO] Execute statement succeed.
+
+Flink SQL> insert overwrite table tbl values (5,'e'),(1,'a'),(1,'a'),(3,'c'),(2,'b'),(3,'c'),(3,'c'),(4,'d');
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+
+Flink SQL> select * from tbl cluster by key; -- run cluster by
+2021-04-22 16:13:57,005 INFO  org.apache.hadoop.mapred.FileInputFormat                     [] - Total input paths to process : 1
++-----+-------+
+| key | value |
++-----+-------+
+|   1 |     a |
+|   1 |     a |
+|   5 |     e |
+|   2 |     b |
+|   3 |     c |
+|   3 |     c |
+|   3 |     c |
+|   4 |     d |
++-----+-------+
+8 rows in set
+```
 
 ## Notice
 
