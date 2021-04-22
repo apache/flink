@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
@@ -417,6 +418,17 @@ public final class TypeStrategies {
                     return Optional.of(inputDataType);
                 }
                 return Optional.of(nullReplacementDataType);
+            };
+
+    /** Type strategy specific for greatest and least. */
+    public static final TypeStrategy GREATEST_LEAST =
+            callContext -> {
+                final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+                return findCommonType(
+                                argumentDataTypes.stream()
+                                        .map(DataType::getLogicalType)
+                                        .collect(Collectors.toList()))
+                        .map(TypeConversions::fromLogicalToDataType);
             };
 
     /** Type strategy specific for source watermarks that depend on the output type. */
