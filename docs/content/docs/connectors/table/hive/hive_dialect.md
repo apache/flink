@@ -370,6 +370,12 @@ dialect if you'd like to write in Flink syntax.
 Following is an example of using hive dialect to run some queries.
 
 ```bash
+Flink SQL> create catalog myhive with ('type' = 'hive', 'hive-conf-dir' = '/opt/hive-conf');
+[INFO] Execute statement succeed.
+
+Flink SQL> use catalog myhive;
+[INFO] Execute statement succeed.
+
 Flink SQL> load module hive;
 [INFO] Execute statement succeed.
 
