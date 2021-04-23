@@ -17,9 +17,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.buffer.UnpooledBufferPool;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -43,6 +47,25 @@ public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
         assertFalse(partition.isReleased());
 
         partition.onConsumedSubpartition(1);
+        partition.close();
+        assertTrue(partition.isReleased());
+    }
+
+    @Test
+    public void testConsumptionBeforePartitionClose() throws IOException, InterruptedException {
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(ResultPartitionType.PIPELINED)
+                        .setNumberOfSubpartitions(1)
+                        .setBufferPoolFactory(ignored -> new UnpooledBufferPool())
+                        .build();
+
+        partition.setup();
+        partition.getBufferBuilder(0).append(ByteBuffer.allocate(16));
+        partition.onConsumedSubpartition(0);
+        assertFalse(partition.isReleased());
+        partition.getBufferBuilder(0).append(ByteBuffer.allocate(16));
+        partition.close();
         assertTrue(partition.isReleased());
     }
 
@@ -77,7 +100,7 @@ public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
         partition.onConsumedSubpartition(0);
         partition.onConsumedSubpartition(0);
         partition.onConsumedSubpartition(1);
-
+        partition.close();
         assertTrue(partition.isReleased());
     }
 }

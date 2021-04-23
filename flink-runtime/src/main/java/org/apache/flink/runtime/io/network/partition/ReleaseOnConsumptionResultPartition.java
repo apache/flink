@@ -30,6 +30,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** ResultPartition that releases itself once all subpartitions have been consumed. */
 public class ReleaseOnConsumptionResultPartition extends ResultPartition {
+    private static final int PIPELINED_RESULT_PARTITION_ITSELF = -42;
 
     private static final Object lock = new Object();
 
@@ -40,7 +41,7 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
      * The total number of references to subpartitions of this result. The result partition can be
      * safely released, iff the reference count is zero.
      */
-    private int numUnconsumedSubpartitions;
+    private int numberOfUsers;
 
     ReleaseOnConsumptionResultPartition(
             String owningTaskName,
@@ -64,19 +65,23 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
                 bufferPoolFactory);
 
         this.consumedSubpartitions = new boolean[subpartitions.length];
-        this.numUnconsumedSubpartitions = subpartitions.length;
+        this.numberOfUsers = subpartitions.length + 1;
     }
 
     @Override
     public ResultSubpartitionView createSubpartitionView(
             int index, BufferAvailabilityListener availabilityListener) throws IOException {
-        checkState(numUnconsumedSubpartitions > 0, "Partition not pinned.");
+        checkState(numberOfUsers > 0, "Partition not pinned.");
 
         return super.createSubpartitionView(index, availabilityListener);
     }
 
     @Override
     void onConsumedSubpartition(int subpartitionIndex) {
+        decrementNumberOfUsers(subpartitionIndex);
+    }
+
+    private void decrementNumberOfUsers(int subpartitionIndex) {
         if (isReleased()) {
             return;
         }
@@ -86,13 +91,15 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
         // we synchronize only the bookkeeping section, to avoid holding the lock during any
         // calls into other components
         synchronized (lock) {
-            if (consumedSubpartitions[subpartitionIndex]) {
-                // repeated call - ignore
-                return;
-            }
+            if (subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF) {
+                if (consumedSubpartitions[subpartitionIndex]) {
+                    // repeated call - ignore
+                    return;
+                }
 
-            consumedSubpartitions[subpartitionIndex] = true;
-            remainingUnconsumed = (--numUnconsumedSubpartitions);
+                consumedSubpartitions[subpartitionIndex] = true;
+            }
+            remainingUnconsumed = (--numberOfUsers);
         }
 
         LOG.debug(
@@ -115,7 +122,13 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
                 + ", "
                 + subpartitions.length
                 + " subpartitions, "
-                + numUnconsumedSubpartitions
+                + numberOfUsers
                 + " pending consumptions]";
+    }
+
+    @Override
+    public void close() {
+        decrementNumberOfUsers(PIPELINED_RESULT_PARTITION_ITSELF);
+        super.close();
     }
 }
