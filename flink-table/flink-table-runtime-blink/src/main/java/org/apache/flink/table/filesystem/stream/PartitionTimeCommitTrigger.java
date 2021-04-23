@@ -31,6 +31,7 @@ import org.apache.flink.table.filesystem.PartitionTimeExtractor;
 import org.apache.flink.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,11 +41,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
 import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
 /**
@@ -73,6 +74,8 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
     private final PartitionTimeExtractor extractor;
     private final long commitDelay;
     private final List<String> partitionKeys;
+    /** The time zone used to parse the long watermark value to TIMESTAMP. */
+    private final ZoneId watermarkTimeZone;
 
     public PartitionTimeCommitTrigger(
             boolean isRestored,
@@ -98,6 +101,8 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
         this.watermarksState = stateStore.getListState(WATERMARKS_STATE_DESC);
         this.watermarks = new TreeMap<>();
+        this.watermarkTimeZone =
+                ZoneId.of(conf.getString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
         if (isRestored) {
             watermarks.putAll(watermarksState.get().iterator().next());
         }
@@ -126,14 +131,26 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
         Iterator<String> iter = pendingPartitions.iterator();
         while (iter.hasNext()) {
             String partition = iter.next();
-            LocalDateTime partTime =
+            LocalDateTime partitionTime =
                     extractor.extract(partitionKeys, extractPartitionValues(new Path(partition)));
-            if (watermark > toMills(partTime) + commitDelay) {
+            if (watermarkHasPassedWithDelay(watermark, partitionTime, commitDelay)) {
                 needCommit.add(partition);
                 iter.remove();
             }
         }
         return needCommit;
+    }
+
+    /**
+     * Returns the watermark has passed the partition time or not, if true means it's time to commit
+     * the partition.
+     */
+    private boolean watermarkHasPassedWithDelay(
+            long watermark, LocalDateTime partitionTime, long commitDelay) {
+        // here we don't parse the long watermark to TIMESTAMP and then comparision,
+        // but parse the partition timestamp to epoch mills to avoid Daylight Saving Time issue
+        long epochPartTime = partitionTime.atZone(watermarkTimeZone).toInstant().toEpochMilli();
+        return watermark > epochPartTime + commitDelay;
     }
 
     @Override

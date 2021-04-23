@@ -30,6 +30,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -41,6 +42,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -223,6 +225,101 @@ public class HiveTableSinkITCase {
                 });
     }
 
+    @Test(timeout = 120000)
+    public void testStreamingSinkWithTimestampLtzWatermark() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+
+        tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tEnv.useCatalog(hiveCatalog.getName());
+        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        try {
+            tEnv.executeSql("create database db1");
+            tEnv.useDatabase("db1");
+            tEnv.executeSql(
+                    "create external table sink_table ("
+                            + " a int,"
+                            + " b string,"
+                            + " c string)"
+                            + " partitioned by (d string,e string)"
+                            + " stored as parquet TBLPROPERTIES ("
+                            + " 'partition.time-extractor.timestamp-pattern'='$d $e:00:00',"
+                            + " 'sink.partition-commit.trigger'='partition-time',"
+                            + " 'sink.partition-commit.delay'='1h',"
+                            + " 'sink.partition-commit.watermark-time-zone'='Asia/Shanghai',"
+                            + " 'sink.partition-commit.policy.kind'='metastore,success-file',"
+                            + " 'sink.partition-commit.success-file.name'='_MY_SUCCESS')");
+
+            // hive dialect only works with hive tables at the moment, switch to default dialect
+            tEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+            tEnv.getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+            // prepare source
+            // epoch mills 1588460400000L <=>  local timestamp 2020-05-03 07:00:00 in Shanghai
+            // epoch mills 1588464000000L <=>  local timestamp 2020-05-03 08:00:00 in Shanghai
+            // epoch mills 1588467600000L <=>  local timestamp 2020-05-03 09:00:00 in Shanghai
+            // epoch mills 1588471200000L <=>  local timestamp 2020-05-03 10:00:00 in Shanghai
+            // epoch mills 1588474800000L <=>  local timestamp 2020-05-03 11:00:00 in Shanghai
+            List<Row> data =
+                    Arrays.asList(
+                            Row.of(1, "a", "b", "2020-05-03", "7", 1588460400000L),
+                            Row.of(1, "a", "b", "2020-05-03", "7", 1588460400000L),
+                            Row.of(2, "p", "q", "2020-05-03", "8", 1588464000000L),
+                            Row.of(2, "p", "q", "2020-05-03", "8", 1588464000000L),
+                            Row.of(3, "x", "y", "2020-05-03", "9", 1588467600000L),
+                            Row.of(3, "x", "y", "2020-05-03", "9", 1588467600000L),
+                            Row.of(4, "x", "y", "2020-05-03", "10", 1588471200000L),
+                            Row.of(4, "x", "y", "2020-05-03", "10", 1588471200000L),
+                            Row.of(5, "x", "y", "2020-05-03", "11", 1588474800000L),
+                            Row.of(5, "x", "y", "2020-05-03", "11", 1588474800000L));
+
+            String dataId = TestValuesTableFactory.registerData(data);
+            String sourceTableDDL =
+                    String.format(
+                            "create table my_table("
+                                    + " a INT,"
+                                    + " b STRING,"
+                                    + " c STRING,"
+                                    + " d STRING,"
+                                    + " e STRING,"
+                                    + " ts BIGINT,"
+                                    + " ts_ltz AS TO_TIMESTAMP_LTZ(ts, 3),"
+                                    + " WATERMARK FOR ts_ltz as ts_ltz"
+                                    + ") with ("
+                                    + " 'connector' = 'values',"
+                                    + " 'data-id' = '%s',"
+                                    + " 'failing-source' = 'true')",
+                            dataId);
+            tEnv.executeSql(sourceTableDDL);
+            tEnv.executeSql("insert into sink_table select a, b, c, d, e from my_table").await();
+
+            assertBatch(
+                    "db1.sink_table",
+                    Arrays.asList(
+                            "+I[1, a, b, 2020-05-03, 7]",
+                            "+I[1, a, b, 2020-05-03, 7]",
+                            "+I[2, p, q, 2020-05-03, 8]",
+                            "+I[2, p, q, 2020-05-03, 8]",
+                            "+I[3, x, y, 2020-05-03, 9]",
+                            "+I[3, x, y, 2020-05-03, 9]",
+                            "+I[4, x, y, 2020-05-03, 10]",
+                            "+I[4, x, y, 2020-05-03, 10]",
+                            "+I[5, x, y, 2020-05-03, 11]",
+                            "+I[5, x, y, 2020-05-03, 11]"));
+
+            this.checkSuccessFiles(
+                    URI.create(
+                                    hiveCatalog
+                                            .getHiveTable(ObjectPath.fromString("db1.sink_table"))
+                                            .getSd()
+                                            .getLocation())
+                            .getPath());
+        } finally {
+            tEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
     private void checkSuccessFiles(String path) {
         File basePath = new File(path, "d=2020-05-03");
         Assert.assertEquals(5, basePath.list().length);
@@ -317,30 +414,6 @@ public class HiveTableSinkITCase {
                             "+I[4, x, y, 2020-05-03, 10]",
                             "+I[5, x, y, 2020-05-03, 11]",
                             "+I[5, x, y, 2020-05-03, 11]"));
-
-            // using batch table env to query.
-            List<String> results = new ArrayList<>();
-            TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-            batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-            batchTEnv.useCatalog(hiveCatalog.getName());
-            batchTEnv
-                    .executeSql("select * from db1.sink_table")
-                    .collect()
-                    .forEachRemaining(r -> results.add(r.toString()));
-            results.sort(String::compareTo);
-            Assert.assertEquals(
-                    Arrays.asList(
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[5, x, y, 2020-05-03, 11]",
-                            "+I[5, x, y, 2020-05-03, 11]"),
-                    results);
 
             pathConsumer.accept(
                     URI.create(

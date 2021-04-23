@@ -225,6 +225,12 @@ To define when to commit a partition, providing partition commit trigger:
         <td>Duration</td>
         <td>The partition will not commit until the delay time. If it is a daily partition, should be '1 d', if it is a hourly partition, should be '1 h'.</td>
     </tr>
+    <tr>
+        <td><h5>sink.partition-commit.watermark-time-zone</h5></td>
+        <td style="word-wrap: break-word;">UTC</td>
+        <td>String</td>
+        <td>The time zone to parse the long watermark value to TIMESTAMP value, the parsed watermark timestamp is used to compare with partition time to decide the partition should commit or not. This option is only take effect when `sink.partition-commit.trigger` is set to 'partition-time'. If this option is not configured correctly, e.g. source rowtime is defined on TIMESTAMP_LTZ column, but this config is not configured, then users may see the partition committed after a few hours. The default value is 'UTC', which means the watermark is defined on TIMESTAMP column or not defined. If the watermark is defined on TIMESTAMP_LTZ column, the time zone of watermark is the session time zone. The option value is either a full name such as 'America/Los_Angeles', or a custom timezone id such as 'GMT-8:00'.</td>
+    </tr>    
   </tbody>
 </table>
 
@@ -401,7 +407,7 @@ The parallelism of writing files into external file system (including Hive) can 
 
 ## Full Example
 
-The below shows how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out.
+The below examples show how the file system connector can be used to write a streaming query to write data from Kafka into a file system and runs a batch query to read that data back out.
 
 ```sql
 
@@ -432,6 +438,46 @@ SELECT
     order_amount, 
     DATE_FORMAT(log_ts, 'yyyy-MM-dd'),
     DATE_FORMAT(log_ts, 'HH') 
+FROM kafka_table;
+
+-- batch sql, select with partition pruning
+SELECT * FROM fs_table WHERE dt='2020-05-20' and `hour`='12';
+```
+
+If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.  
+```sql
+
+CREATE TABLE kafka_table (
+  user_id STRING,
+  order_amount DOUBLE,
+  ts BIGINT, -- time in epoch milliseconds
+  ts_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
+  WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '5' SECOND -- Define watermark on TIMESTAMP_LTZ column
+) WITH (...);
+
+CREATE TABLE fs_table (
+  user_id STRING,
+  order_amount DOUBLE,
+  dt STRING,
+  `hour` STRING
+) PARTITIONED BY (dt, `hour`) WITH (
+  'connector'='filesystem',
+  'path'='...',
+  'format'='parquet',
+  'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
+  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.trigger'='partition-time',
+  'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- Assume user configured time zone is 'Asia/Shanghai'
+  'sink.partition-commit.policy.kind'='success-file'
+);
+
+-- streaming sql, insert into file system table
+INSERT INTO fs_table 
+SELECT 
+    user_id, 
+    order_amount, 
+    DATE_FORMAT(ts_ltz, 'yyyy-MM-dd'),
+    DATE_FORMAT(ts_ltz, 'HH') 
 FROM kafka_table;
 
 -- batch sql, select with partition pruning
