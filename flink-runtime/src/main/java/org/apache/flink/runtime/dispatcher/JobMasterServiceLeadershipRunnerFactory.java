@@ -118,6 +118,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                 new DefaultJobMasterServiceProcessFactory(
                         jobGraph.getJobID(),
                         jobGraph.getName(),
+                        jobGraph.getCheckpointingSettings(),
                         initializationTimestamp,
                         jobMasterServiceFactory);
 

@@ -65,7 +65,7 @@ public class TestingJobMasterServiceProcessFactory implements JobMasterServicePr
     public ArchivedExecutionGraph createArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createFromInitializingJob(
-                jobId, jobName, jobStatus, cause, initializationTimestamp);
+                jobId, jobName, jobStatus, cause, null, initializationTimestamp);
     }
 
     public static Builder newBuilder() {

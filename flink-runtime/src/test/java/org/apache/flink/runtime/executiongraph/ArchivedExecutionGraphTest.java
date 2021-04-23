@@ -153,10 +153,35 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         "TestJob",
                         JobStatus.SUSPENDED,
                         new Exception("Test suspension exception"),
+                        null,
                         System.currentTimeMillis());
 
         assertThat(suspendedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
         assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
+    }
+
+    @Test
+    public void testCheckpointSettingsArchiving() {
+        final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                CheckpointCoordinatorConfiguration.builder().build();
+
+        final ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.INITIALIZING,
+                        null,
+                        new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null),
+                        System.currentTimeMillis());
+
+        assertContainsCheckpointSettings(archivedGraph);
+    }
+
+    public static void assertContainsCheckpointSettings(ArchivedExecutionGraph archivedGraph) {
+        assertThat(archivedGraph.getCheckpointCoordinatorConfiguration(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStatsSnapshot(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStorageName().get(), is("Unknown"));
+        assertThat(archivedGraph.getStateBackendName().get(), is("Unknown"));
     }
 
     @Test
