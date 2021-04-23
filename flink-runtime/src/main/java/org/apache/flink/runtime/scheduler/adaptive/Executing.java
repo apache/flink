@@ -85,12 +85,14 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         final FailureResult failureResult = context.howToHandleFailure(cause);
 
         if (failureResult.canRestart()) {
+            getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
                     failureResult.getBackoffTime());
         } else {
+            getLogger().info("Failing job.", failureResult.getFailureCause());
             context.goToFailing(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
@@ -281,9 +283,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     static final class FailureResult {
         @Nullable private final Duration backoffTime;
 
-        @Nullable private final Throwable failureCause;
+        private final Throwable failureCause;
 
-        private FailureResult(@Nullable Duration backoffTime, @Nullable Throwable failureCause) {
+        private FailureResult(Throwable failureCause, @Nullable Duration backoffTime) {
             this.backoffTime = backoffTime;
             this.failureCause = failureCause;
         }
@@ -299,20 +301,18 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
 
         Throwable getFailureCause() {
-            Preconditions.checkState(
-                    failureCause != null,
-                    "Failure result must not be restartable to return a failure cause.");
             return failureCause;
         }
 
         /**
          * Creates a FailureResult which allows to restart the job.
          *
+         * @param failureCause failureCause for restarting the job
          * @param backoffTime backoffTime to wait before restarting the job
          * @return FailureResult which allows to restart the job
          */
-        static FailureResult canRestart(Duration backoffTime) {
-            return new FailureResult(backoffTime, null);
+        static FailureResult canRestart(Throwable failureCause, Duration backoffTime) {
+            return new FailureResult(failureCause, backoffTime);
         }
 
         /**
@@ -322,7 +322,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @return FailureResult which does not allow to restart the job
          */
         static FailureResult canNotRestart(Throwable failureCause) {
-            return new FailureResult(null, failureCause);
+            return new FailureResult(failureCause, null);
         }
     }
 

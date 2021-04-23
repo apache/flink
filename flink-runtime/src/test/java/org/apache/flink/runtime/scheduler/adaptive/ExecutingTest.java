@@ -140,7 +140,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setExpectRestarting(
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
-            ctx.setHowToHandleFailure((t) -> Executing.FailureResult.canRestart(duration));
+            ctx.setHowToHandleFailure((t) -> Executing.FailureResult.canRestart(t, duration));
             exec.handleGlobalFailure(new RuntimeException("Recoverable error"));
         }
     }
@@ -234,7 +234,8 @@ public class ExecutingTest extends TestLogger {
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
-            ctx.setHowToHandleFailure((ign) -> Executing.FailureResult.canRestart(Duration.ZERO));
+            ctx.setHowToHandleFailure(
+                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
             ctx.setExpectRestarting(assertNonNull());
 
             exec.updateTaskExecutionState(createFailingStateTransition());
