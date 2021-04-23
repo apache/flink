@@ -252,7 +252,7 @@ class LegacyCatalogSourceTable[T](
           f.getType
         }
       }
-      factory.buildRelNodeRowType(fieldNames, fieldTypes)
+      factory.buildRelNodeRowType(fieldNames.asScala, fieldTypes)
     }
   }
 }

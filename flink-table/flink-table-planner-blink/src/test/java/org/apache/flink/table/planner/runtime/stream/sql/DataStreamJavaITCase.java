@@ -68,6 +68,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.sourceWatermark;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -252,6 +254,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         dataStream,
                         Schema.newBuilder()
                                 .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
+                                // uses SQL expressions
                                 .watermark("rowtime", "SOURCE_WATERMARK()")
                                 .build());
 
@@ -313,12 +316,14 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         changelogStream,
                         Schema.newBuilder()
                                 .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
-                                .watermark("rowtime", "SOURCE_WATERMARK()")
+                                // uses Table API expressions
+                                .columnByExpression("computed", $("f1").upperCase())
+                                .watermark("rowtime", sourceWatermark())
                                 .build());
         tableEnv.createTemporaryView("t", table);
 
         // access and reorder columns
-        final Table reordered = tableEnv.sqlQuery("SELECT f1, rowtime, f0 FROM t");
+        final Table reordered = tableEnv.sqlQuery("SELECT computed, rowtime, f0 FROM t");
 
         // write out the rowtime column with fully declared schema
         final DataStream<Row> result =
@@ -327,6 +332,8 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         Schema.newBuilder()
                                 .column("f1", DataTypes.STRING())
                                 .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                // uses Table API expressions
+                                .columnByExpression("ignored", $("f1").upperCase())
                                 .column("f0", DataTypes.INT())
                                 .build());
 
@@ -343,9 +350,9 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                     out.collect(Row.of(key, sum));
                                 })
                         .returns(Types.ROW(Types.STRING, Types.INT)),
-                Row.of("a", 47),
-                Row.of("c", 1000),
-                Row.of("c", 1000));
+                Row.of("A", 47),
+                Row.of("C", 1000),
+                Row.of("C", 1000));
     }
 
     @Test

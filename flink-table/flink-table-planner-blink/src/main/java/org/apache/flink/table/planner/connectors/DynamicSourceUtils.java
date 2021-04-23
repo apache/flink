@@ -27,6 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -239,7 +240,7 @@ public final class DynamicSourceUtils {
         boolean changeEventsDuplicate =
                 config.getConfiguration()
                         .getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
-        boolean hasPrimaryKey = catalogTable.getSchema().getPrimaryKey().isPresent();
+        boolean hasPrimaryKey = catalogTable.getResolvedSchema().getPrimaryKey().isPresent();
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
     }
 
@@ -268,9 +269,8 @@ public final class DynamicSourceUtils {
                 schema.getColumns().stream()
                         .map(
                                 c -> {
-                                    if (c instanceof Column.ComputedColumn) {
-                                        final Column.ComputedColumn computedColumn =
-                                                (Column.ComputedColumn) c;
+                                    if (c instanceof ComputedColumn) {
+                                        final ComputedColumn computedColumn = (ComputedColumn) c;
                                         return computedColumn.getExpression().accept(converter);
                                     } else {
                                         return relBuilder.field(c.getName());
@@ -296,13 +296,13 @@ public final class DynamicSourceUtils {
 
         final List<String> fieldNames =
                 schema.getColumns().stream()
-                        .filter(c -> !(c instanceof Column.ComputedColumn))
+                        .filter(c -> !(c instanceof ComputedColumn))
                         .map(Column::getName)
                         .collect(Collectors.toList());
 
         final List<RexNode> fieldNodes =
                 schema.getColumns().stream()
-                        .filter(c -> !(c instanceof Column.ComputedColumn))
+                        .filter(c -> !(c instanceof ComputedColumn))
                         .map(
                                 c -> {
                                     final RelDataType relDataType =
