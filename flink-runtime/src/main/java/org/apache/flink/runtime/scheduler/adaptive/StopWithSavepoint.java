@@ -179,12 +179,14 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         final Executing.FailureResult failureResult = context.howToHandleFailure(cause);
 
         if (failureResult.canRestart()) {
+            getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
                     failureResult.getBackoffTime());
         } else {
+            getLogger().info("Failing job.", failureResult.getFailureCause());
             context.goToFailing(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
