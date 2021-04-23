@@ -737,6 +737,7 @@ public class AdaptiveScheduler
                 jobInformation.getName(),
                 jobStatus,
                 cause,
+                jobInformation.getCheckpointingSettings(),
                 initializationTimestamp);
     }
 

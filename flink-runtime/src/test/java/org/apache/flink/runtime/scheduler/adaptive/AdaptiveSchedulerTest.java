@@ -38,6 +38,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -137,6 +138,22 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(scheduler.getState(), instanceOf(Created.class));
+    }
+
+    @Test
+    public void testArchivedCheckpointingSettingsNotNullIfCheckpointingIsEnabled()
+            throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        jobGraph.setSnapshotSettings(
+                new JobCheckpointingSettings(
+                        CheckpointCoordinatorConfiguration.builder().build(), null));
+
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .build()
+                        .getArchivedExecutionGraph(JobStatus.INITIALIZING, null);
+
+        ArchivedExecutionGraphTest.assertContainsCheckpointSettings(archivedExecutionGraph);
     }
 
     @Test

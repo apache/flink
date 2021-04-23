@@ -73,7 +73,7 @@ public class TestingJobMasterServiceProcessFactoryOld implements JobMasterServic
     public ArchivedExecutionGraph createArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createFromInitializingJob(
-                jobId, "test-job", jobStatus, cause, System.currentTimeMillis());
+                jobId, "test-job", jobStatus, cause, null, System.currentTimeMillis());
     }
 
     public static class TestingFutureJobMasterServiceFactory implements JobMasterServiceFactory {

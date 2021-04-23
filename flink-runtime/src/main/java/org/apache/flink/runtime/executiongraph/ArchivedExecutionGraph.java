@@ -26,6 +26,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -386,6 +387,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             String jobName,
             JobStatus jobStatus,
             @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
             long initializationTimestamp) {
         Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = Collections.emptyMap();
         List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = Collections.emptyList();
@@ -421,9 +423,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
                 false,
-                null,
-                null,
-                null,
-                null);
+                checkpointingSettings == null
+                        ? null
+                        : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
+                checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
+                checkpointingSettings == null ? null : "Unknown",
+                checkpointingSettings == null ? null : "Unknown");
     }
 }

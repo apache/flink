@@ -259,6 +259,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                         jobGraph.getName(),
                         JobStatus.FAILED,
                         testException,
+                        null,
                         1L));
     }
 

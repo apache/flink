@@ -418,6 +418,7 @@ public class DispatcherTest extends TestLogger {
                                         jobGraph.getName(),
                                         JobStatus.FAILED,
                                         testFailure,
+                                        jobGraph.getCheckpointingSettings(),
                                         1L)),
                         testFailure));
 
@@ -579,6 +580,7 @@ public class DispatcherTest extends TestLogger {
                                         jobGraph.getName(),
                                         JobStatus.FAILED,
                                         testException,
+                                        jobGraph.getCheckpointingSettings(),
                                         1L)),
                         testException));
 
@@ -805,6 +807,7 @@ public class DispatcherTest extends TestLogger {
                     new DefaultJobMasterServiceProcessFactory(
                             jobGraph.getJobID(),
                             jobGraph.getName(),
+                            jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory(
                                     () -> {
@@ -882,6 +885,7 @@ public class DispatcherTest extends TestLogger {
                                                                             jobGraph.getJobID(),
                                                                             jobGraph.getName(),
                                                                             JobStatus.RUNNING,
+                                                                            null,
                                                                             null,
                                                                             1337))))
                             .build();
