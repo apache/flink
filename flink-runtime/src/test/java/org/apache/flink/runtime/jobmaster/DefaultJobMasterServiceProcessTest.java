@@ -53,7 +53,7 @@ public class DefaultJobMasterServiceProcessTest extends TestLogger {
             failedArchivedExecutionGraphFactory =
                     (throwable ->
                             ArchivedExecutionGraph.createFromInitializingJob(
-                                    jobId, "test", JobStatus.FAILED, throwable, 1337));
+                                    jobId, "test", JobStatus.FAILED, throwable, null, 1337));
 
     @Test
     public void testInitializationFailureCompletesResultFuture() {
