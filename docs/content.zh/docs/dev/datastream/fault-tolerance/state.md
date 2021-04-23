@@ -733,7 +733,7 @@ class BufferingSink(threshold: Int = 0)
 `initializeState` 方法接收一个 `FunctionInitializationContext` 参数，会用来初始化 non-keyed state 的 "容器"。这些容器是一个 `ListState`
 用于在 checkpoint 时保存 non-keyed state 对象。
 
-注意这些状态是如何初始化的，和 keyed state 类系，`StateDescriptor` 会包括状态名字、以及状态类型相关信息。
+注意这些状态是如何初始化的，和 keyed state 类似，`StateDescriptor` 会包括状态名字、以及状态类型相关信息。
 
 
 {{< tabs "9f372f5f-ad80-4b2c-a318-fcbdb19c7d2a" >}}
