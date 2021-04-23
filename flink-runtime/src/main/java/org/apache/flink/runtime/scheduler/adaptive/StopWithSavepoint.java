@@ -147,7 +147,11 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         if (successfulUpdate) {
             if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
-                handleAnyFailure(cause);
+                handleAnyFailure(
+                        cause == null
+                                ? new FlinkException(
+                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                : cause);
             }
         }
 

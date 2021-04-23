@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -108,7 +109,11 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         if (successfulUpdate) {
             if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionState.getError(userCodeClassLoader);
-                handleAnyFailure(cause);
+                handleAnyFailure(
+                        cause == null
+                                ? new FlinkException(
+                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                : cause);
             }
         }
 
