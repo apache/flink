@@ -32,6 +32,7 @@ import org.junit.Test;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -140,6 +141,32 @@ public class FileSystemTableFactoryTest {
             assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nmy_option"));
+            return;
+        }
+
+        fail("Should fail by ValidationException.");
+    }
+
+    @Test
+    public void testUnsupportedWatermarkTimeZone() {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.putString("path", "/tmp");
+        descriptor.putString("format", "csv");
+        descriptor.putString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC+8");
+
+        try {
+            createTableSource(SCHEMA, descriptor.asMap());
+        } catch (ValidationException e) {
+            Throwable cause = e.getCause();
+            assertTrue(cause.toString(), cause instanceof ValidationException);
+            assertTrue(
+                    cause.getMessage(),
+                    cause.getMessage()
+                            .contains(
+                                    "The supported watermark time zone is either a full name such "
+                                            + "as 'America/Los_Angeles', or a custom time zone id such "
+                                            + "as 'GMT-8:00', but configured time zone is 'UTC+8'."));
             return;
         }
 
