@@ -75,6 +75,32 @@ that both the BatchTableEnvironment and DataSet API interop are reaching end of 
 unified TableEnvironment for batch and stream processing with the new planner, or the DataStream API
 in batch execution mode.
 
+#### Use TIMESTAMP_LTZ as return type for function PROCTIME()
+
+##### [FLINK-21714](https://issues.apache.org/jira/browse/FLINK-21714)
+
+Before Flink 1.13, the function return type of `PROCTIME()` is `TIMESTAMP`, and the return value is
+the `TIMESTAMP` in UTC time zone, e.g. the wall-clock shows `2021-03-01 12:00:00` at Shanghai,
+however the `PROCTIME()` displays `2021-03-01 04:00:00` which is wrong. Flink 1.13 fixes this issue
+and uses `TIMESTAMP_LTZ` type as return type of `PROCTIME()`, users don't need to deal time zone
+problems anymore.
+
+#### Support defining event time attribute on TIMESTAMP_LTZ column
+
+##### [FLINK-20387](https://issues.apache.org/jira/browse/FLINK-20387)
+
+Support defining event time attribute on TIMESTAMP_LTZ column, base on this, Flink SQL gracefully
+support the Daylight Saving Time.
+
+#### Correct function CURRENT_TIMESTAMP/CURRENT_TIME/CURRENT_DATE/LOCALTIME/LOCALTIMESTAMP/NOW()
+
+##### [FLINK-21713](https://issues.apache.org/jira/browse/FLINK-21713)
+
+The value of time function CURRENT_TIMESTAMP and NOW() are corrected from UTC time with `TIMESTAMP`
+type to epoch time with `TIMESTAMP_LTZ` type. Time function LOCALTIME, LOCALTIMESTAMP, CURRENT_DATE,
+CURRENT_TIME, CURRENT_TIMESTAMP and NOW() are corrected from evaluates for per record in batch mode
+to evaluate once at query-start for batch job.
+
 #### Disable problematic cast conversion between NUMERIC type and TIMESTAMP type
 
 ##### [FLINK-21698](https://issues.apache.org/jira/browse/FLINK-21698)
@@ -105,6 +131,25 @@ The `Row.toSting()` method has been reworked. This is an incompatible change. If
 representation is still required for tests, the old behavior can be restored via the flag
 `RowUtils.USE_LEGACY_TO_STRING` for the local JVM. However, relying on the row's string
 representation for tests is not a good idea in general as field data types are not verified.
+
+#### Support start SQL Client with an initialization SQL file
+
+##### [FLINK-20320](https://issues.apache.org/jira/browse/FLINK-20320)
+
+The `sql-client-defaults.yaml` YAML file is deprecated and not provided in the release package. To
+be compatible, it's still supported to initialize the SQL Client with the YAML file if manually
+provided. But it's recommend to use the new introduced `-i` startup option to execute an
+initialization SQL file to setup the SQL Client session. The so-called initialization SQL file can
+use Flink DDLs to define available catalogs, table sources and sinks, user-defined functions, and
+other properties required for execution and deployment. The support of legacy SQL Client YAML file
+will be totally dropped in Flink 1.14.
+
+#### Hive dialect no longer supports Flink syntax for DML and DQL
+
+##### [FLINK-21808](https://issues.apache.org/jira/browse/FLINK-21808)
+
+Hive dialect supports HiveQL for DML and DQL. Please switch to default dialect in order to write in
+Flink syntax.
 
 ### Runtime
 
