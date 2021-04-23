@@ -58,7 +58,11 @@ class Failing extends StateWithExecutionGraph {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        // nothing to do since we are already failing
+        getLogger()
+                .debug(
+                        "Ignored global failure because we are already failing the job {}.",
+                        getJobId(),
+                        cause);
     }
 
     @Override
