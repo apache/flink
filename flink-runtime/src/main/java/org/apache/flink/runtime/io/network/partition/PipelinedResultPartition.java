@@ -48,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class PipelinedResultPartition extends BufferWritingResultPartition
         implements CheckpointedResultPartition, ChannelStateHolder {
+    private static final int PIPELINED_RESULT_PARTITION_ITSELF = -42;
 
     /**
      * The lock that guard release operations (which can be asynchronously propagated from the
@@ -64,10 +65,13 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 
     /**
      * The total number of references to subpartitions of this result. The result partition can be
-     * safely released, iff the reference count is zero.
+     * safely released, iff the reference count is zero. Every subpartition is an user of the result
+     * as well the {@link PipelinedResultPartition} is a user itself, as it's writing to those
+     * results. Even if all consumers are released, partition can not be released until writer
+     * releases the partition as well.
      */
     @GuardedBy("releaseLock")
-    private int numUnconsumedSubpartitions;
+    private int numberOfUsers;
 
     public PipelinedResultPartition(
             String owningTaskName,
@@ -92,7 +96,7 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
                 bufferPoolFactory);
 
         this.consumedSubpartitions = new boolean[subpartitions.length];
-        this.numUnconsumedSubpartitions = subpartitions.length;
+        this.numberOfUsers = subpartitions.length + 1;
     }
 
     @Override
@@ -110,6 +114,10 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
      */
     @Override
     void onConsumedSubpartition(int subpartitionIndex) {
+        decrementNumberOfUsers(subpartitionIndex);
+    }
+
+    private void decrementNumberOfUsers(int subpartitionIndex) {
         if (isReleased()) {
             return;
         }
@@ -119,13 +127,15 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
         // we synchronize only the bookkeeping section, to avoid holding the lock during any
         // calls into other components
         synchronized (releaseLock) {
-            if (consumedSubpartitions[subpartitionIndex]) {
-                // repeated call - ignore
-                return;
-            }
+            if (subpartitionIndex != PIPELINED_RESULT_PARTITION_ITSELF) {
+                if (consumedSubpartitions[subpartitionIndex]) {
+                    // repeated call - ignore
+                    return;
+                }
 
-            consumedSubpartitions[subpartitionIndex] = true;
-            remainingUnconsumed = (--numUnconsumedSubpartitions);
+                consumedSubpartitions[subpartitionIndex] = true;
+            }
+            remainingUnconsumed = (--numberOfUsers);
         }
 
         LOG.debug(
@@ -164,7 +174,7 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
                 + ", "
                 + subpartitions.length
                 + " subpartitions, "
-                + numUnconsumedSubpartitions
+                + numberOfUsers
                 + " pending consumptions]";
     }
 
@@ -186,5 +196,11 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
             ((CheckpointedResultSubpartition) subpartition)
                     .finishReadRecoveredState(notifyAndBlockOnCompletion);
         }
+    }
+
+    @Override
+    public void close() {
+        decrementNumberOfUsers(PIPELINED_RESULT_PARTITION_ITSELF);
+        super.close();
     }
 }
