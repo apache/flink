@@ -410,16 +410,13 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
             this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
         }
 
-        public void runAsync(Runnable runnable) {
-            gateway.runAsync(runnable);
-        }
-
-        public void scheduleRunAsync(Runnable runnable, long delayMillis) {
+        private void scheduleRunAsync(Runnable runnable, long delayMillis) {
             gateway.scheduleRunAsync(runnable, delayMillis);
         }
 
+        @Override
         public void execute(@Nonnull Runnable command) {
-            runAsync(command);
+            gateway.runAsync(command);
         }
 
         @Override
