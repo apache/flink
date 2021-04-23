@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -657,12 +656,6 @@ class LocalBufferPool implements BufferPool {
 
     private boolean isRequestedSizeReached() {
         return numberOfRequestedMemorySegments >= currentPoolSize;
-    }
-
-    @VisibleForTesting
-    @Override
-    public BufferRecycler[] getSubpartitionBufferRecyclers() {
-        return subpartitionBufferRecyclers;
     }
 
     private static class SubpartitionBufferRecycler implements BufferRecycler {
