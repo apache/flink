@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkContext;
@@ -88,6 +89,13 @@ public final class ShortcutUtils {
 
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(
             ResolvedExpression expression) {
+        // Table API expression
+        if (expression instanceof CallExpression) {
+            final CallExpression callExpression = (CallExpression) expression;
+            return callExpression.getFunctionDefinition();
+        }
+
+        // SQL expression
         if (!(expression instanceof RexNodeExpression)) {
             return null;
         }

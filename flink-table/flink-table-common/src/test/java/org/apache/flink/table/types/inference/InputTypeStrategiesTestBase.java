@@ -117,7 +117,7 @@ public abstract class InputTypeStrategiesTestBase {
                             .outputTypeStrategy(TypeStrategies.MISSING)
                             .build();
             surroundingInfo =
-                    new TypeInferenceUtil.SurroundingInfo(
+                    TypeInferenceUtil.SurroundingInfo.of(
                             "f_outer",
                             functionDefinitionMock,
                             outerTypeInference,
