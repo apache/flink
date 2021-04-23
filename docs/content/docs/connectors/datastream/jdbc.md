@@ -71,7 +71,7 @@ The SQL DML statements are executed in batches, which can optionally be configur
 ```java
 JdbcExecutionOptions.builder()
         .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
-        .withBathSize(1000)                   // optional: default = 5000 values
+        .withBatchSize(1000)                  // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
 .build()
 ```
