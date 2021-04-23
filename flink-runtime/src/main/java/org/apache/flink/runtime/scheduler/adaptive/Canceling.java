@@ -56,7 +56,11 @@ class Canceling extends StateWithExecutionGraph {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        // ignore global failures
+        getLogger()
+                .debug(
+                        "Ignored global failure because we are already canceling the job {}.",
+                        getJobId(),
+                        cause);
     }
 
     @Override

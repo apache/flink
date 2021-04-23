@@ -112,6 +112,10 @@ abstract class StateWithExecutionGraph implements State {
         return executionGraph;
     }
 
+    JobID getJobId() {
+        return executionGraph.getJobID();
+    }
+
     protected OperatorCoordinatorHandler getOperatorCoordinatorHandler() {
         return operatorCoordinatorHandler;
     }

@@ -77,7 +77,11 @@ class Restarting extends StateWithExecutionGraph {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        // don't do anything
+        getLogger()
+                .debug(
+                        "Ignored global failure because we are already restarting the job {}.",
+                        getJobId(),
+                        cause);
     }
 
     @Override
