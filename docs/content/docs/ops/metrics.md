@@ -1812,12 +1812,12 @@ Request specific aggregated values for specific metrics:
   {
     "id": "metric1",
     "min": 1,
-    "max": 34,
+    "max": 34
   },
   {
     "id": "metric2",
     "min": 2,
-    "max": 14,
+    "max": 14
   }
 ]
 ```

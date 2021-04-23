@@ -398,7 +398,7 @@ curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
   "operation": {
     "location": "<savepoint-path>"
   }
-
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}
