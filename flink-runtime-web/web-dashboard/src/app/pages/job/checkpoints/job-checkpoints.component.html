@@ -224,6 +224,14 @@
             <td *ngIf="checkPointConfig['mode'] != 'exactly_once'">At Least Once</td>
           </tr>
           <tr>
+            <td>Checkpoint Storage</td>
+            <td>{{ checkPointConfig['checkpoint_storage'] }}</td>
+          </tr>
+          <tr>
+            <td>State Backend</td>
+            <td>{{ checkPointConfig['state_backend'] }}</td>
+          </tr>
+          <tr>
             <td>Interval</td>
             <td *ngIf="checkPointConfig['interval'] == '0x7fffffffffffffff'">Periodic checkpoints disabled</td>
             <td *ngIf="checkPointConfig['interval'] != '0x7fffffffffffffff'">{{ checkPointConfig['interval'] | humanizeDuration}}</td>
