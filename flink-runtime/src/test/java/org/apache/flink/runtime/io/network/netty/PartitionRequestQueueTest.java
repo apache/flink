@@ -484,6 +484,7 @@ public class PartitionRequestQueueTest {
         assertFalse(queue.getAvailableReaders().contains(reader));
         // the partition and its reader view should all be released
         assertTrue(reader.isReleased());
+        partition.close();
         assertTrue(partition.isReleased());
         for (ResultSubpartition subpartition : partition.getAllPartitions()) {
             assertTrue(subpartition.isReleased());
