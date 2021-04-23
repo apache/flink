@@ -174,7 +174,7 @@ public class StopWithSavepointTest extends TestLogger {
             StopWithSavepoint sws = createStopWithSavepoint(ctx);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (ignore) -> Executing.FailureResult.canRestart(Duration.ZERO));
+                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -229,7 +229,7 @@ public class StopWithSavepointTest extends TestLogger {
                     createStopWithSavepoint(ctx, new StateTrackingMockExecutionGraph());
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (ignore) -> Executing.FailureResult.canRestart(Duration.ZERO));
+                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -277,7 +277,7 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setStopWithSavepoint(sws);
 
             ctx.setHowToHandleFailure(
-                    (ignore) -> Executing.FailureResult.canRestart(Duration.ZERO));
+                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
