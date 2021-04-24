@@ -22,9 +22,12 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -100,9 +103,10 @@ import static org.junit.Assert.assertTrue;
 public class AsyncWaitOperatorTest extends TestLogger {
     private static final long TIMEOUT = 1000L;
 
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.SECONDS);
+    @Rule public Timeout timeoutRule = new Timeout(100, TimeUnit.SECONDS);
 
-    private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
+    private abstract static class MyAbstractAsyncFunction<IN>
+            extends RichAsyncFunction<IN, Integer> {
         private static final long serialVersionUID = 8522411971886428444L;
 
         private static final long TERMINATION_TIMEOUT = 5000L;
@@ -115,7 +119,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
 
-            synchronized (MyAsyncFunction.class) {
+            synchronized (MyAbstractAsyncFunction.class) {
                 if (counter == 0) {
                     executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
                 }
@@ -132,7 +136,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
 
         private void freeExecutor() {
-            synchronized (MyAsyncFunction.class) {
+            synchronized (MyAbstractAsyncFunction.class) {
                 --counter;
 
                 if (counter == 0) {
@@ -151,6 +155,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 }
             }
         }
+    }
+
+    private static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
+        private static final long serialVersionUID = -1504699677704123889L;
 
         @Override
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
@@ -183,7 +191,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         @Override
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
                 throws Exception {
-            this.executorService.submit(
+            executorService.submit(
                     new Runnable() {
                         @Override
                         public void run() {
@@ -200,6 +208,23 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         public static void countDown() {
             latch.countDown();
+        }
+    }
+
+    private static class InputReusedAsyncFunction extends MyAbstractAsyncFunction<Tuple1<Integer>> {
+
+        private static final long serialVersionUID = 8627909616410487720L;
+
+        @Override
+        public void asyncInvoke(Tuple1<Integer> input, ResultFuture<Integer> resultFuture)
+                throws Exception {
+            executorService.submit(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            resultFuture.complete(Collections.singletonList(input.f0 * 2));
+                        }
+                    });
         }
     }
 
@@ -594,6 +619,67 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 "StateAndRestored Test Output was not correct.",
                 expectedOutput,
                 restoredTaskHarness.getOutput());
+    }
+
+    @SuppressWarnings("rawtypes")
+    @Test
+    public void testStateSnapshotAndRestoreWithObjectReused() throws Exception {
+        TypeSerializer[] fieldSerializers = new TypeSerializer[] {IntSerializer.INSTANCE};
+        TupleSerializer<Tuple1> inputSerializer =
+                new TupleSerializer<>(Tuple1.class, fieldSerializers);
+        AsyncWaitOperatorFactory<Tuple1<Integer>, Integer> factory =
+                new AsyncWaitOperatorFactory<>(
+                        new InputReusedAsyncFunction(),
+                        TIMEOUT,
+                        4,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        //noinspection unchecked
+        final OneInputStreamOperatorTestHarness<Tuple1<Integer>, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness(factory, inputSerializer);
+        // enable object reuse
+        testHarness.getExecutionConfig().enableObjectReuse();
+
+        final long initialTime = 0L;
+        Tuple1<Integer> reusedTuple = new Tuple1<>();
+        StreamRecord<Tuple1<Integer>> reusedRecord = new StreamRecord<>(reusedTuple, -1L);
+
+        testHarness.setup();
+        testHarness.open();
+
+        synchronized (testHarness.getCheckpointLock()) {
+            reusedTuple.setFields(1);
+            reusedRecord.setTimestamp(initialTime + 1);
+            testHarness.processElement(reusedRecord);
+
+            reusedTuple.setFields(2);
+            reusedRecord.setTimestamp(initialTime + 2);
+            testHarness.processElement(reusedRecord);
+
+            reusedTuple.setFields(3);
+            reusedRecord.setTimestamp(initialTime + 3);
+            testHarness.processElement(reusedRecord);
+
+            reusedTuple.setFields(4);
+            reusedRecord.setTimestamp(initialTime + 4);
+            testHarness.processElement(reusedRecord);
+        }
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
+        expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
+        expectedOutput.add(new StreamRecord<>(8, initialTime + 4));
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
+
+        TestHarnessUtil.assertOutputEquals(
+                "StateAndRestoredWithObjectReuse Test Output was not correct.",
+                expectedOutput,
+                testHarness.getOutput());
     }
 
     @Test
