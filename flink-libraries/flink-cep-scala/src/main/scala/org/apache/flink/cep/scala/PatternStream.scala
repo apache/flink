@@ -36,7 +36,7 @@ import scala.collection.Map
   * @param jPatternStream Underlying pattern stream from Java API
   * @tparam T Type of the events
   */
-class PatternStream[T](jPatternStream: JPatternStream[T]) {
+class PatternStream[T](var jPatternStream: JPatternStream[T]) {
 
   private[flink] def wrappedPatternStream = jPatternStream
 
@@ -447,17 +447,17 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   }
 
  def sideOutputLateData(lateDataOutputTag: OutputTag[T]): PatternStream[T] = {
-   jPatternStream.sideOutputLateData(lateDataOutputTag)
+   jPatternStream = jPatternStream.sideOutputLateData(lateDataOutputTag)
    this
  }
 
   def inProcessingTime(): PatternStream[T] = {
-    jPatternStream.inProcessingTime()
+    jPatternStream = jPatternStream.inProcessingTime()
     this
   }
 
   def inEventTime(): PatternStream[T] = {
-    jPatternStream.inEventTime()
+    jPatternStream = jPatternStream.inEventTime()
     this
   }
 }
