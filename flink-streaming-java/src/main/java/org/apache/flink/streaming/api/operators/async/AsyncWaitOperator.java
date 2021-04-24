@@ -105,6 +105,9 @@ public class AsyncWaitOperator<IN, OUT>
 
     private transient TimestampedCollector<OUT> timestampedCollector;
 
+    /** Whether object reuse has been enabled or disabled. */
+    private transient boolean isObjectReuseEnabled;
+
     public AsyncWaitOperator(
             @Nonnull AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
@@ -158,6 +161,8 @@ public class AsyncWaitOperator<IN, OUT>
     public void open() throws Exception {
         super.open();
 
+        this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
+
         if (recoveredStreamElements != null) {
             for (StreamElement element : recoveredStreamElements.get()) {
                 if (element.isRecord()) {
@@ -178,7 +183,16 @@ public class AsyncWaitOperator<IN, OUT>
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
+    public void processElement(StreamRecord<IN> record) throws Exception {
+        StreamRecord<IN> element;
+        // copy the element avoid the element is reused
+        if (isObjectReuseEnabled) {
+            //noinspection unchecked
+            element = (StreamRecord<IN>) inStreamElementSerializer.copy(record);
+        } else {
+            element = record;
+        }
+
         // add element first to the queue
         final ResultFuture<OUT> entry = addToWorkQueue(element);
 
