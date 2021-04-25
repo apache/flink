@@ -29,8 +29,6 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.Timeout;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
@@ -53,8 +51,6 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
                     .withEmbeddedZookeeper()
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
