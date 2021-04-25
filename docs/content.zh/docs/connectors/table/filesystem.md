@@ -227,9 +227,9 @@ To define when to commit a partition, providing partition commit trigger:
     </tr>
     <tr>
         <td><h5>sink.partition-commit.watermark-time-zone</h5></td>
-        <td style="word-wrap: break-word;">0 s</td>
+        <td style="word-wrap: break-word;">UTC</td>
         <td>String</td>
-        <td>The time zone to parse the long watermark value to TIMESTAMP value, the parsed watermark timestamp is used to compare with partition time to decide the partition should commit or not. The default value is 'UTC', which means the watermark is defined on TIMESTAMP column or not defined. If the watermark is defined on TIMESTAMP_LTZ column, the time zone of watermark is user configured time zone, the the value should be the user configured local time zone. The option value is either a full name such as 'America/Los_Angeles', or a custom timezone id such as 'GMT-8:00'.</td>
+        <td>The time zone to parse the long watermark value to TIMESTAMP value, the parsed watermark timestamp is used to compare with partition time to decide the partition should commit or not. This option is only take effect when `sink.partition-commit.trigger` is set to 'partition-time'. If this option is not configured correctly, e.g. source rowtime is defined on TIMESTAMP_LTZ column, but this config is not configured, then users may see the partition committed after a few hours. The default value is 'UTC', which means the watermark is defined on TIMESTAMP column or not defined. If the watermark is defined on TIMESTAMP_LTZ column, the time zone of watermark is the session time zone. The option value is either a full name such as 'America/Los_Angeles', or a custom timezone id such as 'GMT-8:00'.</td>
     </tr>        
   </tbody>
 </table>
@@ -444,6 +444,7 @@ FROM kafka_table;
 SELECT * FROM fs_table WHERE dt='2020-05-20' and `hour`='12';
 ```
 
+If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.  
 ```sql
 
 CREATE TABLE kafka_table (

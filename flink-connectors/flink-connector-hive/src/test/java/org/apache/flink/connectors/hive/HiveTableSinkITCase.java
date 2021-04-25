@@ -226,12 +226,7 @@ public class HiveTableSinkITCase {
     }
 
     @Test(timeout = 120000)
-    public void testStreamingSinkOnTimestampLtzWatermrk() throws Exception {
-        testStreamingWriteWithTimestampLtzWatermark(this::checkSuccessFiles);
-    }
-
-    private void testStreamingWriteWithTimestampLtzWatermark(Consumer<String> pathConsumer)
-            throws Exception {
+    public void testStreamingSinkWithTimestampLtzWatermark() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
@@ -313,31 +308,7 @@ public class HiveTableSinkITCase {
                             "+I[5, x, y, 2020-05-03, 11]",
                             "+I[5, x, y, 2020-05-03, 11]"));
 
-            // using batch table env to query.
-            List<String> results = new ArrayList<>();
-            TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-            batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-            batchTEnv.useCatalog(hiveCatalog.getName());
-            batchTEnv
-                    .executeSql("select * from db1.sink_table")
-                    .collect()
-                    .forEachRemaining(r -> results.add(r.toString()));
-            results.sort(String::compareTo);
-            Assert.assertEquals(
-                    Arrays.asList(
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[5, x, y, 2020-05-03, 11]",
-                            "+I[5, x, y, 2020-05-03, 11]"),
-                    results);
-
-            pathConsumer.accept(
+            this.checkSuccessFiles(
                     URI.create(
                                     hiveCatalog
                                             .getHiveTable(ObjectPath.fromString("db1.sink_table"))
@@ -443,30 +414,6 @@ public class HiveTableSinkITCase {
                             "+I[4, x, y, 2020-05-03, 10]",
                             "+I[5, x, y, 2020-05-03, 11]",
                             "+I[5, x, y, 2020-05-03, 11]"));
-
-            // using batch table env to query.
-            List<String> results = new ArrayList<>();
-            TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-            batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-            batchTEnv.useCatalog(hiveCatalog.getName());
-            batchTEnv
-                    .executeSql("select * from db1.sink_table")
-                    .collect()
-                    .forEachRemaining(r -> results.add(r.toString()));
-            results.sort(String::compareTo);
-            Assert.assertEquals(
-                    Arrays.asList(
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[1, a, b, 2020-05-03, 7]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[2, p, q, 2020-05-03, 8]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[3, x, y, 2020-05-03, 9]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[4, x, y, 2020-05-03, 10]",
-                            "+I[5, x, y, 2020-05-03, 11]",
-                            "+I[5, x, y, 2020-05-03, 11]"),
-                    results);
 
             pathConsumer.accept(
                     URI.create(

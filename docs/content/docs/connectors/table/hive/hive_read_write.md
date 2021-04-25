@@ -382,6 +382,7 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 
 ```
 
+If the watermark is defined on TIMESTAMP_LTZ column and used `partition-time` to commit, the `sink.partition-commit.watermark-time-zone` is required to set to the session time zone, otherwise the partition committed may happen after a few hours.  
 ```sql
 
 SET table.sql-dialect=hive;
