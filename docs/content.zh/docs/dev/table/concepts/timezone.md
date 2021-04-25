@@ -23,18 +23,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Overview
+## 概述
 
-Flink provides rich data types for Date and Time, including `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND` (please see [Date and Time]({{< ref "docs/dev/table/types" >}}#date-and-time) for detailed information).
-Flink supports setting time zone in session level (please see [table.local-time-zone]({{< ref "docs/dev/table/config">}}#table-local-time-zone) for detailed information).
-These timestamp data types and time zone support of Flink make it easy to process business data across time zones.
+Flink为Date和Time提供了丰富的数据类型, 包括`DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND` (更多详情请参考 [Date and Time]({{< ref "docs/dev/table/types" >}}#date-and-time)).
+Flink支持在session级别设置时区(更多详情请参考 [table.local-time-zone]({{< ref "docs/dev/table/config">}}#table-local-time-zone)).
+Flink对多种时间类型和时区的支持使得跨时区的数据处理变得非常容易.
 
 ## TIMESTAMP vs TIMESTAMP_LTZ
 
-### TIMESTAMP type
- - `TIMESTAMP(p)` is an abbreviation for `TIMESTAMP(p) WITHOUT TIME ZONE`, the precision `p` supports range is from 0 to 9, 6 by default.
- - `TIMESTAMP` describes a timestamp represents year, month, day, hour, minute, second and fractional seconds.
- - `TIMESTAMP` can be specified from a string literal, e.g.
+### TIMESTAMP 类型
+ - `TIMESTAMP(p)`是`TIMESTAMP(p) WITHOUT TIME ZONE`的简写, 精度`p`支持的范围是0-9, 默认是6.
+ - `TIMESTAMP` 用于描述年, 月, 日, 小时, 分钟, 秒 和 小数秒对应的时间戳.
+ - `TIMESTAMP` 可以通过一个字符串来指定, 例如:
  ```sql
 Flink SQL> SELECT TIMESTAMP '1970-01-01 00:00:04.001';
 +-------------------------+
@@ -42,10 +42,10 @@ Flink SQL> SELECT TIMESTAMP '1970-01-01 00:00:04.001';
 +-------------------------+
 ```
 
-### TIMESTAMP_LTZ type
- - `TIMESTAMP_LTZ(p)` is an abbreviation for `TIMESTAMP(p) WITH LOCAL TIME ZONE`, the precision `p` supports range is from 0 to 9, 6 by default.
- - `TIMESTAMP_LTZ` describes an absolute time point on the time-line, it stores a long value representing epoch-milliseconds and an int representing nanosecond-of-millisecond. The epoch time is measured from the standard Java epoch of `1970-01-01T00:00:00Z`. Every datum of `TIMESTAMP_LTZ` type is interpreted in the local time zone configured in the current session for computation and visualization.
- - `TIMESTAMP_LTZ` has no literal representation and thus can not specify from literal, it can derives from a long epoch time(e.g. The long time produced by Java `System.currentTimeMillis()`)
+### TIMESTAMP_LTZ 类型
+ - `TIMESTAMP_LTZ(p)`是`TIMESTAMP(p) WITH LOCAL TIME ZONE`的简写, 精度`p`支持的范围是0-9, 默认是6.
+ - `TIMESTAMP_LTZ` 用于描述时间线上的绝对时间点, 使用long保存从epoch至今的毫秒数, 使用int保存毫秒中的纳秒数. epoch时间是从java的标准epoch时间`1970-01-01T00:00:00Z`开始计算. 在计算和可视化时, 每个`TIMESTAMP_LTZ`类型的数据都是使用的session中配置的时区.
+ - `TIMESTAMP_LTZ` 没有字符串表达形式因此无法通过字符串来指定, 可以通过一个long类型的epoch时间来转化(例如: 通过Java来产生一个long类型epoch时间 `System.currentTimeMillis()`)
 
  ```sql
 Flink SQL> CREATE VIEW T1 AS SELECT TO_TIMESTAMP_LTZ(4001, 3);
@@ -66,22 +66,22 @@ Flink SQL> SELECT * FROM T1;
 +---------------------------+
 ```
 
-- `TIMESTAMP_LTZ` can be used in cross time zones business because the absolute time point (e.g. above `4001` milliseconds) describes a same instantaneous point in different time zones.
-Giving a background that at a same time point, the `System.currentTimeMillis()` of all machines in the world returns same value (e.g. the `4001` milliseconds in above example), this is absolute time point meaning.
+- `TIMESTAMP_LTZ`可以用于跨时区的计算, 因为它是一个基于epoch的绝对时间点(例如:  超过 `4001` 毫秒) 代表的就是不同时区的同一个瞬时时间点.
+用一个场景来描述就是: 在同一个时间点上, 全世界所有的机器上执行`System.currentTimeMillis()`都会返回同样的值. (比如上例中的 `4001` milliseconds), 这就是绝对时间的定义.
 
-## Time Zone Usage
-The local time zone defines current session time zone id. You can config the time zone in Sql Client or Applications.
+## 时区的用法
+本地时区定义了当前session所在的时区id. 你可以在Sql client或者Applications中定义.
 
 {{< tabs "SQL snippets" >}}
 {{< tab "SQL Client" >}}
 ```sql
-# set to UTC time zone
+-- 设置为 UTC 时区
 Flink SQL> SET table.local-time-zone=UTC;
 
-# set to Shanghai time zone
+-- 设置为上海时区
 Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 
-# set to Los_Angeles time zone
+-- 设置为Los_Angeles时区
 Flink SQL> SET table.local-time-zone=America/Los_Angeles;
 ```
 {{< /tab >}}
@@ -90,13 +90,13 @@ Flink SQL> SET table.local-time-zone=America/Los_Angeles;
  EnvironmentSettings envSetting = EnvironmentSettings.newInstance().build();
  TableEnvironment tEnv = TableEnvironment.create(envSetting);
 
- // set to UTC time zone
+ // 设置为UTC时区
  tEnv.getConfig().setLocalTimeZone(ZoneId.of("UTC"));
 
-// set to Shanghai time zone
+// 设置为上海时区
  tEnv.getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
 
-// set to Los_Angeles time zone
+// 设置为Los_Angeles时区
  tEnv.getConfig().setLocalTimeZone(ZoneId.of("America/Los_Angeles"));
 ```
 {{< /tab >}}
@@ -105,22 +105,22 @@ Flink SQL> SET table.local-time-zone=America/Los_Angeles;
 val envSetting = EnvironmentSettings.newInstance.build
 val tEnv = TableEnvironment.create(envSetting)
 
-// set to UTC time zone
+// 设置为UTC时区
 tEnv.getConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
-// set to Shanghai time zone
+// 设置为上海时区
 tEnv.getConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
-// set to Los_Angeles time zone
+// 设置为Los_Angeles时区
 tEnv.getConfig.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-The session time zone is useful in Flink SQL, the main usages are:
+session的时区设置在Flink SQL中非常有用, 它的主要用法如下:
 
-### Decide time functions return value
-The following time functions is influenced by the configured time zone.
+### 确定时间函数的返回值
+session中配置的时区会对以下函数生效.
 * LOCALTIME
 * LOCALTIMESTAMP
 * CURRENT_DATE
@@ -178,8 +178,8 @@ Flink SQL> SELECT * FROM MyView1;
 +-----------+-------------------------+--------------+--------------+-------------------------+-------------------------+-------------------------+-------------------------+
 ```
 
-### `TIMESTAMP_LTZ` string representation
-The session timezone is used when represents a `TIMESTAMP_LTZ` value to string format, i.e print the value, cast the value to `STRING` type, cast the value to `TIMESTAMP`, cast a `TIMESTAMP` value to `TIMESTAMP_LTZ`:
+### `TIMESTAMP_LTZ` 字符串表示
+当一个 `TIMESTAMP_LTZ` 值转为string格式时, session中配置的时区会生效. 例如打印这个值，将类型强制转化为 `STRING` 类型, 将类型强制转换为 `TIMESTAMP`, 将 `TIMESTAMP` 的值转化为 `TIMESTAMP_LTZ` 类型:
 ```sql
 Flink SQL> CREATE VIEW MyView2 AS SELECT TO_TIMESTAMP_LTZ(4001, 3) AS ltz, TIMESTAMP '1970-01-01 00:00:01.001'  AS ntz;
 Flink SQL> DESC MyView2;
@@ -249,20 +249,19 @@ Flink SQL> SELECT * FROM MyView3;
 +-------------------------+---------------------------+-------------------------+-------------------------+-------------------------------+
 ```
 
-## Time Attribute and Time Zone
+## 时间属性和时区
+更多时间属性相关的详细介绍, 请参考 [Time Attribute]({{< ref "docs/dev/table/concepts/time_attributes">}}#时间属性).
 
-Please see [Time Attribute]({{< ref "docs/dev/table/concepts/time_attributes">}}#时间属性) for more information about time attribute.
-
-### Processing Time and Time Zone
-Flink SQL defines process time attribute by function `PROCTIME()`, the function return type is `TIMESTAMP_LTZ`.
+### 处理时间和时区
+Flink SQL 使用函数 `PROCTIME()` 来定义处理时间属性, 该函数返回的类型是 `TIMESTAMP_LTZ`.
 
 {{< hint info >}}
-Before Flink 1.13, the function return type of `PROCTIME()` is `TIMESTAMP`, and the return value is the `TIMESTAMP` in UTC time zone,
-e.g. the wall-clock shows `2021-03-01 12:00:00` at Shanghai, however the `PROCTIME()` displays `2021-03-01 04:00:00` which is wrong.
-Flin 1.13 fixes this issue and uses `TIMESTAMP_LTZ` type as return type of `PROCTIME()`, users don't need to deal time zone problems anymore.
+在Flink1.13之前, `PROCTIME()` 函数返回的类型是 `TIMESTAMP`, 返回值是UTC时区下的 `TIMESTAMP`.
+例如: 当上海的时间为 `2021-03-01 12:00:00` 时, `PROCTIME()` 显示的时间却是`2021-03-01 04:00:00`, 因此是错的.
+这个问题在Flink 1.13中修复了, 因此用户不用再去处理时区的问题了. 
 {{< /hint >}}
 
-The PROCTIME() always represents your local timestamp value, using TIMESTAMP_LTZ type can also support DayLight Saving Time well.
+`PROCTIME()` 返回的时本地时区的时间, 使用 `TIMESTAMP_LTZ` 类型也可以支持夏令时时间.
 
 ```sql
 Flink SQL> SET table.local-time-zone=UTC;
@@ -325,7 +324,7 @@ Flink SQL> DESC MyView3;
 +-----------------+-----------------------------+-------+-----+--------+-----------+
 ```
 
-Use the following command to ingest data for `MyTable1` in a terminal:
+在终端执行以下命令写入数据到 `MyTable1` 
 
 ```
 > nc -lk 9999
@@ -356,7 +355,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView3;
 ```
 
-Returns the different window start, window end and window proctime compared to calculation in UTC timezone.
+返回和UTC时区计算下不同的窗口开始时间, 窗口结束时间和窗口处理时间.
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_procime | item | max_price |
@@ -368,14 +367,14 @@ Returns the different window start, window end and window proctime compared to c
 ```
 
 {{< hint info >}}
-Processing time window is non-deterministic, so each run will get different windows and different aggregations. The above example is just for explaining how time zone affects processing time window.
+处理时间窗口是不确定的, 每次运行都会返回不同的窗口和聚合结果. 以上的示例只用于说明时区如何影响处理时间窗口.
 {{< /hint >}}
 
-### Event Time and Time Zone
-Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column.
+### 事件时间和时区
+Flink支持在 `TIMESTAMP` 列和 `TIMESTAMP_LTZ` 列上定义时间属性.
 
-#### Event Time Attribute on TIMESTAMP
-If the timestamp data in the source is represented as year-month-day-hour-minute-second, usually a string value without time-zone information, e.g. `2020-04-15 20:13:40.564`, it's recommended to define the event time attribute as a `TIMESTAMP` column:
+#### TIMESTAMP 上的事件时间属性
+如果source中的时间用于表示年-月-日-小时-分钟-秒, 通常是一个不带时区的字符串, 例如: `2020-04-15 20:13:40.564`. 通常建议在一个 `TIMESTAMP` 列上定义事件时间属性.
 ```sql
 Flink SQL> CREATE TABLE MyTable2 (
                   item STRING,
@@ -414,7 +413,7 @@ Flink SQL> DESC MyView4;
 +----------------+------------------------+------+-----+--------+-----------+
 ```
 
-Use the following command to ingest data for `MyTable2` in a terminal:
+在终端执行以下命令用于写入数据到 `MyTable2`:
 
 ```
 > nc -lk 9999
@@ -446,7 +445,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView4;
 ```
 
-Returns the same window start, window end and window rowtime compared to calculation in UTC timezone.               
+返回和在UTC时区下计算时相同的窗口开始时间, 窗口结束时间和窗口的rowtime.
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_rowtime | item | max_price |
@@ -457,8 +456,8 @@ Returns the same window start, window end and window rowtime compared to calcula
 +-------------------------+-------------------------+-------------------------+------+-----------+
 ```
 
-#### Event Time Attribute on TIMESTAMP_LTZ
-If the timestamp data in the source is represented as a epoch time, usually a long value, e.g. `1618989564564`, it's recommended to define event time attribute as a `TIMESTAMP_LTZ` column.  
+#### TIMESTAMP_LTZ 上的事件时间属性
+如果source中的时间为一个epoch时间, 通常是一个long值, 例如: `1618989564564`, 建议将event time属性定义为 `TIMESTAMP_LTZ` 列.
 ```sql
 Flink SQL> CREATE TABLE MyTable3 (
                   item STRING,
@@ -498,7 +497,7 @@ Flink SQL> DESC MyView5;
 +----------------+----------------------------+-------+-----+--------+-----------+
 ```
 
-The input data of MyTable3 is:
+`MyTable3`的输入数据为:
 ```
 A,1.1,1618495260000  # The corresponding utc timestamp is 2021-04-15 14:01:00
 B,1.2,1618495320000  # The corresponding utc timestamp is 2021-04-15 14:02:00
@@ -528,7 +527,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView5;
 ```
 
-Returns the different window start, window end and window rowtime compared to calculation in UTC timezone.   
+返回和UTC时区下计算时的不同的窗口开始时间, 窗口结束时间和窗口的rowtime.
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_rowtime | item | max_price |
@@ -539,25 +538,24 @@ Returns the different window start, window end and window rowtime compared to ca
 +-------------------------+-------------------------+-------------------------+------+-----------+
 ```
 
-## Daylight Saving Time Support
-Flink SQL supports defining time attributes on TIMESTAMP_LTZ column, base on this, Flink SQL gracefully uses TIMESTAMP and TIMESTAMP_LTZ type in window processing to support the Daylight Saving Time.
+## 夏令时支持
+Flink SQL支持在 `TIMESTAMP_LTZ`列上定义时间属性, 因此Flink SQL可以在窗口中优雅地使用 `TIMESTAMP` 和 `TIMESTAMP_LTZ` 类型来支持夏令时.
    
-  
-Flink use timestamp literal to split the window and assigns window to data according to the epoch time of the each row. It means Flink uses `TIMESTAMP` type for window start and window end (e.g. `TUMBLE_START` and `TUMBLE_END`), uses `TIMESTAMP_LTZ` for window time attribute (e.g. `TUMBLE_PROCTIME`, `TUMBLE_ROWTIME`).
-Given a example of tumble window, the DaylightTime in Los_Angele starts at time 2021-03-14 02:00:00:
+Flink 使用时间的字符格式来分割窗口并通过row的epoch时间来分配窗口. 这意味着Flink窗口开始时间和窗口结束时间使用的是 `TIMESTAMP` 类型(例如: `TUMBLE_START` 和 `TUMBLE_END`), 将 `TIMESTAMP_LTZ`类型用于窗口的时间属性(例如: `TUMBLE_PROCTIME`, `TUMBLE_ROWTIME`).
+给定一个tumble window示例, 在Los_Angele时区下夏令时从 `2021-03-14 02:00:00` 开始:
 ```
 long epoch1 = 1615708800000L; // 2021-03-14 00:00:00
 long epoch2 = 1615712400000L; // 2021-03-14 01:00:00
 long epoch3 = 1615716000000L; // 2021-03-14 03:00:00, skip one hour (2021-03-14 02:00:00)
 long epoch4 = 1615719600000L; // 2021-03-14 04:00:00 
 ```
-The tumble window [2021-03-14 00:00:00,  2021-03-14 00:04:00] will collect 3 hours' data in Los_angele time zone, but it collect 4 hours' data in other non-DST time zones, what user to do is only define time attribute on TIMESTAMP_LTZ column.
+在Los_angele时区下, tumble window [2021-03-14 00:00:00,  2021-03-14 00:04:00] 将会收集3个小时的数据, 在其他非DST的时区下将会收集4个小时的数据, 用户只需要在 `TIMESTAMP_LTZ` 列上声明时间属性即可.
 
-All windows in Flink like Hop window, Session window, Cumulative window follow this way, and all operations in Flink SQL support TIMESTAMP_LTZ well, thus Flink gracefully supports the Daylight Saving Time zone.   
+Flink的所有窗口(如Hop window, Session window, Cumulative window)都会遵循这种方式, Flink SQL中的所有操作都很好的支持了 `TIMESTAMP_LTZ` ,  因此Flink可以非常优雅的支持夏令时.   
 
 
-## Difference between Batch and Streaming Mode
-The following time functions:
+## Batch模式和Streaming模式的区别
+以下函数: 
 * LOCALTIME
 * LOCALTIMESTAMP
 * CURRENT_DATE
@@ -565,9 +563,9 @@ The following time functions:
 * CURRENT_TIMESTAMP
 * NOW()
 
-Flink evaluates their values according to execution mode. They are evaluated for each record in streaming mode. But in batch mode, they are evaluated once as the query starts and uses the same result for every row.
+Flink 会根据执行模式来进行不同计算. 在Streaming模式下会为每条记录都计算出一个值, 但在Batch模式下, 只会在query开始时计算一次, 所有行都使用相同的结果. 
 
-The following time functions are evaluated for each record no matter in batch or streaming mode:
+以下时间函数无论是在Streaming模式还是Batch模式下, 都会为每条记录计算一次结果:
 
 * CURRENT_ROW_TIMESTAMP()
 * PROCTIME() 
