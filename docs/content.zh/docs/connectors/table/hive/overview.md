@@ -127,6 +127,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Hive dependencies
        hive-exec-2.3.4.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.0.0" >}}
@@ -145,6 +148,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Orc dependencies -- required by the ORC vectorized optimizations
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -165,6 +171,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.2.1" >}}
@@ -184,6 +193,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.0.0" >}}
@@ -197,6 +209,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Hive dependencies
        hive-exec-2.0.0.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.1.0" >}}
@@ -209,6 +224,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
        // Hive dependencies
        hive-exec-2.1.0.jar
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -227,6 +245,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 3.1.0" >}}
@@ -240,6 +261,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Hive dependencies
        hive-exec-3.1.0.jar
        libfb303-0.9.3.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
