@@ -330,6 +330,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         final String sql3 = "alter table t1 drop constraint ct1";
         final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
         sql(sql3).ok(expected3);
+
+        final String sql4 = "alter table t1 rename a to b";
+        final String expected4 = "ALTER TABLE `T1` RENAME `A` TO `B`";
+        sql(sql4).ok(expected4);
+
     }
 
     @Test

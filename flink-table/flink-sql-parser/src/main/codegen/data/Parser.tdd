@@ -42,6 +42,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTableModify"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableReset"
     "org.apache.flink.sql.parser.ddl.SqlAlterView"
     "org.apache.flink.sql.parser.ddl.SqlAlterViewAs"
