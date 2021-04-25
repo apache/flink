@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.join.stream;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -207,6 +208,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         RowKind inputRowKind = input.getRowKind();
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
+        joinCondition.setCurrentJoinKey((NullAwareGetters) getCurrentKey());
         AssociatedRecords associatedRecords =
                 AssociatedRecords.of(input, inputIsLeft, otherSideStateView, joinCondition);
         if (isAccumulateMsg) { // record is accumulate
