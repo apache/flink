@@ -318,7 +318,7 @@ class CalcITCase extends StreamingTestBase {
 
     val ddl =
       s"""
-         |CREATE TABLE SimpleTable (
+         |CREATE TABLE CustomTable (
          |  a bigint,
          |  b map<bigint, bigint>
          |) WITH (
@@ -331,7 +331,7 @@ class CalcITCase extends StreamingTestBase {
 
     env.getConfig.disableObjectReuse()
     tEnv.executeSql(ddl)
-    val result = tEnv.executeSql( "select a, b from SimpleTable")
+    val result = tEnv.executeSql( "select a, b from CustomTable")
 
     val expected = List("1,{1=2}", "2,{4=5}")
     val actual = CollectionUtil.iteratorToList(result.collect()).map(r => r.toString)
