@@ -40,6 +40,6 @@ public class AlterTableSchemaOperation extends AlterTableOperation {
     public String asSummaryString() {
         return String.format(
                 "ALTER TABLE %s SET SCHEMA %s",
-                tableIdentifier.asSummaryString(), catalogTable.getSchema().toString());
+                tableIdentifier.asSummaryString(), catalogTable.getUnresolvedSchema().toString());
     }
 }

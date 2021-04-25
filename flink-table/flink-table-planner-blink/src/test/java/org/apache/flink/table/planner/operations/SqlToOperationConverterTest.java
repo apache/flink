@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -63,6 +64,7 @@ import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
@@ -1262,6 +1264,48 @@ public class SqlToOperationConverterTest {
         thrown.expect(UnsupportedOperationException.class);
         thrown.expectMessage("UNIQUE constraint is not supported yet");
         parse("alter table tb1 add constraint ct1 unique(a, b) not enforced", SqlDialect.DEFAULT);
+    }
+
+    @Test
+    public void testAlterTableRenameColumn() throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        catalogManager.registerCatalog("cat1", catalog);
+        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("a", DataTypes.STRING().notNull())
+                                .column("b", DataTypes.BIGINT().notNull())
+                                .column("c", DataTypes.TIMESTAMP(3).notNull())
+                                .watermark("c", "c - INTERVAL '5' SECOND")
+                                .primaryKey("b")
+                                .build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.emptyMap());
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        // Test alter table rename
+        Operation operation = parse("alter table tb1 rename c to c1", SqlDialect.DEFAULT);
+        assert operation instanceof AlterTableSchemaOperation;
+        Schema unresolvedSchema =
+                ((AlterTableSchemaOperation) operation).getCatalogTable().getUnresolvedSchema();
+        String[] newColumns =
+                unresolvedSchema.getColumns().stream()
+                        .map(Schema.UnresolvedColumn::getName)
+                        .toArray(String[]::new);
+        // test rename column name
+        assertArrayEquals(newColumns, new String[] {"a", "b", "c1"});
+        // test watermark expression
+        Schema.UnresolvedWatermarkSpec unresolvedWatermarkSpec =
+                unresolvedSchema.getWatermarkSpecs().get(0);
+        assertThat(unresolvedWatermarkSpec.getColumnName(), is("c1"));
+
+        String expression =
+                ((SqlCallExpression) unresolvedWatermarkSpec.getWatermarkExpression())
+                        .getSqlExpression();
+        assertThat(expression, is("c1 - INTERVAL '5' SECOND"));
     }
 
     @Test
