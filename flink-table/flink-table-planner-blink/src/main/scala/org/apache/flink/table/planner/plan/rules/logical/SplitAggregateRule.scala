@@ -284,6 +284,7 @@ class SplitAggregateRule extends RelOptRule(
     // STEP 2.3: construct partial aggregates
     // Create aggregate node directly to avoid ClassCastException,
     // Please see https://issues.apache.org/jira/browse/FLINK-21923 for more details.
+    // TODO reuse aggregate function, see FLINK-22412
     val partialAggregate = FlinkLogicalAggregate.create(
       relBuilder.build(),
       fullGroupSet,
@@ -314,6 +315,7 @@ class SplitAggregateRule extends RelOptRule(
     }
     // Create aggregate node directly to avoid ClassCastException,
     // Please see https://issues.apache.org/jira/browse/FLINK-21923 for more details.
+    // TODO reuse aggregate function, see FLINK-22412
     val finalAggregate = FlinkLogicalAggregate.create(
       relBuilder.build(),
       SplitAggregateRule.remap(fullGroupSet, originalAggregate.getGroupSet),
