@@ -25,7 +25,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -52,7 +52,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -75,7 +74,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
-import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntryExtractor;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationHandlerImpl;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
@@ -148,7 +147,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private final ExceptionHistoryEntryExtractor exceptionHistoryEntryExtractor;
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     private final ExecutionGraphFactory executionGraphFactory;
@@ -215,11 +213,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                 new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
         operatorCoordinatorHandler.initializeOperatorCoordinators(this.mainThreadExecutor);
 
-        this.exceptionHistoryEntryExtractor = new ExceptionHistoryEntryExtractor();
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
-                        jobMasterConfiguration.getInteger(
-                                JobManagerOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                        jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -400,9 +396,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final Set<ExecutionJobVertex> jobVerticesToRestore =
                     getInvolvedExecutionJobVertices(vertices);
 
-            // a global restore restores all Job Vertices
-            assert jobVerticesToRestore.size() == getExecutionGraph().getAllVertices().size();
-
             checkpointCoordinator.restoreLatestCheckpointedStateToAll(jobVerticesToRestore, true);
 
         } else {
@@ -452,7 +445,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private void notifyCoordinatorsOfEmptyGlobalRestore() throws Exception {
         for (final ExecutionJobVertex ejv : getExecutionGraph().getAllVertices().values()) {
-            for (final OperatorCoordinator coordinator : ejv.getOperatorCoordinators()) {
+            for (final OperatorCoordinatorHolder coordinator : ejv.getOperatorCoordinators()) {
                 coordinator.resetToCheckpoint(OperatorCoordinator.NO_CHECKPOINT, null);
             }
         }
@@ -630,38 +623,42 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         return executionGraph.getTerminationFuture();
     }
 
-    protected final void archiveGlobalFailure(@Nullable Throwable failure) {
-        archiveGlobalFailure(failure, executionGraph.getStatusTimestamp(JobStatus.FAILED));
+    protected final void archiveGlobalFailure(Throwable failure) {
+        archiveGlobalFailure(
+                failure,
+                executionGraph.getStatusTimestamp(JobStatus.FAILED),
+                StreamSupport.stream(executionGraph.getAllExecutionVertices().spliterator(), false)
+                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                        .collect(Collectors.toSet()));
     }
 
-    private void archiveGlobalFailure(@Nullable Throwable failure, long timestamp) {
+    private void archiveGlobalFailure(
+            Throwable failure, long timestamp, Iterable<Execution> executions) {
         exceptionHistory.add(
-                exceptionHistoryEntryExtractor.extractGlobalFailure(
-                        executionGraph.getAllExecutionVertices(), failure, timestamp));
+                RootExceptionHistoryEntry.fromGlobalFailure(failure, timestamp, executions));
         log.debug("Archive global failure.", failure);
     }
 
     protected final void archiveFromFailureHandlingResult(
-            FailureHandlingResult failureHandlingResult) {
-        if (failureHandlingResult.getExecutionVertexIdOfFailedTask().isPresent()) {
-            final ExecutionVertexID executionVertexId =
-                    failureHandlingResult.getExecutionVertexIdOfFailedTask().get();
+            FailureHandlingResultSnapshot failureHandlingResult) {
+        if (failureHandlingResult.getRootCauseExecution().isPresent()) {
+            final Execution rootCauseExecution =
+                    failureHandlingResult.getRootCauseExecution().get();
+
             final RootExceptionHistoryEntry rootEntry =
-                    exceptionHistoryEntryExtractor.extractLocalFailure(
-                            executionGraph.getAllVertices(),
-                            executionVertexId,
-                            failureHandlingResult.getVerticesToRestart().stream()
-                                    .filter(v -> !executionVertexId.equals(v))
-                                    .collect(Collectors.toSet()));
+                    RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(
+                            failureHandlingResult);
             exceptionHistory.add(rootEntry);
 
             log.debug(
                     "Archive local failure causing attempt {} to fail: {}",
-                    executionVertexId,
+                    rootCauseExecution.getAttemptId(),
                     rootEntry.getExceptionAsString());
         } else {
             archiveGlobalFailure(
-                    failureHandlingResult.getError(), failureHandlingResult.getTimestamp());
+                    failureHandlingResult.getRootCause(),
+                    failureHandlingResult.getTimestamp(),
+                    failureHandlingResult.getConcurrentlyFailedExecution());
         }
     }
 

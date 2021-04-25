@@ -50,6 +50,7 @@ class StreamPhysicalDataStreamScanRule
     new StreamPhysicalDataStreamScan(
       rel.getCluster,
       traitSet,
+      scan.getHints,
       scan.getTable,
       rel.getRowType
     )

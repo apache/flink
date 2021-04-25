@@ -112,8 +112,11 @@ final class FlinkDistribution {
 
     public void startFlinkCluster() throws IOException {
         LOG.info("Starting Flink cluster.");
-        AutoClosableProcess.runBlocking(
-                bin.resolve("start-cluster.sh").toAbsolutePath().toString());
+        AutoClosableProcess.create(bin.resolve("start-cluster.sh").toAbsolutePath().toString())
+                // ignore the variable, we assume we log to the distribution directory
+                // and we copy the logs over in case of failure
+                .setEnv(env -> env.remove("FLINK_LOG_DIR"))
+                .runBlocking();
 
         final OkHttpClient client = new OkHttpClient();
 

@@ -257,15 +257,6 @@ public class JobManagerOptions {
                     .withDescription(
                             "The maximum number of prior execution attempts kept in history.");
 
-    /** The maximum number of failures kept in the exception history. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
-    public static final ConfigOption<Integer> MAX_EXCEPTION_HISTORY_SIZE =
-            key("jobmanager.exception-history-size")
-                    .intType()
-                    .defaultValue(16)
-                    .withDescription(
-                            "The maximum number of failures collected by the exception history per job.");
-
     /**
      * This option specifies the failover strategy, i.e. how the job computation recovers from task
      * failures.
@@ -410,7 +401,7 @@ public class JobManagerOptions {
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-wait-timeout")
                     .durationType()
-                    .defaultValue(Duration.ofSeconds(10))
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -436,11 +427,12 @@ public class JobManagerOptions {
     public static final ConfigOption<Duration> RESOURCE_STABILIZATION_TIMEOUT =
             key("jobmanager.adaptive-scheduler.resource-stabilization-timeout")
                     .durationType()
-                    .defaultValue(RESOURCE_WAIT_TIMEOUT.defaultValue())
+                    .defaultValue(Duration.ofSeconds(10L))
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. "
+                                                    + "The timeout starts once sufficient resources for running the job are available. "
                                                     + "Once this timeout has passed, the job will start executing with the available resources.")
                                     .linebreak()
                                     .text(

@@ -19,7 +19,7 @@
         "schema.1.data-type" : "INT"
       }
     },
-    "id" : 3,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -70,7 +70,7 @@
       } ]
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 4,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -92,8 +92,8 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 3,
-    "target" : 4,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },

@@ -135,11 +135,6 @@ public class BatchShuffleReadBufferPool {
 
     /** Initializes this buffer pool which allocates all the buffers. */
     public void initialize() {
-        LOG.info(
-                "Initializing batch shuffle IO buffer pool: numBuffers={}, bufferSize={}.",
-                numTotalBuffers,
-                bufferSize);
-
         synchronized (buffers) {
             checkState(!destroyed, "Buffer pool is already destroyed.");
 
@@ -175,6 +170,11 @@ public class BatchShuffleReadBufferPool {
                                 TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key()));
             }
         }
+
+        LOG.info(
+                "Batch shuffle IO buffer pool initialized: numBuffers={}, bufferSize={}.",
+                numTotalBuffers,
+                bufferSize);
     }
 
     /**

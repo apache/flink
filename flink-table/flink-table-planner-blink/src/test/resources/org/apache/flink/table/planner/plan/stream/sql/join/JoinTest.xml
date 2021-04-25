@@ -399,6 +399,30 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinAndSelectOnPartialCompositePrimaryKey">
+    <Resource name="sql">
+      <![CDATA[SELECT A.a1 FROM A LEFT JOIN tableWithCompositePk T ON A.a1 = T.pk1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0])
++- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1])
++- Join(joinType=[LeftOuterJoin], where=[(a1 = pk1)], select=[a1, pk1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   +- Exchange(distribution=[hash[pk1]])
+      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1]]], fields=[pk1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithSort">
     <Resource name="sql">
       <![CDATA[

@@ -17,8 +17,10 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -31,12 +33,15 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
 
+import org.jline.reader.MaskingCallback;
+import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +100,8 @@ public class CliResultViewTest {
                         true);
 
         try (CliClient cli =
-                new CliClient(
-                        TerminalUtils.createDummyTerminal(),
+                new TestingCliClient(
+                        TerminalUtils.createDumbTerminal(),
                         sessionId,
                         executor,
                         File.createTempFile("history", "tmp").toPath(),
@@ -123,6 +128,8 @@ public class CliResultViewTest {
 
         private final TypedResult<?> typedResult;
         private final CountDownLatch cancellationCounter;
+        private static final Configuration defaultConfig =
+                TableConfig.getDefault().getConfiguration();
 
         public MockExecutor(TypedResult<?> typedResult, CountDownLatch cancellationCounter) {
             this.typedResult = typedResult;
@@ -147,12 +154,12 @@ public class CliResultViewTest {
         @Override
         public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
-            return null;
+            return defaultConfig.toMap();
         }
 
         @Override
         public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
-            return null;
+            return defaultConfig;
         }
 
         @Override
@@ -262,6 +269,36 @@ public class CliResultViewTest {
         @Override
         protected List<AttributedString> computeMainHeaderLines() {
             return Collections.emptyList();
+        }
+    }
+
+    private static class TestingCliClient extends CliClient {
+
+        private final Terminal terminal;
+
+        public TestingCliClient(
+                Terminal terminal,
+                String sessionId,
+                Executor executor,
+                Path historyFilePath,
+                @Nullable MaskingCallback inputTransformer) {
+            super(() -> terminal, sessionId, executor, historyFilePath, inputTransformer);
+            this.terminal = terminal;
+        }
+
+        @Override
+        public Terminal getTerminal() {
+            return terminal;
+        }
+
+        @Override
+        public boolean isPlainTerminal() {
+            return true;
+        }
+
+        @Override
+        public void clearTerminal() {
+            // do nothing
         }
     }
 }

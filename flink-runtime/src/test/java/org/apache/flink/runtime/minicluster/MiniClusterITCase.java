@@ -677,12 +677,10 @@ public class MiniClusterITCase extends TestLogger {
             try {
                 jobResultFuture.get();
             } catch (ExecutionException e) {
-                assertTrue(findThrowable(e, OutOfMemoryError.class).isPresent());
+                assertThat(e, FlinkMatchers.containsCause(OutOfMemoryError.class));
                 assertThat(
-                        findThrowable(e, OutOfMemoryError.class)
-                                .map(OutOfMemoryError::getMessage)
-                                .get(),
-                        startsWith(
+                        e,
+                        FlinkMatchers.containsMessage(
                                 "Java heap space. A heap space-related out-of-memory error has occurred."));
             }
         }

@@ -36,29 +36,25 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.junit.Assert.assertEquals;
 
 class JdbcXaFacadeTestHelper implements AutoCloseable {
-    private final XADataSource xaDataSource;
     private final String table;
     private final String dbUrl;
+    private final String user;
+    private final String pass;
     private final XaFacade xaFacade;
 
-    JdbcXaFacadeTestHelper(XADataSource xaDataSource, String dbUrl, String table) throws Exception {
-        this.xaDataSource = xaDataSource;
+    JdbcXaFacadeTestHelper(
+            XADataSource xaDataSource, String dbUrl, String table, String user, String pass)
+            throws Exception {
         this.dbUrl = dbUrl;
         this.table = table;
-        this.xaFacade = XaFacadeImpl.fromXaDataSource(this.xaDataSource);
+        this.xaFacade = XaFacadeImpl.fromXaDataSource(xaDataSource);
         this.xaFacade.open();
+        this.user = user;
+        this.pass = pass;
     }
 
     void assertPreparedTxCountEquals(int expected) {
         assertEquals(expected, xaFacade.recover().size());
-    }
-
-    void assertDbContentsEquals(int[]... dataIdx) throws SQLException {
-        assertDbContentsEquals(Arrays.stream(dataIdx).flatMapToInt(Arrays::stream));
-    }
-
-    void assertDbContentsEquals(int... dataIdx) throws SQLException {
-        assertDbContentsEquals(Arrays.stream(dataIdx));
     }
 
     void assertDbContentsEquals(JdbcTestCheckpoint... checkpoints) throws SQLException {
@@ -76,8 +72,13 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
     }
 
     private List<Integer> getInsertedIds() throws SQLException {
+        return getInsertedIds(dbUrl, user, pass, table);
+    }
+
+    static List<Integer> getInsertedIds(String dbUrl, String user, String pass, String table)
+            throws SQLException {
         List<Integer> dbContents = new ArrayList<>();
-        try (Connection connection = DriverManager.getConnection(dbUrl)) {
+        try (Connection connection = DriverManager.getConnection(dbUrl, user, pass)) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             connection.setReadOnly(true);
             try (Statement st = connection.createStatement()) {
@@ -102,14 +103,6 @@ class JdbcXaFacadeTestHelper implements AutoCloseable {
                 }
             }
         }
-    }
-
-    public XADataSource getXaDataSource() {
-        return xaDataSource;
-    }
-
-    XaFacade getXaFacade() {
-        return xaFacade;
     }
 
     @Override

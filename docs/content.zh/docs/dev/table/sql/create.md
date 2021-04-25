@@ -1,6 +1,6 @@
 ---
 title: "CREATE 语句"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /zh/dev/table/sql/create.html

@@ -86,7 +86,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.DEPLOYING;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
-import static org.apache.flink.runtime.execution.ExecutionState.RECOVERING;
+import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -148,6 +148,13 @@ public class Execution
     private final CompletableFuture<?> releaseFuture;
 
     private final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture;
+
+    /**
+     * Gets completed successfully when the task switched to {@link ExecutionState#INITIALIZING} or
+     * {@link ExecutionState#RUNNING}. If the task never switches to those state, but fails
+     * immediately, then this future never completes.
+     */
+    private final CompletableFuture<?> initializingOrRunningFuture;
 
     private volatile ExecutionState state = CREATED;
 
@@ -214,6 +221,7 @@ public class Execution
         this.terminalStateFuture = new CompletableFuture<>();
         this.releaseFuture = new CompletableFuture<>();
         this.taskManagerLocationFuture = new CompletableFuture<>();
+        this.initializingOrRunningFuture = new CompletableFuture<>();
 
         this.assignedResource = null;
     }
@@ -350,6 +358,23 @@ public class Execution
      */
     public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
+    }
+
+    /**
+     * Gets a future that completes once the task execution reaches one of the states {@link
+     * ExecutionState#INITIALIZING} or {@link ExecutionState#RUNNING}. If this task never reaches
+     * these states (for example because the task is cancelled before it was properly deployed and
+     * restored), then this future will never complete.
+     *
+     * <p>The future is completed already in the {@link ExecutionState#INITIALIZING} state, because
+     * various running actions are already possible in that state (the task already accepts and
+     * sends events and network data for task recovery). (Note that in earlier versions, the
+     * INITIALIZING state was not separate but part of the RUNNING state).
+     *
+     * <p>This future is always completed from the job master's main thread.
+     */
+    public CompletableFuture<?> getInitializingOrRunningFuture() {
+        return initializingOrRunningFuture;
     }
 
     /**
@@ -623,7 +648,7 @@ public class Execution
             }
 
             // these two are the common cases where we need to send a cancel call
-            else if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
+            else if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
                 // try to transition to canceling, if successful, send the cancel call
                 if (startCancelling(NUM_CANCEL_CALL_TRIES)) {
                     return;
@@ -663,7 +688,7 @@ public class Execution
     public CompletableFuture<?> suspend() {
         switch (state) {
             case RUNNING:
-            case RECOVERING:
+            case INITIALIZING:
             case DEPLOYING:
             case CREATED:
             case SCHEDULED:
@@ -723,7 +748,7 @@ public class Execution
             // ----------------------------------------------------------------
             if (consumerState == DEPLOYING
                     || consumerState == RUNNING
-                    || consumerState == RECOVERING) {
+                    || consumerState == INITIALIZING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
@@ -854,9 +879,11 @@ public class Execution
      */
     public CompletableFuture<Acknowledge> sendOperatorEvent(
             OperatorID operatorId, SerializedValue<OperatorEvent> event) {
+
+        assertRunningInJobMasterMainThread();
         final LogicalSlot slot = assignedResource;
 
-        if (slot != null && (getState() == RUNNING || getState() == RECOVERING)) {
+        if (slot != null && (getState() == RUNNING || getState() == INITIALIZING)) {
             final TaskExecutorOperatorEventGateway eventGateway = slot.getTaskManagerGateway();
             return eventGateway.sendOperatorEventToTask(getAttemptId(), operatorId, event);
         } else {
@@ -907,7 +934,7 @@ public class Execution
         while (true) {
             ExecutionState current = this.state;
 
-            if (current == RECOVERING || current == RUNNING || current == DEPLOYING) {
+            if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
 
                 if (transitionState(current, FINISHED)) {
                     try {
@@ -999,7 +1026,7 @@ public class Execution
                 return;
             } else if (current == CANCELING
                     || current == RUNNING
-                    || current == RECOVERING
+                    || current == INITIALIZING
                     || current == DEPLOYING) {
 
                 updateAccumulatorsAndMetrics(userAccumulators, metrics);
@@ -1138,7 +1165,7 @@ public class Execution
 
         if (cancelTask
                 && (stateBeforeFailed == RUNNING
-                        || stateBeforeFailed == RECOVERING
+                        || stateBeforeFailed == INITIALIZING
                         || stateBeforeFailed == DEPLOYING)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
@@ -1159,7 +1186,7 @@ public class Execution
     }
 
     boolean switchToRecovering() {
-        if (switchTo(DEPLOYING, RECOVERING)) {
+        if (switchTo(DEPLOYING, INITIALIZING)) {
             sendPartitionInfos();
             return true;
         }
@@ -1168,7 +1195,7 @@ public class Execution
     }
 
     boolean switchToRunning() {
-        return switchTo(RECOVERING, RUNNING);
+        return switchTo(INITIALIZING, RUNNING);
     }
 
     private boolean switchTo(ExecutionState from, ExecutionState to) {
@@ -1426,7 +1453,9 @@ public class Execution
                 }
             }
 
-            if (targetState.isTerminal()) {
+            if (targetState == INITIALIZING || targetState == RUNNING) {
+                initializingOrRunningFuture.complete(null);
+            } else if (targetState.isTerminal()) {
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
             }

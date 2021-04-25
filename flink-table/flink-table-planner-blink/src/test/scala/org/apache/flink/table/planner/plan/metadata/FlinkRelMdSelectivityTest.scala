@@ -150,7 +150,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetSelectivityOnExpand(): Unit = {
-    val ts = relBuilder.scan("MyTable3").build()
+    val ts = relBuilder.scan("MyTable3").project(relBuilder.fields().subList(0, 2)).build()
     val expandProjects = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
@@ -464,7 +464,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetSelectivityOnJoin(): Unit = {
-    val ts = relBuilder.scan("MyTable3").build()
+    val ts = relBuilder.scan("MyTable3").project(relBuilder.fields().subList(0, 2)).build()
     // right is $0 <= 2 and $1 < 1.1
     val right = relBuilder.push(ts).filter(
       relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(2)),
@@ -507,7 +507,7 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
   def testGetSelectivityOnUnion(): Unit = {
     val union = relBuilder
       .scan("MyTable4").project(relBuilder.fields().subList(0, 2))
-      .scan("MyTable3")
+      .scan("MyTable3").project(relBuilder.fields().subList(0, 2))
       .union(true).build()
     // a <= 2
     val pred = relBuilder.push(union).call(

@@ -314,6 +314,44 @@ The result is:
 0  Jack       30
 ```
 
+The [Row-based Operations]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations) are also supported in Python Table API, which include [Map Operation]({{< ref "docs/dev/table/tableapi" >}}#row-based-operations),
+[FlatMap Operation]({{< ref "docs/dev/table/tableapi" >}}#flatmap), [Aggregate Operation]({{< ref "docs/dev/table/tableapi" >}}#aggregate) and [FlatAggregate Operation]({{< ref "docs/dev/table/tableapi" >}}#flataggregate).
+
+The following example shows a simple row-based operation query:
+
+```python
+
+# using batch table environment to execute the queries
+from pyflink.table import EnvironmentSettings, TableEnvironment
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+import pandas as pd
+
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = TableEnvironment.create(env_settings)
+
+orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
+                                 ['name', 'country', 'revenue'])
+
+map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
+                    result_type=DataTypes.ROW(
+                                [DataTypes.FIELD("name", DataTypes.STRING()),
+                                 DataTypes.FIELD("revenue", DataTypes.BIGINT())]),
+                    func_type="pandas")
+
+orders.map(map_function).alias('name', 'revenue').to_pandas()
+
+```
+
+The result is:
+
+```text
+   name  revenue
+0  Jack      100
+1  Rose      300
+2  Jack      200
+```
+
 ### Write SQL Queries
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as Strings.

@@ -112,7 +112,7 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
         final Execution exec = executionGraph.getRegisteredExecutions().get(taskExecutionId);
         if (exec == null
                 || exec.getState() != ExecutionState.RUNNING
-                        && exec.getState() != ExecutionState.RECOVERING) {
+                        && exec.getState() != ExecutionState.INITIALIZING) {
             // This situation is common when cancellation happens, or when the task failed while the
             // event was just being dispatched asynchronously on the TM side.
             // It should be fine in those expected situations to just ignore this event, but, to be

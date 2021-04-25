@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelOp
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
@@ -41,18 +42,26 @@ class StreamPhysicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
+    hints: util.List[RelHint],
     tableIdentifier: ObjectIdentifier,
     catalogTable: ResolvedCatalogTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, inputRel, tableIdentifier, catalogTable, tableSink)
+  extends Sink(cluster, traitSet, inputRel, hints, tableIdentifier, catalogTable, tableSink)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalSink(
-      cluster, traitSet, inputs.get(0), tableIdentifier, catalogTable, tableSink, abilitySpecs)
+      cluster,
+      traitSet,
+      inputs.get(0),
+      hints,
+      tableIdentifier,
+      catalogTable,
+      tableSink,
+      abilitySpecs)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

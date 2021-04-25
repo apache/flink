@@ -235,7 +235,7 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation of the blink planner in streaming mode. For batch mode or windowed aggregation, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation of the blink planner in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
@@ -269,6 +269,8 @@ from pyflink.common import Row
 from pyflink.table import AggregateFunction, DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import call
 from pyflink.table.udf import udaf
+from pyflink.table.expressions import col, lit
+from pyflink.table.window import Tumble
 
 
 class WeightedAvg(AggregateFunction):
@@ -328,6 +330,18 @@ table_env.create_temporary_view("source", t)
 result = table_env.sql_query(
     "SELECT weighted_avg(`value`, `count`) AS avg FROM source GROUP BY name").to_pandas()
 print(result)
+
+# use the general Python aggregate function in GroupBy Window Aggregation
+tumble_window = Tumble.over(lit(1).hours) \
+            .on(col("rowtime")) \
+            .alias("w")
+
+result = t.window(tumble_window) \
+        .group_by(col('w'), col('name')) \
+        .select("w.start, w.end, weighted_avg(value, count)") \
+        .to_pandas()
+print(result)
+
 ```
 
 The `accumulate(...)` method of our `WeightedAvg` class takes three input arguments. The first one is the accumulator
@@ -348,6 +362,7 @@ by Flink's checkpointing mechanism and are restored in case of failover to ensur
 
 - `retract(...)` is required when there are operations that could generate retraction messages before the current aggregation operation, e.g. group aggregate, outer join. \
 This method is optional, but it is strongly recommended to be implemented to ensure the UDAF can be used in any use case.
+- `merge(...)` is required for session window ang hop window aggregations.
 - `get_result_type()` and `get_accumulator_type()` is required if the result type and accumulator type would not be specified in the `udaf` decorator.
 
 ### ListView and MapView
@@ -395,3 +410,146 @@ Please refer to the [documentation of the corresponding classes]({{ site.pythond
 there is a cached layer between the raw state handler and the Python state backend. You can adjust the values of these configuration options to change the behavior of the cache layer for best performance:
 `python.state.cache-size`, `python.map-state.read-cache-size`, `python.map-state.write-cache-size`, `python.map-state.iterate-response-batch-size`.
 For more details please refer to the [Python Configuration Documentation]({{< ref "docs/dev/python/python_config" >}}).
+
+## Table Aggregate Functions
+
+A user-defined table aggregate function (_UDTAGG_) maps scalar values of multiple rows to zero, one, or multiple rows (or structured types). 
+The returned record may consist of one or more fields. If an output record consists of only a single field,
+the structured record can be omitted, and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
+
+**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation
+of the blink planner in streaming mode.
+
+Similar to an [aggregate function](#aggregate-functions), the behavior of a table aggregate is centered around the concept of an accumulator.
+The accumulator is an intermediate data structure that stores the aggregated values until a final aggregation result is computed.
+
+For each set of rows that needs to be aggregated, the runtime will create an empty accumulator by calling
+`create_accumulator()`. Subsequently, the `accumulate(...)` method of the function is called for each
+input row to update the accumulator. Once all rows have been processed, the `emit_value(...)` method of
+the function is called to compute and return the final result.
+
+The following example illustrates the aggregation process:
+
+<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+
+In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
+and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,
+perform a `TOP2()` table aggregation. We need to consider each of the 5 rows. The result is a table
+with the top 2 values.
+
+In order to define a table aggregate function, one has to extend the base class `TableAggregateFunction` in
+`pyflink.table` and implement one or more evaluation methods named `accumulate(...)`.
+
+The result type and accumulator type of the aggregate function can be specified by one of the following two approaches:
+
+- Implement the method named `get_result_type()` and `get_accumulator_type()`.
+- Wrap the function instance with the decorator `udtaf` in `pyflink.table.udf` and specify the parameters `result_type` and `accumulator_type`. 
+
+The following example shows how to define your own aggregate function and call it in a query.
+
+```python
+from pyflink.common import Row
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table.udf import udtaf, TableAggregateFunction
+
+class Top2(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        yield Row(accumulator[0])
+        yield Row(accumulator[1])
+
+    def create_accumulator(self):
+        return [None, None]
+
+    def accumulate(self, accumulator, *args):
+        if args[0][0] is not None:
+            if accumulator[0] is None or args[0][0] > accumulator[0]:
+                accumulator[1] = accumulator[0]
+                accumulator[0] = args[0][0]
+            elif accumulator[1] is None or args[0][0] > accumulator[1]:
+                accumulator[1] = args[0][0]
+
+    def retract(self, accumulator, *args):
+        accumulator[0] = accumulator[0] - 1
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            self.accumulate(accumulator, other_acc[0])
+            self.accumulate(accumulator, other_acc[1])
+
+    def get_accumulator_type(self):
+        return DataTypes.ARRAY(DataTypes.BIGINT())
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+
+
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+table_env = TableEnvironment.create(env_settings)
+# the result type and accumulator type can also be specified in the udtaf decorator:
+# top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
+top2 = udtaf(Top2())
+t = table_env.from_elements([(1, 'Hi', 'Hello'),
+                              (3, 'Hi', 'hi'),
+                              (5, 'Hi2', 'hi'),
+                              (7, 'Hi', 'Hello'),
+                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+
+# call function "inline" without registration in Table API
+result = t.group_by(t.name).flat_aggregate(top2).to_pandas()
+print(result)
+```
+
+The `accumulate(...)` method of our `Top2` class takes two inputs. The first one is the accumulator
+and the second one is the user-defined input. In order to calculate a result, the accumulator needs to
+store the 2 highest values of all the data that has been accumulated. Accumulators are automatically managed
+by Flink's checkpointing mechanism and are restored in case of a failure to ensure exactly-once semantics.
+The result values are emitted together with a ranking index.
+
+### Mandatory and Optional Methods
+
+**The following methods are mandatory for each `TableAggregateFunction`:**
+
+- `create_accumulator()`
+- `accumulate(...)` 
+- `emit_value(...)`
+
+**The following methods of `TableAggregateFunction` are required depending on the use case:**
+
+- `retract(...)` is required when there are operations that could generate retraction messages before the current aggregation operation, e.g. group aggregate, outer join. \
+This method is optional, but it is strongly recommended to be implemented to ensure the UDTAF can be used in any use case.
+- `get_result_type()` and `get_accumulator_type()` is required if the result type and accumulator type would not be specified in the `udtaf` decorator.
+
+### ListView and MapView
+
+Similar to [Aggregation function](#aggregate-functions), we can also use ListView and MapView in Table Aggregate Function.
+
+```python
+from pyflink.common import Row
+from pyflink.table import ListView
+from pyflink.table.types import DataTypes
+from pyflink.table.udf import TableAggregateFunction
+
+class ListViewConcatTableAggregateFunction(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        result = accumulator[1].join(accumulator[0])
+        yield Row(result)
+        yield Row(result)
+
+    def create_accumulator(self):
+        return Row(ListView(), '')
+
+    def accumulate(self, accumulator, *args):
+        accumulator[1] = args[1]
+        accumulator[0].add(args[0])
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.LIST_VIEW(DataTypes.STRING())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.ROW([DataTypes.FIELD("a", DataTypes.STRING())])
+```

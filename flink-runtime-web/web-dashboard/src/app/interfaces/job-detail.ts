@@ -104,7 +104,7 @@ interface TasksStatus {
   FAILED: number;
   RECONCILING: number;
   CANCELING: number;
-  RECOVERING: number;
+  INITIALIZING: number;
 }
 
 interface MetricsStatus {

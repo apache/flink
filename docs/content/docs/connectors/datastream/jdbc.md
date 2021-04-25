@@ -71,7 +71,7 @@ The SQL DML statements are executed in batches, which can optionally be configur
 ```java
 JdbcExecutionOptions.builder()
         .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
-        .withBathSize(1000)                   // optional: default = 5000 values
+        .withBatchSize(1000)                  // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
 .build()
 ```
@@ -142,7 +142,12 @@ public class JdbcSinkExample {
 
 ## `JdbcSink.exactlyOnceSink`
 
-Since 1.13, Flink JDBC sink supports exactly-once mode. The implementation relies on the JDBC driver support of XA [standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
+Since 1.13, Flink JDBC sink supports exactly-once mode. 
+The implementation relies on the JDBC driver support of XA 
+[standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
+
+Attention: In 1.13, Flink JDBC sink does not support exactly-once mode with MySQL or other databases
+that do not support multiple XA transaction per connection. We will improve the support in FLINK-22239.
 
 To use it, create a sink using `exactlyOnceSink()` method as above and additionally provide:
 - {{< javadoc name="exactly-once options" file="org/apache/flink/connector/jdbc/JdbcExactlyOnceOptions.html" >}}
@@ -163,10 +168,6 @@ env
                     ps.setInt(5, t.qty);
                 },
                 JdbcExecutionOptions.builder().build(),
-                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
-                        .withUrl(getDbMetadata().getUrl())
-                        .withDriverName(getDbMetadata().getDriverClass())
-                        .build()),
                 JdbcExactlyOnceOptions.defaults(),
                 () -> {
                     // create a driver-specific XA DataSource

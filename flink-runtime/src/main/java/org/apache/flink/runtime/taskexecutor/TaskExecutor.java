@@ -225,6 +225,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final TaskSlotTable<Task> taskSlotTable;
 
+    private final Map<JobID, UUID> currentSlotOfferPerJob = new HashMap<>();
+
     private final JobTable jobTable;
 
     private final JobLeaderService jobLeaderService;
@@ -1469,6 +1471,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 reservedSlots.add(offer);
             }
 
+            final UUID slotOfferId = UUID.randomUUID();
+            currentSlotOfferPerJob.put(jobId, slotOfferId);
+
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
                     jobMasterGateway.offerSlots(
                             getResourceID(),
@@ -1476,7 +1481,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskManagerConfiguration.getRpcTimeout());
 
             acceptedSlotsFuture.whenCompleteAsync(
-                    handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
+                    handleAcceptedSlotOffers(
+                            jobId, jobMasterGateway, jobMasterId, reservedSlots, slotOfferId),
                     getMainThreadExecutor());
         } else {
             log.debug("There are no unassigned slots for the job {}.", jobId);
@@ -1488,8 +1494,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             JobID jobId,
             JobMasterGateway jobMasterGateway,
             JobMasterId jobMasterId,
-            Collection<SlotOffer> offeredSlots) {
+            Collection<SlotOffer> offeredSlots,
+            UUID offerId) {
         return (Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
+            // check if this is the latest offer
+            if (!offerId.equals(currentSlotOfferPerJob.get(jobId))) {
+                // If this offer is outdated then it can be safely ignored.
+                // If the response for a given slot is identical in both offers (accepted/rejected),
+                // then this is naturally the case since the end-result is the same.
+                // If the responses differ, then there are 2 cases to consider:
+                // 1) initially rejected, later accepted
+                //   This can happen when the resource requirements of a job increases between
+                //   offers.
+                //   In this case the first response MUST be ignored, so that
+                //   the the slot can be properly activated when the second response arrives.
+                // 2) initially accepted, later rejected
+                //   This can happen when the resource requirements of a job decrease between
+                //   offers.
+                //   In this case the first response MAY be ignored, because the job no longer
+                //   requires the slot (and already has initiated steps to free it) and we can thus
+                //   assume that any in-flight task submissions are no longer relevant for the job
+                //   execution.
+
+                log.debug(
+                        "Discard slot offer response since there is a newer offer for the job {}.",
+                        jobId);
+                return;
+            }
+
             if (throwable != null) {
                 if (throwable instanceof TimeoutException) {
                     log.info(
@@ -1540,7 +1572,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 } else {
                     // discard the response since there is a new leader for the job
                     log.debug(
-                            "Discard offer slot response since there is a new leader "
+                            "Discard slot offer response since there is a new leader "
                                     + "for the job {}.",
                             jobId);
                 }
@@ -1646,7 +1678,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     freeSlotInternal(activeSlotAllocationID, freeingCause);
                 }
             } catch (SlotNotFoundException e) {
-                log.debug("Could not mark the slot {} inactive.", jobId, e);
+                log.debug("Could not mark the slot {} inactive.", activeSlotAllocationID, e);
             }
         }
 
@@ -1757,6 +1789,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         job -> {
                             closeJob(job, cause);
                         });
+        currentSlotOfferPerJob.remove(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {

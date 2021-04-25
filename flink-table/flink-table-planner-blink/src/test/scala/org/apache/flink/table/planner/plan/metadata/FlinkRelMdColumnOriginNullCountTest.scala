@@ -115,7 +115,8 @@ class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetColumnOriginNullCountOnJoin(): Unit = {
-    val innerJoin1 = relBuilder.scan("MyTable3").scan("MyTable4")
+    val innerJoin1 = relBuilder.scan("MyTable3").project(relBuilder.fields().subList(0, 2))
+      .scan("MyTable4")
       .join(JoinRelType.INNER,
         relBuilder.call(EQUALS, relBuilder.field(2, 0, 1), relBuilder.field(2, 1, 1)))
       .build
@@ -124,7 +125,8 @@ class FlinkRelMdColumnOriginNullCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(0.0, mq.getColumnOriginNullCount(innerJoin1, 2))
     assertEquals(0.0, mq.getColumnOriginNullCount(innerJoin1, 3))
 
-    val innerJoin2 = relBuilder.scan("MyTable3").scan("MyTable4")
+    val innerJoin2 = relBuilder.scan("MyTable3").project(relBuilder.fields().subList(0, 2))
+      .scan("MyTable4")
       .join(JoinRelType.INNER,
         relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0)))
       .build

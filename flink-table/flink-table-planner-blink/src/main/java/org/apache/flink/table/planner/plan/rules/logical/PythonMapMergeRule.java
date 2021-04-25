@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
@@ -179,14 +180,29 @@ public class PythonMapMergeRule extends RelOptRule {
                                 Collections.singletonList("f0"),
                                 call.builder().getRexBuilder()));
 
-        // merge bottomCalc
-        RexBuilder rexBuilder = call.builder().getRexBuilder();
-        RexProgram mergedProgram =
-                RexProgramBuilder.mergePrograms(
-                        topMiddleMergedCalc.getProgram(), bottomCalc.getProgram(), rexBuilder);
-        Calc newCalc =
-                topMiddleMergedCalc.copy(
-                        topMiddleMergedCalc.getTraitSet(), bottomCalc.getInput(), mergedProgram);
-        call.transformTo(newCalc);
+        RexProgram bottomProgram = bottomCalc.getProgram();
+        List<RexCall> bottomProjects =
+                bottomProgram.getProjectList().stream()
+                        .map(bottomProgram::expandLocalRef)
+                        .map(x -> (RexCall) x)
+                        .collect(Collectors.toList());
+        RexCall bottomPythonCall = bottomProjects.get(0);
+        // Only Python Functions with same Python function kind can be merged together.
+        if (PythonUtil.isPythonCall(topPythonCall, PythonFunctionKind.GENERAL)
+                ^ PythonUtil.isPythonCall(bottomPythonCall, PythonFunctionKind.GENERAL)) {
+            call.transformTo(topMiddleMergedCalc);
+        } else {
+            // merge bottomCalc
+            RexBuilder rexBuilder = call.builder().getRexBuilder();
+            RexProgram mergedProgram =
+                    RexProgramBuilder.mergePrograms(
+                            topMiddleMergedCalc.getProgram(), bottomCalc.getProgram(), rexBuilder);
+            Calc newCalc =
+                    topMiddleMergedCalc.copy(
+                            topMiddleMergedCalc.getTraitSet(),
+                            bottomCalc.getInput(),
+                            mergedProgram);
+            call.transformTo(newCalc);
+        }
     }
 }

@@ -73,72 +73,6 @@ case class DistinctAgg(child: PlannerExpression) extends Aggregation {
   override private[flink] def children = Seq(child)
 }
 
-case class Sum(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"sum($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveSumType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "sum")
-}
-
-case class Sum0(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"sum0($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveSumType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "sum0")
-}
-
-case class Min(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"min($child)"
-
-  override private[flink] def resultType = child.resultType
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertOrderableExpr(child.resultType, "min")
-}
-
-case class Max(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"max($child)"
-
-  override private[flink] def resultType = child.resultType
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertOrderableExpr(child.resultType, "max")
-}
-
-case class Count(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"count($child)"
-
-  override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
-}
-
-case class Avg(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"avg($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveAvgAggType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "avg")
-}
-
 /**
   * Returns a multiset aggregates.
   */
@@ -150,58 +84,6 @@ case class Collect(child: PlannerExpression) extends Aggregation  {
     MultisetTypeInfo.getInfoFor(child.resultType)
 
   override def toString: String = s"collect($child)"
-}
-
-case class StddevPop(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"stddev_pop($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveAvgAggType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "stddev_pop")
-}
-
-case class StddevSamp(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"stddev_samp($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveAvgAggType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "stddev_samp")
-}
-
-case class VarPop(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"var_pop($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveAvgAggType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "var_pop")
-}
-
-case class VarSamp(child: PlannerExpression) extends Aggregation {
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-  override def toString = s"var_samp($child)"
-
-  override private[flink] def resultType = {
-    fromLogicalTypeToTypeInfo(FlinkTypeSystem.deriveAvgAggType(
-      fromTypeInfoToLogicalType(child.resultType)))
-  }
-
-  override private[flink] def validateInput() =
-    TypeInfoCheckUtils.assertNumericExpr(child.resultType, "var_samp")
 }
 
 /**

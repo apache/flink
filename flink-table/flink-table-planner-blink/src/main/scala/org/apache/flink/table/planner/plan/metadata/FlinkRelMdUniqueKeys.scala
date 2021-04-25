@@ -65,23 +65,27 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
         val catalogTable = sourceTable.catalogTable
         catalogTable match {
           case act: CatalogTable =>
+            val builder = ImmutableSet.builder[ImmutableBitSet]()
+
             val schema = act.getSchema
             if (schema.getPrimaryKey.isPresent) {
               // use relOptTable's type which may be projected based on original schema
               val columns = relOptTable.getRowType.getFieldNames
-              val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
-                columns.indexOf(c)
+              val primaryKeyColumns = schema.getPrimaryKey.get().getColumns
+              // we check this because a portion of a composite primary key is not unique
+              if (columns.containsAll(primaryKeyColumns)) {
+                val columnIndices = primaryKeyColumns.map(c => columns.indexOf(c))
+                builder.add(ImmutableBitSet.of(columnIndices: _*))
               }
-              val builder = ImmutableSet.builder[ImmutableBitSet]()
-              builder.add(ImmutableBitSet.of(columnIndices: _*))
-              val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
-              if (uniqueSet != null) {
-                builder.addAll(uniqueSet)
-              }
-              builder.build()
-            } else {
-              sourceTable.uniqueKeysSet.orElse(null)
             }
+
+            val uniqueSet = sourceTable.uniqueKeysSet.orElse(null)
+            if (uniqueSet != null) {
+              builder.addAll(uniqueSet)
+            }
+
+            val result = builder.build()
+            if (result.isEmpty) null else result
         }
       case table: FlinkPreparingTableBase => table.uniqueKeysSet.orElse(null)
       case _ => null

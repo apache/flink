@@ -188,7 +188,9 @@ public class JdbcTestFixture {
         System.setProperty(
                 "derby.stream.error.field", JdbcTestFixture.class.getCanonicalName() + ".DEV_NULL");
         Class.forName(dbMetadata.getDriverClass());
-        try (Connection conn = DriverManager.getConnection(dbMetadata.getInitUrl())) {
+        try (Connection conn =
+                DriverManager.getConnection(
+                        dbMetadata.getInitUrl(), dbMetadata.getUser(), dbMetadata.getPassword())) {
             createTable(conn, JdbcTestFixture.INPUT_TABLE);
             createTable(conn, OUTPUT_TABLE);
             createTable(conn, OUTPUT_TABLE_2);

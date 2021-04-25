@@ -30,7 +30,7 @@
             <td><h5>pipeline.cached-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><span markdown="span">`name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2``</span></td>
+            <td>Files to be registered at the distributed cache under the given name. The files will be accessible from any user-defined function in the (distributed) runtime under a local path. Files may be local files (which will be distributed via BlobServer), or files in a distributed file system. The runtime will copy the files temporarily to a local cache, if needed.<br /><br />Example:<br /><code class="highlighter-rouge">name:file1,path:`file:///tmp/file1`;name:file2,path:`hdfs:///tmp/file2`</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.classpaths</h5></td>
@@ -42,19 +42,19 @@
             <td><h5>pipeline.closure-cleaner-level</h5></td>
             <td style="word-wrap: break-word;">RECURSIVE</td>
             <td><p>Enum</p>Possible values: [NONE, TOP_LEVEL, RECURSIVE]</td>
-            <td>Configures the mode in which the closure cleaner works<ul><li><span markdown="span">`NONE`</span> - disables the closure cleaner completely</li><li><span markdown="span">`TOP_LEVEL`</span> - cleans only the top-level class without recursing into fields</li><li><span markdown="span">`RECURSIVE`</span> - cleans all the fields recursively</li></ul></td>
+            <td>Configures the mode in which the closure cleaner works<ul><li><code class="highlighter-rouge">NONE</code> - disables the closure cleaner completely</li><li><code class="highlighter-rouge">TOP_LEVEL</code> - cleans only the top-level class without recursing into fields</li><li><code class="highlighter-rouge">RECURSIVE</code> - cleans all the fields recursively</li></ul></td>
         </tr>
         <tr>
             <td><h5>pipeline.default-kryo-serializers</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of pairs of class names and Kryo serializers class names to be used as Kryo default serializers<br /><br />Example:<br /><span markdown="span">`class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1; class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2`</span></td>
+            <td>Semicolon separated list of pairs of class names and Kryo serializers class names to be used as Kryo default serializers<br /><br />Example:<br /><code class="highlighter-rouge">class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1; class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.force-avro</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Forces Flink to use the Apache Avro serializer for POJOs.<br /><br />Important: Make sure to include the <span markdown="span">`flink-avro`</span> module.</td>
+            <td>Forces Flink to use the Apache Avro serializer for POJOs.<br /><br />Important: Make sure to include the <code class="highlighter-rouge">flink-avro</code> module.</td>
         </tr>
         <tr>
             <td><h5>pipeline.force-kryo</h5></td>
@@ -66,7 +66,7 @@
             <td><h5>pipeline.generic-types</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>If the use of generic types is disabled, Flink will throw an <span markdown="span">`UnsupportedOperationException`</span> whenever it encounters a data type that would go through Kryo for serialization.<br /><br />Disabling generic types can be helpful to eagerly find and eliminate the use of types that would go through Kryo serialization during runtime. Rather than checking types individually, using this option will throw exceptions eagerly in the places where generic types are used.<br /><br />We recommend to use this option only during development and pre-production phases, not during actual production use. The application program and/or the input data may be such that new, previously unseen, types occur at some point. In that case, setting this option would cause the program to fail.</td>
+            <td>If the use of generic types is disabled, Flink will throw an <code class="highlighter-rouge">UnsupportedOperationException</code> whenever it encounters a data type that would go through Kryo for serialization.<br /><br />Disabling generic types can be helpful to eagerly find and eliminate the use of types that would go through Kryo serialization during runtime. Rather than checking types individually, using this option will throw exceptions eagerly in the places where generic types are used.<br /><br />We recommend to use this option only during development and pre-production phases, not during actual production use. The application program and/or the input data may be such that new, previously unseen, types occur at some point. In that case, setting this option would cause the program to fail.</td>
         </tr>
         <tr>
             <td><h5>pipeline.global-job-parameters</h5></td>

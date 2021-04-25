@@ -364,7 +364,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def tesInvalidCastBetweenNumericAndTimestamp(): Unit = {
     val castFromTimestampExceptionMsg = "The cast conversion from TIMESTAMP type to NUMERIC type" +
-      " is not allowed,it's recommended to use" +
+      " is not allowed, it's recommended to use" +
       " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead."
 
     val castToTimestampExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP type" +

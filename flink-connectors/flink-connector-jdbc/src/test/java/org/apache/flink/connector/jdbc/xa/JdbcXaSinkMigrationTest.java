@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.jdbc.xa;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.DbMetadata;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
@@ -89,7 +90,9 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
                 new JdbcXaFacadeTestHelper(
                         JdbcXaSinkDerbyTest.derbyXaDs(),
                         getDbMetadata().getUrl(),
-                        JdbcTestFixture.INPUT_TABLE)) {
+                        JdbcTestFixture.INPUT_TABLE,
+                        getDbMetadata().getUser(),
+                        getDbMetadata().getPassword())) {
             h.assertDbContentsEquals(CP0);
         }
     }
@@ -128,7 +131,17 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
 
     private static XidGenerator getXidGenerator() {
         final AtomicInteger txCounter = new AtomicInteger();
-        return (x, y) -> new TestXid(txCounter.incrementAndGet(), 0, 0);
+        return new XidGenerator() {
+            @Override
+            public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
+                return new TestXid(txCounter.incrementAndGet(), 0, 0);
+            }
+
+            @Override
+            public boolean belongsToSubtask(Xid xid, RuntimeContext ctx) {
+                return false;
+            }
+        };
     }
 
     private static String getSnapshotPath(MigrationVersion version) {
@@ -167,7 +180,9 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
                 new JdbcXaFacadeTestHelper(
                         derbyXaDs(),
                         JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUrl(),
-                        JdbcTestFixture.INPUT_TABLE)) {
+                        JdbcTestFixture.INPUT_TABLE,
+                        JdbcTestFixture.DERBY_EBOOKSHOP_DB.getUser(),
+                        JdbcTestFixture.DERBY_EBOOKSHOP_DB.getPassword())) {
             xa.cancelAllTx();
         }
     }

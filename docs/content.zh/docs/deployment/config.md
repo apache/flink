@@ -218,6 +218,11 @@ The options in this section are necessary for setups where Flink itself actively
 
 ### Mesos
 
+{{< hint warning >}}
+Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the future (see 
+[FLINK-22352](https://issues.apache.org/jira/browse/FLINK-22352) for further details).
+{{< /hint >}}
+
 {{< generated/mesos_configuration >}}
 
 **Mesos TaskManager**
@@ -281,6 +286,31 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) for details.
 
 {{< generated/queryable_state_configuration >}}
+
+----
+----
+
+# Client
+
+{{< generated/client_configuration >}}
+
+----
+----
+
+# Execution
+
+{{< generated/deployment_configuration >}}
+{{< generated/savepoint_config_configuration >}}
+{{< generated/execution_configuration >}}
+
+### Pipeline
+
+{{< generated/pipeline_configuration >}}
+{{< generated/stream_pipeline_configuration >}}
+
+### Checkpointing
+
+{{< generated/execution_checkpointing_configuration >}}
 
 ----
 ----
@@ -435,29 +465,5 @@ These options may be removed in a future release.
 **DataSet File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
-
-----
-----
-
-# Backup
-
-#### Client
-
-{{< generated/client_configuration >}}
-
-#### Execution
-
-{{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
-{{< generated/execution_configuration >}}
-
-#### Pipeline
-
-{{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
-
-#### Checkpointing
-
-{{< generated/execution_checkpointing_configuration >}}
 
 {{< top >}}

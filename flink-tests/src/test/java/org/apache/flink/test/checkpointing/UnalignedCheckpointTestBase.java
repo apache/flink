@@ -105,7 +105,6 @@ import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStor
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
 
 /** Base class for tests related to unaligned checkpoints. */
 @Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
@@ -170,19 +169,14 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
                 throw e;
             }
-            if (settings.generateCheckpoint) {
-                return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                        .min(Comparator.comparing(Path::toString))
-                        .map(Path::toFile)
-                        .orElseThrow(
-                                () -> new IllegalStateException("Cannot generate checkpoint", e));
-            }
-            throw e;
         } finally {
             miniCluster.after();
         }
         if (settings.generateCheckpoint) {
-            fail("Could not generate checkpoint");
+            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
+                    .max(Comparator.comparing(Path::toString))
+                    .map(Path::toFile)
+                    .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
         }
         return null;
     }
@@ -555,7 +549,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             }
 
             @Override
-            public EnumeratorState snapshotState() throws Exception {
+            public EnumeratorState snapshotState(long checkpointId) throws Exception {
                 LOG.info("snapshotState {}", state);
                 return state;
             }
@@ -750,7 +744,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
-            env.getCheckpointConfig().setAlignmentTimeout(alignmentTimeout);
+            env.getCheckpointConfig().setAlignmentTimeout(Duration.ofMillis(alignmentTimeout));
             env.getCheckpointConfig().setCheckpointTimeout(checkpointTimeout.toMillis());
             env.getCheckpointConfig()
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);

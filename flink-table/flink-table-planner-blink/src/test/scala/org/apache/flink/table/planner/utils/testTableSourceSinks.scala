@@ -48,8 +48,8 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
-import org.apache.flink.table.utils.{EncodingUtils}
 import org.apache.flink.types.Row
 
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
@@ -495,13 +495,24 @@ class TestLegacyFilterableTableSource(
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
     filterPredicates: Seq[Expression] = Seq(),
-    val filterPushedDown: Boolean = false)
+    val filterPushedDown: Boolean = false,
+    val numElementToSkip: Int = -1)
   extends StreamTableSource[Row]
   with FilterableTableSource[Row] {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    val records = if (numElementToSkip > 0) {
+      if (numElementToSkip >= data.size) {
+        Seq.empty[Row]
+      } else {
+        data.slice(numElementToSkip, data.size)
+      }
+    } else {
+      data
+    }
+
     execEnv.fromCollection[Row](
-        applyPredicatesToRows(data).asJava,
+        applyPredicatesToRows(records).asJava,
         fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
       .setParallelism(1).setMaxParallelism(1)
   }
@@ -682,6 +693,8 @@ class TestLegacyFilterableTableSourceFactory extends StreamTableSourceFactory[Ro
     val isBounded = descriptorProps.getOptionalBoolean("is-bounded").orElse(false)
     val schema = descriptorProps.getTableSchema(Schema.SCHEMA)
     val serializedRows = descriptorProps.getOptionalString("data").orElse(null)
+    val numElementToSkip: Int =
+      descriptorProps.getOptionalInt("source.num-element-to-skip").orElse(-1)
     val rows = if (serializedRows != null) {
       EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
     } else {
@@ -694,7 +707,12 @@ class TestLegacyFilterableTableSourceFactory extends StreamTableSourceFactory[Ro
     } else {
       TestLegacyFilterableTableSource.defaultFilterableFields
     }
-    new TestLegacyFilterableTableSource(isBounded, schema, rows, filterableFields)
+    new TestLegacyFilterableTableSource(
+      isBounded,
+      schema,
+      rows,
+      filterableFields,
+      numElementToSkip = numElementToSkip)
   }
 
   override def requiredContext(): JMap[String, String] = {

@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
@@ -41,16 +42,24 @@ class BatchPhysicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
+    hints: util.List[RelHint],
     tableIdentifier: ObjectIdentifier,
     catalogTable: ResolvedCatalogTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, inputRel, tableIdentifier, catalogTable, tableSink)
+  extends Sink(cluster, traitSet, inputRel, hints, tableIdentifier, catalogTable, tableSink)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchPhysicalSink(
-      cluster, traitSet, inputs.get(0), tableIdentifier, catalogTable, tableSink, abilitySpecs)
+      cluster,
+      traitSet,
+      inputs.get(0),
+      hints,
+      tableIdentifier,
+      catalogTable,
+      tableSink,
+      abilitySpecs)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

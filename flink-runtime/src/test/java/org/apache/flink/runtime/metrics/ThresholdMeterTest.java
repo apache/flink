@@ -26,10 +26,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -119,6 +122,49 @@ public class ThresholdMeterTest extends TestLogger {
                 thresholdMeter.getRate(),
                 closeTo(toPerSecondRate((int) (THRESHOLD_SMALL - 1)), ERROR));
         thresholdMeter.checkAgainstThreshold();
+    }
+
+    @Test
+    public void testConcurrentAccess() throws Exception {
+        final ThresholdMeter thresholdMeter = new ThresholdMeter(THRESHOLD_LARGE, INTERVAL);
+        final int repeatNum = 100;
+        final int concurrency = 2;
+
+        final List<Thread> threads = new ArrayList<>();
+
+        threads.addAll(
+                getConcurrentThreads(repeat(thresholdMeter::markEvent, repeatNum), concurrency));
+        threads.addAll(
+                getConcurrentThreads(repeat(thresholdMeter::getRate, repeatNum), concurrency));
+        threads.addAll(
+                getConcurrentThreads(
+                        repeat(thresholdMeter::checkAgainstThreshold, repeatNum), concurrency));
+
+        for (Thread thread : threads) {
+            thread.start();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        assertEquals(repeatNum * concurrency, thresholdMeter.getCount());
+    }
+
+    private static Runnable repeat(Runnable task, int repeatNum) {
+        return () -> {
+            for (int i = 0; i < repeatNum; ++i) {
+                task.run();
+            }
+        };
+    }
+
+    private static List<Thread> getConcurrentThreads(Runnable task, int concurrency) {
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < concurrency; ++i) {
+            threads.add(new Thread(task));
+        }
+        return threads;
     }
 
     private static ThresholdMeter createLargeThresholdMeter() {

@@ -19,14 +19,14 @@
 package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * {@code RootExceptionHistoryEntry} extending {@link ExceptionHistoryEntry} by providing a list of
@@ -36,57 +36,94 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
 
     private static final long serialVersionUID = -7647332765867297434L;
 
-    private final Collection<ExceptionHistoryEntry> concurrentExceptions = new ArrayList<>();
+    private final Set<ExceptionHistoryEntry> concurrentExceptions;
+
+    /**
+     * Creates a {@code RootExceptionHistoryEntry} based on the passed {@link
+     * FailureHandlingResultSnapshot}.
+     *
+     * @param snapshot The reason for the failure.
+     * @return The {@code RootExceptionHistoryEntry} instance.
+     * @throws NullPointerException if {@code cause} or {@code failingTaskName} are {@code null}.
+     * @throws IllegalArgumentException if the {@code timestamp} of the passed {@code
+     *     FailureHandlingResult} is not bigger than {@code 0}.
+     */
+    public static RootExceptionHistoryEntry fromFailureHandlingResultSnapshot(
+            FailureHandlingResultSnapshot snapshot) {
+        String failingTaskName = null;
+        TaskManagerLocation taskManagerLocation = null;
+        if (snapshot.getRootCauseExecution().isPresent()) {
+            final Execution rootCauseExecution = snapshot.getRootCauseExecution().get();
+            failingTaskName = rootCauseExecution.getVertexWithAttempt();
+            taskManagerLocation = rootCauseExecution.getAssignedResourceLocation();
+        }
+
+        return createRootExceptionHistoryEntry(
+                snapshot.getRootCause(),
+                snapshot.getTimestamp(),
+                failingTaskName,
+                taskManagerLocation,
+                snapshot.getConcurrentlyFailedExecution());
+    }
 
     /**
      * Creates a {@code RootExceptionHistoryEntry} representing a global failure from the passed
-     * {@code Throwable} and timestamp.
+     * {@code Throwable} and timestamp. If any of the passed {@link Execution Executions} failed, it
+     * will be added to the {@code RootExceptionHistoryEntry}'s concurrently caught failures.
      *
      * @param cause The reason for the failure.
      * @param timestamp The time the failure was caught.
+     * @param executions The {@link Execution} instances that shall be analyzed for failures.
      * @return The {@code RootExceptionHistoryEntry} instance.
+     * @throws NullPointerException if {@code failure} is {@code null}.
+     * @throws IllegalArgumentException if the passed {@code timestamp} is not bigger than {@code
+     *     0}.
+     */
+    public static RootExceptionHistoryEntry fromGlobalFailure(
+            Throwable cause, long timestamp, Iterable<Execution> executions) {
+        return createRootExceptionHistoryEntry(cause, timestamp, null, null, executions);
+    }
+
+    private static RootExceptionHistoryEntry createRootExceptionHistoryEntry(
+            Throwable cause,
+            long timestamp,
+            @Nullable String failingTaskName,
+            @Nullable TaskManagerLocation taskManagerLocation,
+            Iterable<Execution> executions) {
+        return new RootExceptionHistoryEntry(
+                cause,
+                timestamp,
+                failingTaskName,
+                taskManagerLocation,
+                StreamSupport.stream(executions.spliterator(), false)
+                        .filter(execution -> execution.getFailureInfo().isPresent())
+                        .map(
+                                execution ->
+                                        ExceptionHistoryEntry.create(
+                                                execution, execution.getVertexWithAttempt()))
+                        .collect(Collectors.toSet()));
+    }
+
+    /**
+     * Instantiates a {@code RootExceptionHistoryEntry}.
+     *
+     * @param cause The reason for the failure.
+     * @param timestamp The time the failure was caught.
+     * @param failingTaskName The name of the task that failed.
+     * @param taskManagerLocation The host the task was running on.
      * @throws NullPointerException if {@code cause} is {@code null}.
      * @throws IllegalArgumentException if the passed {@code timestamp} is not bigger than {@code
      *     0}.
      */
     @VisibleForTesting
-    public static RootExceptionHistoryEntry fromGlobalFailure(Throwable cause, long timestamp) {
-        return new RootExceptionHistoryEntry(cause, timestamp, null, null);
-    }
-
-    /**
-     * Creates a {@code RootExceptionHistoryEntry} representing a local failure using the passed
-     * information.
-     *
-     * @param cause The reason for the failure.
-     * @param timestamp The time the failure was caught.
-     * @param failingTaskName The name of the task that failed.
-     * @param taskManagerLocation The {@link TaskManagerLocation} the task was running on.
-     * @return The {@code RootExceptionHistoryEntry} instance.
-     * @throws NullPointerException if {@code cause} or {@code failingTaskName} are {@code null}.
-     * @throws IllegalArgumentException if the passed {@code timestamp} is not bigger than {@code
-     *     0}.
-     */
-    @VisibleForTesting
-    public static RootExceptionHistoryEntry fromLocalFailure(
-            Throwable cause,
-            long timestamp,
-            String failingTaskName,
-            @Nullable TaskManagerLocation taskManagerLocation) {
-        return new RootExceptionHistoryEntry(
-                cause, timestamp, checkNotNull(failingTaskName), taskManagerLocation);
-    }
-
-    private RootExceptionHistoryEntry(
+    public RootExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
             @Nullable String failingTaskName,
-            @Nullable TaskManagerLocation taskManagerLocation) {
+            @Nullable TaskManagerLocation taskManagerLocation,
+            Set<ExceptionHistoryEntry> concurrentExceptions) {
         super(cause, timestamp, failingTaskName, taskManagerLocation);
-    }
-
-    void add(ExceptionHistoryEntry concurrentException) {
-        concurrentExceptions.add(concurrentException);
+        this.concurrentExceptions = concurrentExceptions;
     }
 
     public Iterable<ExceptionHistoryEntry> getConcurrentExceptions() {

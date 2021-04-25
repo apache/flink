@@ -1,6 +1,6 @@
 ---
 title: "INSERT 语句"
-weight: 6
+weight: 7
 type: docs
 aliases:
   - /zh/dev/table/sql/insert.html

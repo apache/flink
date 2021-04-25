@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, CatalogTableImpl, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Tabl
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
+
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
@@ -56,6 +57,9 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable2", createTemporalTable2())
     rootSchema.add("TemporalTable3", createTemporalTable3())
     rootSchema.add("projected_table_source_table", createProjectedTableSourceTable())
+    rootSchema.add(
+      "projected_table_source_table_with_partial_pk",
+      createProjectedTableSourceTableWithPartialCompositePrimaryKey())
     rootSchema
   }
 
@@ -147,12 +151,18 @@ object MetadataTestUtil {
 
   private def createMyTable3(): Table = {
     val schema = new TableSchema(
-      Array("a", "b"),
-      Array(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO))
+      Array("a", "b", "c"),
+      Array(
+        BasicTypeInfo.INT_TYPE_INFO,
+        BasicTypeInfo.DOUBLE_TYPE_INFO,
+        BasicTypeInfo.STRING_TYPE_INFO))
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(10L, 1L, 4D, 4, 5, -5),
-      "b" -> new ColumnStats(5L, 0L, 8D, 8, 6.1D, 0D)
+      "b" -> new ColumnStats(5L, 0L, 8D, 8, 6.1D, 0D),
+      "c" ->
+        ColumnStats.Builder.builder().setNdv(100L).setNullCount(1L).setAvgLen(16D).setMaxLen(128)
+          .setMax("zzzzz").setMin("").build()
     )
 
     val tableStats = new TableStats(100L, colStatsMap)
@@ -275,6 +285,43 @@ object MetadataTestUtil {
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
       Array("project=[a, c, d]"))
+  }
+
+  private def createProjectedTableSourceTableWithPartialCompositePrimaryKey(): Table = {
+    val catalogTable = CatalogTable.fromProperties(
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true",
+        "schema.0.name" -> "a",
+        "schema.0.data-type" -> "BIGINT NOT NULL",
+        "schema.1.name" -> "b",
+        "schema.1.data-type" -> "BIGINT NOT NULL",
+        "schema.primary-key.name" -> "PK_1",
+        "schema.primary-key.columns" -> "a,b")
+    )
+
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a"),
+      Seq(new BigIntType(false)))
+
+    new MockTableSourceTable(
+      ObjectIdentifier.of(
+        "default_catalog",
+        "default_database",
+        "projected_table_source_table_with_partial_pk"),
+      rowType,
+      new TestTableSource(),
+      true,
+      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      Array("project=[a]"))
   }
 
   private def getMetadataTable(

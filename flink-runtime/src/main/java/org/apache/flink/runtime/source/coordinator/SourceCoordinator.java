@@ -186,6 +186,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             subtaskId,
                             operatorName);
                     context.unregisterSourceReader(subtaskId);
+                    context.subtaskNotReady(subtaskId);
                 },
                 "handling subtask %d failure",
                 subtaskId);
@@ -215,6 +216,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        assert subtask == gateway.getSubtask();
+
+        runInEventLoop(
+                () -> context.subtaskReady(gateway),
+                "making event gateway to subtask %d available",
+                subtask);
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
         runInEventLoop(
                 () -> {
@@ -224,7 +235,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             checkpointId);
                     try {
                         context.onCheckpoint(checkpointId);
-                        result.complete(toBytes());
+                        result.complete(toBytes(checkpointId));
                     } catch (Throwable e) {
                         ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
                         result.completeExceptionally(
@@ -341,8 +352,9 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
      * @return A byte array containing the serialized state of the source coordinator.
      * @throws Exception When something goes wrong in serialization.
      */
-    private byte[] toBytes() throws Exception {
-        return writeCheckpointBytes(enumerator.snapshotState(), enumCheckpointSerializer);
+    private byte[] toBytes(long checkpointId) throws Exception {
+        return writeCheckpointBytes(
+                enumerator.snapshotState(checkpointId), enumCheckpointSerializer);
     }
 
     static <EnumChkT> byte[] writeCheckpointBytes(
@@ -367,7 +379,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     /**
      * Restore the state of this source coordinator from the state bytes.
      *
-     * @param bytes The checkpoint bytes that was returned from {@link #toBytes()}
+     * @param bytes The checkpoint bytes that was returned from {@link #toBytes(long)}
      * @throws Exception When the deserialization failed.
      */
     private EnumChkT deserializeCheckpoint(byte[] bytes) throws Exception {

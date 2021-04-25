@@ -144,11 +144,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                         CheckpointStorageLocationReference.getDefault(),
                         configuration.isExactlyOnceCheckpointMode(),
                         configuration.isUnalignedCheckpointsEnabled(),
-                        configuration.getAlignmentTimeout());
+                        configuration.getAlignmentTimeout().toMillis());
         final long timestamp = System.currentTimeMillis();
 
         final CheckpointMetaData checkpointMetaData =
-                new CheckpointMetaData(checkpointId, timestamp);
+                new CheckpointMetaData(checkpointId, timestamp, timestamp);
 
         super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
     }

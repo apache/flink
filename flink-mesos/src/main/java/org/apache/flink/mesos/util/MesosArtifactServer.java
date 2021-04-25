@@ -29,7 +29,11 @@ import java.net.URL;
  *
  * <p>More information: http://mesos.apache.org/documentation/latest/fetcher/
  * http://mesos.apache.org/documentation/latest/fetcher-cache-internals/
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public interface MesosArtifactServer extends MesosArtifactResolver {
 
     /**

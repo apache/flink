@@ -47,6 +47,8 @@ import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.testutils.junit.FailsOnJava11;
+import org.apache.flink.testutils.junit.RetryOnException;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
@@ -54,6 +56,7 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
@@ -61,6 +64,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
@@ -92,12 +96,16 @@ import static org.junit.Assert.assertTrue;
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
 @Category(FailsOnJava11.class)
+// this test is known to be unstable, but the exact cause is unknown
+@RetryOnException(times = 2, exception = NoHostAvailableException.class)
 public class CassandraConnectorITCase
         extends WriteAheadSinkTestBase<
                 Tuple3<String, Integer, Integer>,
                 CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
+
+    @Rule public final RetryRule retryRule = new RetryRule();
 
     private static final boolean EMBEDDED = true;
 

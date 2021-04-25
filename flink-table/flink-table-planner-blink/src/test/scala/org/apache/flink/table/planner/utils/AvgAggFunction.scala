@@ -25,6 +25,8 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findAvgAggType
 
 import java.lang.{Iterable => JIterable}
 import java.math.{BigDecimal, BigInteger, MathContext}
@@ -327,10 +329,10 @@ class DecimalAvgAggFunction(argType: DecimalType)
   }
 
   def getSumType: DecimalType =
-    FlinkTypeSystem.inferAggSumType(argType.getScale)
+    LogicalTypeMerging.findSumAggType(argType).asInstanceOf[DecimalType]
 
   override def getResultType: BigDecimalTypeInfo = {
-    val t = FlinkTypeSystem.inferAggAvgType(argType.getScale)
+    val t = LogicalTypeMerging.findAvgAggType(argType).asInstanceOf[DecimalType]
     new BigDecimalTypeInfo(t.getPrecision, t.getScale)
   }
 

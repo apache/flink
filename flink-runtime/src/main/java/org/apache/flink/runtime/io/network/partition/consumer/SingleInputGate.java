@@ -296,7 +296,7 @@ public class SingleInputGate extends IndexedInputGate {
 
     @VisibleForTesting
     void convertRecoveredInputChannels() {
-        LOG.info("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
+        LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
         for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry :
                 inputChannels.entrySet()) {
             InputChannel inputChannel = entry.getValue();

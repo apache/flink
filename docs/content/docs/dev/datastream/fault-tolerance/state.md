@@ -36,9 +36,9 @@ to learn about the concepts behind stateful stream processing.
 
 If you want to use keyed state, you first need to specify a key on a
 `DataStream` that should be used to partition the state (and also the records
-in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
-a `DataStream`. This will yield a `KeyedDataStream`, which then allows
-operations that use keyed state.
+in the stream themselves). You can specify a key using `keyBy(KeySelector)`
+in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
+This will yield a `KeyedStream`, which then allows operations that use keyed state.
 
 A key selector function takes a single record as input and returns the key for
 that record. The key can be of any type and **must** be derived from
@@ -76,12 +76,20 @@ val words: DataStream[WC] = // [...]
 val keyed = words.keyBy( _.word )
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+words = # type: DataStream[Row]
+keyed = words.key_by(lambda row: row[0])
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 #### Tuple Keys and Expression Keys
 
 Flink also has two alternative ways of defining keys: tuple keys and expression
-keys. With this you can specify keys using tuple field indices or expressions
+keys in the Java/Scala API(still not supported in the Python API). With this you can
+specify keys using tuple field indices or expressions
 for selecting fields of objects. We don't recommend using these today but you
 can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
 function is strictly superior: with Java lambdas they are easy to use and they
@@ -93,7 +101,7 @@ have potentially less overhead at runtime.
 
 The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
-on a `KeyedStream`, which can be created via `stream.keyBy(…)`.
+on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java/Scala API or `stream.key_by(…)` in Python API.
 
 Now, we will first look at the different types of state available and then we will see
 how they can be used in a program. The available state primitives are:
@@ -260,6 +268,54 @@ object ExampleCountWindowAverage extends App {
 }
 ```
 {{< /tab >}}
+
+{{< tab "Python" >}}
+```python
+from pyflink.common.typeinfo import Types
+from pyflink.datastream import StreamExecutionEnvironment, FlatMapFunction, RuntimeContext
+from pyflink.datastream.state import ValueStateDescriptor
+
+class CountWindowAverage(FlatMapFunction):
+
+    def __init__(self):
+        self.sum = None
+
+    def open(self, runtime_context: RuntimeContext):
+        descriptor = ValueStateDescriptor(
+            "average",  # the state name
+            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+        )
+        self.sum = runtime_context.get_state(descriptor)
+
+    def flat_map(self, value):
+        # access the state value
+        current_sum = self.sum.value()
+        if current_sum is None:
+            current_sum = (0, 0)
+
+        # update the count
+        current_sum = (current_sum[0] + 1, current_sum[1] + value[1])
+
+        # update the state
+        self.sum.update(current_sum)
+
+        # if the count reaches 2, emit the average and clear the state
+        if current_sum[0] >= 2:
+            self.sum.clear()
+            yield value[0], int(current_sum[1] / current_sum[0])
+
+
+env = StreamExecutionEnvironment.get_execution_environment()
+env.from_collection([(1, 3), (1, 5), (1, 7), (1, 4), (1, 2)]) \
+    .key_by(lambda row: row[0]) \
+    .flat_map(CountWindowAverage()) \
+    .print()
+
+env.execute()
+
+# the printed output will be (1,4) and (1,5)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 This example implements a poor man's counting window. We key the tuples by the first field
@@ -354,6 +410,8 @@ will lead to compatibility failure and `StateMigrationException`.
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
+- State TTL is still not supported in PyFlink DataStream API.
+
 #### Cleanup of Expired State
 
 By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected
@@ -376,6 +434,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .disableCleanupInBackground
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL is still not supported in PyFlink DataStream API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -411,6 +474,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupFullSnapshot
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL is still not supported in PyFlink DataStream API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -450,6 +518,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupIncrementally(10, true)
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL is still not supported in PyFlink DataStream API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -497,6 +570,11 @@ val ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
     .cleanupInRocksdbCompactFilter(1000)
     .build
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+State TTL is still not supported in PyFlink DataStream API.
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -559,6 +637,8 @@ In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
 scenarios where you don't have a key by which state can be partitioned.
 
+**Notes:** Operator state is still not supported in Python DataStream API.
+
 ## Broadcast State
 
 *Broadcast State* is a special type of *Operator State*.  It was introduced to
@@ -575,6 +655,8 @@ in that:
  2. it is only available to specific operators that have as inputs a
     *broadcasted* stream and a *non-broadcasted* one, and
  3. such an operator can have *multiple broadcast states* with different names.
+
+**Notes:** Broadcast state is still not supported in Python DataStream API.
 
 {{< top >}}
 
