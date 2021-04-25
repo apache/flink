@@ -170,7 +170,7 @@ ON orders.currency = currency_rates.currency
 order_id price currency conversion_rate  order_time
 ====== ==== ======  ============  ========
 o_001    11.11  EUR        1.14                    12:00:00
-o_002    12.51  EUR        1.10                    12:0600
+o_002    12.51  EUR        1.10                    12:06:00
 
 ```
 
