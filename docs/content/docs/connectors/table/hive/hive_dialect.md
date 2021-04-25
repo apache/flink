@@ -300,8 +300,6 @@ CREATE VIEW [IF NOT EXISTS] view_name [(column_name, ...) ]
 
 #### Alter
 
-**NOTE**: Altering view only works in Table API, but not supported via SQL client.
-
 ##### Rename
 
 ```sql
@@ -346,33 +344,90 @@ CREATE FUNCTION function_name AS class_name;
 DROP FUNCTION [IF EXISTS] function_name;
 ```
 
-## DML
+## DML & DQL _`Beta`_
 
-### INSERT
+Hive dialect supports a commonly-used subset of Hive's [DML](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML)
+and [DQL](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select). The following lists some examples of
+HiveQL supported by the Hive dialect.
 
-```sql
-INSERT (INTO|OVERWRITE) [TABLE] table_name [PARTITION partition_spec] SELECT ...;
+- [SORT/CLUSTER/DISTRIBUTE BY](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SortBy)
+- [Group By](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy)
+- [Join](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Joins)
+- [Union](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Union)
+- [LATERAL VIEW](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+LateralView)
+- [Window Functions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+WindowingAndAnalytics)
+- [SubQueries](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SubQueries)
+- [CTE](https://cwiki.apache.org/confluence/display/Hive/Common+Table+Expression)
+- [INSERT INTO dest schema](https://issues.apache.org/jira/browse/HIVE-9481)
+- [Implicit type conversions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-AllowedImplicitConversions)
+
+In order to have better syntax and semantic compatibility, it's highly recommended to use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
+and place it first in the module list, so that Hive built-in functions can be picked up during function resolution.
+
+Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries" >}}). Please switch to `default`
+dialect if you'd like to write in Flink syntax.
+
+Following is an example of using hive dialect to run some queries.
+
+```bash
+Flink SQL> create catalog myhive with ('type' = 'hive', 'hive-conf-dir' = '/opt/hive-conf');
+[INFO] Execute statement succeed.
+
+Flink SQL> use catalog myhive;
+[INFO] Execute statement succeed.
+
+Flink SQL> load module hive;
+[INFO] Execute statement succeed.
+
+Flink SQL> use modules hive,core;
+[INFO] Execute statement succeed.
+
+Flink SQL> set table.sql-dialect=hive;
+[INFO] Session property has been set.
+
+Flink SQL> select explode(array(1,2,3)); -- call hive udtf
++-----+
+| col |
++-----+
+|   1 |
+|   2 |
+|   3 |
++-----+
+3 rows in set
+
+Flink SQL> create table tbl (key int,value string);
+[INFO] Execute statement succeed.
+
+Flink SQL> insert overwrite table tbl values (5,'e'),(1,'a'),(1,'a'),(3,'c'),(2,'b'),(3,'c'),(3,'c'),(4,'d');
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+
+Flink SQL> select * from tbl cluster by key; -- run cluster by
+2021-04-22 16:13:57,005 INFO  org.apache.hadoop.mapred.FileInputFormat                     [] - Total input paths to process : 1
++-----+-------+
+| key | value |
++-----+-------+
+|   1 |     a |
+|   1 |     a |
+|   5 |     e |
+|   2 |     b |
+|   3 |     c |
+|   3 |     c |
+|   3 |     c |
+|   4 |     d |
++-----+-------+
+8 rows in set
 ```
-
-The `partition_spec`, if present, can be either a full spec or partial spec. If the `partition_spec` is a partial
-spec, the dynamic partition column names can be omitted.
-
-## DQL
-
-At the moment, Hive dialect supports the same syntax as Flink SQL for DQLs. Refer to
-[Flink SQL queries]({{< ref "docs/dev/table/sql/queries" >}}) for more details. And it's recommended to switch to
-`default` dialect to execute DQLs.
 
 ## Notice
 
 The following are some precautions for using the Hive dialect.
 
-- Hive dialect should only be used to manipulate Hive tables, not generic tables. And Hive dialect should be used together
-with a [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}).
+- Hive dialect should only be used to process Hive meta objects, and requires the current catalog to be a
+[HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}).
+- Hive dialect only supports 2-part identifiers, so you can't specify catalog for an identifier.
 - While all Hive versions support the same syntax, whether a specific feature is available still depends on the
 [Hive version]({{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions) you use. For example, updating database
 location is only supported in Hive-2.4.0 or later.
-- Hive and Calcite have different sets of reserved keywords. For example, `default` is a reserved keyword in Calcite and
-a non-reserved keyword in Hive. Even with Hive dialect, you have to quote such keywords with backtick ( ` ) in order to
-use them as identifiers.
-- Due to expanded query incompatibility, views created in Flink cannot be queried in Hive.
+- Use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
+to run DML and DQL.

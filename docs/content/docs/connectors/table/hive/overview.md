@@ -131,6 +131,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-2.3.4.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.0.0" >}}
@@ -149,6 +152,9 @@ Please find the required dependencies for different Hive major versions below.
        // Orc dependencies -- required by the ORC vectorized optimizations
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -169,6 +175,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.2.1" >}}
@@ -188,6 +197,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.0.0" >}}
@@ -201,6 +213,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-2.0.0.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.1.0" >}}
@@ -213,6 +228,9 @@ Please find the required dependencies for different Hive major versions below.
 
        // Hive dependencies
        hive-exec-2.1.0.jar
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -231,6 +249,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 3.1.0" >}}
@@ -244,6 +265,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-3.1.0.jar
        libfb303-0.9.3.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
