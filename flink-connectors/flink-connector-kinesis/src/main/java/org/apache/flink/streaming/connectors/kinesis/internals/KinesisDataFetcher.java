@@ -800,34 +800,59 @@ public class KinesisDataFetcher<T> {
      * executed and all shard consuming threads will be interrupted.
      */
     public void shutdownFetcher() {
-        if (LOG.isInfoEnabled()) {
-            LOG.info(
-                    "Starting shutdown of shard consumer threads and AWS SDK resources of subtask {} ...",
-                    indexOfThisConsumerSubtask);
-        }
+        LOG.info(
+                "Starting shutdown of shard consumer threads and AWS SDK resources of subtask {} ...",
+                indexOfThisConsumerSubtask,
+                error.get());
 
         running = false;
+        try {
+            try {
+                deregisterStreamConsumer();
+            } catch (Exception e) {
+                LOG.warn("Encountered exception deregistering stream consumers", e);
+            }
 
-        StreamConsumerRegistrarUtil.deregisterStreamConsumers(configProps, streams);
+            try {
+                closeRecordPublisherFactory();
+            } catch (Exception e) {
+                LOG.warn("Encountered exception closing record publisher factory", e);
+            }
+        } finally {
+            shardConsumersExecutor.shutdownNow();
 
+            if (mainThread != null) {
+                mainThread
+                        .interrupt(); // the main thread may be sleeping for the discovery interval
+            }
+
+            if (watermarkTracker != null) {
+                watermarkTracker.close();
+            }
+            this.recordEmitter.stop();
+        }
+
+        LOG.info(
+                "Shutting down the shard consumer threads of subtask {} ...",
+                indexOfThisConsumerSubtask);
+    }
+
+    /**
+     * Closes recordRecordPublisherFactory. Allows test to override this to simulate exception for
+     * shutdown logic.
+     */
+    @VisibleForTesting
+    protected void closeRecordPublisherFactory() {
         recordPublisherFactory.close();
+    }
 
-        shardConsumersExecutor.shutdownNow();
-
-        if (mainThread != null) {
-            mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
-        }
-
-        if (watermarkTracker != null) {
-            watermarkTracker.close();
-        }
-        this.recordEmitter.stop();
-
-        if (LOG.isInfoEnabled()) {
-            LOG.info(
-                    "Shutting down the shard consumer threads of subtask {} ...",
-                    indexOfThisConsumerSubtask);
-        }
+    /**
+     * Deregisters stream consumers. Allows test to override this to simulate exception for shutdown
+     * logic.
+     */
+    @VisibleForTesting
+    protected void deregisterStreamConsumer() {
+        StreamConsumerRegistrarUtil.deregisterStreamConsumers(configProps, streams);
     }
 
     /**
