@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -219,8 +220,13 @@ public class JobManagerRunnerImpl
 
                             classLoaderLease.release();
 
-                            resultFuture.completeExceptionally(
-                                    new JobNotFinishedException(jobGraph.getJobID()));
+                            resultFuture.complete(
+                                    ArchivedExecutionGraph.createFromInitializingJob(
+                                            jobGraph.getJobID(),
+                                            jobGraph.getName(),
+                                            JobStatus.SUSPENDED,
+                                            null,
+                                            0L));
 
                             if (throwable != null) {
                                 terminationFuture.completeExceptionally(
