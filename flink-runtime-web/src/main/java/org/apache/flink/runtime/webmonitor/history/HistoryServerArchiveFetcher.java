@@ -195,17 +195,9 @@ class HistoryServerArchiveFetcher {
             this.cachedArchives = new HashSet<>();
             this.webDir = checkNotNull(webDir);
             this.webJobDir = new File(webDir, "jobs");
-            if (!webJobDir.exists() && !webJobDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory " + webJobDir.getAbsoluteFile() + ".");
-            }
+            Files.createDirectories(webJobDir.toPath());
             this.webOverviewDir = new File(webDir, "overviews");
-            if (!webOverviewDir.exists() && !webOverviewDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory "
-                                + webOverviewDir.getAbsoluteFile()
-                                + ".");
-            }
+            Files.createDirectories(webOverviewDir.toPath());
             updateJobOverview(webOverviewDir, webDir);
         }
 
