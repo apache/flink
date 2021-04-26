@@ -85,11 +85,10 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
     @Override
     public void open() throws Exception {
         super.open();
-
         JoinCondition condition =
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        condition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys);
+        this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys, this);
+        this.joinCondition.setRuntimeContext(getRuntimeContext());
         this.joinCondition.open(new Configuration());
 
         this.collector = new TimestampedCollector<>(output);

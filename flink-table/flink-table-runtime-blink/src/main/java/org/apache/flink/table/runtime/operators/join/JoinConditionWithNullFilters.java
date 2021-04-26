@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 
 /** Utility to take null filters into consideration when apply join condition. */
-public class JoinConditionWithNullFilters extends AbstractRichFunction implements JoinCondition {
+public class JoinConditionWithNullFilters extends WrappingFunction<JoinCondition> implements JoinCondition {
 
-    private final JoinCondition backingJoinCondition;
+    private static final long serialVersionUID = 1L;
 
     /** Should filter null keys. */
     private final int[] nullFilterKeys;
@@ -38,42 +38,28 @@ public class JoinConditionWithNullFilters extends AbstractRichFunction implement
     /** Filter null to all keys. */
     private final boolean filterAllNulls;
 
-    private NullAwareGetters joinKey;
+    private KeyContext keyContext;
 
     public JoinConditionWithNullFilters(
-            JoinCondition backingJoinCondition, boolean[] filterNullKeys) {
-        this.backingJoinCondition = backingJoinCondition;
+            JoinCondition backingJoinCondition, boolean[] filterNullKeys, KeyContext keyContext) {
+        super(backingJoinCondition);
         this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
         this.nullSafe = nullFilterKeys.length == 0;
         this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;
-    }
-
-    @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
-        backingJoinCondition.open(parameters);
-    }
-
-    @Override
-    public void close() throws Exception {
-        super.close();
-        backingJoinCondition.close();
+        this.keyContext = keyContext;
     }
 
     @Override
     public boolean apply(RowData left, RowData right) {
         if (!nullSafe) { // is not null safe, return false if any null exists
             // key is always BinaryRowData
+            NullAwareGetters joinKey = (NullAwareGetters) keyContext.getCurrentKey();
             if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
                 // find null present, return false directly
                 return false;
             }
         }
         // test condition
-        return backingJoinCondition.apply(left, right);
-    }
-
-    public void setCurrentJoinKey(NullAwareGetters joinKey) {
-        this.joinKey = joinKey;
+        return wrappedFunction.apply(left, right);
     }
 }
