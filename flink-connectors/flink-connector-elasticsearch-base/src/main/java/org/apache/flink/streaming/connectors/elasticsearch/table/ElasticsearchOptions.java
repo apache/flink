@@ -85,11 +85,11 @@ public class ElasticsearchOptions {
                                             "Failure handling strategy in case a request to Elasticsearch fails")
                                     .list(
                                             text(
-                                                    "\"fail\" (throws an exception if a request fails and thus causes a job failure),"),
+                                                    "\"fail\" (throws an exception if a request fails and thus causes a job failure)"),
                                             text(
-                                                    "\"ignore\" (ignores failures and drops the request),"),
+                                                    "\"ignore\" (ignores failures and drops the request)"),
                                             text(
-                                                    "\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation),"),
+                                                    "\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation)"),
                                             text(
                                                     "\"class name\" for failure handling with a ActionRequestFailureHandler subclass"))
                                     .build());
