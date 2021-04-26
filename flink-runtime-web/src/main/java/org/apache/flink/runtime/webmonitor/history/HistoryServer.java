@@ -188,6 +188,11 @@ public class HistoryServer {
                             + UUID.randomUUID();
         }
         webDir = new File(webDirectory);
+        if (!webDir.exists() && !webDir.mkdirs()) {
+            throw new IOException(
+                    "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
+        }
+        LOG.info("Using directory {} as local cache.", webDir);
 
         boolean cleanupExpiredArchives =
                 config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
@@ -265,16 +270,8 @@ public class HistoryServer {
         synchronized (startupShutdownLock) {
             LOG.info("Starting history server.");
 
-            Files.createDirectories(webDir.toPath());
-            LOG.info("Using directory {} as local cache.", webDir);
-
             Router router = new Router();
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
-
-            if (!webDir.exists() && !webDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
-            }
 
             createDashboardConfigFile();
 

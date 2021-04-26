@@ -119,7 +119,8 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize) {
+            int maxHistorySize)
+            throws IOException {
         this.refreshIntervalMillis = refreshIntervalMillis;
         this.fetcherTask =
                 new JobArchiveFetcherTask(
@@ -184,7 +185,8 @@ class HistoryServerArchiveFetcher {
                 File webDir,
                 Consumer<ArchiveEvent> jobArchiveEventListener,
                 boolean processExpiredArchiveDeletion,
-                int maxHistorySize) {
+                int maxHistorySize)
+                throws IOException {
             this.refreshDirs = checkNotNull(refreshDirs);
             this.jobArchiveEventListener = jobArchiveEventListener;
             this.processExpiredArchiveDeletion = processExpiredArchiveDeletion;
@@ -193,9 +195,17 @@ class HistoryServerArchiveFetcher {
             this.cachedArchives = new HashSet<>();
             this.webDir = checkNotNull(webDir);
             this.webJobDir = new File(webDir, "jobs");
-            webJobDir.mkdir();
+            if (!webJobDir.exists() && !webJobDir.mkdirs()) {
+                throw new IOException(
+                        "Failed to create local directory " + webJobDir.getAbsoluteFile() + ".");
+            }
             this.webOverviewDir = new File(webDir, "overviews");
-            webOverviewDir.mkdir();
+            if (!webOverviewDir.exists() && !webOverviewDir.mkdirs()) {
+                throw new IOException(
+                        "Failed to create local directory "
+                                + webOverviewDir.getAbsoluteFile()
+                                + ".");
+            }
             updateJobOverview(webOverviewDir, webDir);
         }
 
