@@ -562,9 +562,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       def getAggCallFromLocalAgg(
           index: Int,
           aggCalls: Seq[AggregateCall],
-          inputType: RelDataType): AggregateCall = {
+          inputType: RelDataType,
+          isBounded: Boolean): AggregateCall = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          aggCalls, inputType)
+          aggCalls, inputType, isBounded)
         if (outputIndexToAggCallIndexMap.containsKey(index)) {
           val realIndex = outputIndexToAggCallIndexMap.get(index)
           aggCalls(realIndex)
@@ -576,9 +577,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       def getAggCallIndexInLocalAgg(
           index: Int,
           globalAggCalls: Seq[AggregateCall],
-          inputRowType: RelDataType): Integer = {
+          inputRowType: RelDataType,
+          isBounded: Boolean): Integer = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          globalAggCalls, inputRowType)
+          globalAggCalls, inputRowType, isBounded)
 
         outputIndexToAggCallIndexMap.foreach {
           case (k, v) => if (v == index) {
@@ -600,34 +602,37 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           case agg: StreamPhysicalGlobalGroupAggregate
             if agg.aggCalls.length > aggCallIndex =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.aggCalls, agg.localAggInputRowType)
+              aggCallIndex, agg.aggCalls, agg.localAggInputRowType, isBounded = false)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
               null
             }
           case agg: StreamPhysicalLocalGroupAggregate =>
-            getAggCallFromLocalAgg(aggCallIndex, agg.aggCalls, agg.getInput.getRowType)
+            getAggCallFromLocalAgg(
+              aggCallIndex, agg.aggCalls, agg.getInput.getRowType, isBounded = false)
           case agg: StreamPhysicalIncrementalGroupAggregate
             if agg.partialAggCalls.length > aggCallIndex =>
             agg.partialAggCalls(aggCallIndex)
           case agg: StreamPhysicalGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
           case agg: BatchPhysicalLocalHashAggregate =>
-            getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
+            getAggCallFromLocalAgg(
+              aggCallIndex, agg.getAggCallList, agg.getInput.getRowType, isBounded = true)
           case agg: BatchPhysicalHashAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
+              aggCallIndex, agg.getAggCallList, agg.aggInputRowType, isBounded = true)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
               null
             }
           case agg: BatchPhysicalLocalSortAggregate =>
-            getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
+            getAggCallFromLocalAgg(
+              aggCallIndex, agg.getAggCallList, agg.getInput.getRowType, isBounded = true)
           case agg: BatchPhysicalSortAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
+              aggCallIndex, agg.getAggCallList, agg.aggInputRowType, isBounded = true)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
