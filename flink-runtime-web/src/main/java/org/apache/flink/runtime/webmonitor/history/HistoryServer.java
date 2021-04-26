@@ -271,11 +271,6 @@ public class HistoryServer {
             Router router = new Router();
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
-            if (!webDir.exists() && !webDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
-            }
-
             createDashboardConfigFile();
 
             archiveFetcher.start();
