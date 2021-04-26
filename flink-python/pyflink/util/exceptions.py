@@ -148,7 +148,13 @@ def capture_java_exception(f):
             from pyflink.java_gateway import get_gateway
             get_gateway().jvm.org.apache.flink.client.python.PythonEnvUtils\
                 .setPythonException(e.java_exception)
-            java_exception = convert_py4j_exception(e)
+            s = e.java_exception.toString()
+            for exception in exception_mapping.keys():
+                if s.startswith(exception):
+                    java_exception = convert_py4j_exception(e)
+                    break
+            else:
+                raise
         raise java_exception
     return deco
 
