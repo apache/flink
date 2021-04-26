@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -184,5 +185,37 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
                         + "     INTERVAL '5' SECOND,\n"
                         + "     INTERVAL '15' SECOND))\n"
                         + "GROUP BY b, window_start, window_end");
+    }
+
+    @Test
+    public void testDistinctSplitEnabled() {
+        tEnv.getConfig()
+                .getConfiguration()
+                .setBoolean(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a bigint,\n"
+                        + "  window_start timestamp(3),\n"
+                        + "  window_end timestamp(3),\n"
+                        + "  cnt_star bigint,\n"
+                        + "  sum_b bigint,\n"
+                        + "  cnt_distinct_c bigint\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+
+        util.verifyJsonPlan(
+                "insert into MySink select a, "
+                        + "   window_start, "
+                        + "   window_end, "
+                        + "   count(*), "
+                        + "   sum(b), "
+                        + "   count(distinct c) AS uv "
+                        + "FROM TABLE ("
+                        + "   CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR)) "
+                        + "GROUP BY a, window_start, window_end");
     }
 }

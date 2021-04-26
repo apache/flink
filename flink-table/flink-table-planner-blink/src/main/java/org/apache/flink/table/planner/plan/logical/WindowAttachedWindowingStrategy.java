@@ -48,7 +48,7 @@ public class WindowAttachedWindowingStrategy extends WindowingStrategy {
             @JsonProperty(FIELD_NAME_WINDOW_START) int windowStart,
             @JsonProperty(FIELD_NAME_WINDOW_END) int windowEnd) {
         super(window, timeAttributeType);
-        checkArgument(windowEnd >= 0 && windowStart >= 0);
+        checkArgument(windowEnd >= 0);
         this.windowStart = windowStart;
         this.windowEnd = windowEnd;
     }

@@ -42,7 +42,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     public static Object[] parameters() {
         return new Object[][] {
             new Object[] {AggregatePhaseStrategy.ONE_PHASE},
-            new Object[] {AggregatePhaseStrategy.ONE_PHASE}
+            new Object[] {AggregatePhaseStrategy.TWO_PHASE}
         };
     }
 
@@ -178,6 +178,49 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         "+I[null, 1]",
                         "+I[null, 1]",
                         "+I[null, 1]"),
+                result);
+    }
+
+    @Test
+    public void testDistinctSplitEnabled() throws Exception {
+        tableEnv.getConfig()
+                .getConfiguration()
+                .setBoolean(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+        createTestValuesSinkTable(
+                "MySink", "name STRING", "max_double DOUBLE", "cnt_distinct_int BIGINT");
+
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink select name, "
+                                + "   max(`double`),\n"
+                                + "   count(distinct `int`) "
+                                + "FROM TABLE ("
+                                + "  CUMULATE(\n"
+                                + "     TABLE MyTable,\n"
+                                + "     DESCRIPTOR(rowtime),\n"
+                                + "     INTERVAL '5' SECOND,\n"
+                                + "     INTERVAL '15' SECOND))"
+                                + "GROUP BY name, window_start, window_end");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+
+        List<String> result = TestValuesTableFactory.getResults("MySink");
+        assertResult(
+                Arrays.asList(
+                        "+I[a, 5.0, 3]",
+                        "+I[a, 5.0, 4]",
+                        "+I[a, 5.0, 4]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 6.0, 2]",
+                        "+I[b, 6.0, 2]",
+                        "+I[null, 7.0, 1]",
+                        "+I[null, 7.0, 1]",
+                        "+I[null, 7.0, 1]"),
                 result);
     }
 }
