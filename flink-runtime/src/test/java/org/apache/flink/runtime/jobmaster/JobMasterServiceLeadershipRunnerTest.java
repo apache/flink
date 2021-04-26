@@ -69,6 +69,7 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -658,13 +659,15 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
                         "Result future should be completed exceptionally."));
     }
 
-    private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture) {
-        try {
-            resultFuture.get();
-            fail("Expect exception");
-        } catch (Throwable t) {
-            assertThat(t, containsCause(JobNotFinishedException.class));
-        }
+    private void assertJobNotFinished(CompletableFuture<JobManagerRunnerResult> resultFuture)
+            throws ExecutionException, InterruptedException {
+        final JobManagerRunnerResult jobManagerRunnerResult = resultFuture.get();
+        assertEquals(
+                jobManagerRunnerResult
+                        .getExecutionGraphInfo()
+                        .getArchivedExecutionGraph()
+                        .getState(),
+                JobStatus.SUSPENDED);
     }
 
     public JobMasterServiceLeadershipRunnerBuilder newJobMasterServiceLeadershipRunnerBuilder() {

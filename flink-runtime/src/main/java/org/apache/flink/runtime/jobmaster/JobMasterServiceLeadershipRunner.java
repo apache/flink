@@ -67,8 +67,6 @@ import java.util.function.Supplier;
  * <ul>
  *   <li>{@link JobManagerRunnerResult} to signal an initialization failure of the {@link
  *       JobMasterService} or the completion of a job
- *   <li>{@link JobNotFinishedException} to signal that the job has not been completed by the {@link
- *       JobMasterService}
  *   <li>{@link Exception} to signal an unexpected failure
  * </ul>
  */
@@ -134,7 +132,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException(
                                 "JobMasterServiceLeadershipRunner is closed. Therefore, the corresponding JobMaster will never acquire the leadership."));
-                resultFuture.completeExceptionally(new JobNotFinishedException(getJobID()));
+                resultFuture.complete(
+                        JobManagerRunnerResult.forSuccess(
+                                createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED)));
 
                 final CompletableFuture<Void> processTerminationFuture =
                         jobMasterServiceProcess.closeAsync();
@@ -225,12 +225,10 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                             .thenCompose(jobMasterGateway -> jobMasterGateway.requestJob(timeout));
                 } else {
                     return CompletableFuture.completedFuture(
-                            new ExecutionGraphInfo(
-                                    jobMasterServiceProcessFactory.createArchivedExecutionGraph(
-                                            hasCurrentLeaderBeenCancelled
-                                                    ? JobStatus.CANCELLING
-                                                    : JobStatus.INITIALIZING,
-                                            null)));
+                            createExecutionGraphInfoWithJobStatus(
+                                    hasCurrentLeaderBeenCancelled
+                                            ? JobStatus.CANCELLING
+                                            : JobStatus.INITIALIZING));
                 }
             } else {
                 return resultFuture.thenApply(JobManagerRunnerResult::getExecutionGraphInfo);
@@ -279,6 +277,11 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         } else {
             createNewJobMasterServiceProcess(leaderSessionId);
         }
+    }
+
+    private ExecutionGraphInfo createExecutionGraphInfoWithJobStatus(JobStatus jobStatus) {
+        return new ExecutionGraphInfo(
+                jobMasterServiceProcessFactory.createArchivedExecutionGraph(jobStatus, null));
     }
 
     private void jobAlreadyDone() {
