@@ -145,14 +145,14 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList localAggInfoList =
-                AggregateUtil.deriveWindowAggregateInfoList(
+                AggregateUtil.deriveStreamWindowAggregateInfoList(
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
                         false); // isStateBackendDataViews
 
         final AggregateInfoList globalAggInfoList =
-                AggregateUtil.deriveWindowAggregateInfoList(
+                AggregateUtil.deriveStreamWindowAggregateInfoList(
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),

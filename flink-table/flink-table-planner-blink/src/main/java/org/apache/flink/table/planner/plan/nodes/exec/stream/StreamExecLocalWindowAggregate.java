@@ -122,7 +122,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList aggInfoList =
-                AggregateUtil.deriveWindowAggregateInfoList(
+                AggregateUtil.deriveStreamWindowAggregateInfoList(
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
