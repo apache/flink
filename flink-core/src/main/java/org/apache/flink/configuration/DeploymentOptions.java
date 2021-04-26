@@ -37,13 +37,17 @@ public class DeploymentOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The deployment target for the execution. This can take one of the following values:")
+                                            "The deployment target for the execution. This can take one of the following values "
+                                                    + "when execute bin/flink run:")
                                     .list(
                                             text("remote"),
                                             text("local"),
                                             text("yarn-per-job"),
                                             text("yarn-session"),
                                             text("kubernetes-session"))
+                                    .text(
+                                            ", and can take one of the following values when execute bin/flink run-application:")
+                                    .list(text("yarn-application"), text("kubernetes-application"))
                                     .text(".")
                                     .build());
 
