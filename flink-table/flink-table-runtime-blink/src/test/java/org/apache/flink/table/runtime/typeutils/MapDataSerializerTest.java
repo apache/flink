@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.StringData;
@@ -31,6 +33,7 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 
@@ -83,6 +86,7 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
         first.put(1, StringData.fromString(""));
         return new MapData[] {
             new GenericMapData(first),
+            new CustomMapData(first),
             BinaryMapData.valueOf(
                     createArray(1, 2), ArrayDataSerializerTest.createArray("11", "haa")),
             BinaryMapData.valueOf(
@@ -103,5 +107,52 @@ public class MapDataSerializerTest extends SerializerTestBase<MapData> {
         }
         writer.complete();
         return array;
+    }
+
+    /** A simple custom implementation for {@link MapData}. */
+    public static class CustomMapData implements MapData {
+
+        private final Map<?, ?> map;
+
+        public CustomMapData(Map<?, ?> map) {
+            this.map = map;
+        }
+
+        public Object get(Object key) {
+            return map.get(key);
+        }
+
+        @Override
+        public int size() {
+            return map.size();
+        }
+
+        @Override
+        public ArrayData keyArray() {
+            Object[] keys = map.keySet().toArray();
+            return new GenericArrayData(keys);
+        }
+
+        @Override
+        public ArrayData valueArray() {
+            Object[] values = map.values().toArray();
+            return new GenericArrayData(values);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == this) {
+                return true;
+            }
+            if (!(o instanceof CustomMapData)) {
+                return false;
+            }
+            return map.equals(((CustomMapData) o).map);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(map);
+        }
     }
 }
