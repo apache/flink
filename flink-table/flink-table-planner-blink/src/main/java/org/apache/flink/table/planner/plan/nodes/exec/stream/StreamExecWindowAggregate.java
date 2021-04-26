@@ -143,7 +143,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         // Hopping window requires additional COUNT(*) to determine whether to register next timer
         // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
         final AggregateInfoList aggInfoList =
-                AggregateUtil.deriveWindowAggregateInfoList(
+                AggregateUtil.deriveStreamWindowAggregateInfoList(
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),

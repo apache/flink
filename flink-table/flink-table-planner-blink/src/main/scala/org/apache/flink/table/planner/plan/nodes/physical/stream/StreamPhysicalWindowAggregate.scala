@@ -56,7 +56,7 @@ class StreamPhysicalWindowAggregate(
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 
-  lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveWindowAggregateInfoList(
+  lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveStreamWindowAggregateInfoList(
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     windowing.getWindow,
