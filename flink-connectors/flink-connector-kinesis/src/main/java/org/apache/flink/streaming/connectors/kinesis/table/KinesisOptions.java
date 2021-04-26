@@ -86,7 +86,7 @@ public class KinesisOptions {
             ConfigOptions.key("stream")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Name of the Kinesis stream backing this table (required)");
+                    .withDescription("Name of the Kinesis stream backing this table.");
 
     // -----------------------------------------------------------------------------------------
     // Sink specific options
