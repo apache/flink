@@ -25,7 +25,8 @@ import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 
 /** Utility to take null filters into consideration when apply join condition. */
-public class JoinConditionWithNullFilters extends WrappingFunction<JoinCondition> implements JoinCondition {
+public class JoinConditionWithNullFilters extends WrappingFunction<JoinCondition>
+        implements JoinCondition {
 
     private static final long serialVersionUID = 1L;
 
@@ -38,7 +39,7 @@ public class JoinConditionWithNullFilters extends WrappingFunction<JoinCondition
     /** Filter null to all keys. */
     private final boolean filterAllNulls;
 
-    private KeyContext keyContext;
+    private final KeyContext keyContext;
 
     public JoinConditionWithNullFilters(
             JoinCondition backingJoinCondition, boolean[] filterNullKeys, KeyContext keyContext) {
