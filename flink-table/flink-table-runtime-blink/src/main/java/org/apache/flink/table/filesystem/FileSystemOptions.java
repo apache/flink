@@ -38,14 +38,13 @@ public class FileSystemOptions {
                     .defaultValue("__DEFAULT_PARTITION__")
                     .withDescription(
                             "The default partition name in case the dynamic partition"
-                                    + " column value is null/empty string");
+                                    + " column value is null/empty string.");
 
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
                     .memoryType()
                     .defaultValue(MemorySize.ofMebiBytes(128))
-                    .withDescription(
-                            "The maximum part file size before rolling (by default 128MB).");
+                    .withDescription("The maximum part file size before rolling.");
 
     public static final ConfigOption<Duration> SINK_ROLLING_POLICY_ROLLOVER_INTERVAL =
             key("sink.rolling-policy.rollover-interval")
@@ -53,7 +52,7 @@ public class FileSystemOptions {
                     .defaultValue(Duration.ofMinutes(30))
                     .withDescription(
                             "The maximum time duration a part file can stay open before rolling"
-                                    + " (by default 30 min to avoid to many small files). The frequency at which"
+                                    + " (by default long enough to avoid too many small files). The frequency at which"
                                     + " this is checked is controlled by the 'sink.rolling-policy.check-interval' option.");
 
     public static final ConfigOption<Duration> SINK_ROLLING_POLICY_CHECK_INTERVAL =
@@ -71,7 +70,7 @@ public class FileSystemOptions {
                     .withDescription(
                             "The option to enable shuffle data by dynamic partition fields in sink"
                                     + " phase, this can greatly reduce the number of file for filesystem sink but may"
-                                    + " lead data skew, the default value is disabled.");
+                                    + " lead data skew.");
 
     public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
             key("streaming-source.enable")
