@@ -25,18 +25,21 @@ import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.typeutils.MapDataSerializerTest.CustomMapData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
+import org.apache.flink.util.CollectionUtil
 
+import java.util
 import org.junit.Assert._
 import org.junit._
-
+import scala.collection.JavaConversions._
 import scala.collection.Seq
 
 class CalcITCase extends StreamingTestBase {
@@ -292,6 +295,47 @@ class CalcITCase extends StreamingTestBase {
     sink.getAppendResults.foreach( result =>
       assertEquals(expected, result)
     )
+  }
+
+  @Test
+  def testSourceWithCustomInternalData(): Unit = {
+
+    def createMapData(k: Long, v: Long): MapData = {
+      val mapData = new util.HashMap[Long, Long]()
+      mapData.put(k, v)
+      new CustomMapData(mapData)
+    }
+
+    val rowData1: GenericRowData = new GenericRowData(2)
+    rowData1.setField(0, 1L)
+    rowData1.setField(1, createMapData(1L, 2L))
+    val rowData2: GenericRowData = new GenericRowData(2)
+    rowData2.setField(0, 2L)
+    rowData2.setField(1, createMapData(4L, 5L))
+    val values = List(rowData1, rowData2)
+
+    val myTableDataId = TestValuesTableFactory.registerRowData(values)
+
+    val ddl =
+      s"""
+         |CREATE TABLE CustomTable (
+         |  a bigint,
+         |  b map<bigint, bigint>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId',
+         |  'register-internal-data' = 'true',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+
+    env.getConfig.disableObjectReuse()
+    tEnv.executeSql(ddl)
+    val result = tEnv.executeSql( "select a, b from CustomTable")
+
+    val expected = List("1,{1=2}", "2,{4=5}")
+    val actual = CollectionUtil.iteratorToList(result.collect()).map(r => r.toString)
+    assertEquals(expected.sorted, actual.sorted)
   }
 
   @Test
