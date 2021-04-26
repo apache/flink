@@ -2211,8 +2211,8 @@ def map_function(a: Row) -> Row:
 # map operation with a python general scalar function
 func = udf(map_function, result_type=DataTypes.ROW(
                                      [DataTypes.FIELD("a", DataTypes.BIGINT()),
-                                      DataTypes.FIELD("b", DataTypes.BIGINT()))]))
-table = input.map(map_function).alias('a', 'b')
+                                      DataTypes.FIELD("b", DataTypes.BIGINT())]))
+table = input.map(func).alias('a', 'b')
 
 # map operation with a python vectorized scalar function
 pandas_func = udf(lambda x: x * 2, result_type=DataTypes.ROW(
@@ -2414,11 +2414,9 @@ from pyflink.table.udf import AggregateFunction, udaf
 class CountAndSumAggregateFunction(AggregateFunction):
 
     def get_value(self, accumulator):
-        from pyflink.common import Row
         return Row(accumulator[0], accumulator[1])
 
     def create_accumulator(self):
-        from pyflink.common import Row
         return Row(0, 0)
 
     def accumulate(self, accumulator, *args):
@@ -2461,8 +2459,7 @@ pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                        [DataTypes.FIELD("a", DataTypes.FLOAT()),
                         DataTypes.FIELD("b", DataTypes.INT())]),
                    func_type="pandas")
-t.select(t.b) \
-    .aggregate(pandas_udaf.alias("a", "b")) \
+t.aggregate(pandas_udaf.alias("a", "b")) \
     .select("a, b")
 
 ```

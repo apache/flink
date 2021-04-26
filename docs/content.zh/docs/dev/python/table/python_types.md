@@ -1,6 +1,6 @@
 ---
 title: "数据类型"
-weight: 31
+weight: 32
 type: docs
 aliases:
   - /zh/dev/python/table-api-users-guide/python_types.html
