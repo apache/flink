@@ -38,6 +38,7 @@ import java.io.EOFException;
 import java.time.ZoneId;
 import java.util.Iterator;
 
+import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
@@ -51,6 +52,9 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     private final WindowKey reuseWindowKey;
     private final AbstractRowDataSerializer<RowData> recordSerializer;
     private final ZoneId shiftTimeZone;
+    // copy key and input record if necessary(e.g., heap state backend),
+    // because key and record are reused.
+    private final boolean requiresCopy;
 
     private long minSliceEnd = Long.MAX_VALUE;
 
@@ -61,6 +65,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             RecordsCombiner combineFunction,
             PagedTypeSerializer<RowData> keySer,
             AbstractRowDataSerializer<RowData> inputSer,
+            boolean requiresCopy,
             ZoneId shiftTimeZone) {
         this.combineFunction = combineFunction;
         this.recordsBuffer =
@@ -68,6 +73,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                         operatorOwner, memoryManager, memorySize, keySer, inputSer.getArity());
         this.recordSerializer = inputSer;
         this.reuseWindowKey = new WindowKeySerializer(keySer).createInstance();
+        this.requiresCopy = requiresCopy;
         this.shiftTimeZone = shiftTimeZone;
     }
 
@@ -102,7 +108,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
     public void flush() throws Exception {
         if (recordsBuffer.getNumKeys() > 0) {
             KeyValueIterator<WindowKey, Iterator<RowData>> entryIterator =
-                    recordsBuffer.getEntryIterator();
+                    recordsBuffer.getEntryIterator(requiresCopy);
             while (entryIterator.advanceNext()) {
                 combineFunction.combine(entryIterator.getKey(), entryIterator.getValue());
             }
@@ -155,6 +161,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             RecordsCombiner combiner =
                     factory.createRecordsCombiner(
                             runtimeContext, timerService, stateBackend, windowState, isEventTime);
+            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,
@@ -162,6 +169,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                     combiner,
                     keySer,
                     inputSer,
+                    requiresCopy,
                     shiftTimeZone);
         }
     }
@@ -202,6 +210,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
                     combiner,
                     keySer,
                     inputSer,
+                    false,
                     shiftTimeZone);
         }
     }

@@ -138,13 +138,9 @@ public class SlicingWindowAggOperatorBuilder {
         if (isGlobalAgg) {
             combinerFactory =
                     new GlobalAggCombiner.Factory(
-                            localGeneratedAggregateFunction,
-                            globalGeneratedAggregateFunction,
-                            keySerializer);
+                            localGeneratedAggregateFunction, globalGeneratedAggregateFunction);
         } else {
-            combinerFactory =
-                    new AggCombiner.Factory(
-                            generatedAggregateFunction, keySerializer, inputSerializer);
+            combinerFactory = new AggCombiner.Factory(generatedAggregateFunction);
         }
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);

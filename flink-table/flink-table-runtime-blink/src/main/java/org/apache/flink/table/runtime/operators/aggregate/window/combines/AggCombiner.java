@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
@@ -37,7 +36,6 @@ import java.time.ZoneId;
 import java.util.Iterator;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
-import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
@@ -58,15 +56,6 @@ public class AggCombiner implements RecordsCombiner {
     /** Function used to handle all aggregates. */
     private final NamespaceAggsHandleFunction<Long> aggregator;
 
-    /** Whether to copy key and input record, because key and record are reused. */
-    private final boolean requiresCopy;
-
-    /** Serializer to copy key if required. */
-    private final TypeSerializer<RowData> keySerializer;
-
-    /** Serializer to copy record if required. */
-    private final TypeSerializer<RowData> recordSerializer;
-
     /** Whether the operator works in event-time mode, used to indicate registering which timer. */
     private final boolean isEventTime;
 
@@ -75,31 +64,18 @@ public class AggCombiner implements RecordsCombiner {
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> aggregator,
-            boolean requiresCopy,
-            TypeSerializer<RowData> keySerializer,
-            TypeSerializer<RowData> valueSerializer,
             boolean isEventTime) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
         this.aggregator = aggregator;
-        this.requiresCopy = requiresCopy;
-        this.keySerializer = keySerializer;
-        this.recordSerializer = valueSerializer;
         this.isEventTime = isEventTime;
     }
 
     @Override
     public void combine(WindowKey windowKey, Iterator<RowData> records) throws Exception {
         // step 0: set current key for states and timers
-        final RowData key;
-        if (requiresCopy) {
-            // the incoming key is reused, we should copy it if state backend doesn't copy it
-            key = keySerializer.copy(windowKey.getKey());
-        } else {
-            key = windowKey.getKey();
-        }
-        keyContext.setCurrentKey(key);
+        keyContext.setCurrentKey(windowKey.getKey());
 
         // step 1: get the accumulator for the current key and window
         Long window = windowKey.getWindow();
@@ -114,10 +90,6 @@ public class AggCombiner implements RecordsCombiner {
         // step 3: do accumulate
         while (records.hasNext()) {
             RowData record = records.next();
-            if (requiresCopy) {
-                // the incoming record is reused, we should copy it if state backend doesn't copy it
-                record = recordSerializer.copy(record);
-            }
             if (isAccumulateMsg(record)) {
                 aggregator.accumulate(record);
             } else {
@@ -156,16 +128,9 @@ public class AggCombiner implements RecordsCombiner {
         private static final long serialVersionUID = 1L;
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler;
-        private final TypeSerializer<RowData> keySerializer;
-        private final TypeSerializer<RowData> valueSerializer;
 
-        public Factory(
-                GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
-                TypeSerializer<RowData> keySerializer,
-                TypeSerializer<RowData> valueSerializer) {
+        public Factory(GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler) {
             this.genAggsHandler = genAggsHandler;
-            this.keySerializer = keySerializer;
-            this.valueSerializer = valueSerializer;
         }
 
         @Override
@@ -181,16 +146,12 @@ public class AggCombiner implements RecordsCombiner {
             aggregator.open(
                     new PerWindowStateDataViewStore(
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
-            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
             return new AggCombiner(
                     timerService,
                     stateBackend::setCurrentKey,
                     windowValueState,
                     aggregator,
-                    requiresCopy,
-                    keySerializer,
-                    valueSerializer,
                     isEventTime);
         }
     }

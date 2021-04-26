@@ -138,11 +138,7 @@ public class WindowRankOperatorBuilder {
                         "Illegal window end index %s, it should not be negative!", windowEndIndex));
         final RecordsCombiner.Factory combinerFactory =
                 new TopNRecordsCombiner.Factory(
-                        generatedSortKeyComparator,
-                        sortKeySelector,
-                        keySerializer,
-                        inputSerializer,
-                        rankEnd);
+                        generatedSortKeyComparator, sortKeySelector, inputSerializer, rankEnd);
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
         final SlicingWindowProcessor<Long> windowProcessor =

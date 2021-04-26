@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
@@ -36,7 +35,6 @@ import org.apache.flink.table.runtime.util.WindowKey;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
@@ -62,27 +60,17 @@ public class GlobalAggCombiner implements RecordsCombiner {
     /** Global aggregate function to handle global accumulator rows. */
     private final NamespaceAggsHandleFunction<Long> globalAggregator;
 
-    /** Whether to copy key and input record, because key and record are reused. */
-    private final boolean requiresCopy;
-
-    /** Serializer to copy key if required. */
-    private final TypeSerializer<RowData> keySerializer;
-
     public GlobalAggCombiner(
             WindowTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> localAggregator,
-            NamespaceAggsHandleFunction<Long> globalAggregator,
-            boolean requiresCopy,
-            TypeSerializer<RowData> keySerializer) {
+            NamespaceAggsHandleFunction<Long> globalAggregator) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
         this.localAggregator = localAggregator;
         this.globalAggregator = globalAggregator;
-        this.requiresCopy = requiresCopy;
-        this.keySerializer = keySerializer;
     }
 
     @Override
@@ -99,14 +87,7 @@ public class GlobalAggCombiner implements RecordsCombiner {
 
     private void combineAccumulator(WindowKey windowKey, RowData acc) throws Exception {
         // step 1: set current key for states and timers
-        final RowData key;
-        if (requiresCopy) {
-            // the incoming key is reused, we should copy it if state backend doesn't copy it
-            key = keySerializer.copy(windowKey.getKey());
-        } else {
-            key = windowKey.getKey();
-        }
-        keyContext.setCurrentKey(key);
+        keyContext.setCurrentKey(windowKey.getKey());
         Long window = windowKey.getWindow();
 
         // step2: merge acc into state
@@ -145,15 +126,12 @@ public class GlobalAggCombiner implements RecordsCombiner {
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler;
         private final GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler;
-        private final TypeSerializer<RowData> keySerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler,
-                GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler,
-                TypeSerializer<RowData> keySerializer) {
+                GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler) {
             this.genLocalAggsHandler = genLocalAggsHandler;
             this.genGlobalAggsHandler = genGlobalAggsHandler;
-            this.keySerializer = keySerializer;
         }
 
         @Override
@@ -174,16 +152,13 @@ public class GlobalAggCombiner implements RecordsCombiner {
             globalAggregator.open(
                     new PerWindowStateDataViewStore(
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
-            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
             return new GlobalAggCombiner(
                     timerService,
                     stateBackend::setCurrentKey,
                     windowValueState,
                     localAggregator,
-                    globalAggregator,
-                    requiresCopy,
-                    keySerializer);
+                    globalAggregator);
         }
     }
 }
