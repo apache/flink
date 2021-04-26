@@ -43,6 +43,7 @@ public class CheckpointConfigInfoTest
                 "stateBackendName",
                 "checkpointStorageName",
                 true,
-                3);
+                3,
+                4);
     }
 }
