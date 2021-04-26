@@ -1,9 +1,9 @@
 ---
-title: "Operations"
+title: "Overview"
 weight: 30
 type: docs
 aliases:
-- /dev/python/table-api-users-guide/operations.html
+- /zh/dev/python/table-api-users-guide/operations.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
