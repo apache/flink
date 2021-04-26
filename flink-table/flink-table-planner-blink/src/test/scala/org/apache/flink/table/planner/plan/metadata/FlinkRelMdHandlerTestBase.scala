@@ -949,7 +949,8 @@ class FlinkRelMdHandlerTestBase {
     val aggFunctionFactory = new AggFunctionFactory(
       FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
       Array.empty[Int],
-      Array.fill(aggCalls.size())(false))
+      Array.fill(aggCalls.size())(false),
+      false)
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -1157,7 +1158,8 @@ class FlinkRelMdHandlerTestBase {
     val aggFunctionFactory = new AggFunctionFactory(
       FlinkTypeFactory.toLogicalRowType(calcOnStudentScan.getRowType),
       Array.empty[Int],
-      Array.fill(aggCalls.size())(false))
+      Array.fill(aggCalls.size())(false),
+      false)
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
@@ -1324,7 +1326,8 @@ class FlinkRelMdHandlerTestBase {
     val aggFunctionFactory = new AggFunctionFactory(
       FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
       Array.empty[Int],
-      Array.fill(aggCalls.size())(false))
+      Array.fill(aggCalls.size())(false),
+      false)
     val aggCallToAggFunction = aggCalls.zipWithIndex.map {
       case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
     }
