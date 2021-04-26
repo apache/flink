@@ -113,8 +113,11 @@ public class DataStreamAllroundTestProgram {
                                                                     .getInnerPayLoad()
                                                                     .getSequenceNumber()
                                                             == (event.getSequenceNumber() - 1)) {
-                                                System.out.println(
-                                                        "State is set or restored incorrectly");
+                                                throwIncorrectRestoredStateException(
+                                                        (event.getSequenceNumber() - 1),
+                                                        KEYED_STATE_OPER_WITH_KRYO_AND_CUSTOM_SER
+                                                                .getName(),
+                                                        lastState.getStrPayload());
                                             }
                                             return new ComplexPayload(
                                                     event,
@@ -157,8 +160,10 @@ public class DataStreamAllroundTestProgram {
                                                                     .getInnerPayLoad()
                                                                     .getSequenceNumber()
                                                             == (event.getSequenceNumber() - 1)) {
-                                                System.out.println(
-                                                        "State is set or restored incorrectly");
+                                                throwIncorrectRestoredStateException(
+                                                        (event.getSequenceNumber() - 1),
+                                                        KEYED_STATE_OPER_WITH_AVRO_SER.getName(),
+                                                        lastState.getStrPayload());
                                             }
 
                                             ComplexPayloadAvro payload = new ComplexPayloadAvro();
@@ -281,5 +286,17 @@ public class DataStreamAllroundTestProgram {
                 .uid(SLIDING_WINDOW_CHECK_PRINT_SINK.getUid());
 
         env.execute("General purpose test job");
+    }
+
+    private static void throwIncorrectRestoredStateException(
+            long sequenceNumber, String expectedPayload, String actualPayload) throws Exception {
+        throw new Exception(
+                "State is set or restored incorrectly: "
+                        + "sequenceNumber = "
+                        + sequenceNumber
+                        + ", expectedPayload = "
+                        + expectedPayload
+                        + ", actualPayload = "
+                        + actualPayload);
     }
 }
