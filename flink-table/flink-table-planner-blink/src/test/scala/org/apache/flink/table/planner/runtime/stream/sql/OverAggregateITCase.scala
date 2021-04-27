@@ -150,7 +150,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "5,3",
       "5,4",
       "5,5")
-    assertEquals(expected, sink.getAppendResults)
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
