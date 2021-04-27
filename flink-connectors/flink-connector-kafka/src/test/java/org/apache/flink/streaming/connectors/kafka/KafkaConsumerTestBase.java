@@ -1001,7 +1001,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         getStream(env, topic, schema, props)
                 .map(new PartitionValidatingMapper(parallelism, 1))
-                .map(new FailingIdentityMapper<Integer>(failAfterElements))
+                .map(new FailingIdentityMapper<>(failAfterElements))
                 .addSink(new ValidatingExactlyOnceSink(totalElements))
                 .setParallelism(1);
 

@@ -48,7 +48,6 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
     private int numElementsThisTime;
 
     private boolean failer;
-    private boolean hasBeenCheckpointed;
 
     private Thread printer;
     private volatile boolean printerRunning = true;
@@ -90,9 +89,7 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
     }
 
     @Override
-    public void notifyCheckpointComplete(long checkpointId) {
-        this.hasBeenCheckpointed = true;
-    }
+    public void notifyCheckpointComplete(long checkpointId) {}
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) {}
@@ -104,7 +101,7 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
 
     @Override
     public void restoreState(List<Integer> state) throws Exception {
-        if (state.isEmpty() || state.size() > 1) {
+        if (state.size() != 1) {
             throw new RuntimeException(
                     "Test failed due to unexpected recovered state size " + state.size());
         }
@@ -119,11 +116,21 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
             } catch (InterruptedException e) {
                 // ignore
             }
-            LOG.info(
-                    "============================> Failing mapper  {}: count={}, totalCount={}",
-                    getRuntimeContext().getIndexOfThisSubtask(),
-                    numElementsThisTime,
-                    numElementsTotal);
+            if (failer) {
+                LOG.info(
+                        "==============> Failing mapper(failer) {}: count={}, totalCount={}, failedBefore={}, failAt={}",
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        numElementsThisTime,
+                        numElementsTotal,
+                        failedBefore,
+                        failCount);
+            } else {
+                LOG.info(
+                        "============================> Failing mapper  {}: count={}, totalCount={}, ",
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        numElementsThisTime,
+                        numElementsTotal);
+            }
         }
     }
 }
