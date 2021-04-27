@@ -95,7 +95,7 @@ public class PythonOptions {
                             "Add python archive files for job. The archive files will be extracted "
                                     + "to the working directory of python UDF worker. Currently only zip-format is "
                                     + "supported. For each archive file, a target directory is specified. If the target "
-                                    + "directory name is specified, the archive file will be extracted to a name can "
+                                    + "directory name is specified, the archive file will be extracted to a "
                                     + "directory with the specified name. Otherwise, the archive file will be extracted to "
                                     + "a directory with the same name of the archive file. The files uploaded via this "
                                     + "option are accessible via relative path. '#' could be used as the separator of the "

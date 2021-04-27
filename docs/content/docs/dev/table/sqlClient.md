@@ -221,7 +221,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to
-                                               a name can directory with the
+                                               a directory with the
                                                specified name. Otherwise, the
                                                archive file will be extracted to a
                                                directory with the same name of the
