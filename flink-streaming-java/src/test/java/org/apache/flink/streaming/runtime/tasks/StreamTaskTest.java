@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -90,6 +92,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -139,6 +142,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -157,6 +161,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
@@ -191,6 +196,31 @@ public class StreamTaskTest extends TestLogger {
     private static OneShotLatch syncLatch;
 
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
+
+    @Test
+    public void testCancellationWaitsForActiveTimers() throws Exception {
+        StreamTaskWithBlockingTimer.reset();
+        ResultPartitionDeploymentDescriptor descriptor =
+                new ResultPartitionDeploymentDescriptor(
+                        PartitionDescriptorBuilder.newBuilder().build(),
+                        NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+                        1,
+                        false);
+        Task task =
+                new TestTaskBuilder(new NettyShuffleEnvironmentBuilder().build())
+                        .setInvokable(StreamTaskWithBlockingTimer.class)
+                        .setResultPartitions(singletonList(descriptor))
+                        .build();
+        task.startTaskThread();
+
+        StreamTaskWithBlockingTimer.timerStarted.join();
+        task.cancelExecution();
+
+        task.getTerminationFuture().join();
+        // explicitly check for exceptions as they are ignored after cancellation
+        StreamTaskWithBlockingTimer.timerFinished.join();
+        checkState(task.getExecutionState() == ExecutionState.CANCELED);
+    }
 
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
@@ -2604,5 +2634,98 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public void processElement(StreamRecord<T> element) throws Exception {}
+    }
+
+    /**
+     * A {@link StreamTask} that register a single timer that waits for a cancellation and then
+     * emits some data. The assumption is that output remains available until the future returned
+     * from {@link AbstractInvokable#cancel()} is completed. Public * access to allow reflection in
+     * {@link Task}.
+     */
+    public static class StreamTaskWithBlockingTimer extends StreamTask {
+        static volatile CompletableFuture<Void> timerStarted;
+        static volatile CompletableFuture<Void> timerFinished;
+        static volatile CompletableFuture<Void> invokableCancelled;
+
+        public static void reset() {
+            timerStarted = new CompletableFuture<>();
+            timerFinished = new CompletableFuture<>();
+            invokableCancelled = new CompletableFuture<>();
+        }
+
+        // public access to allow reflection in Task
+        public StreamTaskWithBlockingTimer(Environment env) throws Exception {
+            super(env);
+            super.inputProcessor = getInputProcessor();
+            getProcessingTimeServiceFactory()
+                    .createProcessingTimeService(mainMailboxExecutor)
+                    .registerTimer(0, unused -> onProcessingTime());
+        }
+
+        @Override
+        protected void cancelTask() throws Exception {
+            super.cancelTask();
+            invokableCancelled.complete(null);
+        }
+
+        private void onProcessingTime() {
+            try {
+                timerStarted.complete(null);
+                waitForCancellation();
+                emit();
+                timerFinished.complete(null);
+            } catch (Throwable e) { // assertion is Error
+                timerFinished.completeExceptionally(e);
+            }
+        }
+
+        private void waitForCancellation() {
+            invokableCancelled.join();
+            // allow network resources to be closed mistakenly
+            for (int i = 0; i < 10; i++) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // ignore: can be interrupted by TaskCanceller/Interrupter
+                }
+            }
+        }
+
+        private void emit() throws IOException {
+            checkState(getEnvironment().getAllWriters().length > 0);
+            for (ResultPartitionWriter writer : getEnvironment().getAllWriters()) {
+                assertFalse(writer.isReleased());
+                assertFalse(writer.isFinished());
+                writer.emitRecord(ByteBuffer.allocate(10), 0);
+            }
+        }
+
+        @Override
+        protected void init() {}
+
+        private static StreamInputProcessor getInputProcessor() {
+            return new StreamInputProcessor() {
+
+                @Override
+                public InputStatus processInput() {
+                    return InputStatus.NOTHING_AVAILABLE;
+                }
+
+                @Override
+                public CompletableFuture<Void> prepareSnapshot(
+                        ChannelStateWriter channelStateWriter, long checkpointId) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<?> getAvailableFuture() {
+                    return new CompletableFuture<>();
+                }
+
+                @Override
+                public void close() {}
+            };
+        }
     }
 }
