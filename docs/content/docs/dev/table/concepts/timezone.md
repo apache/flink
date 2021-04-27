@@ -75,13 +75,13 @@ The local time zone defines current session time zone id. You can config the tim
 {{< tabs "SQL snippets" >}}
 {{< tab "SQL Client" >}}
 ```sql
-# set to UTC time zone
+-- set to UTC time zone
 Flink SQL> SET table.local-time-zone=UTC;
 
-# set to Shanghai time zone
+-- set to Shanghai time zone
 Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 
-# set to Los_Angeles time zone
+-- set to Los_Angeles time zone
 Flink SQL> SET table.local-time-zone=America/Los_Angeles;
 ```
 {{< /tab >}}
@@ -259,7 +259,7 @@ Flink SQL defines process time attribute by function `PROCTIME()`, the function 
 {{< hint info >}}
 Before Flink 1.13, the function return type of `PROCTIME()` is `TIMESTAMP`, and the return value is the `TIMESTAMP` in UTC time zone,
 e.g. the wall-clock shows `2021-03-01 12:00:00` at Shanghai, however the `PROCTIME()` displays `2021-03-01 04:00:00` which is wrong.
-Flin 1.13 fixes this issue and uses `TIMESTAMP_LTZ` type as return type of `PROCTIME()`, users don't need to deal time zone problems anymore.
+Flink 1.13 fixes this issue and uses `TIMESTAMP_LTZ` type as return type of `PROCTIME()`, users don't need to deal time zone problems anymore.
 {{< /hint >}}
 
 The PROCTIME() always represents your local timestamp value, using TIMESTAMP_LTZ type can also support DayLight Saving Time well.
