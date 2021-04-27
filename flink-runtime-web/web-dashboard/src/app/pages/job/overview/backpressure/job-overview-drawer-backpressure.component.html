@@ -61,7 +61,7 @@
       <td>{{ subtask['subtask'] }}</td>
       <td>{{ subtask['ratio'] }}</td>
       <td>
-        <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
+        <flink-backpressure-badge [state]="subtask['backpressure-level']"></flink-backpressure-badge>
       </td>
     </tr>
   </tbody>
