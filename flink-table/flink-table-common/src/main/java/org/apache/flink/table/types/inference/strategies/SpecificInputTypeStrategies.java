@@ -19,15 +19,19 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+
+import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
@@ -119,6 +123,41 @@ public final class SpecificInputTypeStrategies {
      */
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
             comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
+    public static final TypeStrategy MAP_KEYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                            callContext
+                                                    .getArgumentDataTypes()
+                                                    .get(0)
+                                                    .getChildren()
+                                                    .get(0))
+                                    .nullable());
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
+    public static final TypeStrategy MAP_VALUES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    callContext
+                                            .getArgumentDataTypes()
+                                            .get(0)
+                                            .getChildren()
+                                            .get(1)));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
+    public static final TypeStrategy MAP_FROM_ARRAYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.MAP(
+                                    callContext.getArgumentDataTypes().get(0).getChildren().get(0),
+                                    callContext
+                                            .getArgumentDataTypes()
+                                            .get(1)
+                                            .getChildren()
+                                            .get(0)));
 
     private SpecificInputTypeStrategies() {
         // no instantiation

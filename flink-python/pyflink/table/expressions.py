@@ -483,6 +483,26 @@ def map_(key, value, *tail) -> Expression:
     return _ternary_op("map", key, value, tail)
 
 
+def map_from_arrays(key, value) -> Expression:
+    """
+    Creates a map from array of keys and array of values.
+
+    Example:
+    ::
+
+        >>> tab.select(
+        >>>     map_from_arrays(
+        >>>         array("key1", "key2", "key3"),
+        >>>         array(1, 2, 3)
+        >>>     ))
+
+    .. note::
+
+        both arrays should have the same length.
+    """
+    return _binary_op("mapFromArrays", key, value)
+
+
 def row_interval(rows: int) -> Expression:
     """
     Creates an interval of rows.
