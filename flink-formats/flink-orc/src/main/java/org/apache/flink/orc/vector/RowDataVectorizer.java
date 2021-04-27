@@ -196,12 +196,14 @@ public class RowDataVectorizer extends Vectorizer<RowData> {
         listColumnVector.childCount += listColumnVector.lengths[rowId];
         listColumnVector.child.ensureSize(
                 listColumnVector.childCount, listColumnVector.offsets[rowId] != 0);
+
+        RowData convertedRowData = convert(arrayData, arrayType.getElementType());
         for (int i = 0; i < arrayData.size(); i++) {
             setColumn(
                     (int) listColumnVector.offsets[rowId] + i,
                     listColumnVector.child,
                     arrayType.getElementType(),
-                    convert(arrayData, arrayType.getElementType()),
+                    convertedRowData,
                     i);
         }
     }
@@ -224,18 +226,20 @@ public class RowDataVectorizer extends Vectorizer<RowData> {
         mapColumnVector.values.ensureSize(
                 mapColumnVector.childCount, mapColumnVector.offsets[rowId] != 0);
 
+        RowData convertedKeyRowData = convert(keyArray, mapType.getKeyType());
+        RowData convertedValueRowData = convert(valueArray, mapType.getValueType());
         for (int i = 0; i < keyArray.size(); i++) {
             setColumn(
                     (int) mapColumnVector.offsets[rowId] + i,
                     mapColumnVector.keys,
                     mapType.getKeyType(),
-                    convert(keyArray, mapType.getKeyType()),
+                    convertedKeyRowData,
                     i);
             setColumn(
                     (int) mapColumnVector.offsets[rowId] + i,
                     mapColumnVector.values,
                     mapType.getValueType(),
-                    convert(valueArray, mapType.getValueType()),
+                    convertedValueRowData,
                     i);
         }
     }
