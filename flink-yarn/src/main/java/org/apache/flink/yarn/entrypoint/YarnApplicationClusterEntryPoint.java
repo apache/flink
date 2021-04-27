@@ -137,7 +137,8 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
                 ClassPathPackagedProgramRetriever.newBuilder(programArguments)
                         .setUserLibDirectory(userLibDir)
                         .setJarFile(userApplicationJar)
-                        .setJobClassName(jobClassName);
+                        .setJobClassName(jobClassName)
+                        .setConfiguration(configuration);
         return retrieverBuilder.build();
     }
 
