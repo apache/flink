@@ -78,7 +78,7 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
                                                 EVENT_LOSS_ERROR_MESSAGE,
                                                 evt,
                                                 subtaskAccess.subtaskName());
-                                subtaskAccess.triggerTaskFailover(new FlinkException(msg));
+                                subtaskAccess.triggerTaskFailover(new FlinkException(msg, failure));
                             }
                             return null;
                         },
