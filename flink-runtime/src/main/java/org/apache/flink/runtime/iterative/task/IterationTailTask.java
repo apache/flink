@@ -115,45 +115,50 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
     @Override
     public void run() throws Exception {
 
-        SuperstepKickoffLatch nextSuperStepLatch =
-                SuperstepKickoffLatchBroker.instance().get(brokerKey());
+        try {
+            SuperstepKickoffLatch nextSuperStepLatch =
+                    SuperstepKickoffLatchBroker.instance().get(brokerKey());
 
-        while (this.running && !terminationRequested()) {
+            while (this.running && !terminationRequested()) {
 
-            if (log.isInfoEnabled()) {
-                log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+                if (log.isInfoEnabled()) {
+                    log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
+                }
+
+                super.run();
+
+                // check if termination was requested
+                verifyEndOfSuperstepState();
+
+                if (isWorksetUpdate && isWorksetIteration) {
+                    // aggregate workset update element count
+                    long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
+                    worksetAggregator.aggregate(numCollected);
+                }
+
+                if (log.isInfoEnabled()) {
+                    log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
+                }
+
+                if (isWorksetUpdate) {
+                    // notify iteration head if responsible for workset update
+                    worksetBackChannel.notifyOfEndOfSuperstep();
+                } else if (isSolutionSetUpdate) {
+                    // notify iteration head if responsible for solution set update
+                    solutionSetUpdateBarrier.notifySolutionSetUpdate();
+                }
+
+                boolean terminate =
+                        nextSuperStepLatch.awaitStartOfSuperstepOrTermination(
+                                currentIteration() + 1);
+                if (terminate) {
+                    requestTermination();
+                } else {
+                    incrementIterationCounter();
+                }
             }
-
-            super.run();
-
-            // check if termination was requested
-            verifyEndOfSuperstepState();
-
-            if (isWorksetUpdate && isWorksetIteration) {
-                // aggregate workset update element count
-                long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
-                worksetAggregator.aggregate(numCollected);
-            }
-
-            if (log.isInfoEnabled()) {
-                log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
-            }
-
-            if (isWorksetUpdate) {
-                // notify iteration head if responsible for workset update
-                worksetBackChannel.notifyOfEndOfSuperstep();
-            } else if (isSolutionSetUpdate) {
-                // notify iteration head if responsible for solution set update
-                solutionSetUpdateBarrier.notifySolutionSetUpdate();
-            }
-
-            boolean terminate =
-                    nextSuperStepLatch.awaitStartOfSuperstepOrTermination(currentIteration() + 1);
-            if (terminate) {
-                requestTermination();
-            } else {
-                incrementIterationCounter();
-            }
+        } finally {
+            terminationCompleted();
         }
     }
 }

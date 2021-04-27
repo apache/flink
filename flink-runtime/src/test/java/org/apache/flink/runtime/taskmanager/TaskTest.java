@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1054,8 +1055,9 @@ public class TaskTest extends TestLogger {
         public void invoke() {}
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             fail("This should not be called");
+            return null;
         }
     }
 
@@ -1087,7 +1089,9 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {}
+        public Future<Void> cancel() {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
@@ -1188,11 +1192,12 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() throws Exception {
+        public Future<Void> cancel() throws Exception {
             synchronized (this) {
                 triggerLatch.trigger();
                 wait();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1214,11 +1219,12 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             synchronized (lock) {
                 // do nothing but a placeholder
                 triggerLatch.trigger();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1242,7 +1248,9 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {}
+        public Future<Void> cancel() {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     // ------------------------------------------------------------------------

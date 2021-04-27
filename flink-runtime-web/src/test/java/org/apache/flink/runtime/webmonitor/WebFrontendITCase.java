@@ -58,7 +58,9 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -437,6 +439,8 @@ public class WebFrontendITCase extends TestLogger {
 
         private volatile boolean isRunning = true;
 
+        private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+
         public BlockingInvokable(Environment environment) {
             super(environment);
         }
@@ -444,14 +448,19 @@ public class WebFrontendITCase extends TestLogger {
         @Override
         public void invoke() throws Exception {
             latch.countDown();
-            while (isRunning) {
-                Thread.sleep(100);
+            try {
+                while (isRunning) {
+                    Thread.sleep(100);
+                }
+            } finally {
+                terminationFuture.complete(null);
             }
         }
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             this.isRunning = false;
+            return terminationFuture;
         }
 
         public static void reset() {
