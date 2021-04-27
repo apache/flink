@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Public;
 import java.io.IOException;
 
 /**
- * This interface may be implemented by {@link OutputFormat}s to have the master initialize them
+ * This interface may be implemented by {@link InputFormat}s or {@link OutputFormat}s to have the master initialize them
  * globally.
  *
  * <p>For example, the {@link FileOutputFormat} implements this behavior for distributed file

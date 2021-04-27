@@ -61,7 +61,7 @@ public class InputOutputFormatVertex extends JobVertex {
             // set user classloader before calling user code
             Thread.currentThread().setContextClassLoader(loader);
 
-            // configure the input format and setup input splits
+            // configure the input formats, invoke initializeGlobal() and setup input splits
             Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats =
                     formatContainer.getInputFormats();
             if (inputFormats.size() > 1) {
@@ -82,6 +82,10 @@ public class InputOutputFormatVertex extends JobVertex {
                                     + ") failed: "
                                     + t.getMessage(),
                             t);
+                }
+
+                if (inputFormat instanceof InitializeOnMaster) {
+                    ((InitializeOnMaster) inputFormat).initializeGlobal(getParallelism());
                 }
 
                 setInputSplitSource(inputFormat);
@@ -124,6 +128,34 @@ public class InputOutputFormatVertex extends JobVertex {
         try {
             // set user classloader before calling user code
             Thread.currentThread().setContextClassLoader(loader);
+
+            // configure the input formats and invoke finalizeGlobal()
+            Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats =
+                    formatContainer.getInputFormats();
+            if (inputFormats.size() > 1) {
+                throw new UnsupportedOperationException(
+                        "Multiple input formats are not supported in a job vertex.");
+            }
+            for (Map.Entry<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> entry :
+                    inputFormats.entrySet()) {
+                final InputFormat<?, ?> inputFormat;
+
+                try {
+                    inputFormat = entry.getValue().getUserCodeObject();
+                    inputFormat.configure(formatContainer.getParameters(entry.getKey()));
+                } catch (Throwable t) {
+                    throw new Exception(
+                            "Configuring the input format ("
+                                    + getFormatDescription(entry.getKey())
+                                    + ") failed: "
+                                    + t.getMessage(),
+                            t);
+                }
+
+                if (inputFormat instanceof FinalizeOnMaster) {
+                    ((FinalizeOnMaster) inputFormat).finalizeGlobal(getParallelism());
+                }
+            }
 
             // configure output formats and invoke finalizeGlobal()
             Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =

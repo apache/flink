@@ -167,6 +167,57 @@ public class JobTaskVertexTest {
         }
     }
 
+    @Test
+    public void testOnMasterInputFormat() {
+        try {
+            final InputOutputFormatVertex vertex = new InputOutputFormatVertex("Name");
+
+            OperatorID operatorID = new OperatorID();
+            Configuration parameters = new Configuration();
+            parameters.setString("test_key", "test_value");
+            new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+                    .addInputFormat(operatorID, new TestOnMasterInputFormat(parameters))
+                    .addParameters(operatorID, "test_key", "test_value")
+                    .write(new TaskConfig(vertex.getConfiguration()));
+
+            final ClassLoader cl = new TestClassLoader();
+
+            try {
+                vertex.initializeOnMaster(cl);
+                fail("Did not throw expected exception.");
+            } catch (TestException e) {
+                // all good
+            }
+
+            InputOutputFormatVertex copy = InstantiationUtil.clone(vertex);
+            ClassLoader ctxCl = Thread.currentThread().getContextClassLoader();
+            try {
+                copy.initializeOnMaster(cl);
+                fail("Did not throw expected exception.");
+            } catch (TestException e) {
+                // all good
+            }
+            assertEquals(
+                    "Previous classloader was not restored.",
+                    ctxCl,
+                    Thread.currentThread().getContextClassLoader());
+
+            try {
+                copy.finalizeOnMaster(cl);
+                fail("Did not throw expected exception.");
+            } catch (TestException e) {
+                // all good
+            }
+            assertEquals(
+                    "Previous classloader was not restored.",
+                    ctxCl,
+                    Thread.currentThread().getContextClassLoader());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static final class TestException extends IOException {}
@@ -178,7 +229,7 @@ public class JobTaskVertexTest {
         }
     }
 
-    private static final class TestInputFormat extends GenericInputFormat<Object> {
+    private static class TestInputFormat extends GenericInputFormat<Object> {
 
         private boolean isConfigured = false;
 
@@ -220,6 +271,40 @@ public class JobTaskVertexTest {
                         expectedParameters.getString(key, null), parameters.getString(key, null));
             }
             isConfigured = true;
+        }
+    }
+
+    private static final class TestOnMasterInputFormat extends TestInputFormat
+            implements InitializeOnMaster, FinalizeOnMaster {
+
+        public TestOnMasterInputFormat(Configuration expectedParameters) {
+            super(expectedParameters);
+        }
+
+        @Override
+        public void initializeGlobal(int parallelism) throws IOException {
+            if (!super.isConfigured) {
+                throw new IllegalStateException(
+                        "OutputFormat was not configured before initializeGlobal was called.");
+            }
+            if (!(Thread.currentThread().getContextClassLoader() instanceof TestClassLoader)) {
+                throw new IllegalStateException("Context ClassLoader was not correctly switched.");
+            }
+            // notify we have been here.
+            throw new TestException();
+        }
+
+        @Override
+        public void finalizeGlobal(int parallelism) throws IOException {
+            if (!super.isConfigured) {
+                throw new IllegalStateException(
+                        "OutputFormat was not configured before finalizeGlobal was called.");
+            }
+            if (!(Thread.currentThread().getContextClassLoader() instanceof TestClassLoader)) {
+                throw new IllegalStateException("Context ClassLoader was not correctly switched.");
+            }
+            // notify we have been here.
+            throw new TestException();
         }
     }
 
