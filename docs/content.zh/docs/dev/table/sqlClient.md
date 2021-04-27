@@ -247,9 +247,9 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                (version >= 37.0.0). Please ensure
                                                that the specified environment meets
                                                the above requirements.
-         -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
-                                               The standard python resource file
-                                               suffixes such as .py/.egg/.zip or
+         -pyfs,--pyFiles <pythonFiles>         Attach custom files for job.
+                                               The standard resource file suffixes
+                                               such as .py/.egg/.zip/.whl or
                                                directory are all supported. These
                                                files will be added to the PYTHONPATH
                                                of both the local client and the
