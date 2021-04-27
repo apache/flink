@@ -35,13 +35,11 @@ public class MultiLevelMessageProtoToRowTest {
     public void testMessage() throws Exception {
         RowType rowType =
                 PbRowTypeInformationUtil.generateRowType(MultipleLevelMessageTest.getDescriptor());
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(MultipleLevelMessageTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        MultipleLevelMessageTest.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2 innerMessageTest2 =
                 MultipleLevelMessageTest.InnerMessageTest1.InnerMessageTest2.newBuilder()

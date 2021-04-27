@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -30,27 +31,26 @@ import com.google.protobuf.Descriptors;
 /** Codegen factory class which return {@link PbCodegenDeserializer} of different data type. */
 public class PbCodegenDeserializeFactory {
     public static PbCodegenDeserializer getPbCodegenDes(
-            Descriptors.FieldDescriptor fd, LogicalType type, boolean readDefaultValues)
+            Descriptors.FieldDescriptor fd, LogicalType type, PbFormatConfig formatConfig)
             throws PbCodegenException {
         // We do not use FieldDescriptor to check because there's no way to get
         // element field descriptor of array type.
         if (type instanceof RowType) {
-            return new PbCodegenRowDeserializer(
-                    fd.getMessageType(), (RowType) type, readDefaultValues);
+            return new PbCodegenRowDeserializer(fd.getMessageType(), (RowType) type, formatConfig);
         } else if (PbFormatUtils.isSimpleType(type)) {
             return new PbCodegenSimpleDeserializer(fd);
         } else if (type instanceof ArrayType) {
             return new PbCodegenArrayDeserializer(
-                    fd, ((ArrayType) type).getElementType(), readDefaultValues);
+                    fd, ((ArrayType) type).getElementType(), formatConfig);
         } else if (type instanceof MapType) {
-            return new PbCodegenMapDeserializer(fd, (MapType) type, readDefaultValues);
+            return new PbCodegenMapDeserializer(fd, (MapType) type, formatConfig);
         } else {
             throw new PbCodegenException("cannot support flink type: " + type);
         }
     }
 
     public static PbCodegenDeserializer getPbCodegenTopRowDes(
-            Descriptors.Descriptor descriptor, RowType rowType, boolean readDefaultValues) {
-        return new PbCodegenRowDeserializer(descriptor, rowType, readDefaultValues);
+            Descriptors.Descriptor descriptor, RowType rowType, PbFormatConfig formatConfig) {
+        return new PbCodegenRowDeserializer(descriptor, rowType, formatConfig);
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -32,13 +33,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
     private final Descriptors.FieldDescriptor fd;
     private final MapType mapType;
-    private final boolean readDefaultValues;
+    private final PbFormatConfig formatConfig;
 
     public PbCodegenMapDeserializer(
-            Descriptors.FieldDescriptor fd, MapType mapType, boolean readDefaultValues) {
+            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatConfig formatConfig) {
         this.fd = fd;
         this.mapType = mapType;
-        this.readDefaultValues = readDefaultValues;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -89,9 +90,9 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
         appender.appendLine("Object " + keyDataVar + "= null");
         appender.appendLine("Object " + valueDataVar + "= null");
         PbCodegenDeserializer keyDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(keyFd, keyType, readDefaultValues);
+                PbCodegenDeserializeFactory.getPbCodegenDes(keyFd, keyType, formatConfig);
         PbCodegenDeserializer valueDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(valueFd, valueType, readDefaultValues);
+                PbCodegenDeserializeFactory.getPbCodegenDes(valueFd, valueType, formatConfig);
         String keyGenCode =
                 keyDes.codegen(
                         keyDataVar, "((" + pbKeyTypeStr + ")" + pbMapEntryVar + ".getKey())");

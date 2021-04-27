@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.formats.protobuf.PbSchemaValidator;
 import org.apache.flink.table.data.RowData;
@@ -47,31 +48,24 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
     private final RowType rowType;
     private final TypeInformation<RowData> resultTypeInfo;
 
-    private final String messageClassName;
-    private final boolean ignoreParseErrors;
-    private final boolean readDefaultValues;
+    private final PbFormatConfig formatConfig;
 
     private transient ProtoToRowConverter protoToRowConverter;
 
     public PbRowDataDeserializationSchema(
-            RowType rowType,
-            TypeInformation<RowData> resultTypeInfo,
-            String messageClassName,
-            boolean ignoreParseErrors,
-            boolean readDefaultValues) {
+            RowType rowType, TypeInformation<RowData> resultTypeInfo, PbFormatConfig formatConfig) {
         checkNotNull(rowType, "rowType cannot be null");
         this.rowType = rowType;
         this.resultTypeInfo = resultTypeInfo;
-        this.messageClassName = messageClassName;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.readDefaultValues = readDefaultValues;
+        this.formatConfig = formatConfig;
         // do it in client side to report error in the first place
-        new PbSchemaValidator(PbFormatUtils.getDescriptor(messageClassName), rowType).validate();
+        new PbSchemaValidator(
+                        PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType)
+                .validate();
         // this step is only used to validate codegen in client side in the first place
         try {
             // validate converter in client side to early detect errors
-            protoToRowConverter =
-                    new ProtoToRowConverter(messageClassName, rowType, readDefaultValues);
+            protoToRowConverter = new ProtoToRowConverter(rowType, formatConfig);
         } catch (PbCodegenException e) {
             throw new FlinkRuntimeException(e);
         }
@@ -79,7 +73,7 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        protoToRowConverter = new ProtoToRowConverter(messageClassName, rowType, readDefaultValues);
+        protoToRowConverter = new ProtoToRowConverter(rowType, formatConfig);
     }
 
     @Override
@@ -87,7 +81,7 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
         try {
             return protoToRowConverter.convertProtoBinaryToRow(message);
         } catch (Throwable t) {
-            if (ignoreParseErrors) {
+            if (formatConfig.isIgnoreParseErrors()) {
                 return null;
             }
             throw new IOException("Failed to deserialize PB object.", t);
@@ -113,16 +107,13 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
             return false;
         }
         PbRowDataDeserializationSchema that = (PbRowDataDeserializationSchema) o;
-        return ignoreParseErrors == that.ignoreParseErrors
-                && readDefaultValues == that.readDefaultValues
-                && Objects.equals(rowType, that.rowType)
+        return Objects.equals(rowType, that.rowType)
                 && Objects.equals(resultTypeInfo, that.resultTypeInfo)
-                && Objects.equals(messageClassName, that.messageClassName);
+                && Objects.equals(formatConfig, that.formatConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                rowType, resultTypeInfo, messageClassName, ignoreParseErrors, readDefaultValues);
+        return Objects.hash(rowType, resultTypeInfo, formatConfig);
     }
 }

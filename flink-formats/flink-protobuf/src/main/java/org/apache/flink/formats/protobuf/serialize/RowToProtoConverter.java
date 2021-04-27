@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.formats.protobuf.deserialize.ProtoToRowConverter;
 import org.apache.flink.table.data.ArrayData;
@@ -47,9 +48,11 @@ public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final ScriptEvaluator se;
 
-    public RowToProtoConverter(String messageClassName, RowType rowType) throws PbCodegenException {
+    public RowToProtoConverter(RowType rowType, PbFormatConfig pbFormatConfig)
+            throws PbCodegenException {
         try {
-            Descriptors.Descriptor descriptor = PbFormatUtils.getDescriptor(messageClassName);
+            Descriptors.Descriptor descriptor =
+                    PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
             se = new ScriptEvaluator();
             se.setParameters(new String[] {"rowData"}, new Class[] {RowData.class});
             se.setReturnType(AbstractMessage.class);
@@ -71,7 +74,8 @@ public class RowToProtoConverter {
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
             codegenAppender.appendLine("AbstractMessage message = null");
             PbCodegenSerializer codegenSer =
-                    PbCodegenSerializeFactory.getPbCodegenTopRowSer(descriptor, rowType);
+                    PbCodegenSerializeFactory.getPbCodegenTopRowSer(
+                            descriptor, rowType, pbFormatConfig);
             String genCode = codegenSer.codegen("message", "rowData");
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");

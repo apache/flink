@@ -36,7 +36,7 @@ import static org.junit.Assert.assertTrue;
  * Test conversion of null values from flink internal data to proto data. Proto data does not permit
  * null values in array/map data.
  */
-public class NullRowToProtoTest {
+public class NullValueToProtoTest {
     @Test
     public void testSimple() throws Exception {
         RowData row =
@@ -82,7 +82,11 @@ public class NullRowToProtoTest {
                         new GenericArrayData(new Object[] {null}),
                         // bytes, cannot be null
                         new GenericArrayData(new Object[] {null}));
-        byte[] bytes = ProtobufTestHelper.rowToPbBytesWithoutValidation(row, NullTest.class);
+        byte[] bytes =
+                ProtobufTestHelper.rowToPbBytesWithoutValidation(
+                        row,
+                        NullTest.class,
+                        new PbFormatConfig(NullTest.class.getName(), false, false, ""));
         NullTest nullTest = NullTest.parseFrom(bytes);
         // string map
         assertEquals(2, nullTest.getStringMapCount());
@@ -146,5 +150,59 @@ public class NullRowToProtoTest {
                 nullTest.getMessageArrayList().get(0));
         assertEquals(1, nullTest.getBytesArrayCount());
         //		assertEquals(ByteString.EMPTY, nullTest.getBytesArrayList().get(0));
+    }
+
+    @Test
+    public void testNullStringLiteral() throws Exception {
+        RowData row =
+                GenericRowData.of(
+                        // string
+                        new GenericMapData(
+                                mapOf(
+                                        StringData.fromString("key"),
+                                        null,
+                                        null,
+                                        StringData.fromString("value"))),
+                        // int32
+                        null,
+                        // int64
+                        null,
+                        // boolean
+                        null,
+                        // float
+                        null,
+                        // double
+                        null,
+                        // enum
+                        null,
+                        // message
+                        null,
+                        // bytes
+                        null,
+                        // string
+                        null,
+                        // int
+                        null,
+                        // long
+                        null,
+                        // boolean
+                        null,
+                        // float
+                        null,
+                        // double
+                        null,
+                        // enum
+                        null,
+                        // message, cannot be null
+                        null,
+                        // bytes, cannot be null
+                        null);
+        byte[] bytes =
+                ProtobufTestHelper.rowToPbBytes(
+                        row,
+                        NullTest.class,
+                        new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"));
+        NullTest nullTest = NullTest.parseFrom(bytes);
+        assertEquals("NULL", nullTest.getStringMapMap().get("key"));
     }
 }

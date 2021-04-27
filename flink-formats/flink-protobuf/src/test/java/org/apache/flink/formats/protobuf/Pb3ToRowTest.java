@@ -38,15 +38,12 @@ import static org.junit.Assert.assertFalse;
  */
 public class Pb3ToRowTest {
     @Test
-    public void testMessage() throws Exception {
+    public void testDeserialization() throws Exception {
         RowType rowType = PbRowTypeInformationUtil.generateRowType(Pb3Test.getDescriptor());
+        PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        Pb3Test.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         Pb3Test.InnerMessageTest innerMessageTest =
                 Pb3Test.InnerMessageTest.newBuilder().setA(1).setB(2).build();
@@ -101,15 +98,12 @@ public class Pb3ToRowTest {
     }
 
     @Test
-    public void testDefaultValues() throws Exception {
+    public void testReadDefaultValues() throws Exception {
         RowType rowType = PbRowTypeInformationUtil.generateRowType(Pb3Test.getDescriptor());
+        PbFormatConfig formatConfig = new PbFormatConfig(Pb3Test.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        Pb3Test.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         Pb3Test mapTest = Pb3Test.newBuilder().build();
 

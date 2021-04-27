@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.formats.protobuf.PbSchemaValidator;
 import org.apache.flink.table.data.RowData;
@@ -39,18 +40,19 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
 
     private final RowType rowType;
 
-    private final String messageClassName;
+    private final PbFormatConfig pbFormatConfig;
 
     private transient RowToProtoConverter rowToProtoConverter;
 
-    public PbRowDataSerializationSchema(RowType rowType, String messageClassName) {
+    public PbRowDataSerializationSchema(RowType rowType, PbFormatConfig pbFormatConfig) {
         this.rowType = rowType;
-        this.messageClassName = messageClassName;
-        Descriptors.Descriptor descriptor = PbFormatUtils.getDescriptor(messageClassName);
+        this.pbFormatConfig = pbFormatConfig;
+        Descriptors.Descriptor descriptor =
+                PbFormatUtils.getDescriptor(pbFormatConfig.getMessageClassName());
         new PbSchemaValidator(descriptor, rowType).validate();
         try {
             // validate converter in client side to early detect errors
-            rowToProtoConverter = new RowToProtoConverter(messageClassName, rowType);
+            rowToProtoConverter = new RowToProtoConverter(rowType, pbFormatConfig);
         } catch (PbCodegenException e) {
             throw new FlinkRuntimeException(e);
         }
@@ -58,7 +60,7 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        rowToProtoConverter = new RowToProtoConverter(messageClassName, rowType);
+        rowToProtoConverter = new RowToProtoConverter(rowType, pbFormatConfig);
     }
 
     @Override

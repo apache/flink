@@ -22,6 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -33,10 +34,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenRowSerializer implements PbCodegenSerializer {
     private final Descriptors.Descriptor descriptor;
     private final RowType rowType;
+    private final PbFormatConfig formatConfig;
 
-    public PbCodegenRowSerializer(Descriptors.Descriptor descriptor, RowType rowType) {
+    public PbCodegenRowSerializer(
+            Descriptors.Descriptor descriptor, RowType rowType, PbFormatConfig formatConfig) {
         this.rowType = rowType;
         this.descriptor = descriptor;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -80,7 +84,7 @@ public class PbCodegenRowSerializer implements PbCodegenSerializer {
                     PbCodegenUtils.getContainerDataFieldGetterCodePhrase(
                             rowDataVar, index + "", subType);
             PbCodegenSerializer codegen =
-                    PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType);
+                    PbCodegenSerializeFactory.getPbCodegenSer(elementFd, subType, formatConfig);
             String code = codegen.codegen(elementPbVar, subRowGetCode);
             appender.appendSegment(code);
             if (subType.getTypeRoot() == LogicalTypeRoot.ARRAY) {

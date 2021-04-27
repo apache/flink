@@ -12,6 +12,7 @@ message SimpleTest {
     optional string f = 6 [default="f"];;
     optional bytes g = 7;
     optional Corpus h = 8;
+    //this is must because protobuf have some field name parse bug if number is after "_".
     optional int32 f_abc_7d = 9;
 
     enum Corpus {

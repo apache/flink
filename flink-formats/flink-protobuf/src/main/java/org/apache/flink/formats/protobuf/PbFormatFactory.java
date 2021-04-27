@@ -45,18 +45,30 @@ public class PbFormatFactory implements DeserializationFormatFactory, Serializat
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        final String messageClassName = formatOptions.get(PbFormatOptions.MESSAGE_CLASS_NAME);
-        boolean ignoreParseErrors = formatOptions.get(PbFormatOptions.IGNORE_PARSE_ERRORS);
-        boolean readDefaultValues = formatOptions.get(PbFormatOptions.READ_DEFAULT_VALUES);
-        return new PbDecodingFormat(messageClassName, ignoreParseErrors, readDefaultValues);
+        return new PbDecodingFormat(buildConfig(formatOptions));
     }
 
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        final String messageClassName = formatOptions.get(PbFormatOptions.MESSAGE_CLASS_NAME);
-        return new PbEncodingFormat(messageClassName);
+        return new PbEncodingFormat(buildConfig(formatOptions));
+    }
+
+    private static PbFormatConfig buildConfig(ReadableConfig formatOptions) {
+        PbFormatConfig.PbFormatConfigBuilder configBuilder =
+                new PbFormatConfig.PbFormatConfigBuilder();
+        configBuilder.messageClassName(formatOptions.get(PbFormatOptions.MESSAGE_CLASS_NAME));
+        formatOptions
+                .getOptional(PbFormatOptions.IGNORE_PARSE_ERRORS)
+                .ifPresent(configBuilder::ignoreParseErrors);
+        formatOptions
+                .getOptional(PbFormatOptions.READ_DEFAULT_VALUES)
+                .ifPresent(configBuilder::readDefaultValues);
+        formatOptions
+                .getOptional(PbFormatOptions.WRITE_NULL_STRING_LITERAL)
+                .ifPresent(configBuilder::writeNullStringLiterals);
+        return configBuilder.build();
     }
 
     @Override

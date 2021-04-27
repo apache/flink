@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -32,13 +33,13 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
     private final Descriptor descriptor;
     private final RowType rowType;
-    private final boolean readDefaultValues;
+    private final PbFormatConfig formatConfig;
 
     public PbCodegenRowDeserializer(
-            Descriptor descriptor, RowType rowType, boolean readDefaultValues) {
+            Descriptor descriptor, RowType rowType, PbFormatConfig formatConfig) {
         this.rowType = rowType;
         this.descriptor = descriptor;
-        this.readDefaultValues = readDefaultValues;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -66,10 +67,9 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
             FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
             PbCodegenDeserializer codegen =
-                    PbCodegenDeserializeFactory.getPbCodegenDes(
-                            elementFd, subType, readDefaultValues);
+                    PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatConfig);
             appender.appendLine("Object " + elementDataVar + " = null");
-            if (!readDefaultValues) {
+            if (!formatConfig.isReadDefaultValues()) {
                 // only works in syntax=proto2 and readDefaultValues=false
                 // readDefaultValues must be true in pb3 mode
                 String isMessageNonEmptyStr =
@@ -87,7 +87,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                             PbFormatUtils.isArrayType(subType));
             String code = codegen.codegen(elementDataVar, elementMessageGetStr);
             appender.appendSegment(code);
-            if (!readDefaultValues) {
+            if (!formatConfig.isReadDefaultValues()) {
                 appender.appendSegment("}");
             }
             appender.appendLine(rowDataVar + ".setField(" + index + ", " + elementDataVar + ")");

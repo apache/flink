@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenException;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -30,22 +31,24 @@ import com.google.protobuf.Descriptors;
 /** Codegen factory class which return {@link PbCodegenSerializer} of different data type. */
 public class PbCodegenSerializeFactory {
     public static PbCodegenSerializer getPbCodegenSer(
-            Descriptors.FieldDescriptor fd, LogicalType type) throws PbCodegenException {
+            Descriptors.FieldDescriptor fd, LogicalType type, PbFormatConfig pbFormatConfig)
+            throws PbCodegenException {
         if (type instanceof RowType) {
-            return new PbCodegenRowSerializer(fd.getMessageType(), (RowType) type);
+            return new PbCodegenRowSerializer(fd.getMessageType(), (RowType) type, pbFormatConfig);
         } else if (PbFormatUtils.isSimpleType(type)) {
-            return new PbCodegenSimpleSerializer(fd, type);
+            return new PbCodegenSimpleSerializer(fd, type, pbFormatConfig);
         } else if (type instanceof ArrayType) {
-            return new PbCodegenArraySerializer(fd, ((ArrayType) type).getElementType());
+            return new PbCodegenArraySerializer(
+                    fd, ((ArrayType) type).getElementType(), pbFormatConfig);
         } else if (type instanceof MapType) {
-            return new PbCodegenMapSerializer(fd, (MapType) type);
+            return new PbCodegenMapSerializer(fd, (MapType) type, pbFormatConfig);
         } else {
             throw new PbCodegenException("Cannot support flink data type: " + type);
         }
     }
 
     public static PbCodegenSerializer getPbCodegenTopRowSer(
-            Descriptors.Descriptor descriptor, RowType rowType) {
-        return new PbCodegenRowSerializer(descriptor, rowType);
+            Descriptors.Descriptor descriptor, RowType rowType, PbFormatConfig pbFormatConfig) {
+        return new PbCodegenRowSerializer(descriptor, rowType, pbFormatConfig);
     }
 }

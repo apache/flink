@@ -35,13 +35,11 @@ public class RepeatedMessageProtoToRowTest {
     public void testRepeatedMessage() throws Exception {
         RowType rowType =
                 PbRowTypeInformationUtil.generateRowType(RepeatedMessageTest.getDescriptor());
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(RepeatedMessageTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        RepeatedMessageTest.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         RepeatedMessageTest.InnerMessageTest innerMessageTest =
                 RepeatedMessageTest.InnerMessageTest.newBuilder().setA(1).setB(2L).build();

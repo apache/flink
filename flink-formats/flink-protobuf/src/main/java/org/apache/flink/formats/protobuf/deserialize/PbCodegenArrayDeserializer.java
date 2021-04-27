@@ -22,6 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -30,13 +31,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
     private final Descriptors.FieldDescriptor fd;
     private final LogicalType elementType;
-    private final boolean readDefaultValues;
+    private final PbFormatConfig formatConfig;
 
     public PbCodegenArrayDeserializer(
-            Descriptors.FieldDescriptor fd, LogicalType elementType, boolean readDefaultValues) {
+            Descriptors.FieldDescriptor fd, LogicalType elementType, PbFormatConfig formatConfig) {
         this.fd = fd;
         this.elementType = elementType;
-        this.readDefaultValues = readDefaultValues;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -72,7 +73,7 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
                         + iVar
                         + ")");
         PbCodegenDeserializer codegenDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, readDefaultValues);
+                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatConfig);
         String code = codegenDes.codegen(subReturnDataVar, subPbObjVar);
         appender.appendSegment(code);
         appender.appendLine(newArrDataVar + "[" + iVar + "]=" + subReturnDataVar + "");

@@ -34,13 +34,11 @@ public class RepeatedProtoToRowTest {
     @Test
     public void testRepeated() throws Exception {
         RowType rowType = PbRowTypeInformationUtil.generateRowType(RepeatedTest.getDescriptor());
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(RepeatedTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        RepeatedTest.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         RepeatedTest simple = RepeatedTest.newBuilder().setA(1).addB(1).addB(2).build();
 

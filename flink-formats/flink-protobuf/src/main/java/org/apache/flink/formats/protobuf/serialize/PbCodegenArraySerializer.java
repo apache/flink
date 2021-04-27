@@ -22,6 +22,7 @@ import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import com.google.protobuf.Descriptors;
@@ -30,10 +31,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenArraySerializer implements PbCodegenSerializer {
     private final Descriptors.FieldDescriptor fd;
     private final LogicalType elementType;
+    private final PbFormatConfig formatConfig;
 
-    public PbCodegenArraySerializer(Descriptors.FieldDescriptor fd, LogicalType elementType) {
+    public PbCodegenArraySerializer(
+            Descriptors.FieldDescriptor fd, LogicalType elementType, PbFormatConfig formatConfig) {
         this.fd = fd;
         this.elementType = elementType;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -63,7 +67,13 @@ public class PbCodegenArraySerializer implements PbCodegenSerializer {
                         + "++){");
         String elementGenCode =
                 PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        arrayDataVar, iVar, elementPbVar, elementDataVar, fd, elementType);
+                        arrayDataVar,
+                        iVar,
+                        elementPbVar,
+                        elementDataVar,
+                        fd,
+                        elementType,
+                        formatConfig);
         appender.appendSegment(elementGenCode);
         // add pb element to result list
         appender.appendLine(pbListVar + ".add( " + elementPbVar + ")");

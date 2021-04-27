@@ -45,4 +45,11 @@ public class PbFormatOptions {
                     .withDescription(
                             "Optional flag to read as default values instead of null when some field does not exist in deserialization; default to false."
                                     + "If proto syntax is proto3, this value will be set true forcibly because proto3's standard is to use default values.");
+    public static final ConfigOption<String> WRITE_NULL_STRING_LITERAL =
+            ConfigOptions.key("write-null-string-literal")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "When serializing to protobuf data, this is the optional config to specify the string literal in protobuf's array/map in case of null values."
+                                    + "By default empty string is used.");
 }

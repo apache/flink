@@ -18,12 +18,10 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
 import org.apache.flink.formats.protobuf.testproto.SimpleTest;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -47,13 +45,7 @@ public class SimpleRowToProtoTest {
                         StringData.fromString("IMAGES"),
                         1);
 
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor());
-        row = ProtobufTestHelper.validateRow(row, rowType);
-
-        PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowType, SimpleTest.class.getName());
-
-        byte[] bytes = serializationSchema.serialize(row);
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
         SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
         assertTrue(simpleTest.hasA());
         assertEquals(1, simpleTest.getA());
@@ -73,13 +65,7 @@ public class SimpleRowToProtoTest {
                 GenericRowData.of(
                         null, 2L, false, 0.1f, 0.01, StringData.fromString("hello"), null, null, 1);
 
-        RowType rowtype = PbRowTypeInformationUtil.generateRowType(SimpleTest.getDescriptor());
-        row = ProtobufTestHelper.validateRow(row, rowtype);
-
-        PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowtype, SimpleTest.class.getName());
-
-        byte[] bytes = serializationSchema.serialize(row);
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, SimpleTest.class);
         SimpleTest simpleTest = SimpleTest.parseFrom(bytes);
         assertFalse(simpleTest.hasA());
         assertFalse(simpleTest.hasG());

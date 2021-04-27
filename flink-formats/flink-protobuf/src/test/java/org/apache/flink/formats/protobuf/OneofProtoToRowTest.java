@@ -34,13 +34,11 @@ public class OneofProtoToRowTest {
     @Test
     public void testSimple() throws Exception {
         RowType rowType = PbRowTypeInformationUtil.generateRowType(OneofTest.getDescriptor());
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(OneofTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        OneofTest.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         OneofTest oneofTest = OneofTest.newBuilder().setA(1).setB(2).build();
 

@@ -23,6 +23,7 @@ import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.PbConstant;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 
@@ -32,10 +33,13 @@ import com.google.protobuf.Descriptors;
 public class PbCodegenMapSerializer implements PbCodegenSerializer {
     private final Descriptors.FieldDescriptor fd;
     private final MapType mapType;
+    private final PbFormatConfig formatConfig;
 
-    public PbCodegenMapSerializer(Descriptors.FieldDescriptor fd, MapType mapType) {
+    public PbCodegenMapSerializer(
+            Descriptors.FieldDescriptor fd, MapType mapType, PbFormatConfig formatConfig) {
         this.fd = fd;
         this.mapType = mapType;
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -90,13 +94,19 @@ public class PbCodegenMapSerializer implements PbCodegenSerializer {
         // process key
         String keyGenCode =
                 PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        keyArrDataVar, iVar, keyPbVar, keyDataVar, keyFd, keyType);
+                        keyArrDataVar, iVar, keyPbVar, keyDataVar, keyFd, keyType, formatConfig);
         appender.appendSegment(keyGenCode);
 
         // process value
         String valueGenCode =
                 PbCodegenUtils.generateArrElementCodeWithDefaultValue(
-                        valueArrDataVar, iVar, valuePbVar, valueDataVar, valueFd, valueType);
+                        valueArrDataVar,
+                        iVar,
+                        valuePbVar,
+                        valueDataVar,
+                        valueFd,
+                        valueType,
+                        formatConfig);
         appender.appendSegment(valueGenCode);
 
         appender.appendLine(pbMapVar + ".put(" + keyPbVar + ", " + valuePbVar + ")");

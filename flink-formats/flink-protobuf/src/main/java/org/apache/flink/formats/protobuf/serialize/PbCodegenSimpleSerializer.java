@@ -20,6 +20,7 @@ package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenVarId;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -30,10 +31,13 @@ import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 public class PbCodegenSimpleSerializer implements PbCodegenSerializer {
     private final Descriptors.FieldDescriptor fd;
     private final LogicalType type;
+    private final PbFormatConfig formatConfig;
 
-    public PbCodegenSimpleSerializer(Descriptors.FieldDescriptor fd, LogicalType type) {
+    public PbCodegenSimpleSerializer(
+            Descriptors.FieldDescriptor fd, LogicalType type, PbFormatConfig formatConfig) {
         this.fd = fd;
         this.type = type;
+        this.formatConfig = formatConfig;
     }
 
     /**

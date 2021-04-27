@@ -30,15 +30,10 @@ import org.apache.flink.table.types.logical.RowType;
 
 /** {@link DecodingFormat} for protobuf decoding. */
 public class PbDecodingFormat implements DecodingFormat<DeserializationSchema<RowData>> {
-    private final String messageClassName;
-    private final boolean ignoreParseErrors;
-    private final boolean readDefaultValues;
+    private final PbFormatConfig formatConfig;
 
-    public PbDecodingFormat(
-            String messageClassName, boolean ignoreParseErrors, boolean readDefaultValues) {
-        this.messageClassName = messageClassName;
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.readDefaultValues = readDefaultValues;
+    public PbDecodingFormat(PbFormatConfig formatConfig) {
+        this.formatConfig = formatConfig;
     }
 
     @Override
@@ -47,12 +42,7 @@ public class PbDecodingFormat implements DecodingFormat<DeserializationSchema<Ro
         final RowType rowType = (RowType) producedDataType.getLogicalType();
         final TypeInformation<RowData> rowDataTypeInfo =
                 context.createTypeInformation(producedDataType);
-        return new PbRowDataDeserializationSchema(
-                rowType,
-                rowDataTypeInfo,
-                this.messageClassName,
-                this.ignoreParseErrors,
-                this.readDefaultValues);
+        return new PbRowDataDeserializationSchema(rowType, rowDataTypeInfo, formatConfig);
     }
 
     @Override

@@ -34,13 +34,10 @@ public class MapProtoToRowTest {
     @Test
     public void testMessage() throws Exception {
         RowType rowType = PbRowTypeInformationUtil.generateRowType(MapTest.getDescriptor());
+        PbFormatConfig formatConfig = new PbFormatConfig(MapTest.class.getName(), false, false, "");
         PbRowDataDeserializationSchema deserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType,
-                        InternalTypeInfo.of(rowType),
-                        MapTest.class.getName(),
-                        false,
-                        false);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig);
 
         MapTest.InnerMessageTest innerMessageTest =
                 MapTest.InnerMessageTest.newBuilder().setA(1).setB(2).build();

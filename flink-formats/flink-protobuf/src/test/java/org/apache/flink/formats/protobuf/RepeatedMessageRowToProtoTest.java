@@ -18,13 +18,11 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
 import org.apache.flink.formats.protobuf.testproto.RepeatedMessageTest;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -39,14 +37,7 @@ public class RepeatedMessageRowToProtoTest {
         ArrayData tmp = new GenericArrayData(new Object[] {subRow, subRow2});
         RowData row = GenericRowData.of(tmp);
 
-        RowType rowType =
-                PbRowTypeInformationUtil.generateRowType(RepeatedMessageTest.getDescriptor());
-        row = ProtobufTestHelper.validateRow(row, rowType);
-
-        PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowType, RepeatedMessageTest.class.getName());
-
-        byte[] bytes = serializationSchema.serialize(row);
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedMessageTest.class);
         RepeatedMessageTest repeatedMessageTest = RepeatedMessageTest.parseFrom(bytes);
 
         assertEquals(2, repeatedMessageTest.getDCount());

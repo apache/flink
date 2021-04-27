@@ -45,15 +45,15 @@ public class MetaOuterNoMultiTest {
         RowType rowType =
                 PbRowTypeInformationUtil.generateRowType(
                         SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.getDescriptor());
-        new PbRowDataDeserializationSchema(
-                rowType,
-                InternalTypeInfo.of(rowType),
-                SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.class.getName(),
-                false,
-                false);
+        PbFormatConfig formatConfig =
+                new PbFormatConfig(
+                        SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.class.getName(),
+                        false,
+                        false,
+                        "");
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig);
 
-        new PbRowDataSerializationSchema(
-                rowType, SimpleTestOuterNomultiProto.SimpleTestOuterNomulti.class.getName());
+        new PbRowDataSerializationSchema(rowType, formatConfig);
         // validation success
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 import org.apache.flink.formats.protobuf.PbCodegenAppender;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatUtils;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -51,13 +52,20 @@ public class ProtoToRowConverter {
     private final ScriptEvaluator se;
     private final Method parseFromMethod;
 
-    public ProtoToRowConverter(String messageClassName, RowType rowType, boolean readDefaultValues)
+    public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
-            Descriptors.Descriptor descriptor = PbFormatUtils.getDescriptor(messageClassName);
-            Class<?> messageClass = Class.forName(messageClassName);
+            Descriptors.Descriptor descriptor =
+                    PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
+            Class<?> messageClass = Class.forName(formatConfig.getMessageClassName());
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
-                readDefaultValues = true;
+                // pb3 always read default values
+                formatConfig =
+                        new PbFormatConfig(
+                                formatConfig.getMessageClassName(),
+                                formatConfig.isIgnoreParseErrors(),
+                                true,
+                                formatConfig.getWriteNullStringLiterals());
             }
             se = new ScriptEvaluator();
             se.setParameters(new String[] {"message"}, new Class[] {messageClass});
@@ -78,7 +86,7 @@ public class ProtoToRowConverter {
             codegenAppender.appendLine("RowData rowData=null");
             PbCodegenDeserializer codegenDes =
                     PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
-                            descriptor, rowType, readDefaultValues);
+                            descriptor, rowType, formatConfig);
             String genCode = codegenDes.codegen("rowData", "message");
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");

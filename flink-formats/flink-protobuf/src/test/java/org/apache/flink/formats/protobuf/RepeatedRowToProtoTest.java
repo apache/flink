@@ -18,13 +18,11 @@
 
 package org.apache.flink.formats.protobuf;
 
-import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
 import org.apache.flink.formats.protobuf.testproto.RepeatedTest;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -43,13 +41,7 @@ public class RepeatedRowToProtoTest {
                         0.01,
                         StringData.fromString("hello"));
 
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(RepeatedTest.getDescriptor());
-        row = ProtobufTestHelper.validateRow(row, rowType);
-
-        PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowType, RepeatedTest.class.getName());
-
-        byte[] bytes = serializationSchema.serialize(row);
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedTest.class);
         RepeatedTest repeatedTest = RepeatedTest.parseFrom(bytes);
         assertEquals(3, repeatedTest.getBCount());
         assertEquals(1L, repeatedTest.getB(0));
@@ -68,13 +60,7 @@ public class RepeatedRowToProtoTest {
                         0.01,
                         StringData.fromString("hello"));
 
-        RowType rowType = PbRowTypeInformationUtil.generateRowType(RepeatedTest.getDescriptor());
-        row = ProtobufTestHelper.validateRow(row, rowType);
-
-        PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowType, RepeatedTest.class.getName());
-
-        byte[] bytes = serializationSchema.serialize(row);
+        byte[] bytes = ProtobufTestHelper.rowToPbBytes(row, RepeatedTest.class);
         RepeatedTest repeatedTest = RepeatedTest.parseFrom(bytes);
         assertEquals(0, repeatedTest.getBCount());
     }
