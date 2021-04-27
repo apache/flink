@@ -21,7 +21,9 @@ package org.apache.flink.runtime.testtasks;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -62,11 +64,12 @@ public class OnceBlockingNoOpInvokable extends AbstractInvokable {
     }
 
     @Override
-    public void cancel() throws Exception {
+    public Future<Void> cancel() throws Exception {
         synchronized (lock) {
             running = false;
             lock.notifyAll();
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     public static void waitUntilOpsAreRunning() throws InterruptedException {

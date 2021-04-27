@@ -34,7 +34,7 @@ object Tasks {
         getEnvironment.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val writer = new RecordWriterBuilder[IntValue]().build(
         getEnvironment.getWriter(0))
 
@@ -77,7 +77,7 @@ object Tasks {
         getEnvironment.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader2 = new RecordReader[IntValue](
         getEnvironment.getInputGate(1),
         classOf[IntValue],
@@ -98,12 +98,12 @@ object Tasks {
         env.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader2 = new RecordReader[IntValue](
         env.getInputGate(1),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader3 = new RecordReader[IntValue](
         env.getInputGate(2),
         classOf[IntValue],
