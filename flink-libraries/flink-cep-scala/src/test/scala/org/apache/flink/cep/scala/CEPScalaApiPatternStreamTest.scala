@@ -1,67 +1,36 @@
 package org.apache.flink.cep.scala
 
-import java.lang.reflect.Field
-
 import org.apache.flink.cep
-import org.apache.flink.cep.pattern.Pattern
-import org.apache.flink.cep.pattern.conditions.SimpleCondition
-import org.apache.flink.streaming.api.datastream.DataStreamSource
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.junit.Assert.assertEquals
+import org.apache.flink.cep.scala.pattern.Pattern
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.junit.Test
 
 class CEPScalaApiPatternStreamTest {
   /**
-    * These tests simply check that use the Scala API  to update the TimeCharacteristic of the PatternStream .
+    * These tests simply check that use the Scala API  to update the Characteristic of the PatternStream .
     */
 
   @Test
-  def updateCepTimeCharacteristicByScalaApi(): Unit = {
-
+  def testUpdatePatternStreamCharacteristicByScalaApi(): Unit = {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    val input: DataStreamSource[Event] = env.fromElements(Event(1, "barfoo", 1.0), Event(8, "end", 1.0))
-    val pattern: Pattern[Event, Event] = Pattern.begin("start").where(new SimpleCondition[Event]() {
-      override def filter(value: Event): Boolean = value.name == "start"
-    })
+    val dummyDataStream: DataStream[(Int, Int)] = env.fromElements()
+    val pattern: Pattern[(Int, Int), (Int, Int)] = Pattern.begin[(Int, Int)]("dummy")
 
-    val jestream: cep.PatternStream[Event] = org.apache.flink.cep.CEP.pattern(input, pattern)
+    val pStream: PatternStream[(Int, Int)] = CEP.pattern(dummyDataStream, pattern)
+    val jStream: cep.PatternStream[(Int, Int)] = pStream.wrappedPatternStream
 
-    //get org.apache.flink.cep.scala.PatternStream
-    val sePstream = new PatternStream[Event](jestream)
+    assert(pStream.wrappedPatternStream == jStream)
 
-    //get  TimeBehaviour
-    val time1: AnyRef = getTimeBehaviourFromScalaPatternStream(sePstream)
+    //change Characteristic use scala api
+    val pStream1: PatternStream[(Int, Int)] = pStream.inProcessingTime()
+    assert(pStream1.wrappedPatternStream != jStream)
 
-    assertEquals(time1.toString, "EventTime")
+    val pStream2: PatternStream[(Int, Int)] = pStream.inEventTime()
+    assert(pStream2.wrappedPatternStream != jStream)
 
-    //change TimeCharacteristic use scala api
-    val sPstream: PatternStream[Event] = sePstream.inProcessingTime()
-
-    //get  TimeBehaviour
-    val time2: AnyRef = getTimeBehaviourFromScalaPatternStream(sPstream)
-
-    assertEquals(time2.toString, "ProcessingTime")
-
+    val pStream3: PatternStream[(Int, Int)] = pStream.sideOutputLateData(new OutputTag[(Int, Int)]("dummy"))
+    assert(pStream3.wrappedPatternStream != jStream)
 
   }
-
-  def getTimeBehaviourFromScalaPatternStream(seStream: org.apache.flink.cep.scala.PatternStream[Event])  = {
-    val field: Field = seStream.getClass.getDeclaredField("jPatternStream")
-    field.setAccessible(true)
-    val JPattern: AnyRef = field.get(seStream)
-    val stream: cep.PatternStream[Event] = JPattern.asInstanceOf[cep.PatternStream[Event]]
-    getTimeBehaviourFromJavaPatternStream(stream)
-  }
-
-  def getTimeBehaviourFromJavaPatternStream(jeStream: org.apache.flink.cep.PatternStream[Event])={
-    val builder: Field = jeStream.getClass.getDeclaredField("builder")
-    builder.setAccessible(true)
-    val o: AnyRef = builder.get(jeStream)
-    val timeBehaviour: Field = o.getClass.getDeclaredField("timeBehaviour")
-    timeBehaviour.setAccessible(true)
-    timeBehaviour.get(o)
-  }
-
-
-  case class  Event(id:Int ,name:String ,price:Double)
 }
