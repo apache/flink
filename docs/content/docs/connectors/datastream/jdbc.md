@@ -32,8 +32,15 @@ To use it, add the following dependency to your project (along with your JDBC dr
 
 {{< artifact flink-connector-jdbc withScalaVersion >}}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
 
+| Driver      |      Group Id      |      Artifact Id       |      JAR         |
+| :-----------| :------------------| :----------------------| :----------------|
+| MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
+| Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
 ## `JdbcSink.sink`
 
@@ -146,13 +153,13 @@ Since 1.13, Flink JDBC sink supports exactly-once mode.
 The implementation relies on the JDBC driver support of XA 
 [standard](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf).
 
-Attention: In 1.13, Flink JDBC sink does not support exactly-once mode with MySQL or other databases
-that do not support multiple XA transaction per connection. We will improve the support in FLINK-22239.
-
 To use it, create a sink using `exactlyOnceSink()` method as above and additionally provide:
 - {{< javadoc name="exactly-once options" file="org/apache/flink/connector/jdbc/JdbcExactlyOnceOptions.html" >}}
 - {{< javadoc name="execution options" file="org/apache/flink/connector/jdbc/JdbcExecutionOptions.html" >}}
 - [XA DataSource](https://docs.oracle.com/javase/8/docs/api/javax/sql/XADataSource.html) Supplier
+
+**ATTENTION!** Currently `JdbcSink.exactlyOnceSink` can ensure exactly once semantics
+with `JdbcExecutionOptions.maxRetries == 0`; otherwise, duplicated results maybe produced.
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -167,15 +174,24 @@ env
                     ps.setDouble(4, t.price);
                     ps.setInt(5, t.qty);
                 },
-                JdbcExecutionOptions.builder().build(),
+                JdbcExecutionOptions.builder()
+                    .withMaxRetries(0)
+                    .build(),
                 JdbcExactlyOnceOptions.defaults(),
                 () -> {
                     // create a driver-specific XA DataSource
+                    // The following example is for derby 
                     EmbeddedXADataSource ds = new EmbeddedXADataSource();
                     ds.setDatabaseName("my_db");
                     return ds;
                 });
 env.execute();
+```
+Postgres XADataSource Example:
+```java
+PGXADataSource pgxaDataSource = new PGXADataSource();
+pgxaDataSource.setUrl(
+"jdbc:postgresql://localhost:5432/postgres");
 ```
 
 Please refer to the `JdbcXaSinkFunction` documentation for more details.
