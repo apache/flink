@@ -56,6 +56,74 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   }
 
   @Test
+  def testLagFunction(): Unit = {
+    val sqlQuery = "SELECT a, b, c, " +
+        "  LAG(b) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LAG(b, 2) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LAG(b, 2, CAST(10086 AS BIGINT)) OVER(PARTITION BY a ORDER BY rowtime)" +
+        "FROM T1"
+
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000001L, (1, 1L, "Hi")),
+      Left(14000005L, (1, 2L, "Hi")),
+      Left(14000002L, (1, 3L, "Hello")),
+      Left(14000003L, (1, 4L, "Hello")),
+      Left(14000003L, (1, 5L, "Hello")),
+      Right(14000020L),
+      Left(14000021L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Right(14000030L))
+
+    val source = failingDataSource(data)
+    val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+        .setParallelism(source.parallelism)
+        .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      s"1,1,Hi,null,null,10086",
+      s"1,3,Hello,1,null,10086",
+      s"1,4,Hello,4,3,3",
+      s"1,5,Hello,4,3,3",
+      s"1,2,Hi,5,4,4",
+      s"1,6,Hello world,2,5,5",
+      s"1,7,Hello world,6,2,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLeadFunction(): Unit = {
+    expectedException.expectMessage("LEAD Function is not supported in stream mode")
+
+    val sqlQuery = "SELECT a, b, c, " +
+        "  LEAD(b) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LEAD(b, 2) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LEAD(b, 2, CAST(10086 AS BIGINT)) OVER(PARTITION BY a ORDER BY rowtime)" +
+        "FROM T1"
+
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000001L, (1, 1L, "Hi")),
+      Left(14000003L, (1, 5L, "Hello")),
+      Right(14000020L),
+      Left(14000021L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Right(14000030L))
+    val source = failingDataSource(data)
+    val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+        .setParallelism(source.parallelism)
+        .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.registerTable("T1", t1)
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test
   def testRowNumberOnOver(): Unit = {
     val t = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)

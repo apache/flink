@@ -153,6 +153,7 @@ object AggregateUtil extends Enumeration {
   def getOutputIndexToAggCallIndexMap(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
+      isBounded: Boolean,
       orderKeyIndexes: Array[Int] = null): util.Map[Integer, Integer] = {
     val aggInfos = transformToAggregateInfoList(
       FlinkTypeFactory.toLogicalRowType(inputType),
@@ -161,7 +162,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false).aggInfos
+      needDistinctInfo = false,
+      isBounded).aggInfos
 
     val map = new util.HashMap[Integer, Integer]()
     var outputIndex = 0
@@ -248,7 +250,7 @@ object AggregateUtil extends Enumeration {
       isStateBackendDataViews = true)
   }
 
-  def deriveWindowAggregateInfoList(
+  def deriveStreamWindowAggregateInfoList(
       inputRowType: RowType,
       aggCalls: Seq[AggregateCall],
       windowSpec: WindowSpec,
@@ -271,7 +273,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes = null,
       needInputCount,
       isStateBackendDataViews,
-      needDistinctInfo = true)
+      needDistinctInfo = true,
+      isBounded = false)
   }
 
   def transformToBatchAggregateFunctions(
@@ -287,7 +290,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false).aggInfos
+      needDistinctInfo = false,
+      isBounded = true).aggInfos
 
     val aggFields = aggInfos.map(_.argIndexes)
     val bufferTypes = aggInfos.map(_.externalAccTypes)
@@ -315,7 +319,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false)
+      needDistinctInfo = false,
+      isBounded = true)
   }
 
   def transformToStreamAggregateInfoList(
@@ -332,7 +337,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes = null,
       needInputCount,
       isStateBackendDataViews,
-      needDistinctInfo)
+      needDistinctInfo,
+      isBounded = false)
   }
 
   /**
@@ -355,7 +361,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes: Array[Int],
       needInputCount: Boolean,
       isStateBackedDataViews: Boolean,
-      needDistinctInfo: Boolean): AggregateInfoList = {
+      needDistinctInfo: Boolean,
+      isBounded: Boolean): AggregateInfoList = {
 
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,
@@ -375,7 +382,11 @@ object AggregateUtil extends Enumeration {
 
     // Step-3:
     // create aggregate information
-    val factory = new AggFunctionFactory(inputRowType, orderKeyIndexes, aggCallNeedRetractions)
+    val factory = new AggFunctionFactory(
+      inputRowType,
+      orderKeyIndexes,
+      aggCallNeedRetractions,
+      isBounded)
     val aggInfos = newAggCalls
       .zipWithIndex
       .map { case (call, index) =>
