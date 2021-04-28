@@ -9,7 +9,7 @@ import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
-/** */
+/** Table source for protobuf table factory test. */
 public class TestProtobufTableSource implements ScanTableSource {
     private final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
     private final DataType producedDataType;

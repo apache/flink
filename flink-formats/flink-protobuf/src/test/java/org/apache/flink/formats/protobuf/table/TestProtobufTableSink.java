@@ -8,7 +8,7 @@ import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
-/** */
+/** Table sink for protobuf table factory test. */
 public class TestProtobufTableSink implements DynamicTableSink {
     private final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
     private final DataType dataType;

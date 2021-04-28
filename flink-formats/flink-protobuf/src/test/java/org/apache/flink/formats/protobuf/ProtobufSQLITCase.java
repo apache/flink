@@ -59,10 +59,11 @@ public class ProtobufSQLITCase extends BatchTestBase {
     }
 
     @Test
-    public void testSink() throws Exception {
+    public void testSourceWithDefaultValue() {
+        MapTest mapTest = MapTest.newBuilder().build();
+
         TestProtobufSourceFunction.messages.clear();
-        TestProtobufSourceFunction.messages.add(getProtoTestObject());
-        TestProtobufSinkFunction.results.clear();
+        TestProtobufSourceFunction.messages.add(mapTest);
 
         env().setParallelism(1);
         String sql =
@@ -73,10 +74,23 @@ public class ProtobufSQLITCase extends BatchTestBase {
                         + ")  with ("
                         + "	'connector' = 'protobuf-test-connector', "
                         + "	'format' = 'protobuf', "
-                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest'"
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest', "
+                        + " 'protobuf.read-default-values' = 'true' "
                         + ")";
         tEnv().executeSql(sql);
-        sql =
+        TableResult result = tEnv().executeSql("select * from bigdata_source");
+        Row row = result.collect().next();
+        assertEquals(0, (int) row.getField(0));
+    }
+
+    @Test
+    public void testSink() throws Exception {
+        TestProtobufSourceFunction.messages.clear();
+        TestProtobufSourceFunction.messages.add(getProtoTestObject());
+        TestProtobufSinkFunction.results.clear();
+
+        env().setParallelism(1);
+        String sql =
                 "create table bigdata_sink ( "
                         + "	a int, "
                         + "	map1 map<string,string>,"
@@ -88,7 +102,8 @@ public class ProtobufSQLITCase extends BatchTestBase {
                         + ")";
         tEnv().executeSql(sql);
         TableResult tableResult =
-                tEnv().executeSql("insert into bigdata_sink select * from bigdata_source");
+                tEnv().executeSql(
+                                "insert into bigdata_sink select 1, map['a', 'b', 'c', 'd'], map['f', row(1,cast(2 as bigint))] ");
         tableResult.await();
 
         byte[] bytes = TestProtobufSinkFunction.results.get(0);
@@ -99,5 +114,37 @@ public class ProtobufSQLITCase extends BatchTestBase {
         MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("f");
         assertEquals(1, innerMessageTest.getA());
         assertEquals(2L, innerMessageTest.getB());
+    }
+
+    @Test
+    public void testSinkWithNullLiteral() throws Exception {
+        TestProtobufSourceFunction.messages.clear();
+        TestProtobufSourceFunction.messages.add(getProtoTestObject());
+        TestProtobufSinkFunction.results.clear();
+
+        env().setParallelism(1);
+        String sql =
+                "create table bigdata_sink ( "
+                        + "	a int, "
+                        + "	map1 map<string,string>,"
+                        + " map2 map<string, row<a int, b bigint>>"
+                        + ")  with ("
+                        + "	'connector' = 'protobuf-test-connector', "
+                        + "	'format' = 'protobuf', "
+                        + " 'protobuf.message-class-name' = 'org.apache.flink.formats.protobuf.testproto.MapTest', "
+                        + " 'protobuf.write-null-string-literal' = 'NULL' "
+                        + ")";
+        tEnv().executeSql(sql);
+        TableResult tableResult =
+                tEnv().executeSql(
+                                "insert into bigdata_sink select 1, map['a', null], map['b', cast(null as row<a int, b bigint>)]");
+        tableResult.await();
+
+        byte[] bytes = TestProtobufSinkFunction.results.get(0);
+        MapTest mapTest = MapTest.parseFrom(bytes);
+        assertEquals(1, mapTest.getA());
+        assertEquals("NULL", mapTest.getMap1Map().get("a"));
+        MapTest.InnerMessageTest innerMessageTest = mapTest.getMap2Map().get("b");
+        assertEquals(MapTest.InnerMessageTest.getDefaultInstance(), innerMessageTest);
     }
 }
