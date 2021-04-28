@@ -30,10 +30,6 @@ User-defined functions are important features, because they significantly extend
 
 **NOTE:** Python UDF execution requires Python version (3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
 
-## Bundling UDFs
-
-To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended to bundle your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your Python UDFs live outside of the file where the `main()` function is defined. Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define Python UDFs in a file called `my_udf.py`.
-
 ## Scalar Functions
 
 It supports to use Python scalar functions in Python Table API programs. In order to define a Python scalar function,
@@ -557,3 +553,7 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
     def get_result_type(self):
         return DataTypes.ROW([DataTypes.FIELD("a", DataTypes.STRING())])
 ```
+
+## Bundling UDFs
+
+To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended to bundle your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your Python UDFs live outside of the file where the `main()` function is defined. Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define Python UDFs in a file called `my_udf.py`.
