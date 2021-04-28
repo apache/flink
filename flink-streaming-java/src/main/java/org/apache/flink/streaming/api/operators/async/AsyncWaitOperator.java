@@ -151,7 +151,7 @@ public class AsyncWaitOperator<IN, OUT>
                 throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
         }
 
-        this.timestampedCollector = new TimestampedCollector<>(output);
+        this.timestampedCollector = new TimestampedCollector<>(super.output);
     }
 
     @Override
