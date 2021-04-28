@@ -553,3 +553,8 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
     def get_result_type(self):
         return DataTypes.ROW([DataTypes.FIELD("a", DataTypes.STRING())])
 ```
+
+## 打包 UDFs
+
+如果你在非 local 模式下运行 Python UDFs 和 Pandas UDFs，且 Python UDFs 没有定义在含 `main()` 入口的 Python 主文件中，强烈建议你通过 [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files) 配置项指定 Python UDF 的定义。
+否则，如果你将 Python UDFs 定义在名为 `my_udf.py` 的文件中，你可能会遇到 `ModuleNotFoundError: No module named 'my_udf'` 这样的报错。
