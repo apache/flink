@@ -45,7 +45,7 @@ Flink SQL> SELECT TIMESTAMP '1970-01-01 00:00:04.001';
 ### TIMESTAMP_LTZ 类型
  - `TIMESTAMP_LTZ(p)` 是 `TIMESTAMP(p) WITH LOCAL TIME ZONE` 的简写， 精度 `p` 支持的范围是0-9， 默认是6。
  - `TIMESTAMP_LTZ` 用于描述时间线上的绝对时间点， 使用 long 保存从 epoch 至今的毫秒数， 使用int保存毫秒中的纳秒数。 epoch 时间是从 java 的标准 epoch 时间 `1970-01-01T00:00:00Z` 开始计算。 在计算和可视化时， 每个 `TIMESTAMP_LTZ` 类型的数据都是使用的 session （会话）中配置的时区。
- - `TIMESTAMP_LTZ` 没有字符串表达形式因此无法通过字符串来指定， 可以通过一个 long 类型的 epoch 时间来转化(例如: 通过Java来产生一个long类型epoch时间 `System.currentTimeMillis()`)
+ - `TIMESTAMP_LTZ` 没有字符串表达形式因此无法通过字符串来指定， 可以通过一个 long 类型的 epoch 时间来转化(例如: 通过 Java 来产生一个 long 类型的 epoch 时间 `System.currentTimeMillis()`)
 
  ```sql
 Flink SQL> CREATE VIEW T1 AS SELECT TO_TIMESTAMP_LTZ(4001, 3);
@@ -355,7 +355,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView3;
 ```
 
-返回和 UTC 时区计算下不同的窗口开始时间， 窗口结束时间和窗口处理时间。
+相比在 UTC 时区下的计算结果， 在 Asia/Shanghai 时区下计算的窗口开始时间， 窗口结束时间和窗口处理时间是不同的。
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_procime | item | max_price |
@@ -445,7 +445,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView4;
 ```
 
-返回和在 UTC 时区下计算时相同的窗口开始时间， 窗口结束时间和窗口的 rowtime 。
+相比在 UTC 时区下的计算结果， 在 Asia/Shanghai 时区下计算的窗口开始时间， 窗口结束时间和窗口的 rowtime 是相同的。
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_rowtime | item | max_price |
@@ -457,7 +457,7 @@ Flink SQL> SELECT * FROM MyView4;
 ```
 
 #### TIMESTAMP_LTZ 上的事件时间属性
-如果 source 中的时间为一个 epoch 时间， 通常是一个 long 值， 例如: `1618989564564` ，推荐将事件时间属性定义在 `TIMESTAMP_LTZ` 列上。
+如果源数据中的时间为一个 epoch 时间， 通常是一个 long 值， 例如: `1618989564564` ，推荐将事件时间属性定义在 `TIMESTAMP_LTZ` 列上。
 ```sql
 Flink SQL> CREATE TABLE MyTable3 (
                   item STRING,
@@ -527,7 +527,7 @@ Flink SQL> SET table.local-time-zone=Asia/Shanghai;
 Flink SQL> SELECT * FROM MyView5;
 ```
 
-返回和 UTC 时区下计算时的不同的窗口开始时间， 窗口结束时间和窗口的 rowtime 。
+相比在 UTC 时区下的计算结果， 在 Asia/Shanghai 时区下计算的窗口开始时间， 窗口结束时间和窗口的 rowtime 是不同的。
 ```
 +-------------------------+-------------------------+-------------------------+------+-----------+
 |            window_start |              window_end |          window_rowtime | item | max_price |
@@ -540,21 +540,21 @@ Flink SQL> SELECT * FROM MyView5;
 
 ## 夏令时支持
 Flink SQL支持在 `TIMESTAMP_LTZ`列上定义时间属性， 基于这一特征，Flink SQL 在窗口中使用 `TIMESTAMP` 和 `TIMESTAMP_LTZ` 类型优雅地支持了夏令时。
-   
-Flink 使用时间的字符格式来分割窗口并通过 row 的 epoch 时间来分配窗口。 这意味着 Flink 窗口开始时间和窗口结束时间使用的是 `TIMESTAMP` 类型（例如: `TUMBLE_START` 和 `TUMBLE_END`）， 将 `TIMESTAMP_LTZ` 类型用于窗口的时间属性（例如: `TUMBLE_PROCTIME`， `TUMBLE_ROWTIME`）。
-给定一个tumble window示例， 在Los_Angele时区下夏令时从 `2021-03-14 02:00:00` 开始：
+
+Flink 使用时间戳的字符格式来分割窗口并通过每条记录对应的 epoch 时间来分配窗口。 这意味着 Flink 窗口开始时间和窗口结束时间使用的是 `TIMESTAMP` 类型（例如: `TUMBLE_START` 和 `TUMBLE_END`）， 窗口的时间属性使用的是 `TIMESTAMP_LTZ` 类型（例如: `TUMBLE_PROCTIME`， `TUMBLE_ROWTIME`）。
+给定一个 tumble window示例， 在 Los_Angele 时区下夏令时从 `2021-03-14 02:00:00` 开始：
 ```
 long epoch1 = 1615708800000L; // 2021-03-14 00:00:00
 long epoch2 = 1615712400000L; // 2021-03-14 01:00:00
-long epoch3 = 1615716000000L; // 2021-03-14 03:00:00, skip one hour (2021-03-14 02:00:00)
+long epoch3 = 1615716000000L; // 2021-03-14 03:00:00, 手表往前拨一小时，跳过 (2021-03-14 02:00:00)
 long epoch4 = 1615719600000L; // 2021-03-14 04:00:00 
 ```
-在 Los_angele 时区下， tumble window [2021-03-14 00:00:00,  2021-03-14 00:04:00] 将会收集3个小时的数据， 在其他非 DST 的时区下将会收集4个小时的数据，用户只需要在 `TIMESTAMP_LTZ` 列上声明时间属性即可。
+在 Los_angele 时区下， tumble window [2021-03-14 00:00:00,  2021-03-14 00:04:00] 将会收集3个小时的数据， 在其他非夏令时的时区下将会收集4个小时的数据，用户只需要在 `TIMESTAMP_LTZ` 列上声明时间属性即可。
 
-Flink 的所有窗口（如 Hop window， Session window， Cumulative window）都会遵循这种方式， Flink SQL 中的所有操作都很好的支持了 `TIMESTAMP_LTZ` ，因此Flink可以非常优雅的支持夏令时。  
+Flink 的所有窗口（如 Hop window， Session window， Cumulative window）都会遵循这种方式， Flink SQL 中的所有操作都很好地支持了 `TIMESTAMP_LTZ` 类型，因此Flink可以非常优雅的支持夏令时。  
 
 
-## Batch模式和Streaming模式的区别
+## Batch 模式和 Streaming 模式的区别
 以下函数：
 * LOCALTIME
 * LOCALTIMESTAMP
