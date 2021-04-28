@@ -30,6 +30,10 @@ User-defined functions are important features, because they significantly extend
 
 **NOTE:** Python UDF execution requires Python version (3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
 
+## Bundling UDFs
+
+**NOTE:** To run Python UDFs (as well as Pandas UDF) in any non-local mode, it is strongly recommended to bundle your UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your UDFs live outside of the file where the `main()` function is defined. Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define UDFs in a file called `my_udf.py`.
+
 ## Scalar Functions
 
 It supports to use Python scalar functions in Python Table API programs. In order to define a Python scalar function,
