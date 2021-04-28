@@ -556,4 +556,5 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
 
 ## Bundling UDFs
 
-To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended to bundle your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your Python UDFs live outside of the file where the `main()` function is defined. Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define Python UDFs in a file called `my_udf.py`.
+To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended to bundle your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your Python UDFs live outside of the file where the `main()` function is defined.
+Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define Python UDFs in a file called `my_udf.py`.
