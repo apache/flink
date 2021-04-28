@@ -434,7 +434,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
                                 + "PARTITION (`P1` = 'a', `P2` = 1),\n"
                                 + "PARTITION (`P1` = 'b', `P2` = 2)");
         sql("alter table tbl drop partition (p1='a',p2=1), "
-                + "partition(p1='b',p2=2), partition(p1='c',p2=3)")
+                        + "partition(p1='b',p2=2), partition(p1='c',p2=3)")
                 .ok(
                         "ALTER TABLE `TBL`\n"
                                 + "DROP\n"
