@@ -557,3 +557,23 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
 
 To run Python UDFs (as well as Pandas UDFs) in any non-local mode, it is strongly recommended to bundle your Python UDF definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files), if your Python UDFs live outside of the file where the `main()` function is defined.
 Otherwise, you may run into `ModuleNotFoundError: No module named 'my_udf'` if you define Python UDFs in a file called `my_udf.py`.
+
+## Loading resources in UDFs
+
+There are scenarios when you want to load some resources in UDFs first, then running computation (i.e., `eval`) over and over again, without having to re-load the resources. For example, you may want to load a large deep learning model only once, then run batch prediction against the model multiple times.
+
+Overriding the `open` method of `UserDefinedFunction` is exactly what you need.
+
+```python
+class Predict(ScalarFunction):
+    def open(self, function_context):
+        import pickle
+
+        with open("resources.zip/resources/model.pkl", "rb") as f:
+            self.model = pickle.load(f)
+
+    def eval(self, x):
+        return self.model.predict(x)
+
+predict = udf(Predict(), result_type=DataTypes.DOUBLE(), func_type="pandas")
+```
