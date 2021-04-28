@@ -430,7 +430,7 @@ the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,
@@ -461,21 +461,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row):
+        if row[0] is not None:
+            if accumulator[0] is None or row[0] > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
-
-    def retract(self, accumulator, *args):
-        accumulator[0] = accumulator[0] - 1
-
-    def merge(self, accumulator, accumulators):
-        for other_acc in accumulators:
-            self.accumulate(accumulator, other_acc[0])
-            self.accumulate(accumulator, other_acc[1])
+                accumulator[0] = row[0]
+            elif accumulator[1] is None or row[0] > accumulator[1]:
+                accumulator[1] = row[0]
 
     def get_accumulator_type(self):
         return DataTypes.ARRAY(DataTypes.BIGINT())
@@ -485,7 +477,7 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))
@@ -497,8 +489,15 @@ t = table_env.from_elements([(1, 'Hi', 'Hello'),
                               (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
 
 # call function "inline" without registration in Table API
-result = t.group_by(t.name).flat_aggregate(top2).to_pandas()
-print(result)
+result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
+
+# the result is:
+#      b    a
+# 0  Hi2  5.0
+# 1  Hi2  NaN
+# 2   Hi  7.0
+# 3   Hi  3.0
+
 ```
 
 The `accumulate(...)` method of our `Top2` class takes two inputs. The first one is the accumulator
