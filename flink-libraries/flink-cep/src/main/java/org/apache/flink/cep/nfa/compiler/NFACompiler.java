@@ -213,7 +213,7 @@ public class NFACompiler {
         private void checkPatternNameUniqueness() {
             // make sure there is no pattern with name "$endState$"
             stateNameHandler.checkNameUniqueness(ENDING_STATE_NAME);
-            Pattern patternToCheck = currentPattern;
+            Pattern<T, ?> patternToCheck = currentPattern;
             while (patternToCheck != null) {
                 checkPatternNameUniqueness(patternToCheck);
                 patternToCheck = patternToCheck.getPrevious();
@@ -227,9 +227,9 @@ public class NFACompiler {
          *
          * @param pattern The pattern to be checked
          */
-        private void checkPatternNameUniqueness(final Pattern pattern) {
+        private void checkPatternNameUniqueness(final Pattern<T, ?> pattern) {
             if (pattern instanceof GroupPattern) {
-                Pattern patternToCheck = ((GroupPattern) pattern).getRawPattern();
+                Pattern<T, ?> patternToCheck = ((GroupPattern<T, ?>) pattern).getRawPattern();
                 while (patternToCheck != null) {
                     checkPatternNameUniqueness(patternToCheck);
                     patternToCheck = patternToCheck.getPrevious();
@@ -647,7 +647,7 @@ public class NFACompiler {
                 final boolean isOptional) {
             if (currentPattern instanceof GroupPattern) {
                 return createGroupPatternState(
-                        (GroupPattern) currentPattern, sinkState, proceedState, isOptional);
+                        (GroupPattern<T, ?>) currentPattern, sinkState, proceedState, isOptional);
             }
 
             final State<T> singletonState =
@@ -780,7 +780,7 @@ public class NFACompiler {
         @SuppressWarnings("unchecked")
         private State<T> createLooping(final State<T> sinkState) {
             if (currentPattern instanceof GroupPattern) {
-                return createLoopingGroupPatternState((GroupPattern) currentPattern, sinkState);
+                return createLoopingGroupPatternState((GroupPattern<T, ?>) currentPattern, sinkState);
             }
             final IterativeCondition<T> untilCondition =
                     (IterativeCondition<T>) currentPattern.getUntilCondition();
