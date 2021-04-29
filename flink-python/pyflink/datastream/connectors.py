@@ -291,7 +291,7 @@ class FlinkKafkaProducer(FlinkKafkaProducerBase):
         This default partitioner maps each sink subtask to a single Kafka partition (i.e. all
         records received by a sink subtask will end up in the same Kafka partition).
 
-        :param topic: ID of the Kafka topic.
+        :param topic: Name of the Kafka topic.
         :param serialization_schema: User defined key-less serialization schema.
         :param producer_config: Properties with the producer configuration.
         """

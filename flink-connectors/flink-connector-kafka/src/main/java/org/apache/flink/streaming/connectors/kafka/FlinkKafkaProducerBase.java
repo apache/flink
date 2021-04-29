@@ -83,7 +83,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>
     protected final Properties producerConfig;
 
     /** The name of the default topic this producer is writing data to. */
-    protected final String defaultTopicId;
+    protected final String defaultTopicName;
 
     /**
      * (Serializable) SerializationSchema for turning objects used with Flink into. byte[] for
@@ -125,7 +125,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>
     /**
      * The main constructor for creating a FlinkKafkaProducer.
      *
-     * @param defaultTopicId The default topic to write data to
+     * @param defaultTopicName The default topic to write data to
      * @param serializationSchema A serializable serialization schema for turning user objects into
      *     a kafka-consumable byte[] supporting key/value messages
      * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is
@@ -134,18 +134,18 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>
      *     partitions. Passing null will use Kafka's partitioner.
      */
     public FlinkKafkaProducerBase(
-            String defaultTopicId,
+            String defaultTopicName,
             KeyedSerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             FlinkKafkaPartitioner<IN> customPartitioner) {
-        requireNonNull(defaultTopicId, "TopicID not set");
+        requireNonNull(defaultTopicName, "Topic name not set");
         requireNonNull(serializationSchema, "serializationSchema not set");
         requireNonNull(producerConfig, "producerConfig not set");
         ClosureCleaner.clean(
                 customPartitioner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         ClosureCleaner.ensureSerializable(serializationSchema);
 
-        this.defaultTopicId = defaultTopicId;
+        this.defaultTopicName = defaultTopicName;
         this.schema = serializationSchema;
         this.producerConfig = producerConfig;
         this.flinkKafkaPartitioner = customPartitioner;
@@ -237,7 +237,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>
                 "Starting FlinkKafkaProducer ({}/{}) to produce into default topic {}",
                 ctx.getIndexOfThisSubtask() + 1,
                 ctx.getNumberOfParallelSubtasks(),
-                defaultTopicId);
+                defaultTopicName);
 
         // register Kafka metrics to Flink accumulators
         if (!Boolean.parseBoolean(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
@@ -304,7 +304,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>
         byte[] serializedValue = schema.serializeValue(next);
         String targetTopic = schema.getTargetTopic(next);
         if (targetTopic == null) {
-            targetTopic = defaultTopicId;
+            targetTopic = defaultTopicName;
         }
 
         int[] partitions = this.topicPartitionsMap.get(targetTopic);
