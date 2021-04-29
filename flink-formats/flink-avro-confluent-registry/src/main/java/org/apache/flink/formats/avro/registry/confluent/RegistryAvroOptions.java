@@ -37,4 +37,56 @@ public class RegistryAvroOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Subject name to write to the Schema Registry service, required for sink");
+
+    // --------------------------------------------------------------------------------------------
+    // Commonly used options maintained by Flink for convenience
+    // --------------------------------------------------------------------------------------------
+
+    public static final ConfigOption<String> SSL_KEYSTORE_LOCATION =
+            ConfigOptions.key("ssl.keystore.location")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Location / File of SSL keystore");
+
+    public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
+            ConfigOptions.key("ssl.keystore.password")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Password for SSL keystore");
+
+    public static final ConfigOption<String> SSL_TRUSTSTORE_LOCATION =
+            ConfigOptions.key("ssl.truststore.location")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Location / File of SSL truststore");
+
+    public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
+            ConfigOptions.key("ssl.truststore.password")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Password for SSL truststore");
+
+    public static final ConfigOption<String> BASIC_AUTH_CREDENTIALS_SOURCE =
+            ConfigOptions.key("basic-auth.credentials-source")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Basic auth credentials source for Schema Registry");
+
+    public static final ConfigOption<String> BASIC_AUTH_USER_INFO =
+            ConfigOptions.key("basic-auth.user-info")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Basic auth user info for schema registry");
+
+    public static final ConfigOption<String> BEARER_AUTH_CREDENTIALS_SOURCE =
+            ConfigOptions.key("bearer-auth.credentials-source")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Bearer auth credentials source for Schema Registry");
+
+    public static final ConfigOption<String> BEARER_AUTH_TOKEN =
+            ConfigOptions.key("bearer-auth.token")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Bearer auth token for Schema Registry");
 }

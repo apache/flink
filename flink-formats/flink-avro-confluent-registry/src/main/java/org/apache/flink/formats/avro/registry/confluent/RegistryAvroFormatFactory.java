@@ -42,12 +42,22 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BEARER_AUTH_TOKEN;
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
 import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_TRUSTSTORE_PASSWORD;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Avro to RowData {@link
@@ -64,6 +74,8 @@ public class RegistryAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
         String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
             public DeserializationSchema<RowData> createRuntimeDecoder(
@@ -72,8 +84,14 @@ public class RegistryAvroFormatFactory
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                AvroSchemaConverter.convertToSchema(rowType), schemaRegistryURL),
+                        optionalPropertiesMap.isEmpty()
+                                ? ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                        AvroSchemaConverter.convertToSchema(rowType),
+                                        schemaRegistryURL)
+                                : ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                        AvroSchemaConverter.convertToSchema(rowType),
+                                        schemaRegistryURL,
+                                        optionalPropertiesMap),
                         AvroToRowDataConverters.createRowConverter(rowType),
                         rowDataTypeInfo);
             }
@@ -92,6 +110,8 @@ public class RegistryAvroFormatFactory
 
         String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
         Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+
         if (!subject.isPresent()) {
             throw new ValidationException(
                     String.format(
@@ -106,10 +126,16 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new AvroRowDataSerializationSchema(
                         rowType,
-                        ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                subject.get(),
-                                AvroSchemaConverter.convertToSchema(rowType),
-                                schemaRegistryURL),
+                        optionalPropertiesMap.isEmpty()
+                                ? ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                        subject.get(),
+                                        AvroSchemaConverter.convertToSchema(rowType),
+                                        schemaRegistryURL)
+                                : ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                        subject.get(),
+                                        AvroSchemaConverter.convertToSchema(rowType),
+                                        schemaRegistryURL,
+                                        optionalPropertiesMap),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -136,6 +162,45 @@ public class RegistryAvroFormatFactory
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(SCHEMA_REGISTRY_SUBJECT);
+        options.add(SSL_KEYSTORE_LOCATION);
+        options.add(SSL_KEYSTORE_PASSWORD);
+        options.add(SSL_TRUSTSTORE_LOCATION);
+        options.add(SSL_TRUSTSTORE_PASSWORD);
+        options.add(BASIC_AUTH_CREDENTIALS_SOURCE);
+        options.add(BASIC_AUTH_USER_INFO);
+        options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
+        options.add(BEARER_AUTH_TOKEN);
         return options;
+    }
+
+    private Map<String, String> buildOptionalPropertiesMap(ReadableConfig formatOptions) {
+        final Map<String, String> properties = new HashMap<>();
+
+        formatOptions
+                .getOptional(SSL_KEYSTORE_LOCATION)
+                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.location", v));
+        formatOptions
+                .getOptional(SSL_KEYSTORE_PASSWORD)
+                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.password", v));
+        formatOptions
+                .getOptional(SSL_TRUSTSTORE_LOCATION)
+                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.location", v));
+        formatOptions
+                .getOptional(SSL_TRUSTSTORE_PASSWORD)
+                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.password", v));
+        formatOptions
+                .getOptional(BASIC_AUTH_CREDENTIALS_SOURCE)
+                .ifPresent(v -> properties.put("basic.auth.credentials.source", v));
+        formatOptions
+                .getOptional(BASIC_AUTH_USER_INFO)
+                .ifPresent(v -> properties.put("basic.auth.user.info", v));
+        formatOptions
+                .getOptional(BEARER_AUTH_CREDENTIALS_SOURCE)
+                .ifPresent(v -> properties.put("bearer.auth.credentials.source", v));
+        formatOptions
+                .getOptional(BEARER_AUTH_TOKEN)
+                .ifPresent(v -> properties.put("bearer.auth.token", v));
+
+        return properties;
     }
 }
