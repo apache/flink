@@ -126,7 +126,7 @@ LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_END($
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, wAvg, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3])
+Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[SlidingGroupWindow('w$, proctime, 3600000, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[proctime, c, CAST(a) AS a])
@@ -388,7 +388,7 @@ LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[SESSION_START($0)], EXPR$3=[SESSI
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, wAvg, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3])
+Calc(select=[EXPR$0, wAvg, w$start AS EXPR$2, w$end AS EXPR$3])
 +- GroupWindowAggregate(window=[SessionGroupWindow('w$, proctime, 900000)], properties=[w$start, w$end, w$proctime], select=[COUNT(*) AS EXPR$0, weightedAvg(c, a) AS wAvg, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[proctime, c, CAST(a) AS a])
