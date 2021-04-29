@@ -38,6 +38,7 @@ public class DefaultSlotPoolServiceFactory extends AbstractSlotPoolServiceFactor
     @Override
     @Nonnull
     public SlotPoolService createSlotPoolService(@Nonnull JobID jobId) {
-        return new SlotPoolImpl(jobId, clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        return new DeclarativeSlotPoolService(
+                jobId, new DefaultDeclarativeSlotPoolFactory(), clock, slotIdleTimeout, rpcTimeout);
     }
 }

@@ -30,8 +30,8 @@ import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
@@ -91,7 +91,9 @@ public class SchedulerBenchmarkBase {
             throws Exception {
         final int slotPoolSize = jobConfiguration.getParallelism() * numberOfJobVertices;
 
-        final SlotPoolImpl slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
+        final SlotPool slotPool = new SlotPoolBuilder(mainThreadExecutor).build().castInto(SlotPool.class).orElseThrow(() ->
+                new IllegalStateException(
+                        "The DefaultScheduler requires a SlotPool."));;
         final TestingTaskExecutorGateway testingTaskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
         offerSlots(
@@ -105,7 +107,7 @@ public class SchedulerBenchmarkBase {
     }
 
     private static void offerSlots(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             TaskManagerGateway taskManagerGateway,
             int slotPoolSize,
             ComponentMainThreadExecutor mainThreadExecutor) {

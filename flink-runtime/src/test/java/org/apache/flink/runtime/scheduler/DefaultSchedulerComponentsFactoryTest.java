@@ -19,12 +19,12 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
@@ -42,7 +42,7 @@ import static org.junit.Assert.fail;
 public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 
     @Test
-    public void testCreatingPipelinedSchedulingStrategyFactory() {
+    public void testCreatingPipelinedSchedulingStrategyFactory() throws Exception {
 
         final DefaultSchedulerComponents components =
                 createSchedulerComponents(new Configuration());
@@ -55,7 +55,7 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() throws Exception {
         final DefaultSchedulerComponents components =
                 createSchedulerComponents(new Configuration());
         assertThat(
@@ -75,23 +75,25 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                     e,
                     containsMessage(
                             "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     private static DefaultSchedulerComponents createSchedulerComponents(
-            final Configuration configuration) {
+            final Configuration configuration) throws Exception {
         return createSchedulerComponents(configuration, false, JobType.BATCH);
     }
 
     private static DefaultSchedulerComponents createSchedulerComponents(
             final Configuration configuration,
             boolean iApproximateLocalRecoveryEnabled,
-            JobType jobType) {
+            JobType jobType) throws Exception {
         return DefaultSchedulerComponents.createSchedulerComponents(
                 jobType,
                 iApproximateLocalRecoveryEnabled,
                 configuration,
-                new TestingSlotPoolImpl(new JobID()),
+                new SlotPoolBuilder(new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor("not init")).build(),
                 Time.milliseconds(10L));
     }
 }

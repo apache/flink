@@ -50,7 +50,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-/** Tests how the {@link SlotPoolImpl} completes slot requests. */
+/** Tests how the {@link SlotPool} completes slot requests. */
 public class SlotPoolRequestCompletionTest extends TestLogger {
 
     private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
@@ -62,14 +62,14 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
         resourceManagerGateway = new TestingResourceManagerGateway();
     }
 
-    /** Tests that the {@link SlotPoolImpl} completes slots in request order. */
+    /** Tests that the {@link SlotPool} completes slots in request order. */
     @Test
     public void testRequestsAreCompletedInRequestOrder() {
         runSlotRequestCompletionTest(
                 CheckedSupplier.unchecked(this::createAndSetUpSlotPool), slotPool -> {});
     }
 
-    /** Tests that the {@link SlotPoolImpl} completes stashed slot requests in request order. */
+    /** Tests that the {@link SlotPool} completes stashed slot requests in request order. */
     @Test
     public void testStashOrderMaintainsRequestOrder() {
         runSlotRequestCompletionTest(
@@ -78,9 +78,9 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
     }
 
     private void runSlotRequestCompletionTest(
-            Supplier<SlotPoolImpl> slotPoolSupplier,
-            Consumer<SlotPoolImpl> actionAfterSlotRequest) {
-        try (final SlotPoolImpl slotPool = slotPoolSupplier.get()) {
+            Supplier<SlotPool> slotPoolSupplier,
+            Consumer<SlotPool> actionAfterSlotRequest) {
+        try (final SlotPool slotPool = slotPoolSupplier.get()) {
 
             final int requestNum = 10;
 
@@ -132,15 +132,15 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
         }
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
+    private SlotPool createAndSetUpSlotPool() throws Exception {
         return SlotPoolUtils.createAndSetUpSlotPool(resourceManagerGateway);
     }
 
-    private void connectToResourceManager(SlotPoolImpl slotPool) {
+    private void connectToResourceManager(SlotPool slotPool) {
         slotPool.connectToResourceManager(resourceManagerGateway);
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+    private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
         return SlotPoolUtils.createAndSetUpSlotPool(null);
     }
 }

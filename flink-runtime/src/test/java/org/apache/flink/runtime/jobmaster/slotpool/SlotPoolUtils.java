@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -32,6 +32,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
@@ -54,12 +55,12 @@ public class SlotPoolUtils {
         throw new UnsupportedOperationException("Cannot instantiate this class.");
     }
 
-    static TestingSlotPoolImpl createAndSetUpSlotPool(
+    static SlotPool createAndSetUpSlotPool(
             @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
-
-        return new SlotPoolBuilder(ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                .setResourceManagerGateway(resourceManagerGateway)
-                .build();
+        return new DefaultSlotPoolServiceFactory(SystemClock.getInstance(), TIMEOUT, TIMEOUT, TIMEOUT).createSlotPoolService(new JobID())
+                .castInto(SlotPool.class).orElseThrow(() ->
+                        new IllegalStateException(
+                                "The DefaultScheduler requires a SlotPool."));
     }
 
     static CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
@@ -95,7 +96,7 @@ public class SlotPoolUtils {
     }
 
     public static ResourceID offerSlots(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles) {
         return offerSlots(
@@ -106,7 +107,7 @@ public class SlotPoolUtils {
     }
 
     public static ResourceID offerSlots(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles,
             TaskManagerGateway taskManagerGateway) {
@@ -138,7 +139,7 @@ public class SlotPoolUtils {
     }
 
     public static void failAllocation(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             AllocationID allocationId,
             Exception exception) {
@@ -148,7 +149,7 @@ public class SlotPoolUtils {
     }
 
     public static void releaseTaskManager(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             ResourceID taskManagerResourceId) {
         CompletableFuture.runAsync(

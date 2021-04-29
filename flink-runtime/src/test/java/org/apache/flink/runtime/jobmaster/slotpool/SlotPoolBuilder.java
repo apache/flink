@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/** Builder for a {@link TestingSlotPoolImpl}. */
+/** Builder for a {@link DeclarativeSlotPool}. */
 public class SlotPoolBuilder {
 
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
@@ -77,10 +77,11 @@ public class SlotPoolBuilder {
         return this;
     }
 
-    public TestingSlotPoolImpl build() throws Exception {
-        final TestingSlotPoolImpl slotPool =
-                new TestingSlotPoolImpl(
+    public SlotPool build() throws Exception {
+        final SlotPool slotPool =
+                new DeclarativeSlotPoolBridge(
                         jobId,
+                        new DefaultDeclarativeSlotPoolFactory(),
                         clock,
                         TestingUtils.infiniteTime(),
                         idleSlotTimeout,

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -75,7 +77,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
         resourceManagerGateway.setRequestSlotConsumer(
                 slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-        try (SlotPoolImpl slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
+        try (SlotPool slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
 
             final CompletableFuture<PhysicalSlot> slotFuture =
                     requestNewAllocatedSlot(slotPool, new SlotRequestId());
@@ -105,7 +107,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
         resourceManagerGateway.setRequestSlotConsumer(
                 slotRequest -> allocations.add(slotRequest.getAllocationId()));
 
-        try (SlotPoolImpl slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
+        try (SlotPool slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
             final CompletableFuture<PhysicalSlot> slotFuture1 =
                     requestNewAllocatedSlot(slotPool, new SlotRequestId());
             final CompletableFuture<PhysicalSlot> slotFuture2 =
@@ -117,7 +119,8 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
             final TaskManagerLocation location = new LocalTaskManagerLocation();
             final SlotOffer slotOffer = new SlotOffer(allocationId2, 0, ResourceProfile.ANY);
             slotPool.registerTaskManager(location.getResourceID());
-            slotPool.offerSlot(location, new SimpleAckingTaskManagerGateway(), slotOffer);
+
+            slotPool.offerSlots(location, new SimpleAckingTaskManagerGateway(), Lists.newArrayList(slotOffer));
 
             assertThat(slotFuture1.isDone(), is(true));
             assertThat(slotFuture2.isDone(), is(false));
@@ -147,7 +150,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
     public void testFailingResourceManagerRequestFailsPendingSlotRequestAndCancelsRMRequest()
             throws Exception {
 
-        try (SlotPoolImpl slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
+        try (SlotPool slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
             final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
             final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
             final CompletableFuture<AllocationID> requestSlotFutureAllocationId =
@@ -185,7 +188,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         singleThreadExecutor);
 
-        final SlotPoolImpl slotPool =
+        final SlotPool slotPool =
                 new SlotPoolBuilder(componentMainThreadExecutor)
                         .setResourceManagerGateway(resourceManagerGateway)
                         .build();

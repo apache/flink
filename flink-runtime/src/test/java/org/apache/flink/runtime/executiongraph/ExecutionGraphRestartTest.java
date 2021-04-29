@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -36,12 +37,11 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
@@ -52,6 +52,8 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -77,6 +79,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     private static final JobID TEST_JOB_ID = new JobID();
 
+    private static final Time DEFAULT_IDLE_SLOT_TIME_OUT = Time.seconds(10);
+    private static final Time DEFAULT_RPC_TIME_OUT = Time.seconds(10);
+    private static final Time DEFAULT_BATCH_TIME_OUT = Time.seconds(10);
+
     private ManuallyTriggeredScheduledExecutor taskRestartExecutor;
 
     @Before
@@ -97,8 +103,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
         }
     }
 
-    private SlotPoolImpl createSlotPoolImpl() {
-        return new TestingSlotPoolImpl(TEST_JOB_ID);
+    private SlotPool createSlotPoolImpl() {
+        return new DeclarativeSlotPoolBridgeServiceFactory(SystemClock.getInstance(), DEFAULT_RPC_TIME_OUT, DEFAULT_IDLE_SLOT_TIME_OUT, DEFAULT_BATCH_TIME_OUT).createSlotPoolService(TEST_JOB_ID).castInto(SlotPool.class).orElseThrow(() ->
+                new IllegalStateException(
+                        "The AdaptiveScheduler requires a DeclarativeSlotPool."));
     }
 
     @Test
@@ -272,7 +280,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     /**
      * Tests that a graph is not restarted after cancellation via a call to {@link
-     * ExecutionGraph#failGlobal(Throwable)}. This can happen when a slot is released concurrently
+     * ExecutionGraph#failJob(Throwable, long)} . This can happen when a slot is released concurrently
      * with cancellation.
      */
     @Test
