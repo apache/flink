@@ -40,7 +40,7 @@ resources:
   - container: flink-build-container
     image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
     # 7GB is the memory limit we have on Azure hosted VMs. Enforce the same limit on the custom CI servers.
-    options: --memory=7G
+    options: --memory=8G
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
