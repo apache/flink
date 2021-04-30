@@ -1,6 +1,6 @@
 ---
 title: "依赖管理"
-weight: 46
+weight: 30
 type: docs
 aliases:
   - /zh/dev/python/table-api-users-guide/dependency_management.html
@@ -26,7 +26,7 @@ under the License.
 
 # 依赖管理
 
-# Java Dependency in Python Program
+## Java Dependency in Python Program
 
 如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({{< ref "docs/deployment/cli" >}}#usage) 配置.
 
@@ -40,7 +40,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 ```
 
-# Python 依赖管理
+## Python 依赖管理
 
 如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过命令行参数配置。
 
@@ -102,7 +102,7 @@ table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 
 请确保配置的 Python 环境和集群运行环境匹配。
 
-# Java/Scala程序中的Python依赖管理
+## Java/Scala程序中的Python依赖管理
 
 It also supports to use Python UDFs in the Java Table API programs or pure SQL programs. The following example shows how to use the Python UDFs in a Java Table API program:
 

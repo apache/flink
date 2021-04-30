@@ -32,7 +32,7 @@ under the License.
 
 ## 下载连接器（connector）和格式（format）jar 包
 
-由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{< ref "docs/dev/python/table/dependency_management" >}})。
+由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{< ref "docs/dev/python/dependency_management" >}})。
 
 ```python
 

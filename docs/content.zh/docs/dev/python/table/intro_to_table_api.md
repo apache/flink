@@ -113,7 +113,7 @@ table_env = TableEnvironment.create(env_settings)
 * 执行 SQL 查询，更多细节可查阅 [SQL]({{< ref "docs/dev/table/sql/overview" >}})
 * 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和 [向量化的用户自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
 * 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
-* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/table/dependency_management" >}})
+* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
 * 提交作业执行
 
 目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
