@@ -80,6 +80,7 @@ You can configure checkpointing directly in code within your Flink job or applic
 **Web UI**
 
   - `web.submit.enable`: Enables uploading and starting jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still accept jobs through REST requests (HTTP calls). This flag only guards the feature to upload jobs in the UI.
+  - `web.cancel.enable`: Enables canceling jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still cancel jobs through REST requests (HTTP calls). This flag only guards the feature to cancel jobs in the UI.
   - `web.upload.dir`: The directory where to store uploaded jobs. Only used when `web.submit.enable` is true.
 
 **Other**
