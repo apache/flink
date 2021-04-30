@@ -27,13 +27,15 @@ under the License.
 
 # Dependency Management
 
-Users may need to access third-party Python libraries in Python user-defined functions.
+There are requirements to use dependencies inside the Python API programs. For example, users
+may need to use third-party Python libraries in Python user-defined functions.
 In addition, in scenarios such as machine learning prediction, users may want to load a machine
-learning model inside the Python user-defined functions. When the PyFlink job is executed
-locally, users could install the third-party Python libraries in the local Python environment,
-download the machine learning model to local, etc. However, this approach doesn't work well when
-users want to submit the PyFlink jobs to remote clusters. In the following sections,
-we will introduce the options provided in PyFlink for these requirements.
+learning model inside the Python user-defined functions.
+
+When the PyFlink job is executed locally, users could install the third-party Python libraries into
+the local Python environment, download the machine learning model to local, etc.
+However, this approach doesn't work well when users want to submit the PyFlink jobs to remote clusters.
+In the following sections, we will introduce the options provided in PyFlink for these requirements.
 
 ## JAR Dependencies
 
@@ -73,10 +75,6 @@ line argument `--jarfile` and so you need to build a fat jar if there are multip
 
 ## Python Dependencies
 
-If third-party Python dependencies are used, you can specify the dependencies with the following
-Python Table APIs or through [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs)
-directly when submitting the job.
-
 ### Python libraries
 
 You may want to use third-part Python libraries in Python user-defined functions.
@@ -99,13 +97,13 @@ You could also specify the Python libraries using configuration
 or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `-pyfs` or `--pyFiles`
 when submitting the job.
 
-<span class="label label-info">Note</span> The Python libraries dependencies could be files or
+<span class="label label-info">Note</span> The Python libraries could be local files or
 local directories. They will be added to the PYTHONPATH of the Python UDF worker.
 
 ### requirements.txt
 
 It also allows to specify a `requirements.txt` file which defines the third-party Python dependencies.
-These Python dependencies will be installed to the working directory and added to the PYTHONPATH of
+These Python dependencies will be installed into the working directory and added to the PYTHONPATH of
 the Python UDF worker.
 
 You could prepare the `requirements.txt` manually as following:
@@ -121,16 +119,16 @@ or using `pip freeze` which lists all the packages installed in the current Pyth
 pip freeze > requirements.txt
 ```
 
-The requirements.txt may look like the following:
+The content of the requirements.txt file may look like the following:
 
 ```shell
 numpy==1.16.5
 pandas==1.0.0
 ```
 
-You could also manually edit it by removing unnecessary items or adding extra items, etc.
+You could manually edit it by removing unnecessary entries or adding extra entries, etc.
 
-You could then specify the `requirements.txt` file inside the code using Python Table API as following:
+The `requirements.txt` file could then be specified inside the code using Python Table API as following:
 
 ```python
 # requirements_cache_dir is optional
@@ -151,7 +149,7 @@ stream_execution_environment.set_python_requirements(
 <span class="label label-info">Note</span> For the dependencies which could not be accessed in
 the cluster, a directory which contains the installation packages of these dependencies could be
 specified using the parameter `requirements_cached_dir`. It will be uploaded to the cluster to
-support offline installation. You could prepare the `cached_dir` as following:
+support offline installation. You could prepare the `requirements_cache_dir` as following:
 
 ```shell
 pip download -d cached_dir -r requirements.txt --no-binary :all:
@@ -187,8 +185,8 @@ stream_execution_environment.add_python_archive(archive_path="/path/to/archive_f
 ```
 
 <span class="label label-info">Note</span> The parameter `target_dir` is optional. If specified,
-the archive file will be extracted to a directory named `target_dir` during execution. Otherwise,
-the archive file will be extracted to a directory with the same name as the archive file.
+the archive file will be extracted to a directory with the specified name of `target_dir` during execution.
+Otherwise, the archive file will be extracted to a directory with the same name as the archive file.
 
 Suppose you have specified the archive file as following:
 
@@ -219,7 +217,7 @@ def my_udf():
 ```
 
 <span class="label label-info">Note</span> The archive file will be extracted to the working
-directory of python UDF worker and so you could access the files inside the archive file using
+directory of Python UDF worker and so you could access the files inside the archive file using
 relative path.
 
 You could also specify the archive files using configuration
@@ -266,14 +264,15 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 `-pyexec` or `--pyExecutable` when submitting the job.
 
 <span class="label label-info">Note</span> If the path of the Python interpreter refers to the
-uploaded Python archive file, it should be a relative path instead of absolute path.
+Python archive file, relative path should be used instead of absolute path.
 
 ### Python interpreter of client
 
 Python is needed at the client side to parse the Python user-defined functions during
 compiling the job.
 
-You could specify the custom Python environment used at the client side by activating it in the current session.
+You could specify the custom Python interpreter used at the client side by activating
+it in the current session.
 
 ```shell
 source my_env/bin/activate

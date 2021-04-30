@@ -4,6 +4,7 @@ weight: 30
 type: docs
 aliases:
   - /zh/dev/python/table-api-users-guide/dependency_management.html
+  - /zh/dev/python/datastream-api-users-guide/dependency_management.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,87 +25,268 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 依赖管理
+# Dependency Management
 
-## Java Dependency in Python Program
+There are requirements to use dependencies inside the Python API programs. For example, users
+may need to use third-party Python libraries in Python user-defined functions.
+In addition, in scenarios such as machine learning prediction, users may want to load a machine
+learning model inside the Python user-defined functions.
 
-如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({{< ref "docs/deployment/cli" >}}#usage) 配置.
+When the PyFlink job is executed locally, users could install the third-party Python libraries into
+the local Python environment, download the machine learning model to local, etc.
+However, this approach doesn't work well when users want to submit the PyFlink jobs to remote clusters.
+In the following sections, we will introduce the options provided in PyFlink for these requirements.
+
+## JAR Dependencies
+
+If third-party JARs are used, you can specify the JARs in the Python Table API as following:
 
 ```python
-# 通过 "pipeline.jars" 参数指定 jar 包 URL列表， 每个 URL 使用 ";" 分隔。这些 jar 包最终会被上传到集群中。
-# 注意：当前支持通过本地文件 URL 进行上传(以 "file://" 开头)。
+# Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";"
+# and will be uploaded to the cluster.
+# NOTE: Only local file URLs (start with "file://") are supported.
 table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
-# 通过 "pipeline.jars" 参数指定依赖 URL 列表， 这些 URL 通过 ";" 分隔，它们最终会被添加到集群的 classpath 中。
-# 注意： 必须指定这些文件路径的协议 (如 file://), 并确保这些 URL 在本地客户端和集群都能访问。
+# Specify a list of URLs via "pipeline.classpaths". The URLs are separated by ";" 
+# and will be added to the classpath during job execution.
+# NOTE: The paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 ```
 
-## Python 依赖管理
+or in the Python DataStream API as following:
 
-如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过命令行参数配置。
+```python
+# Use the add_jars() to add local jars and the jars will be uploaded to the cluster.
+# NOTE: Only local file URLs (start with "file://") are supported.
+stream_execution_environment.add_jars("file:///my/jar/path/connector1.jar", "file:///my/jar/path/connector2.jar")
 
-#### add_python_file(file_path)
+# Use the add_classpaths() to add the dependent jars URLs into the classpath.
+# The URLs will also be added to the classpath of both the client and the cluster.
+# NOTE: The paths must specify a protocol (e.g. file://) and users should ensure that the 
+# URLs are accessible on both the client and the cluster.
+stream_execution_environment.add_classpaths("file:///my/jar/path/connector1.jar", "file:///my/jar/path/connector2.jar")
+```
 
-添加 Python 文件依赖，可以是 Python文件、Python 包或本地文件目录。他们最终会被添加到 Python Worker 的 PYTHONPATH 中，从而让 Python 函数能够正确访问读取。
+or through the [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `--jarfile` when submitting the job.
+
+<span class="label label-info">Note</span> It only supports to specify one jar file with the command
+line argument `--jarfile` and so you need to build a fat jar if there are multiple jar files.
+
+
+## Python Dependencies
+
+### Python libraries
+
+You may want to use third-part Python libraries in Python user-defined functions.
+There are multiple ways to specify the Python libraries.
+
+You could specify them inside the code using Python Table API as following:
 
 ```python
 table_env.add_python_file(file_path)
 ```
 
-#### set_python_requirements(requirements_file_path, requirements_cache_dir=None)
-
-配置一个 requirements.txt 文件用于指定 Python 第三方依赖，这些依赖会被安装到一个临时目录并添加到 Python Worker 的 PYTHONPATH 中。对于在集群中无法访问的外部依赖，用户可以通过 "requirements_cached_dir" 参数指定一个包含这些依赖安装包的目录，这个目录文件会被上传到集群并实现离线安装。
+or using Python DataStream API as following:
 
 ```python
-# commands executed in shell
-echo numpy==1.16.5 > requirements.txt
-pip download -d cached_dir -r requirements.txt --no-binary :all:
-
-# python code
-table_env.set_python_requirements("/path/to/requirements.txt", "cached_dir")
+stream_execution_environment.add_python_file(file_path)
 ```
 
-请确保这些依赖安装包和集群运行环境所使用的 Python 版本相匹配。此外，这些依赖将通过 Pip 安装， 请确保 Pip 的版本（version >= 7.1.0） 和 Setuptools 的版本（version >= 37.0.0）符合要求。
+You could also specify the Python libraries using configuration
+[`python.files`]({{< ref "docs/dev/python/python_config" >}}#python-files)
+or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `-pyfs` or `--pyFiles`
+when submitting the job.
 
-#### add_python_archive(archive_path, target_dir=None)
+<span class="label label-info">Note</span> The Python libraries could be local files or
+local directories. They will be added to the PYTHONPATH of the Python UDF worker.
 
-添加 Python 归档文件依赖。归档文件内的文件将会被提取到 Python Worker 的工作目录下。如果指定了 "target_dir" 参数，归档文件则会被提取到指定名字的目录文件中，否则文件被提取到和归档文件名相同的目录中。
+### requirements.txt
+
+It also allows to specify a `requirements.txt` file which defines the third-party Python dependencies.
+These Python dependencies will be installed into the working directory and added to the PYTHONPATH of
+the Python UDF worker.
+
+You could prepare the `requirements.txt` manually as following:
+
+```shell
+echo numpy==1.16.5 > requirements.txt
+echo pandas==1.0.0 > requirements.txt
+```
+
+or using `pip freeze` which lists all the packages installed in the current Python environment:
+
+```shell
+pip freeze > requirements.txt
+```
+
+The content of the requirements.txt file may look like the following:
+
+```shell
+numpy==1.16.5
+pandas==1.0.0
+```
+
+You could manually edit it by removing unnecessary entries or adding extra entries, etc.
+
+The `requirements.txt` file could then be specified inside the code using Python Table API as following:
 
 ```python
-# command executed in shell
-# assert the relative path of python interpreter is py_env/bin/python
-zip -r py_env.zip py_env
+# requirements_cache_dir is optional
+table_env.set_python_requirements(
+    requirements_file_path="/path/to/requirements.txt",
+    requirements_cache_dir="cached_dir")
+```
 
-# python code
-table_env.add_python_archive("/path/to/py_env.zip")
-# or
+or using Python DataStream API as following:
+
+```python
+# requirements_cache_dir is optional
+stream_execution_environment.set_python_requirements(
+    requirements_file_path="/path/to/requirements.txt",
+    requirements_cache_dir="cached_dir")
+```
+
+<span class="label label-info">Note</span> For the dependencies which could not be accessed in
+the cluster, a directory which contains the installation packages of these dependencies could be
+specified using the parameter `requirements_cached_dir`. It will be uploaded to the cluster to
+support offline installation. You could prepare the `requirements_cache_dir` as following:
+
+```shell
+pip download -d cached_dir -r requirements.txt --no-binary :all:
+```
+
+<span class="label label-info">Note</span> Please make sure that the prepared packages match
+the platform of the cluster, and the Python version used.
+
+You could also specify the `requirements.txt` file using configuration
+[`python.requirements`]({{< ref "docs/dev/python/python_config" >}}#python-requirements)
+or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs)
+`-pyreq` or `--pyRequirements` when submitting the job.
+
+<span class="label label-info">Note</span> It will install the packages specified in the
+`requirements.txt` file using pip, so please make sure that pip (version >= 7.1.0)
+and setuptools (version >= 37.0.0) are available.
+
+### Archives
+
+You may also want to specify archive files. The archive files could be used to specify custom
+Python virtual environments, data files, etc.
+
+You could specify the archive files inside the code using Python Table API as following:
+
+```python
+table_env.add_python_archive(archive_path="/path/to/archive_file", target_dir=None)
+```
+
+or using Python DataStream API as following:
+
+```python
+stream_execution_environment.add_python_archive(archive_path="/path/to/archive_file", target_dir=None)
+```
+
+<span class="label label-info">Note</span> The parameter `target_dir` is optional. If specified,
+the archive file will be extracted to a directory with the specified name of `target_dir` during execution.
+Otherwise, the archive file will be extracted to a directory with the same name as the archive file.
+
+Suppose you have specified the archive file as following:
+
+```python
 table_env.add_python_archive("/path/to/py_env.zip", "myenv")
+```
 
-# the files contained in the archive file can be accessed in UDF
+Then, you could access the content of the archive file in Python user-defined functions as following:
+
+```python
 def my_udf():
     with open("myenv/py_env/data/data.txt") as f:
         ...
 ```
 
-请确保上传的 Python 环境和集群运行环境匹配。目前只支持上传 zip 格式的文件，如 zip, jar, whl, egg等等。
-
-#### set_python_executable(python_exec)
-
-配置用于执行 Python Worker 的 Python 解释器路径，如 "/usr/local/bin/python3"。
+If you have not specified the parameter `target_dir`:
 
 ```python
 table_env.add_python_archive("/path/to/py_env.zip")
-table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 ```
 
-如果 Python 解释器的路径指向上传的 Python 归档文件，那么通过 set_python_executable 设置的 Python 解释器的路径必须是相对路径。
+You could then access the content of the archive file in Python user-defined functions as following:
 
-请确保配置的 Python 环境和集群运行环境匹配。
+```python
+def my_udf():
+    with open("py_env.zip/py_env/data/data.txt") as f:
+        ...
+```
 
-## Java/Scala程序中的Python依赖管理
+<span class="label label-info">Note</span> The archive file will be extracted to the working
+directory of Python UDF worker and so you could access the files inside the archive file using
+relative path.
 
-It also supports to use Python UDFs in the Java Table API programs or pure SQL programs. The following example shows how to use the Python UDFs in a Java Table API program:
+You could also specify the archive files using configuration
+[`python.archives`]({{< ref "docs/dev/python/python_config" >}}#python-archives)
+or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs)
+`-pyarch` or `--pyArchives` when submitting the job.
+
+<span class="label label-info">Note</span> If the archive file contains a Python virtual environment,
+please make sure that the Python virtual environment matches the platform that the cluster is running on.
+
+<span class="label label-info">Note</span> Currently, only zip-format is supported, i.e. zip, jar, whl, egg, etc.
+
+### Python interpreter
+
+It supports to specify the path of the Python interpreter to execute Python worker.
+
+You could specify the Python interpreter inside the code using Python Table API as following:
+
+```python
+table_env.set_python_executable("/path/to/python")
+```
+
+or using Python DataStream API as following:
+
+```python
+stream_execution_environment.set_python_executable("/path/to/python")
+```
+
+It also supports to use the Python interpreter inside an archive file.
+
+```python
+# Python Table API
+table_env.add_python_archive("/path/to/py_env.zip", "venv")
+table_env.set_python_executable("venv/py_env/bin/python")
+
+# Python DataStream API
+stream_execution_environment.add_python_archive("/path/to/py_env.zip", "venv")
+stream_execution_environment.set_python_executable("venv/py_env/bin/python")
+```
+
+You could also specify the Python interpreter using configuration
+[`python.executable`]({{< ref "docs/dev/python/python_config" >}}#python-executable)
+or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs)
+`-pyexec` or `--pyExecutable` when submitting the job.
+
+<span class="label label-info">Note</span> If the path of the Python interpreter refers to the
+Python archive file, relative path should be used instead of absolute path.
+
+### Python interpreter of client
+
+Python is needed at the client side to parse the Python user-defined functions during
+compiling the job.
+
+You could specify the custom Python interpreter used at the client side by activating
+it in the current session.
+
+```shell
+source my_env/bin/activate
+```
+
+or specify it using configuration
+[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable)
+or environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
+
+## How to specify Python Dependencies in Java/Scala Program
+
+It also supports to use Python user-defined functions in the Java Table API programs or pure SQL programs.
+The following code shows a simple example on how to use the Python user-defined functions in a
+Java Table API program:
 
 ```java
 import org.apache.flink.configuration.CoreOptions;
@@ -124,8 +306,10 @@ tEnv.createTemporaryView("source", tEnv.fromValues(1L, 2L, 3L).as("a"));
 tEnv.executeSql("select add_one(a) as a from source").collect();
 ```
 
-You can refer to the SQL statement about [CREATE FUNCTION]({{< ref "docs/dev/table/sql/create" >}}#create-function) for more details
-on how to create Python user-defined functions using SQL statements.
+You can refer to the SQL statement about [CREATE FUNCTION]({{< ref "docs/dev/table/sql/create" >}}#create-function)
+for more details on how to create Python user-defined functions using SQL statements.
 
-The Python dependencies could be specified via the Python [config options]({{< ref "docs/dev/python/python_config" >}}#python-options),
-such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({{< ref "docs/deployment/cli" >}}#usage) when submitting the job.
+The Python dependencies could then be specified via the Python [config options]({{< ref "docs/dev/python/python_config" >}}#python-options),
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**,
+**python.executable**. etc or through [command line arguments]({{< ref "docs/deployment/cli" >}}#usage)
+when submitting the job.
