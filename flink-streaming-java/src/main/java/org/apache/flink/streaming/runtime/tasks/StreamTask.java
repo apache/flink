@@ -647,7 +647,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             failing = !canceled;
             try {
                 if (!canceled) {
-                    cancelTask();
+                    try {
+                        cancelTask();
+                    } catch (Throwable ex) {
+                        invokeException = firstOrSuppressed(ex, invokeException);
+                    }
                 }
 
                 cleanUpInvoke();
