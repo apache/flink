@@ -132,7 +132,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
-    public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
+    public StreamTaskMailboxTestHarness<OUT> buildUnrestored() throws Exception {
 
         TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
         if (taskStateSnapshots != null) {
@@ -163,10 +163,16 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
 
         StreamTask<OUT, ?> task = taskFactory.apply(streamMockEnvironment);
-        task.restore();
 
         return new StreamTaskMailboxTestHarness<>(
                 task, outputList, inputGates, streamMockEnvironment);
+    }
+
+    public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
+        StreamTaskMailboxTestHarness<OUT> harness = buildUnrestored();
+        harness.streamTask.restore();
+
+        return harness;
     }
 
     protected void initializeInputs(StreamMockEnvironment streamMockEnvironment) {
