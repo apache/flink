@@ -1665,6 +1665,35 @@ public class StreamTaskTest extends TestLogger {
         assertTrue(OpenFailingOperator.wasClosed);
     }
 
+    @Test
+    public void testCleanUpResourcesEvenWhenCancelTaskFails() throws Exception {
+        // given: Configured StreamTask which fails during restoring and then inside of cancelTask.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                (env) ->
+                                        new OneInputStreamTask<String, Integer>(env) {
+                                            @Override
+                                            protected void cancelTask() {
+                                                throw new RuntimeException("Cancel task exception");
+                                            }
+                                        },
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task initializing(restoring).
+            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should throw the original exception about the restore fail.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // and: The task should clean up all resources even when cancelTask fails.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
