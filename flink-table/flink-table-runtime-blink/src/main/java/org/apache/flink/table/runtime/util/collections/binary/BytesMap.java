@@ -162,7 +162,7 @@ public abstract class BytesMap<K, V> {
         setBucketVariables(bucketSegments);
         resetBucketSegments(bucketSegments);
         numElements = 0;
-        LOG.info(
+        LOG.debug(
                 "reset BytesHashMap with record memory segments {}, {} in bytes, init allocating {} for bucket area.",
                 memoryPool.freePages(),
                 memoryPool.freePages() * segmentSize,
