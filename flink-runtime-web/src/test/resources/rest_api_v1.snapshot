@@ -55,6 +55,9 @@
           "properties" : {
             "web-submit" : {
               "type" : "boolean"
+            },
+            "web-cancel" : {
+              "type" : "boolean"
             }
           }
         }
