@@ -22,8 +22,8 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonDependencyUtils;
-import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
@@ -159,25 +159,29 @@ final class PythonEnvUtils {
                     .ifPresent(
                             pyArchives -> {
                                 for (String archive : pyArchives.split(FILE_DELIMITER)) {
-                                    Path archivePath;
-                                    String targetDir;
+                                    final Path archivePath;
+                                    final String targetDirName;
+                                    final String originalFileName;
                                     if (archive.contains(PythonDependencyUtils.PARAM_DELIMITER)) {
                                         String[] filePathAndTargetDir =
                                                 archive.split(
                                                         PythonDependencyUtils.PARAM_DELIMITER, 2);
                                         archivePath = new Path(filePathAndTargetDir[0]);
-                                        targetDir = filePathAndTargetDir[1];
+                                        targetDirName = filePathAndTargetDir[1];
+                                        originalFileName = archivePath.getName();
                                     } else {
                                         archivePath = new Path(archive);
-                                        targetDir = archivePath.getName();
+                                        targetDirName = archivePath.getName();
+                                        originalFileName = targetDirName;
                                     }
                                     try {
-                                        ZipUtils.extractZipFileWithPermissions(
+                                        CompressionUtils.extractFile(
                                                 archivePath.getPath(),
                                                 String.join(
                                                         File.separator,
                                                         env.archivesDirectory,
-                                                        targetDir));
+                                                        targetDirName),
+                                                originalFileName);
                                     } catch (IOException e) {
                                         throw new RuntimeException(
                                                 "Extract archives to archives directory failed.",

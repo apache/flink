@@ -22,13 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -39,9 +46,137 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Utils used to extract zip files and try to restore the origin permissions of files. */
+/**
+ * Utils used to extract compressed files. It will try to restore the permission of the files if
+ * possible.
+ */
 @Internal
-public final class ZipUtils {
+public class CompressionUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CompressionUtils.class);
+
+    public static void extractFile(
+            String srcFilePath, String targetDirPath, String originalFileName) throws IOException {
+        if (hasOneOfSuffixes(originalFileName, ".zip", ".jar")) {
+            extractZipFileWithPermissions(srcFilePath, targetDirPath);
+        } else if (hasOneOfSuffixes(originalFileName, ".tar", ".tar.gz", ".tgz")) {
+            extractTarFile(srcFilePath, targetDirPath);
+        } else {
+            LOG.warn(
+                    "Only zip, jar, tar, tgz and tar.gz suffixes are supported, found {}. Trying to extract it as zip file.",
+                    originalFileName);
+            extractZipFileWithPermissions(srcFilePath, targetDirPath);
+        }
+    }
+
+    public static void extractTarFile(String inFilePath, String targetDirPath) throws IOException {
+        final File targetDir = new File(targetDirPath);
+        if (!targetDir.mkdirs()) {
+            if (!targetDir.isDirectory()) {
+                throw new IOException("Mkdirs failed to create " + targetDir);
+            }
+        }
+        final boolean gzipped = inFilePath.endsWith("gz");
+        if (isUnix()) {
+            extractTarFileUsingTar(inFilePath, targetDirPath, gzipped);
+        } else {
+            extractTarFileUsingJava(inFilePath, targetDirPath, gzipped);
+        }
+    }
+
+    // Copy and simplify from hadoop-common package that is used in YARN
+    // See
+    // https://github.com/apache/hadoop/blob/7f93349ee74da5f35276b7535781714501ab2457/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/FileUtil.java
+    private static void extractTarFileUsingTar(
+            String inFilePath, String targetDirPath, boolean gzipped) throws IOException {
+        inFilePath = makeSecureShellPath(inFilePath);
+        targetDirPath = makeSecureShellPath(targetDirPath);
+        String untarCommand =
+                gzipped
+                        ? String.format(
+                                "gzip -dc '%s' | (cd '%s' && tar -xf -)", inFilePath, targetDirPath)
+                        : String.format("cd '%s' && tar -xf '%s'", targetDirPath, inFilePath);
+        Process process = new ProcessBuilder("bash", "-c", untarCommand).start();
+        int exitCode = 0;
+        try {
+            exitCode = process.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted when untarring file " + inFilePath);
+        }
+        if (exitCode != 0) {
+            throw new IOException(
+                    "Error untarring file "
+                            + inFilePath
+                            + ". Tar process exited with exit code "
+                            + exitCode);
+        }
+    }
+
+    // Follow the pattern suggested in
+    // https://commons.apache.org/proper/commons-compress/examples.html
+    private static void extractTarFileUsingJava(
+            String inFilePath, String targetDirPath, boolean gzipped) throws IOException {
+        try (InputStream fi = Files.newInputStream(Paths.get(inFilePath));
+                InputStream bi = new BufferedInputStream(fi);
+                final TarArchiveInputStream tai =
+                        new TarArchiveInputStream(
+                                gzipped ? new GzipCompressorInputStream(bi) : bi)) {
+            final File targetDir = new File(targetDirPath);
+            TarArchiveEntry entry;
+            while ((entry = tai.getNextTarEntry()) != null) {
+                unpackEntry(tai, entry, targetDir);
+            }
+        }
+    }
+
+    private static void unpackEntry(
+            TarArchiveInputStream tis, TarArchiveEntry entry, File targetDir) throws IOException {
+        String targetDirPath = targetDir.getCanonicalPath() + File.separator;
+        File outputFile = new File(targetDir, entry.getName());
+        if (!outputFile.getCanonicalPath().startsWith(targetDirPath)) {
+            throw new IOException(
+                    "expanding " + entry.getName() + " would create entry outside of " + targetDir);
+        }
+
+        if (entry.isDirectory()) {
+            if (!outputFile.mkdirs() && !outputFile.isDirectory()) {
+                throw new IOException("Failed to create directory " + outputFile);
+            }
+
+            for (TarArchiveEntry e : entry.getDirectoryEntries()) {
+                unpackEntry(tis, e, outputFile);
+            }
+
+            return;
+        }
+
+        if (entry.isSymbolicLink()) {
+            // create symbolic link relative to tar parent dir
+            Files.createSymbolicLink(
+                    Paths.get(new File(targetDir, entry.getName()).getCanonicalPath()),
+                    Paths.get(entry.getLinkName()));
+            return;
+        }
+
+        if (!outputFile.getParentFile().exists()) {
+            if (!outputFile.getParentFile().mkdirs()) {
+                throw new IOException("Mkdirs failed to create tar internal dir " + targetDir);
+            }
+        }
+
+        try (OutputStream o = Files.newOutputStream(Paths.get(outputFile.getCanonicalPath()))) {
+            IOUtils.copyBytes(tis, o, false);
+        }
+    }
+
+    /**
+     * Convert a os-native filename to a path that works for the shell and avoids script injection
+     * attacks.
+     */
+    private static String makeSecureShellPath(String filePath) {
+        return filePath.replace("'", "'\\''");
+    }
 
     public static void extractZipFileWithPermissions(String zipFilePath, String targetPath)
             throws IOException {
@@ -135,5 +270,15 @@ public final class ZipUtils {
         if ((mode & 1L << pos) != 0L) {
             posixFilePermissions.add(posixFilePermissionToAdd);
         }
+    }
+
+    private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
+        String lowercaseFilePath = filePath.toLowerCase();
+        for (String suffix : suffixes) {
+            if (lowercaseFilePath.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
