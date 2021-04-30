@@ -41,6 +41,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -212,7 +213,19 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         if (other instanceof RexNodeExpression) {
             return ((RexNodeExpression) other).getRexNode();
         } else if (other instanceof LocalReferenceExpression) {
-            LocalReferenceExpression local = (LocalReferenceExpression) other;
+            final LocalReferenceExpression local = (LocalReferenceExpression) other;
+            // check whether the local field reference can actually be resolved to an existing
+            // field otherwise preserve the locality attribute
+            RelNode inputNode;
+            try {
+                inputNode = relBuilder.peek();
+            } catch (Throwable t) {
+                inputNode = null;
+            }
+            if (inputNode != null
+                    && inputNode.getRowType().getFieldNames().contains(local.getName())) {
+                return relBuilder.field(local.getName());
+            }
             return new RexFieldVariable(
                     local.getName(),
                     typeFactory.createFieldTypeFromLogicalType(

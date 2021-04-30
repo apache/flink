@@ -225,6 +225,22 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   }
 
   /**
+   * Creates a table row type with the given field names and field types. Table row type is table
+   * schema for Calcite [[RelNode]]. See [[RelNode#getRowType]].
+   *
+   * It uses [[StructKind#FULLY_QUALIFIED]] to let each field must be referenced explicitly.
+   *
+   * @param fieldNames field names
+   * @param fieldTypes field types, every element is Flink's [[LogicalType]]
+   * @return a table row type with the input fieldNames, input fieldTypes.
+   */
+  def buildRelNodeRowType(
+      fieldNames: util.List[String],
+      fieldTypes: util.List[LogicalType]): RelDataType = {
+    buildStructType(fieldNames, fieldTypes, StructKind.FULLY_QUALIFIED)
+  }
+
+  /**
     * Creates a table row type with the input fieldNames and input fieldTypes using
     * FlinkTypeFactory. Table row type is table schema for Calcite RelNode. See getRowType of
     * [[RelNode]]. Use FULLY_QUALIFIED to let each field must be referenced explicitly.

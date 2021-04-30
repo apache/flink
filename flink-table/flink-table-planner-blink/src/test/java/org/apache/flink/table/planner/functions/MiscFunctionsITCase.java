@@ -74,6 +74,9 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "IFNULL(f1, f0)",
                                 new BigDecimal("123.45"),
                                 DataTypes.DECIMAL(12, 2).notNull())
+                        .testSqlError(
+                                "IFNULL(SUBSTR(''), f0)",
+                                "Invalid number of arguments to function 'SUBSTR'.")
                         .testResult(
                                 $("f1").ifNull($("f0")),
                                 "IFNULL(f1, f0)",
