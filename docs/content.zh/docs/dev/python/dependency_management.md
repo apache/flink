@@ -237,7 +237,7 @@ It supports to specify the path of the Python interpreter to execute Python work
 You could specify the Python interpreter inside the code using Python Table API as following:
 
 ```python
-table_env.set_python_executable("/path/to/python")
+table_env.get_config().set_python_executable("/path/to/python")
 ```
 
 or using Python DataStream API as following:
@@ -251,7 +251,7 @@ It also supports to use the Python interpreter inside an archive file.
 ```python
 # Python Table API
 table_env.add_python_archive("/path/to/py_env.zip", "venv")
-table_env.set_python_executable("venv/py_env/bin/python")
+table_env.get_config().set_python_executable("venv/py_env/bin/python")
 
 # Python DataStream API
 stream_execution_environment.add_python_archive("/path/to/py_env.zip", "venv")
