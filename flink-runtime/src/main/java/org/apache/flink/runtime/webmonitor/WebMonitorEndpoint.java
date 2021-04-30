@@ -285,7 +285,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         DashboardConfigurationHeaders.getInstance(),
                         restConfiguration.getRefreshInterval(),
-                        hasWebSubmissionHandlers);
+                        hasWebSubmissionHandlers,
+                        restConfiguration.isWebCancelEnabled());
 
         JobIdsHandler jobIdsHandler =
                 new JobIdsHandler(

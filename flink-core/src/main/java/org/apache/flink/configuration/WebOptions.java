@@ -117,6 +117,14 @@ public class WebOptions {
                     .withDescription(
                             "Flag indicating whether jobs can be uploaded and run from the web-frontend.");
 
+    /** Config parameter indicating whether jobs can be cancel from the web-frontend. */
+    public static final ConfigOption<Boolean> CANCEL_ENABLE =
+            key("web.cancel.enable")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Flag indicating whether jobs can be canceled from the web-frontend.");
+
     /** Config parameter defining the number of checkpoints to remember for recent history. */
     public static final ConfigOption<Integer> CHECKPOINTS_HISTORY_SIZE =
             key("web.checkpoints.history")

@@ -327,7 +327,7 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false)));
+                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");
