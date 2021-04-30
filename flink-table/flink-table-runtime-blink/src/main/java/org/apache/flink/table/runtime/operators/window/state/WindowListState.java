@@ -58,26 +58,4 @@ public final class WindowListState<W> implements WindowState<W> {
         windowState.setCurrentNamespace(window);
         windowState.add(value);
     }
-
-    /**
-     * Updates the operator state accessible by {@link #get(W)} )} by delete the given value to the
-     * list of values. The next time {@link #get(W)} is called (for the same state partition) the
-     * returned state will represent the updated list.
-     *
-     * <p>If null is passed in, the state value will remain unchanged.
-     *
-     * <p>The performance is not well, first get complete list by calling {@link
-     * InternalListState#getInternal()})}, then remove the value from list, finally update state by
-     * calling {@link InternalListState#update(List)}.
-     *
-     * @param window The namespace for the state.
-     * @param value The new value for the state.
-     * @throws Exception Thrown if the system cannot access the state.
-     */
-    public boolean delete(W window, RowData value) throws Exception {
-        List<RowData> completeData = get(window);
-        boolean flag = completeData.remove(value);
-        windowState.updateInternal(completeData);
-        return flag;
-    }
 }

@@ -42,6 +42,8 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
@@ -51,13 +53,14 @@ import java.util.IdentityHashMap;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 
 /**
  * Streaming window join operator.
  *
  * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus
  * late elements (elements belong to emitted windows) will be simply dropped.
+ *
+ * <p>Note: currently, {@link WindowJoinOperator} doesn't support DELETE or UPDATE_BEFORE input row.
  */
 public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
@@ -91,7 +94,7 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
     private transient boolean functionsClosed = false;
 
-    private transient InternalTimerService<Long> internalTimerService;
+    private transient WindowTimerService<Long> windowTimerService;
 
     // ------------------------------------------------------------------------
     protected transient JoinConditionWithNullFilters joinCondition;
@@ -139,7 +142,9 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
         final LongSerializer windowSerializer = LongSerializer.INSTANCE;
 
-        internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
+        InternalTimerService<Long> internalTimerService =
+                getInternalTimerService("window-timers", windowSerializer, this);
+        this.windowTimerService = new WindowTimerServiceImpl(internalTimerService, shiftTimeZone);
 
         // init join condition
         JoinCondition condition =
@@ -178,11 +183,11 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
                 metrics.gauge(
                         WATERMARK_LATENCY_METRIC_NAME,
                         () -> {
-                            long watermark = internalTimerService.currentWatermark();
+                            long watermark = windowTimerService.currentWatermark();
                             if (watermark < 0) {
                                 return 0L;
                             } else {
-                                return internalTimerService.currentProcessingTime() - watermark;
+                                return windowTimerService.currentProcessingTime() - watermark;
                             }
                         });
     }
@@ -227,7 +232,7 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
             throws Exception {
         RowData inputRow = element.getValue();
         long windowEnd = inputRow.getLong(windowEndIndex);
-        if (isWindowFired(windowEnd, internalTimerService.currentWatermark(), shiftTimeZone)) {
+        if (isWindowFired(windowEnd, windowTimerService.currentWatermark(), shiftTimeZone)) {
             // element is late and should be dropped
             lateRecordsDroppedRate.markEvent();
             return;
@@ -235,11 +240,12 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         if (RowDataUtil.isAccumulateMsg(inputRow)) {
             recordState.add(windowEnd, inputRow);
         } else {
-            recordState.delete(windowEnd, inputRow);
+            // Window join could not handle retraction input stream
+            throw new UnsupportedOperationException(
+                    "This is a bug and should not happen. Please file an issue.");
         }
         // always register time for every element
-        internalTimerService.registerEventTimeTimer(
-                windowEnd, toEpochMillsForTimer(windowEnd - 1, shiftTimeZone));
+        windowTimerService.registerEventTimeWindowTimer(windowEnd);
     }
 
     @Override
@@ -372,6 +378,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
     private abstract static class AbstractOuterJoinOperator extends WindowJoinOperator {
 
+        private static final long serialVersionUID = 1L;
+
         private transient RowData leftNullRow;
         private transient RowData rightNullRow;
         private transient JoinedRowData outRow;
@@ -431,6 +439,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
     static class LeftOuterJoinOperator extends AbstractOuterJoinOperator {
 
+        private static final long serialVersionUID = 1L;
+
         LeftOuterJoinOperator(
                 InternalTypeInfo leftType,
                 InternalTypeInfo rightType,
@@ -476,6 +486,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
     static class RightOuterJoinOperator extends AbstractOuterJoinOperator {
 
+        private static final long serialVersionUID = 1L;
+
         RightOuterJoinOperator(
                 InternalTypeInfo leftType,
                 InternalTypeInfo rightType,
@@ -519,6 +531,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     }
 
     static class FullOuterJoinOperator extends AbstractOuterJoinOperator {
+
+        private static final long serialVersionUID = 1L;
 
         FullOuterJoinOperator(
                 InternalTypeInfo leftType,
