@@ -25,6 +25,7 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
+import org.apache.flink.python.util.TarGzUtils;
 import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -326,9 +327,21 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
             // extract archives to archives directory
             for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
-                ZipUtils.extractZipFileWithPermissions(
-                        entry.getKey(),
-                        String.join(File.separator, archivesDirectory, entry.getValue()));
+                String filePath = entry.getKey();
+                if (filePath.endsWith(".zip") || filePath.endsWith(".jar")) {
+                    ZipUtils.extractZipFileWithPermissions(
+                            filePath,
+                            String.join(File.separator, archivesDirectory, entry.getValue()));
+                } else if (filePath.endsWith(".tar.gz")) {
+                    TarGzUtils.extractTarGzFileWithPermissions(
+                            filePath,
+                            String.join(File.separator, archivesDirectory, entry.getValue()));
+                } else {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Only .zip, .jar and .tar.gz files are supported, found %s",
+                                    filePath));
+                }
             }
         }
     }
