@@ -61,7 +61,7 @@ $ # specify the path of the python interpreter which is used to execute the pyth
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#usage).
+For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({% link dev/python/dependency_management.md %}).
 
 ## Adding Jar Files
 
@@ -76,7 +76,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency-in-python-program)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/dependency_management.md %}#jar-dependencies)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.

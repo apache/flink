@@ -32,5 +32,4 @@ Python Table API允许用户使用Python语言开发[Table API]({% link dev/tabl
 - [自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}): 有关如何定义Python用户自定义函数的说明。
 - [向量化自定义函数]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.zh.md %}): 有关如何定义向量化Python用户自定义函数的说明。
 - [PyFlink Table 和 Pandas DataFrame 互转]({% link dev/python/table-api-users-guide/conversion_of_pandas.zh.md %}): 介绍了PyFlink Table和Pandas DataFrame之间如何互转。
-- [依赖管理]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}): 在Python Table API作业中如何使用第三方依赖。
 - [常见问题]({% link dev/python/faq.zh.md %})
