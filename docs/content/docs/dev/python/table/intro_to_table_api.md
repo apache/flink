@@ -111,7 +111,7 @@ The `TableEnvironment` is responsible for:
 * Executing SQL queries, see [SQL]({{< ref "docs/dev/table/sql/overview" >}}) for more details
 * Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) and [Vectorized User-defined Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}) for more details
 * Configuring the job, see [Python Configuration]({{< ref "docs/dev/python/python_config" >}}) for more details
-* Managing Python dependencies, see [Dependency Management]({{< ref "docs/dev/python/table/dependency_management" >}}) for more details
+* Managing Python dependencies, see [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}) for more details
 * Submitting the jobs for execution
 
 Currently there are 2 planners available: flink planner and blink planner.
