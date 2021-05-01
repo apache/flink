@@ -195,7 +195,7 @@ public class CliFrontendParser {
                             + "These files will be added to the PYTHONPATH of both the local client and the remote python UDF worker. "
                             + "Files suffixed with .zip will be extracted and added to PYTHONPATH. "
                             + "Comma (',') could be used as the separator to specify multiple files "
-                            + "(e.g.: --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).");
+                            + "(e.g., --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).");
 
     public static final Option PYMODULE_OPTION =
             new Option(
@@ -214,7 +214,7 @@ public class CliFrontendParser {
                             + "These dependencies will be installed and added to the PYTHONPATH of the python UDF worker. "
                             + "A directory which contains the installation packages of these dependencies could be specified "
                             + "optionally. Use '#' as the separator if the optional parameter exists "
-                            + "(e.g.: --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir).");
+                            + "(e.g., --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir).");
 
     public static final Option PYARCHIVE_OPTION =
             new Option(
@@ -229,7 +229,7 @@ public class CliFrontendParser {
                             + "via relative path. '#' could be used as the separator of the archive file path and the target directory "
                             + "name. Comma (',') could be used as the separator to specify multiple archive files. "
                             + "This option can be used to upload the virtual environment, the data files used in Python UDF "
-                            + "(e.g.: --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable "
+                            + "(e.g., --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable "
                             + "py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.: "
                             + "f = open('data/data.txt', 'r').");
 
