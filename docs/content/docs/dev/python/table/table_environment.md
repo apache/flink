@@ -514,7 +514,7 @@ For more details about the different kinds of UDFs, please refer to [User Define
 ### Dependency Management
 
 These APIs are used to manage the Python dependencies which are required by the Python UDFs.
-Please refer to the [Dependency Management]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-python-program) documentation for more details.
+Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-python-program) documentation for more details.
 
 <table class="table table-bordered">
   <thead>

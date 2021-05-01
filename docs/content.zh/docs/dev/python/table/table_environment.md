@@ -512,7 +512,7 @@ TableEnvironment API
 ### 依赖管理
 
 这些 APIs 用来管理 Python UDFs 所需要的 Python 依赖。
-更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-python-program)。
+更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-python-program)。
 
 <table class="table table-bordered">
   <thead>
