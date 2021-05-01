@@ -270,10 +270,19 @@ under the License.
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>ci --cache-max=0 --no-save</arguments>
+							<arguments>ci --cache-max=0 --no-save --unsafe-perm</arguments>
 							<environmentVariables>
 								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>
 							</environmentVariables>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm update</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>update</arguments>
 						</configuration>
 					</execution>
 					<execution>
