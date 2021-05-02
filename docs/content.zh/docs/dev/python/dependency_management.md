@@ -5,6 +5,7 @@ type: docs
 aliases:
   - /zh/dev/python/table-api-users-guide/dependency_management.html
   - /zh/dev/python/datastream-api-users-guide/dependency_management.html
+  - /zh/dev/python/dependency_management.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -71,7 +72,6 @@ or through the [command line arguments]({{< ref "docs/deployment/cli" >}}#submit
 
 <span class="label label-info">Note</span> It only supports to specify one jar file with the command
 line argument `--jarfile` and so you need to build a fat jar if there are multiple jar files.
-
 
 ## Python Dependencies
 

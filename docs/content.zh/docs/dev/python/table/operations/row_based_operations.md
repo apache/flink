@@ -92,7 +92,6 @@ table.map(func3).alias('id', 'data').to_pandas()
 #  1    2  HelloHello
 ```
 
-
 ## FlatMap
 
 Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions).
@@ -277,5 +276,4 @@ result = t.group_by(t.b).flat_aggregate(top2).select('*').to_pandas()
 # 1  Hi2  NaN
 # 2   Hi  7.0
 # 3   Hi  3.0
-
 ```

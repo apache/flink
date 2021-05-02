@@ -26,21 +26,19 @@ under the License.
 
 # 普通自定义函数（UDF）
 
-用户自定义函数是重要的功能，因为它们极大地扩展了Python Table API程序的表达能力。
+用户自定义函数是重要的功能，因为它们极大地扩展了 Python Table API 程序的表达能力。
 
-**注意:** 要执行Python用户自定义函数，客户端和集群端都需要安装Python版本(3.6、3.7 或 3.8)，并安装PyFlink。
-
-
+**注意:** 要执行 Python 用户自定义函数，客户端和集群端都需要安装 Python 3.6 以上版本(3.6、3.7 或 3.8)，并安装 PyFlink。
 
 <a name="scalar-functions"></a>
 
 ## 标量函数（ScalarFunction）
 
-PyFlink支持在Python Table API程序中使用Python标量函数。 如果要定义Python标量函数，
-可以继承`pyflink.table.udf`中的基类ScalarFunction，并实现eval方法。
-Python标量函数的行为由名为`eval`的方法定义，eval方法支持可变长参数，例如`eval(* args)`。
+PyFlink 支持在 Python Table API 程序中使用 Python 标量函数。 如果要定义 Python 标量函数，
+可以继承 `pyflink.table.udf` 中的基类 `ScalarFunction`，并实现 `eval` 方法。
+Python 标量函数的行为由名为 `eval` 的方法定义，`eval` 方法支持可变长参数，例如 `eval(* args)`。
 
-以下示例显示了如何定义自己的Python哈希函数、如何在TableEnvironment中注册它以及如何在作业中使用它。
+以下示例显示了如何定义自己的 Python 哈希函数、如何在 TableEnvironment 中注册它以及如何在作业中使用它。
 
 ```python
 from pyflink.table.expressions import call 
@@ -57,21 +55,21 @@ table_env = TableEnvironment.create(settings)
 
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
-# 在Python Table API中使用Python自定义函数
+# 在 Python Table API 中使用 Python 自定义函数
 my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
 
-# 在SQL API中使用Python自定义函数
+# 在 SQL API 中使用 Python 自定义函数
 table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 ```
 
-除此之外，还支持在Python Table API程序中使用Java / Scala标量函数。
+除此之外，还支持在Python Table API程序中使用 Java / Scala 标量函数。
 
 ```python
 '''
 Java code:
 
-// Java类必须具有公共的无参数构造函数，并且可以在当前的Java类加载器中可以加载到。
+// Java 类必须具有公共的无参数构造函数，并且可以在当前的Java类加载器中可以加载到。
 public class HashCode extends ScalarFunction {
   private int factor = 12;
 
@@ -85,64 +83,64 @@ from pyflink.table.expressions import call
 settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(settings)
 
-# 注册Java函数
+# 注册 Java 函数
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
-# 在Python Table API中使用Java函数
+# 在 Python Table API 中使用 Java 函数
 my_table.select(call('hash_code', my_table.string))
 
-# 在SQL API中使用Java函数
+# 在 SQL API 中使用 Java 函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 ```
 
-除了扩展基类`ScalarFunction`之外，还支持多种方式来定义Python标量函数。
-以下示例显示了多种定义Python标量函数的方式。该函数需要两个类型为bigint的参数作为输入参数，并返回它们的总和作为结果。
+除了扩展基类 `ScalarFunction` 之外，还支持多种方式来定义 Python 标量函数。
+以下示例显示了多种定义 Python 标量函数的方式。该函数需要两个类型为 bigint 的参数作为输入参数，并返回它们的总和作为结果。
 
 ```python
-# 方式一：扩展基类`ScalarFunction`
+# 方式一：扩展基类 calarFunction
 class Add(ScalarFunction):
   def eval(self, i, j):
     return i + j
 
 add = udf(Add(), result_type=DataTypes.BIGINT())
 
-# 方式二：普通Python函数
+# 方式二：普通 Python 函数
 @udf(result_type=DataTypes.BIGINT())
 def add(i, j):
   return i + j
 
-# 方式三：lambda函数
+# 方式三：lambda 函数
 add = udf(lambda i, j: i + j, result_type=DataTypes.BIGINT())
 
-# 方式四：callable函数
+# 方式四：callable 函数
 class CallableAdd(object):
   def __call__(self, i, j):
     return i + j
 
 add = udf(CallableAdd(), result_type=DataTypes.BIGINT())
 
-# 方式五：partial函数
+# 方式五：partial 函数
 def partial_add(i, j, k):
   return i + j + k
 
 add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
-# 注册Python自定义函数
+# 注册 Python 自定义函数
 table_env.create_temporary_function("add", add)
-# 在Python Table API中使用Python自定义函数
+# 在 Python Table API 中使用 Python 自定义函数
 my_table.select("add(a, b)")
 
-# 也可以在Python Table API中直接使用Python自定义函数
+# 也可以在 Python Table API 中直接使用 Python 自定义函数
 my_table.select(add(my_table.a, my_table.b))
 ```
 
 <a name="table-functions"></a>
 
 ## 表值函数（TableFunction）
-与Python用户自定义标量函数类似，Python用户自定义表值函数以零个，一个或者多个列作为输入参数。但是，与标量函数不同的是，表值函数可以返回
-任意数量的行作为输出而不是单个值。Python用户自定义表值函数的返回类型可以是Iterable，Iterator或generator类型。
+与 Python 用户自定义标量函数类似，Python 用户自定义表值函数以零个，一个或者多个列作为输入参数。但是，与标量函数不同的是，表值函数可以返回
+任意数量的行作为输出而不是单个值。Python 用户自定义表值函数的返回类型可以是 Iterable，Iterator 或 generator 类型。
 
-以下示例说明了如何定义自己的Python自定义表值函数，将其注册到TableEnvironment中，并在作业中使用它。
+以下示例说明了如何定义自己的 Python 自定义表值函数，将其注册到 TableEnvironment 中，并在作业中使用它。
 
 ```python
 class Split(TableFunction):
@@ -154,21 +152,21 @@ env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streami
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# 注册Python表值函数
+# 注册 Python 表值函数
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
-# 在Python Table API中使用Python表值函数
+# 在 Python Table API 中使用 Python 表值函数
 my_table.join_lateral(split(my_table.a).alias("word, length"))
 my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
 
-# 在SQL API中使用Python表值函数
+# 在 SQL API 中使用 Python 表值函数
 table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
 ```
 
-除此之外，还支持在Python Table API程序中使用Java / Scala表值函数。
+除此之外，还支持在 Python Table API 程序中使用 Java / Scala 表值函数。
 ```python
 '''
 Java code:
@@ -192,14 +190,14 @@ env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streami
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# 注册java自定义函数。
+# 注册 Java 自定义函数。
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# 在Python Table API中使用表值函数。 "alias"指定表的字段名称。
+# 在 Python Table API 中使用表值函数。 "alias"指定表的字段名称。
 my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
-# 注册python函数。
+# 注册 Python 函数。
 
 # 在SQL中将table函数与LATERAL和TABLE关键字一起使用。
 # CROSS JOIN表值函数（等效于Table API中的"join"）。
@@ -208,9 +206,9 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 ```
 
-像Python标量函数一样，您可以使用上述五种方式来定义Python表值函数。
+像 Python 标量函数一样，您可以使用上述五种方式来定义 Python 表值函数。
 
-<span class="label label-info">注意</span> 唯一的区别是，Python表值函数的返回类型必须是iterable（可迭代子类）, iterator（迭代器） or generator（生成器）。
+<span class="label label-info">注意</span> 唯一的区别是，Python 表值函数的返回类型必须是 iterable（可迭代子类）, iterator（迭代器） or generator（生成器）。
 
 ```python
 # 方式一：生成器函数
@@ -400,12 +398,12 @@ class ListViewConcatAggregateFunction(AggregateFunction):
         return DataTypes.STRING()
 ```
 
-Currently there are 2 limitations to use the ListView and MapView:
+Currently, there are 2 limitations to use the ListView and MapView:
 
 1. The accumulator must be a `Row`.
 2. The `ListView` and `MapView` must be the first level children of the `Row` accumulator.
 
-Please refer to the [documentation of the corresponding classes]({{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.ListView) for more information about this advanced feature.
+Please refer to the {{< pythondoc file="pyflink.table.html#pyflink.table.ListView" name="documentation of the corresponding classes">}} for more information about this advanced feature.
 
 **NOTE:** For reducing the data transmission cost between Python UDF worker and Java process caused by accessing the data in Flink states(e.g. accumulators and data views), 
 there is a cached layer between the raw state handler and the Python state backend. You can adjust the values of these configuration options to change the behavior of the cache layer for best performance:
@@ -565,7 +563,7 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
 
 你要做的是重载 `UserDefinedFunction` 类的 `open` 方法。
 
-```
+```python
 class Predict(ScalarFunction):
     def open(self, function_context):
         import pickle

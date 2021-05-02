@@ -55,7 +55,7 @@ $ # 指定用于执行python UDF workers (用户自定义函数工作者) 的pyt
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 ```
 
-如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-python-program)。
+如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({{< ref "docs/dev/python/dependency_management" >}}#python-dependencies)。
 
 ## 添加Jar文件
 
