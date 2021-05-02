@@ -39,6 +39,8 @@ import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,8 +68,12 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
     // Configuration is not serializable
     protected byte[] serializedConfig;
 
-    public AbstractTableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+    @Nullable protected Long limit;
+
+    public AbstractTableInputFormat(
+            org.apache.hadoop.conf.Configuration hConf, @Nullable Long limit) {
         serializedConfig = HBaseConfigurationUtil.serializeConfiguration(hConf);
+        this.limit = limit;
     }
 
     /**
@@ -141,6 +147,11 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
     }
 
     public T nextRecord(T reuse) throws IOException {
+        if (limit != null && limit >= scannedRows) {
+            endReached = true;
+            return null;
+        }
+
         if (resultScanner == null) {
             throw new IOException("No table result scanner provided!");
         }

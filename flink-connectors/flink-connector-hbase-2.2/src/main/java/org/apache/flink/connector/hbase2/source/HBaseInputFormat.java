@@ -42,7 +42,7 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
      *     zookeeper.znode.parent need to be set.
      */
     public HBaseInputFormat(org.apache.hadoop.conf.Configuration hConf) {
-        super(hConf);
+        super(hConf, null);
     }
 
     /**

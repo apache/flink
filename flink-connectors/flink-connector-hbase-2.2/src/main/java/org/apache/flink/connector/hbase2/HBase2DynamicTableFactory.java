@@ -82,7 +82,7 @@ public class HBase2DynamicTableFactory
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
         return new HBaseDynamicTableSource(
-                hbaseConf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+                hbaseConf, tableName, hbaseSchema, nullStringLiteral, lookupOptions, null);
     }
 
     @Override

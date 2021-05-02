@@ -83,7 +83,8 @@ public class HBase1DynamicTableFactory
                 tableName,
                 hbaseSchema,
                 nullStringLiteral,
-                getHBaseLookupOptions(tableOptions));
+                getHBaseLookupOptions(tableOptions),
+                null);
     }
 
     @Override

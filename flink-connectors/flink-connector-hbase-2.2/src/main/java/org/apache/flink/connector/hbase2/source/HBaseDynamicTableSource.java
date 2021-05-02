@@ -32,6 +32,8 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.conf.Configuration;
 
+import javax.annotation.Nullable;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** HBase table source implementation. */
@@ -43,8 +45,9 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
             String tableName,
             HBaseTableSchema hbaseSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
-        super(conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+            HBaseLookupOptions lookupOptions,
+            @Nullable Long limit) {
+        super(conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions, limit);
     }
 
     @Override
@@ -76,12 +79,12 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
     @Override
     public DynamicTableSource copy() {
         return new HBaseDynamicTableSource(
-                conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+                conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions, limit);
     }
 
     @Override
     protected InputFormat<RowData, ?> getInputFormat() {
-        return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
+        return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral, limit);
     }
 
     @VisibleForTesting

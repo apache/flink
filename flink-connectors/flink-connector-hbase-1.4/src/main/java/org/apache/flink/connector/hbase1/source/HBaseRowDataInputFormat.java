@@ -32,6 +32,8 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -52,8 +54,9 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
             org.apache.hadoop.conf.Configuration conf,
             String tableName,
             HBaseTableSchema schema,
-            String nullStringLiteral) {
-        super(conf);
+            String nullStringLiteral,
+            @Nullable Long limit) {
+        super(conf, limit);
         this.tableName = tableName;
         this.schema = schema;
         this.nullStringLiteral = nullStringLiteral;
