@@ -18,7 +18,6 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Time;
@@ -33,82 +32,154 @@ import org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.SerializableSupplier;
 
-import org.junit.Ignore;
-import org.junit.Rule;
+import com.mysql.cj.jdbc.MysqlXADataSource;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.postgresql.xa.PGXADataSource;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import javax.sql.XADataSource;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
+import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_CANCELLATION_TIMEOUT;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInsertedIds;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
-// todo: unignore in FLINK-22462 or earlier
-@Ignore
+@RunWith(Parameterized.class)
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
-    private static final class PgXaDb extends PostgreSQLContainer<PgXaDb> {
-        public PgXaDb(String dockerImageName) {
-            super(dockerImageName);
-            // set max_prepared_transactions to non-zero
-            this.setCommand("postgres", "-c", "max_prepared_transactions=50", "-c", "fsync=off");
-        }
+    private interface JdbcExactlyOnceSinkTestEnv {
+        void start();
+
+        void stop();
+
+        JdbcDatabaseContainer<?> getContainer();
+
+        SerializableSupplier<XADataSource> getDataSourceSupplier();
+
+        int getParallelism();
     }
 
-    @Rule public PgXaDb db = new PgXaDb("postgres:9.6.12");
+    @Parameterized.Parameter public JdbcExactlyOnceSinkTestEnv dbEnv;
 
+    private MiniClusterWithClientResource cluster;
+
+    // track active sources for:
+    // 1. if any cancels, cancel others ASAP
+    // 2. wait for others (to participate in checkpointing)
+    // not using SharedObjects because we want to explicitly control which tag (attempt) to use
+    private static final Map<Integer, CountDownLatch> activeSources = new ConcurrentHashMap<>();
+    // track inactive mappers - to start emission only when they are ready (to prevent them from
+    // starving for memory)
+    // not using SharedObjects because we want to explicitly control which tag (attempt) to use
+    private static final Map<Integer, CountDownLatch> inactiveMappers = new ConcurrentHashMap<>();
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<JdbcExactlyOnceSinkTestEnv> parameters() {
+        return Arrays.asList(
+                // PGSQL: check for issues with suspending connections (requires pooling) and
+                // honoring limits (properly closing connections).
+                new PgSqlJdbcExactlyOnceSinkTestEnv(4),
+                //            ,
+                // MYSQL: check for issues with errors on closing connections.
+                new MySqlJdbcExactlyOnceSinkTestEnv(4)
+                // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
+                // DB2 - not testing: requires auth configuration (plus EULA).
+                // MARIADB - not testing: XA rollback doesn't recognize recovered transactions.
+                // ORACLE - not testing: an image needs to be built.
+                );
+    }
+
+    @Before
+    public void before() throws Exception {
+        Configuration configuration = new Configuration();
+        // single failover region to allow checkpointing even after some sources have finished and
+        // restart all tasks if at least one fails
+        configuration.set(EXECUTION_FAILOVER_STRATEGY, "full");
+        // cancel tasks eagerly to reduce the risk of running out of memory with many restarts
+        configuration.set(TASK_CANCELLATION_TIMEOUT, 1000L);
+        cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                // Get enough TMs to run the job. Parallelize using TMs (rather than
+                                // slots) for better isolation - this test tends to exhaust memory
+                                // by restarts and fast sources
+                                .setNumberTaskManagers(dbEnv.getParallelism())
+                                .build());
+        cluster.before();
+        dbEnv.start();
+        super.before();
+    }
+
+    @After
     @Override
-    public void after() throws Exception {
+    public void after() {
         // no need for cleanup - done by test container tear down
+        if (cluster != null) {
+            cluster.after();
+            cluster = null;
+        }
+        dbEnv.stop();
     }
 
     @Test
     public void testInsert() throws Exception {
-        int parallelism = 4;
-        int elementsPerSource = 500;
+        int elementsPerSource = 50;
         int numElementsPerCheckpoint = 7;
         int minElementsPerFailure = numElementsPerCheckpoint / 3;
         int maxElementsPerFailure = numElementsPerCheckpoint * 3;
 
-        Configuration configuration = new Configuration();
-        configuration.set(
-                EXECUTION_FAILOVER_STRATEGY,
-                "full" /* allow checkpointing even after some sources have finished */);
-        StreamExecutionEnvironment env =
-                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1000, Time.milliseconds(100)));
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(dbEnv.getParallelism());
+        env.setRestartStrategy(fixedDelayRestart(Integer.MAX_VALUE, Time.milliseconds(100)));
         env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         env.enableCheckpointing(50, CheckpointingMode.EXACTLY_ONCE);
-        env.setParallelism(parallelism);
-        env.disableOperatorChaining();
-        String password = db.getPassword();
-        String username = db.getUsername();
-        String jdbcUrl = db.getJdbcUrl();
-
+        // timeout checkpoints as some tasks may fail while triggering
+        env.getCheckpointConfig().setCheckpointTimeout(1000);
+        // NOTE: keep operator chaining enabled to prevent memory exhaustion by sources while maps
+        // are still initializing
         env.addSource(new TestEntrySource(elementsPerSource, numElementsPerCheckpoint))
-                .setParallelism(parallelism)
+                .setParallelism(dbEnv.getParallelism())
                 .map(new FailingMapper(minElementsPerFailure, maxElementsPerFailure))
                 .addSink(
                         JdbcSink.exactlyOnceSink(
@@ -116,12 +187,18 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 JdbcExecutionOptions.builder().build(),
                                 JdbcExactlyOnceOptions.defaults(),
-                                () -> getXaDataSource(jdbcUrl, username, password)));
+                                this.dbEnv.getDataSourceSupplier()));
+
         env.execute();
 
-        List<Integer> insertedIds = getInsertedIds(jdbcUrl, username, password, INPUT_TABLE);
+        List<Integer> insertedIds =
+                getInsertedIds(
+                        dbEnv.getContainer().getJdbcUrl(),
+                        dbEnv.getContainer().getUsername(),
+                        dbEnv.getContainer().getPassword(),
+                        INPUT_TABLE);
         List<Integer> expectedIds =
-                IntStream.range(0, elementsPerSource * parallelism)
+                IntStream.range(0, elementsPerSource * dbEnv.getParallelism())
                         .boxed()
                         .collect(Collectors.toList());
         assertTrue(
@@ -134,32 +211,32 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         return new DbMetadata() {
             @Override
             public String getInitUrl() {
-                return db.getJdbcUrl();
+                return dbEnv.getContainer().getJdbcUrl();
             }
 
             @Override
             public String getUrl() {
-                return db.getJdbcUrl();
+                return dbEnv.getContainer().getJdbcUrl();
             }
 
             @Override
             public XADataSource buildXaDataSource() {
-                return getXaDataSource(db.getJdbcUrl(), db.getUsername(), db.getPassword());
+                throw new UnsupportedOperationException();
             }
 
             @Override
             public String getDriverClass() {
-                return db.getDriverClassName();
+                return dbEnv.getContainer().getDriverClassName();
             }
 
             @Override
             public String getUser() {
-                return db.getUsername();
+                return dbEnv.getContainer().getUsername();
             }
 
             @Override
             public String getPassword() {
-                return db.getPassword();
+                return dbEnv.getContainer().getPassword();
             }
         };
     }
@@ -170,14 +247,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         private final int numElements;
         private final int numElementsPerCheckpoint;
 
-        private transient ListState<SourceRange> ranges;
+        private transient volatile ListState<SourceRange> ranges;
 
         private volatile boolean allDataEmitted = false;
         private volatile boolean snapshotTaken = false;
         private volatile long lastCheckpointId = -1L;
         private volatile boolean lastSnapshotConfirmed = false;
         private volatile boolean running = true;
-        private static volatile CountDownLatch runningSources;
 
         private TestEntrySource(int numElements, int numElementsPerCheckpoint) {
             this.numElements = numElements;
@@ -186,26 +262,50 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void run(SourceContext<TestEntry> ctx) throws Exception {
-            for (SourceRange range : ranges.get()) {
-                for (int i = range.from; i < range.to; ) {
-                    synchronized (ctx.getCheckpointLock()) {
-                        snapshotTaken = false;
-                        for (int j = 0; j < numElementsPerCheckpoint && i < range.to; j++, i++) {
-                            emit(ctx, i);
-                            range.advance();
-                        }
-                    }
-                    sleep(() -> !snapshotTaken);
+            try {
+                waitForConsumers();
+                for (SourceRange range : ranges.get()) {
+                    emitRange(range, ctx);
                 }
+                allDataEmitted = true;
+                if (snapshotTaken) {
+                    sleep(() -> !lastSnapshotConfirmed);
+                }
+            } finally {
+                activeSources.get(getRuntimeContext().getAttemptNumber()).countDown();
             }
-            allDataEmitted = true;
-            sleep(() -> !lastSnapshotConfirmed);
-            runningSources.countDown();
-            runningSources.await(); // participate in checkpointing
+            waitOtherSources(); // participate in checkpointing
         }
 
-        private void emit(SourceContext<TestEntry> ctx, int i) {
-            ctx.collect(new TestEntry(i, Integer.toString(i), Integer.toString(i), (double) i, i));
+        private void waitForConsumers() throws InterruptedException {
+            // even though the pipeline is (intended to be) chained, other parallel instances may
+            // starve if this source uses all the available memory before they initialize
+            sleep(() -> !inactiveMappers.containsKey(getRuntimeContext().getAttemptNumber()));
+            inactiveMappers.get(getRuntimeContext().getAttemptNumber()).await();
+        }
+
+        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx)
+                throws InterruptedException {
+            for (int i = range.from; i < range.to && running; ) {
+                int count = Math.min(range.to - i, numElementsPerCheckpoint);
+                emit(i, count, range, ctx);
+                i += count;
+                sleep(() -> !snapshotTaken);
+            }
+        }
+
+        private void emit(int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx)
+                throws InterruptedException {
+            synchronized (ctx.getCheckpointLock()) {
+                snapshotTaken = false;
+                for (int j = start; j < start + count && running; j++) {
+                    ctx.collect(
+                            new TestEntry(
+                                    j, Integer.toString(j), Integer.toString(j), (double) (j), j));
+                    toAdvance.advance();
+                    Thread.sleep(10);
+                }
+            }
         }
 
         @Override
@@ -222,10 +322,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-                runningSources =
-                        new CountDownLatch(getRuntimeContext().getNumberOfParallelSubtasks());
-            }
+            activeSources.putIfAbsent(
+                    getRuntimeContext().getAttemptNumber(),
+                    new CountDownLatch(getRuntimeContext().getNumberOfParallelSubtasks()));
         }
 
         @Override
@@ -251,7 +350,10 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         }
 
         private void sleep(Supplier<Boolean> condition) {
-            while (condition.get() && running && !Thread.currentThread().isInterrupted()) {
+            while (condition.get()
+                    && running
+                    && !Thread.currentThread().isInterrupted()
+                    && haveActiveSources()) {
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -259,6 +361,18 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                     ExceptionUtils.rethrow(e);
                 }
             }
+        }
+
+        private void waitOtherSources() throws InterruptedException {
+            while (running && haveActiveSources()) {
+                activeSources
+                        .get(getRuntimeContext().getAttemptNumber())
+                        .await(100, TimeUnit.MILLISECONDS);
+            }
+        }
+
+        private boolean haveActiveSources() {
+            return activeSources.get(getRuntimeContext().getAttemptNumber()).getCount() > 0;
         }
 
         private static final class SourceRange {
@@ -282,14 +396,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         }
     }
 
-    private static XADataSource getXaDataSource(String jdbcUrl, String username, String password) {
-        PGXADataSource xaDataSource = new PGXADataSource();
-        xaDataSource.setUrl(jdbcUrl);
-        xaDataSource.setUser(username);
-        xaDataSource.setPassword(password);
-        return xaDataSource;
-    }
-
     private static class FailingMapper extends RichMapFunction<TestEntry, TestEntry> {
         private final int minElementsPerFailure;
         private final int maxElementsPerFailure;
@@ -303,6 +409,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         @Override
         public void open(Configuration parameters) throws Exception {
             remaining = minElementsPerFailure + new Random().nextInt(maxElementsPerFailure);
+            inactiveMappers
+                    .computeIfAbsent(
+                            getRuntimeContext().getAttemptNumber(),
+                            u ->
+                                    new CountDownLatch(
+                                            getRuntimeContext().getNumberOfParallelSubtasks()))
+                    .countDown();
         }
 
         @Override
@@ -317,6 +430,191 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
     private static final class TestException extends Exception {
         public TestException() {
             super("expected", null, true, false);
+        }
+    }
+
+    private static class MySqlJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
+        private final int parallelism;
+        private final JdbcDatabaseContainer<?> db;
+
+        public MySqlJdbcExactlyOnceSinkTestEnv(int parallelism) {
+            this.parallelism = parallelism;
+            this.db = new MySqlXaDb();
+        }
+
+        @Override
+        public void start() {
+            db.start();
+        }
+
+        @Override
+        public void stop() {
+            db.close();
+        }
+
+        @Override
+        public JdbcDatabaseContainer<?> getContainer() {
+            return db;
+        }
+
+        @Override
+        public SerializableSupplier<XADataSource> getDataSourceSupplier() {
+            return new MySqlXaDataSourceFactory(
+                    db.getJdbcUrl(), db.getUsername(), db.getPassword());
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        private static final class MySqlXaDb extends MySQLContainer<MySqlXaDb> {
+            private static final String IMAGE_NAME = "mysql:8.0.23"; // version 5 had issues with XA
+
+            @Override
+            public String toString() {
+                return IMAGE_NAME;
+            }
+
+            public MySqlXaDb() {
+                super(IMAGE_NAME);
+            }
+
+            @Override
+            public void start() {
+                super.start();
+                // prevent XAER_RMERR: Fatal error occurred in the transaction  branch - check your
+                // data for consistency works for mysql v8+
+                try (Connection connection =
+                        DriverManager.getConnection(getJdbcUrl(), "root", getPassword())) {
+                    grantRecover(connection);
+                } catch (SQLException e) {
+                    ExceptionUtils.rethrow(e);
+                }
+            }
+
+            private void grantRecover(Connection connection) throws SQLException {
+                try (Statement st = connection.createStatement()) {
+                    st.execute("GRANT XA_RECOVER_ADMIN ON *.* TO '" + getUsername() + "'@'%'");
+                    st.execute("FLUSH PRIVILEGES");
+                }
+            }
+        }
+
+        private static class MySqlXaDataSourceFactory
+                implements SerializableSupplier<XADataSource> {
+            private final String jdbcUrl;
+            private final String username;
+            private final String password;
+
+            public MySqlXaDataSourceFactory(String jdbcUrl, String username, String password) {
+                this.jdbcUrl = jdbcUrl;
+                this.username = username;
+                this.password = password;
+            }
+
+            @Override
+            public XADataSource get() {
+                MysqlXADataSource xaDataSource = new MysqlXADataSource();
+                xaDataSource.setUrl(jdbcUrl);
+                xaDataSource.setUser(username);
+                xaDataSource.setPassword(password);
+                return xaDataSource;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return db + ", parallelism=" + parallelism;
+        }
+    }
+
+    private static class PgSqlJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
+        private final int parallelism;
+        private final PgXaDb db;
+
+        private PgSqlJdbcExactlyOnceSinkTestEnv(int parallelism) {
+            this.parallelism = parallelism;
+            this.db = new PgXaDb(parallelism * 2, 50);
+        }
+
+        @Override
+        public void start() {
+            db.start();
+        }
+
+        @Override
+        public void stop() {
+            db.close();
+        }
+
+        @Override
+        public JdbcDatabaseContainer<?> getContainer() {
+            return db;
+        }
+
+        @Override
+        public SerializableSupplier<XADataSource> getDataSourceSupplier() {
+            return new PgXaDataSourceFactory(db.getJdbcUrl(), db.getUsername(), db.getPassword());
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public String toString() {
+            return db + ", parallelism=" + parallelism;
+        }
+
+        /** {@link PostgreSQLContainer} with XA enabled (by setting max_prepared_transactions). */
+        private static final class PgXaDb extends PostgreSQLContainer<PgXaDb> {
+            private static final String IMAGE_NAME = "postgres:9.6.12";
+            private static final int SUPERUSER_RESERVED_CONNECTIONS = 1;
+
+            @Override
+            public String toString() {
+                return IMAGE_NAME;
+            }
+
+            public PgXaDb(int maxConnections, int maxTransactions) {
+                super(IMAGE_NAME);
+                checkArgument(
+                        maxConnections > SUPERUSER_RESERVED_CONNECTIONS,
+                        "maxConnections should be greater than superuser_reserved_connections");
+                setCommand(
+                        "postgres",
+                        "-c",
+                        "superuser_reserved_connections=" + SUPERUSER_RESERVED_CONNECTIONS,
+                        "-c",
+                        "max_connections=" + maxConnections,
+                        "-c",
+                        "max_prepared_transactions=" + maxTransactions,
+                        "-c",
+                        "fsync=off");
+            }
+        }
+
+        private static class PgXaDataSourceFactory implements SerializableSupplier<XADataSource> {
+            private final String jdbcUrl;
+            private final String username;
+            private final String password;
+
+            public PgXaDataSourceFactory(String jdbcUrl, String username, String password) {
+                this.jdbcUrl = jdbcUrl;
+                this.username = username;
+                this.password = password;
+            }
+
+            @Override
+            public XADataSource get() {
+                PGXADataSource xaDataSource = new PGXADataSource();
+                xaDataSource.setUrl(jdbcUrl);
+                xaDataSource.setUser(username);
+                xaDataSource.setPassword(password);
+                return xaDataSource;
+            }
         }
     }
 }
