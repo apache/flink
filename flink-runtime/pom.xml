@@ -572,12 +572,6 @@ under the License.
 										 	copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
 									</excludes>
-								</filter>	
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>META-INF/maven/io.netty/**</exclude>
-									</excludes>
 								</filter>
 							</filters>
 						</configuration>

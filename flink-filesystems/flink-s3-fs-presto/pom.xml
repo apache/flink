@@ -401,19 +401,12 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.weakref/**</exclude>
-										<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
-										<exclude>META-INF/maven/joda-time/**</exclude>
-										<exclude>META-INF/maven/io.airlift/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>

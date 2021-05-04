@@ -215,6 +215,10 @@ under the License.
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <archive>
+                        <!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+                        <addMavenDescriptor>false</addMavenDescriptor>
+                    </archive>
                 </configuration>
                 <executions>
                     <execution>
