@@ -185,6 +185,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             SecurityContext securityContext = installSecurityContext(configuration);
 
+            ClusterEntrypointUtils.configureUncaughtExceptionHandler(configuration);
             securityContext.runSecured(
                     (Callable<Void>)
                             () -> {
