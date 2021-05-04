@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
@@ -121,6 +123,44 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                     TestingLongStateHandleHelper
                                             .getDiscardCallCountForStateHandleByIndex(0),
                                     is(1));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testAddWithPossiblyInconsistentStateHandling() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final FlinkKubeClient anotherFlinkKubeClient =
+                                    createFlinkKubeClientBuilder()
+                                            .setCheckAndUpdateConfigMapFunction(
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    new PossibleInconsistentStateException()))
+                                            .build();
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            try {
+                                store.addAndLock(key, state);
+                                fail("PossibleInconsistentStateException should have been thrown.");
+                            } catch (PossibleInconsistentStateException ex) {
+                                // PossibleInconsistentStateException is expected
+                            }
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
                         });
             }
         };
@@ -341,6 +381,75 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                     TestingLongStateHandleHelper
                                             .getDiscardCallCountForStateHandleByIndex(1),
                                     is(1));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testReplaceFailedWithPossiblyInconsistentState() throws Exception {
+        final PossibleInconsistentStateException updateException =
+                new PossibleInconsistentStateException();
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            store.addAndLock(key, state);
+
+                            final FlinkKubeClient anotherFlinkKubeClient =
+                                    createFlinkKubeClientBuilder()
+                                            .setCheckAndUpdateConfigMapFunction(
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    updateException))
+                                            .build();
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    anotherStore =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            final StringResourceVersion resourceVersion = anotherStore.exists(key);
+                            assertThat(resourceVersion.isExisting(), is(true));
+                            try {
+                                anotherStore.replace(
+                                        key,
+                                        resourceVersion,
+                                        new TestingLongStateHandleHelper.LongStateHandle(23456L));
+                                fail(
+                                        "An exception having a PossibleInconsistentStateException as its cause should have been thrown.");
+                            } catch (Exception ex) {
+                                assertThat(ex, is(updateException));
+                            }
+                            assertThat(anotherStore.getAllAndLock().size(), is(1));
+                            // The state does not change
+                            assertThat(anotherStore.getAndLock(key).retrieveState(), is(state));
+
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            // no state was discarded
+                            assertThat(
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
+                                    is(0));
+                            assertThat(
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(1),
+                                    is(0));
                         });
             }
         };
