@@ -695,6 +695,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setCheckpointsCleaner(
+                CheckpointsCleaner checkpointsCleaner) {
+            this.checkpointsCleaner = checkpointsCleaner;
+            return this;
+        }
+
         public CheckpointCoordinatorBuilder setCheckpointIDCounter(
                 CheckpointIDCounter checkpointIDCounter) {
             this.checkpointIDCounter = checkpointIDCounter;
