@@ -19,12 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+
+import java.util
 
 /**
   * Relational expression that writes out data of input node into a [[TableSink]].
@@ -39,6 +43,7 @@ abstract class LegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    val hints: util.List[RelHint],
     val sink: TableSink[_],
     val sinkName: String)
   extends SingleRel(cluster, traitSet, input) {
@@ -53,6 +58,7 @@ abstract class LegacySink(
     super.explainTerms(pw)
       .itemIf("name", sinkName, sinkName != null)
       .item("fields", sink.getTableSchema.getFieldNames.mkString(", "))
+      .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
   }
 
 }

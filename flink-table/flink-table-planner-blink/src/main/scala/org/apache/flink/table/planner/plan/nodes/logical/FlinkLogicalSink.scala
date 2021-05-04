@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalSink, Sink}
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
@@ -40,12 +41,13 @@ class FlinkLogicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    hints: util.List[RelHint],
     tableIdentifier: ObjectIdentifier,
     catalogTable: ResolvedCatalogTable,
     tableSink: DynamicTableSink,
     val staticPartitions: Map[String, String],
     val abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, input, tableIdentifier, catalogTable, tableSink)
+  extends Sink(cluster, traitSet, input, hints, tableIdentifier, catalogTable, tableSink)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -53,6 +55,7 @@ class FlinkLogicalSink(
       cluster,
       traitSet,
       inputs.head,
+      hints,
       tableIdentifier,
       catalogTable,
       tableSink,
@@ -74,6 +77,7 @@ private class FlinkLogicalSinkConverter
     val newInput = RelOptRule.convert(sink.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalSink.create(
       newInput,
+      sink.hints,
       sink.tableIdentifier,
       sink.catalogTable,
       sink.tableSink,
@@ -87,6 +91,7 @@ object FlinkLogicalSink {
 
   def create(
       input: RelNode,
+      hints: util.List[RelHint],
       tableIdentifier: ObjectIdentifier,
       catalogTable: ResolvedCatalogTable,
       tableSink: DynamicTableSink,
@@ -98,6 +103,7 @@ object FlinkLogicalSink {
       cluster,
       traitSet,
       input,
+      hints,
       tableIdentifier,
       catalogTable,
       tableSink,

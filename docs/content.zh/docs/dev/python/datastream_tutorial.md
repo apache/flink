@@ -29,8 +29,6 @@ under the License.
 Apache Flink 提供了 DataStream API，用于构建健壮的、有状态的流式应用程序。它提供了对状态和时间细粒度控制，从而允许实现高级事件驱动系统。
 在这篇教程中，你将学习如何使用 PyFlink 和 DataStream API 构建一个简单的流式应用程序。
 
-
-
 ## 你要搭建一个什么系统
 
 在本教程中，你将学习如何编写一个简单的 Python DataStream 作业。
@@ -144,4 +142,4 @@ $ find /tmp/output -type f -exec cat {} \;
 2,bbb
 ```
 
-本教程为你开始编写自己的 PyFlink DataStream API 程序提供了基础。如果需要了解更多关于 Python DataStream API 的使用，请查阅 [Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python)。
+本教程为你开始编写自己的 PyFlink DataStream API 程序提供了基础。如果需要了解更多关于 Python DataStream API 的使用，请查阅 {{< pythondoc name="Flink Python API 文档">}}。

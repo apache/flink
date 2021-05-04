@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
@@ -51,18 +50,11 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
     public SliceSharedWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory bufferFactory,
-            WindowCombineFunction.Factory combinerFactory,
             SliceSharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
             int indexOfCountStar,
             ZoneId shiftTimeZone) {
-        super(
-                genAggsHandler,
-                bufferFactory,
-                combinerFactory,
-                sliceAssigner,
-                accSerializer,
-                shiftTimeZone);
+        super(genAggsHandler, bufferFactory, sliceAssigner, accSerializer, shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
         this.mergeTargetHelper = new SliceMergeTargetHelper();
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);

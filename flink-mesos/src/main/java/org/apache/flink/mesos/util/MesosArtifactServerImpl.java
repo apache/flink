@@ -78,7 +78,13 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRes
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-/** Implemenation of {@link MesosArtifactServer}. */
+/**
+ * Implemenation of {@link MesosArtifactServer}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosArtifactServerImpl implements MesosArtifactServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(MesosArtifactServerImpl.class);

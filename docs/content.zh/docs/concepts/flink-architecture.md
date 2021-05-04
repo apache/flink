@@ -113,7 +113,7 @@ Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集�
 
 ### Flink Job 集群
 
-* **集群生命周期**：在 Flink Job 集群中，可用的集群管理器（例如 YARN 或 Kubernetes）用于为每个提交的作业启动一个集群，并且该集群仅可用于该作业。在这里，客户端首先从集群管理器请求资源启动 JobManager，然后将作业提交给在这个进程中运行的 Dispatcher。然后根据作业的资源请求惰性的分配 TaskManager。一旦作业完成，Flink Job 集群将被拆除。
+* **集群生命周期**：在 Flink Job 集群中，可用的集群管理器（例如 YARN）用于为每个提交的作业启动一个集群，并且该集群仅可用于该作业。在这里，客户端首先从集群管理器请求资源启动 JobManager，然后将作业提交给在这个进程中运行的 Dispatcher。然后根据作业的资源请求惰性的分配 TaskManager。一旦作业完成，Flink Job 集群将被拆除。
 
 * **资源隔离**：JobManager 中的致命错误仅影响在 Flink Job 集群中运行的一个作业。
 
@@ -121,6 +121,9 @@ Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集�
 
 {{< hint info >}}
 以前，Flink Job 集群也被称为<i> job (or per-job) 模式</i>下的 Flink 集群。
+{{< /hint >}}
+{{< hint info >}}
+Kubernetes 不支持 Flink Job 集群。 请参考 [Standalone Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#per-job-cluster-mode) 和 [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#per-job-cluster-mode)。
 {{< /hint >}}
 
 ### Flink Application 集群

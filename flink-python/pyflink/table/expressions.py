@@ -477,6 +477,20 @@ def log(v, base=None) -> Expression[float]:
         return _binary_op("log", base, v)
 
 
+def source_watermark() -> Expression:
+    """
+    Source watermark declaration for schema.
+
+    This is a marker function that doesn't have concrete runtime implementation. It can only
+    be used as a single expression for watermark strategies in schema declarations. The declaration
+    will be pushed down into a table source that implements the `SupportsSourceWatermark`
+    interface. The source will emit system-defined watermarks afterwards.
+
+    Please check the documentation whether the connector supports source watermarks.
+    """
+    return _leaf_op("sourceWatermark")
+
+
 def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) -> Expression:
     """
     Ternary conditional operator that decides which of two other expressions should be evaluated

@@ -183,8 +183,8 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
         }
     }
 
-    public KeyValueIterator<K, Iterator<RowData>> getEntryIterator() {
-        return ((RecordArea) recordArea).entryIterator();
+    public KeyValueIterator<K, Iterator<RowData>> getEntryIterator(boolean requiresCopy) {
+        return ((RecordArea) recordArea).entryIterator(requiresCopy);
     }
 
     /** release the map's record and bucket area's memory segments. */
@@ -329,14 +329,17 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
             view.getCurrentSegment().putInt(currPosInSeg, newPointer);
         }
 
-        KeyValueIterator<K, Iterator<RowData>> entryIterator() {
-            return new EntryIterator();
+        KeyValueIterator<K, Iterator<RowData>> entryIterator(boolean requiresCopy) {
+            return new EntryIterator(requiresCopy);
         }
 
         final class EntryIterator implements KeyValueIterator<K, Iterator<RowData>> {
             private int count;
+            private final boolean requiresCopy;
 
-            public EntryIterator() {
+            public EntryIterator(boolean requiresCopy) {
+                this.requiresCopy = requiresCopy;
+                reusedValueIterator.setRequiresCopy(requiresCopy);
                 count = 0;
                 if (numKeys > 0) {
                     recordArea.setReadPosition(0);
@@ -361,7 +364,7 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
 
             @Override
             public K getKey() {
-                return reusedKey;
+                return requiresCopy ? keySerializer.copy(reusedKey) : reusedKey;
             }
 
             @Override
@@ -382,15 +385,21 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
         final class ValueIterator implements Iterator<RowData> {
             private int offset;
             private boolean isFirstRead;
+            private boolean requiresCopy;
 
             public ValueIterator(int offset) {
                 this.offset = offset;
                 this.isFirstRead = true;
+                this.requiresCopy = false;
             }
 
             public void setOffset(int offset) {
                 this.offset = offset;
                 this.isFirstRead = true;
+            }
+
+            public void setRequiresCopy(boolean requiresCopy) {
+                this.requiresCopy = requiresCopy;
             }
 
             @Override
@@ -402,7 +411,7 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
             public RowData next() {
                 if (isFirstRead) {
                     isFirstRead = false;
-                    return reusedRecord;
+                    return requiresCopy ? reusedRecord.copy() : reusedRecord;
                 }
                 if (hasNext()) {
                     valInView.setReadPosition(offset);
@@ -415,7 +424,7 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
                                 "Exception happened while iterating"
                                         + " value list of a key in BytesMultiMap");
                     }
-                    return reusedRecord;
+                    return requiresCopy ? reusedRecord.copy() : reusedRecord;
                 }
                 return null;
             }

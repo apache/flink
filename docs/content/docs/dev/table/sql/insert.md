@@ -1,6 +1,6 @@
 ---
 title: "INSERT Statement"
-weight: 6
+weight: 7
 type: docs
 aliases:
   - /dev/table/sql/insert.html

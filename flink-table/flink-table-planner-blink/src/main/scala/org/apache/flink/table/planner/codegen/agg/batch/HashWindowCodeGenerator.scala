@@ -716,7 +716,7 @@ class HashWindowCodeGenerator(
     val iteratorTerm = CodeGenUtils.newName("iterator")
     s"""
        |$iteratorType<$rowDataType, $rowDataType> $iteratorTerm =
-       |  $aggregateMapTerm.getEntryIterator();
+       |  $aggregateMapTerm.getEntryIterator(false); // reuse key/value during iterating
        |while ($iteratorTerm.advanceNext()) {
        |   $reuseAggMapKeyTerm = ($rowDataType) $iteratorTerm.getKey();
        |   $reuseAggBufferTerm = ($rowDataType) $iteratorTerm.getValue();

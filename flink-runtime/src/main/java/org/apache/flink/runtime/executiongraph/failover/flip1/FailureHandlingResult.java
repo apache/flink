@@ -156,6 +156,7 @@ public class FailureHandlingResult {
      *
      * @return reason why the restarting cannot be conducted
      */
+    @Nullable
     public Throwable getError() {
         return error;
     }
@@ -204,7 +205,7 @@ public class FailureHandlingResult {
      */
     public static FailureHandlingResult restartable(
             @Nullable ExecutionVertexID failingExecutionVertexId,
-            @Nonnull Throwable cause,
+            @Nullable Throwable cause,
             long timestamp,
             @Nullable Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,

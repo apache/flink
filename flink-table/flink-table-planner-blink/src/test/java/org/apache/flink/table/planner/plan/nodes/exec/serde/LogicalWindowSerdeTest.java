@@ -58,62 +58,57 @@ public class LogicalWindowSerdeTest {
 
     @Parameterized.Parameters(name = "{0}")
     public static List<LogicalWindow> testData() {
-        List<LogicalWindow> types =
-                Arrays.asList(
-                        new TumblingGroupWindow(
-                                new PlannerWindowReference(
-                                        "timeWindow",
+        return Arrays.asList(
+                new TumblingGroupWindow(
+                        new PlannerWindowReference(
+                                "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new FieldReferenceExpression(
+                                "rowTime",
+                                new AtomicDataType(
                                         new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                new FieldReferenceExpression(
-                                        "rowTime",
-                                        new AtomicDataType(
-                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                        1,
-                                        2),
-                                new ValueLiteralExpression(Duration.ofSeconds(10))),
-                        new TumblingGroupWindow(
-                                new PlannerWindowReference("countWindow", new BigIntType()),
-                                new FieldReferenceExpression(
-                                        "rowTime",
-                                        new AtomicDataType(
-                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                        1,
-                                        2),
-                                new ValueLiteralExpression(10L)),
-                        new SlidingGroupWindow(
-                                new PlannerWindowReference(
-                                        "timeWindow",
+                                1,
+                                2),
+                        new ValueLiteralExpression(Duration.ofMinutes(10))),
+                new TumblingGroupWindow(
+                        new PlannerWindowReference("countWindow", new BigIntType()),
+                        new FieldReferenceExpression(
+                                "rowTime",
+                                new AtomicDataType(
                                         new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                new FieldReferenceExpression(
-                                        "rowTime",
-                                        new AtomicDataType(
-                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                        1,
-                                        2),
-                                new ValueLiteralExpression(Duration.ofSeconds(10)),
-                                new ValueLiteralExpression(Duration.ofSeconds(5))),
-                        new SlidingGroupWindow(
-                                new PlannerWindowReference("countWindow", new BigIntType()),
-                                new FieldReferenceExpression(
-                                        "rowTime",
-                                        new AtomicDataType(
-                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                        1,
-                                        2),
-                                new ValueLiteralExpression(10L),
-                                new ValueLiteralExpression(5L)),
-                        new SessionGroupWindow(
-                                new PlannerWindowReference(
-                                        "timeWindow",
+                                1,
+                                2),
+                        new ValueLiteralExpression(10L)),
+                new SlidingGroupWindow(
+                        new PlannerWindowReference(
+                                "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new FieldReferenceExpression(
+                                "rowTime",
+                                new AtomicDataType(
                                         new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                new FieldReferenceExpression(
-                                        "rowTime",
-                                        new AtomicDataType(
-                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
-                                        1,
-                                        2),
-                                new ValueLiteralExpression(Duration.ofSeconds(10))));
-        return types;
+                                1,
+                                2),
+                        new ValueLiteralExpression(Duration.ofSeconds(10)),
+                        new ValueLiteralExpression(Duration.ofSeconds(5))),
+                new SlidingGroupWindow(
+                        new PlannerWindowReference("countWindow", new BigIntType()),
+                        new FieldReferenceExpression(
+                                "rowTime",
+                                new AtomicDataType(
+                                        new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                                1,
+                                2),
+                        new ValueLiteralExpression(10L),
+                        new ValueLiteralExpression(5L)),
+                new SessionGroupWindow(
+                        new PlannerWindowReference(
+                                "timeWindow", new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new FieldReferenceExpression(
+                                "rowTime",
+                                new AtomicDataType(
+                                        new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                                1,
+                                2),
+                        new ValueLiteralExpression(Duration.ofDays(10))));
     }
 
     @Test
@@ -138,7 +133,6 @@ public class LogicalWindowSerdeTest {
         mapper.registerModule(module);
 
         assertEquals(
-                mapper.readValue(mapper.writeValueAsString(window), LogicalWindow.class).toString(),
-                window.toString());
+                mapper.readValue(mapper.writeValueAsString(window), LogicalWindow.class), window);
     }
 }

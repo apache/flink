@@ -58,6 +58,7 @@ public class ChannelStateWriteRequestDispatcherImplTest {
             Function<NetworkBuffer[], ChannelStateWriteRequest> requestBuilder) throws Exception {
         ChannelStateWriteRequestDispatcher dispatcher =
                 new ChannelStateWriteRequestDispatcherImpl(
+                        "dummy task",
                         0,
                         new MemoryBackendCheckpointStorageAccess(new JobID(), null, null, 1),
                         new ChannelStateSerializerImpl());

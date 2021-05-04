@@ -89,6 +89,13 @@ configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
 configuration.set_string("table.exec.mini-batch.size", "5000");
 ```
 {{< /tab >}}
+{{< tab "SQL CLI" >}}
+```
+Flink SQL> SET table.exec.mini-batch.enabled = true;
+Flink SQL> SET table.exec.mini-batch.allow-latency = 5s;
+Flink SQL> SET table.exec.mini-batch.size = 5000;
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Execution Options

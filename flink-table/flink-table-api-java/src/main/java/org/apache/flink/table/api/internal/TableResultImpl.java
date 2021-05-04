@@ -34,6 +34,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.PrintWriter;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -60,13 +61,15 @@ public class TableResultImpl implements TableResult {
     private final ResultKind resultKind;
     private final CloseableRowIteratorWrapper data;
     private final PrintStyle printStyle;
+    private final ZoneId sessionTimeZone;
 
     private TableResultImpl(
             @Nullable JobClient jobClient,
             ResolvedSchema resolvedSchema,
             ResultKind resultKind,
             CloseableIterator<Row> data,
-            PrintStyle printStyle) {
+            PrintStyle printStyle,
+            ZoneId sessionTimeZone) {
         this.jobClient = jobClient;
         this.resolvedSchema =
                 Preconditions.checkNotNull(resolvedSchema, "resolvedSchema should not be null");
@@ -74,6 +77,8 @@ public class TableResultImpl implements TableResult {
         Preconditions.checkNotNull(data, "data should not be null");
         this.data = new CloseableRowIteratorWrapper(data);
         this.printStyle = Preconditions.checkNotNull(printStyle, "printStyle should not be null");
+        this.sessionTimeZone =
+                Preconditions.checkNotNull(sessionTimeZone, "sessionTimeZone should not be null");
     }
 
     @Override
@@ -159,10 +164,15 @@ public class TableResultImpl implements TableResult {
                     maxColumnWidth,
                     nullColumn,
                     deriveColumnWidthByType,
-                    printRowKind);
+                    printRowKind,
+                    sessionTimeZone);
         } else if (printStyle instanceof RawContentStyle) {
             while (it.hasNext()) {
-                System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
+                System.out.println(
+                        String.join(
+                                ",",
+                                PrintUtils.rowToString(
+                                        it.next(), getResolvedSchema(), sessionTimeZone)));
             }
         } else {
             throw new TableException("Unsupported print style: " + printStyle);
@@ -181,6 +191,7 @@ public class TableResultImpl implements TableResult {
         private CloseableIterator<Row> data = null;
         private PrintStyle printStyle =
                 PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN, false, false);
+        private ZoneId sessionTimeZone = ZoneId.of("UTC");
 
         private Builder() {}
 
@@ -245,9 +256,17 @@ public class TableResultImpl implements TableResult {
             return this;
         }
 
+        /** Specifies session time zone. */
+        public Builder setSessionTimeZone(ZoneId sessionTimeZone) {
+            Preconditions.checkNotNull(sessionTimeZone, "sessionTimeZone should not be null");
+            this.sessionTimeZone = sessionTimeZone;
+            return this;
+        }
+
         /** Returns a {@link TableResult} instance. */
         public TableResult build() {
-            return new TableResultImpl(jobClient, resolvedSchema, resultKind, data, printStyle);
+            return new TableResultImpl(
+                    jobClient, resolvedSchema, resultKind, data, printStyle, sessionTimeZone);
         }
     }
 

@@ -183,7 +183,7 @@ object ColumnIntervalUtil {
     * the interval of $1 is originInterval intersect with [-1, 2]
     *
     * for condition: $1 <= 2 and not ($1 < -1 or $2 is true),
-    * the interval of $1 is originInterval intersect with (-Inf, -1]
+    * the interval of $1 is originInterval intersect with [-1, 2]
     *
     * for condition $1 <= 2 or $1 > -1
     * the interval of $1 is (originInterval intersect with (-Inf, 2]) union

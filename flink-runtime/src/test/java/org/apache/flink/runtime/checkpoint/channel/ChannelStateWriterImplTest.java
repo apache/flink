@@ -346,7 +346,10 @@ class SyncChannelStateWriteRequestExecutor implements ChannelStateWriteRequestEx
         deque = new ArrayDeque<>();
         requestProcessor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        0, getStreamFactoryFactory(), new ChannelStateSerializerImpl());
+                        "dummy task",
+                        0,
+                        getStreamFactoryFactory(),
+                        new ChannelStateSerializerImpl());
     }
 
     @Override

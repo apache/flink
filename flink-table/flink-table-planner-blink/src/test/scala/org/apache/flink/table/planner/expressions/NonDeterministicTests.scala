@@ -81,9 +81,9 @@ class NonDeterministicTests extends ExpressionTestBase {
     config.setLocalTimeZone(zoneId)
     config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
 
-    config.getConfiguration.setLong(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, 1000L)
+    config.getConfiguration.setLong(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, 1123L)
     config.getConfiguration.setLong(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME,
-      1000L + TimeZone.getTimeZone(zoneId).getOffset(1000L))
+      1123L + TimeZone.getTimeZone(zoneId).getOffset(1123L))
 
     val temporalFunctions = getCodeGenFunctions(List(
       "CURRENT_DATE",
@@ -96,10 +96,10 @@ class NonDeterministicTests extends ExpressionTestBase {
     val expected = mutable.MutableList[String](
       "1970-01-01",
       "08:00:01",
-      "1970-01-01 08:00:01",
-      "1970-01-01 08:00:01",
+      "1970-01-01 08:00:01.123",
+      "1970-01-01 08:00:01.123",
       "08:00:01",
-      "1970-01-01 08:00:01")
+      "1970-01-01 08:00:01.123")
 
     val result = evaluateFunctionResult(temporalFunctions)
     assertEquals(expected.toList.sorted, result.sorted)

@@ -82,6 +82,13 @@ configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
 configuration.set_string("table.exec.mini-batch.size", "5000");
 ```
 {{< /tab >}}
+{{< tab "SQL CLI" >}}
+```
+Flink SQL> SET table.exec.mini-batch.enabled = true;
+Flink SQL> SET table.exec.mini-batch.allow-latency = 5s;
+Flink SQL> SET table.exec.mini-batch.size = 5000;
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 <span class="label label-danger">注意</span> 目前，key-value 配置项仅被 Blink planner 支持。
@@ -90,22 +97,22 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 
 以下选项可用于优化查询执行的性能。
 
-{% include generated/execution_config_configuration.html %}
+{{< generated/execution_config_configuration >}}
 
 ### 优化器配置
 
 以下配置可以用于调整查询优化器的行为以获得更好的执行计划。
 
-{% include generated/optimizer_config_configuration.html %}
+{{< generated/optimizer_config_configuration >}}
 
 ### Planner 配置
 
 以下配置可以用于调整 planner 的行为。
 
-{% include generated/table_config_configuration.html %}
+{{< generated/table_config_configuration >}}
 
 ### SQL Client 配置
 
 以下配置可以用于调整 sql client 的行为。
 
-{% include generated/sql_client_configuration.html %}
+{{< generated/sql_client_configuration >}}

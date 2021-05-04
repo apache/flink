@@ -3027,39 +3027,50 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     // we just test the format of the output
     // manual test can be found in NonDeterministicTests
 
+    // e.g: 2021-04-19
     testAllApis(
-      currentDate().cast(DataTypes.STRING).charLength() >= 5,
-      "currentDate().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR)) >= 5",
-      "true")
+      currentDate().cast(DataTypes.STRING).charLength(),
+      "currentDate().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_DATE AS VARCHAR))",
+      "10")
 
+    // e.g: 12:13:43
     testAllApis(
-      currentTime().cast(DataTypes.STRING).charLength() >= 5,
-      "currentTime().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR)) >= 5",
-      "true")
+      localTime().cast(DataTypes.STRING).charLength(),
+      "localTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR))",
+      "8")
 
+    // e.g: 12:13:43
     testAllApis(
-      currentTimestamp().cast(DataTypes.STRING).charLength() >= 12,
-      "currentTimestamp().cast(STRING).charLength() >= 12",
-      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR)) >= 12",
-      "true")
+      currentTime().cast(DataTypes.STRING).charLength(),
+      "currentTime().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIME AS VARCHAR))",
+      "8")
 
+    // e.g: 2021-04-19 12:13:43.678
     testAllApis(
-      localTimestamp().cast(DataTypes.STRING).charLength() >= 12,
-      "localTimestamp().cast(STRING).charLength() >= 12",
-      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR)) >= 12",
-      "true")
+      localTimestamp().cast(DataTypes.STRING).charLength(),
+      "localTimestamp().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(LOCALTIMESTAMP AS VARCHAR))",
+      "23")
 
+    // e.g: 2021-04-19 12:13:43.678
     testAllApis(
-      localTime().cast(DataTypes.STRING).charLength() >= 5,
-      "localTime().cast(STRING).charLength() >= 5",
-      "CHAR_LENGTH(CAST(LOCALTIME AS VARCHAR)) >= 5",
-      "true")
+      currentTimestamp().cast(DataTypes.STRING).charLength(),
+      "currentTimestamp().cast(STRING).charLength()",
+      "CHAR_LENGTH(CAST(CURRENT_TIMESTAMP AS VARCHAR))",
+      "23")
 
+    // e.g: 2021-04-19 12:13:43.678
     testSqlApi(
-      "CHAR_LENGTH(CAST(NOW() AS VARCHAR)) >= 12",
-      "true")
+      "CHAR_LENGTH(CAST(NOW() AS VARCHAR))",
+      "23")
+
+    // e.g: 2021-04-19 12:13:43.678
+    testSqlApi(
+      "CHAR_LENGTH(CAST(CURRENT_ROW_TIMESTAMP() AS VARCHAR))",
+      "23")
 
     // comparisons are deterministic
     testAllApis(

@@ -74,6 +74,48 @@ public class TableEnvHiveConnectorITCase {
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test
+    public void testMultiInputBroadcast() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql("create table src1(key string, val string)");
+            tableEnv.executeSql("create table src2(key string, val string)");
+            tableEnv.executeSql("create table dest(key string, val string)");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "src1")
+                    .addRow(new Object[] {"1", "val1"})
+                    .addRow(new Object[] {"2", "val2"})
+                    .addRow(new Object[] {"3", "val3"})
+                    .commit();
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "src2")
+                    .addRow(new Object[] {"3", "val4"})
+                    .addRow(new Object[] {"4", "val4"})
+                    .commit();
+            tableEnv.executeSql(
+                            "INSERT OVERWRITE dest\n"
+                                    + "SELECT j.*\n"
+                                    + "FROM (SELECT t1.key, p1.val\n"
+                                    + "      FROM src2 t1\n"
+                                    + "      LEFT OUTER JOIN src1 p1\n"
+                                    + "      ON (t1.key = p1.key)\n"
+                                    + "      UNION ALL\n"
+                                    + "      SELECT t2.key, p2.val\n"
+                                    + "      FROM src2 t2\n"
+                                    + "      LEFT OUTER JOIN src1 p2\n"
+                                    + "      ON (t2.key = p2.key)) j")
+                    .await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest order by key").collect());
+            assertEquals(
+                    "[+I[3, val3], +I[3, val3], +I[4, null], +I[4, null]]", results.toString());
+        } finally {
+            tableEnv.useDatabase("default");
+            tableEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
+    @Test
     public void testDefaultPartitionName() throws Exception {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");

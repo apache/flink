@@ -27,6 +27,11 @@ under the License.
 
 # Flink on Mesos
 
+{{< hint warning >}}
+Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the future (see 
+[FLINK-22352](https://issues.apache.org/jira/browse/FLINK-22352) for further details).
+{{< /hint >}}
+
 ## Getting Started
 
 This *Getting Started* section guides you through setting up a fully functional Flink Cluster on Mesos.

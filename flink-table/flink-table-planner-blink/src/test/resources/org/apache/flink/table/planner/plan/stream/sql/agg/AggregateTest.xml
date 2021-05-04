@@ -236,6 +236,40 @@ GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFilteredColumnIntervalValidation">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  SUM(uv) FILTER (WHERE c = 'all') AS all_uv
+FROM (
+  SELECT
+    c, COUNT(1) AS uv
+  FROM T
+  GROUP BY c
+) t
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], all_uv=[SUM($0) FILTER $1])
++- LogicalProject(uv=[$1], $f1=[IS TRUE(=($0, _UTF-16LE'all'))])
+   +- LogicalAggregate(group=[{0}], uv=[COUNT()])
+      +- LogicalProject(c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[SUM_RETRACT(uv) FILTER $f1 AS all_uv])
++- Exchange(distribution=[single])
+   +- Calc(select=[uv, (c = _UTF-16LE'all':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") IS TRUE AS $f1])
+      +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS uv])
+         +- Exchange(distribution=[hash[c]])
+            +- Calc(select=[c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupByWithConstantKey">
     <Resource name="sql">
       <![CDATA[

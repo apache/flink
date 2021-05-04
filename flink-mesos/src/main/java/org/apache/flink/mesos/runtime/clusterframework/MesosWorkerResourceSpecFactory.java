@@ -24,7 +24,13 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpecFactory;
 
-/** Implementation of {@link WorkerResourceSpecFactory} for Mesos deployments. */
+/**
+ * Implementation of {@link WorkerResourceSpecFactory} for Mesos deployments.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosWorkerResourceSpecFactory extends WorkerResourceSpecFactory {
 
     public static final MesosWorkerResourceSpecFactory INSTANCE =

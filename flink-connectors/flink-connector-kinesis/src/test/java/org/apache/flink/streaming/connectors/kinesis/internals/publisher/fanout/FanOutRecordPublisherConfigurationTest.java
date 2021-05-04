@@ -24,9 +24,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -46,18 +43,18 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link FanOutRecordPublisherConfiguration}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(FanOutRecordPublisherConfiguration.class)
 public class FanOutRecordPublisherConfigurationTest extends TestLogger {
-    @Rule private ExpectedException exception = ExpectedException.none();
+
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testPollingRecordPublisher() {
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage("Only efo record publisher can register a FanOutProperties.");
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("Only efo record publisher can register a FanOutProperties.");
 
         Properties testConfig = TestUtils.getStandardProperties();
         testConfig.setProperty(RECORD_PUBLISHER_TYPE, RecordPublisherType.POLLING.toString());
@@ -82,8 +79,8 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
     public void testEagerStrategyWithNoConsumerName() {
         String msg = "No valid enhanced fan-out consumer name is set through " + EFO_CONSUMER_NAME;
 
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage(msg);
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(msg);
 
         Properties testConfig = TestUtils.getStandardProperties();
         testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
@@ -115,8 +112,8 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
         String msg =
                 "Invalid efo consumer arn settings for not providing consumer arns: flink.stream.efo.consumerarn.fakedstream1, flink.stream.efo.consumerarn.fakedstream2";
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage(msg);
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(msg);
 
         Properties testConfig = TestUtils.getStandardProperties();
         testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
@@ -131,8 +128,8 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
         String msg =
                 "Invalid efo consumer arn settings for not providing consumer arns: flink.stream.efo.consumerarn.fakedstream2";
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage(msg);
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(msg);
 
         Properties testConfig = TestUtils.getStandardProperties();
         testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
@@ -168,5 +165,30 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 
         assertEquals(Duration.ofSeconds(60), configuration.getRegisterStreamConsumerTimeout());
         assertEquals(Duration.ofSeconds(240), configuration.getDeregisterStreamConsumerTimeout());
+    }
+
+    @Test
+    public void testParseSubscribeToShardTimeout() {
+        Properties testConfig = TestUtils.getStandardProperties();
+        testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
+        testConfig.setProperty(EFO_CONSUMER_NAME, "name");
+        testConfig.setProperty(SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS, "123");
+
+        FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
+
+        assertEquals(Duration.ofSeconds(123), configuration.getSubscribeToShardTimeout());
+    }
+
+    @Test
+    public void testDefaultSubscribeToShardTimeout() {
+        Properties testConfig = TestUtils.getStandardProperties();
+        testConfig.setProperty(RECORD_PUBLISHER_TYPE, EFO.toString());
+        testConfig.setProperty(EFO_CONSUMER_NAME, "name");
+
+        FanOutRecordPublisherConfiguration configuration =
+                new FanOutRecordPublisherConfiguration(testConfig, Collections.emptyList());
+
+        assertEquals(Duration.ofSeconds(60), configuration.getSubscribeToShardTimeout());
     }
 }

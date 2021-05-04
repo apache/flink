@@ -641,6 +641,8 @@ class DataStream(object):
         :param job_execution_name: The name of the job execution.
         :param limit: The limit for the collected elements.
         """
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
         if job_execution_name is None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
         elif job_execution_name is not None and limit is None:

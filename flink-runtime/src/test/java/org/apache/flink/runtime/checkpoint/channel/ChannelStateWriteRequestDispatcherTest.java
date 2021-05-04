@@ -130,7 +130,10 @@ public class ChannelStateWriteRequestDispatcherTest {
     public void doRun() {
         ChannelStateWriteRequestDispatcher processor =
                 new ChannelStateWriteRequestDispatcherImpl(
-                        0, getStreamFactoryFactory(), new ChannelStateSerializerImpl());
+                        "dummy task",
+                        0,
+                        getStreamFactoryFactory(),
+                        new ChannelStateSerializerImpl());
         try {
             for (ChannelStateWriteRequest request : requests) {
                 processor.dispatch(request);

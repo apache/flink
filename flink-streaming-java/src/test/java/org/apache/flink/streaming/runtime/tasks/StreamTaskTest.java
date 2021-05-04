@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -159,6 +158,7 @@ import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -436,8 +436,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(
-                StateBackendOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -477,8 +476,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(
-                StateBackendOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1585,8 +1583,7 @@ public class StreamTaskTest extends TestLogger {
     public void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
         // given: Configured SourceStreamTask with source which fails on checkpoint.
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(
-                StateBackendOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1617,6 +1614,84 @@ public class StreamTaskTest extends TestLogger {
             // then: The task doesn't hang but finished with FAILED state.
             assertEquals(ExecutionState.FAILED, task.getExecutionState());
         }
+    }
+
+    @Test
+    public void testCleanUpResourcesWhenFailingDuringInit() throws Exception {
+        // given: Configured SourceStreamTask with source which fails during initialization.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task initializing(restoring).
+            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should throw exception from initialization.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // then: The task should clean up all resources even when it failed on init.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
+    @Test
+    public void testRethrowExceptionFromRestoreInsideOfInvoke() throws Exception {
+        // given: Configured SourceStreamTask with source which fails during initialization.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task invocation without preceded restoring.
+            StreamTaskMailboxTestHarness<Integer> harness =
+                    builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>())
+                            .buildUnrestored();
+
+            harness.streamTask.invoke();
+
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should rethrow exception from initialization.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // and: The task should clean up all resources even when it failed on init.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
+    @Test
+    public void testCleanUpResourcesEvenWhenCancelTaskFails() throws Exception {
+        // given: Configured StreamTask which fails during restoring and then inside of cancelTask.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                (env) ->
+                                        new OneInputStreamTask<String, Integer>(env) {
+                                            @Override
+                                            protected void cancelTask() {
+                                                throw new RuntimeException("Cancel task exception");
+                                            }
+                                        },
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task initializing(restoring).
+            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should throw the original exception about the restore fail.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // and: The task should clean up all resources even when cancelTask fails.
+        assertTrue(OpenFailingOperator.wasClosed);
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
@@ -1946,8 +2021,8 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void restore() throws Exception {
-            super.restore();
+        public void executeRestore() throws Exception {
+            super.executeRestore();
             restoreInvocationCount++;
         }
 
@@ -2507,5 +2582,27 @@ public class StreamTaskTest extends TestLogger {
         public void awaitRunning() throws InterruptedException {
             runningLatch.await();
         }
+    }
+
+    static class OpenFailingOperator<T> extends AbstractStreamOperator<T>
+            implements OneInputStreamOperator<T, T> {
+        static boolean wasClosed;
+
+        public OpenFailingOperator() {
+            wasClosed = false;
+        }
+
+        @Override
+        public void open() throws Exception {
+            throw new ExpectedTestException();
+        }
+
+        @Override
+        public void dispose() throws Exception {
+            wasClosed = true;
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {}
     }
 }

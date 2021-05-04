@@ -23,25 +23,31 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
+import org.apache.flink.table.api.Schema.UnresolvedPrimaryKey;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToDataTypes;
 import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToNames;
@@ -56,7 +62,48 @@ public final class ExternalSchemaTranslator {
     /**
      * Converts the given {@link DataType} into the final {@link OutputResult}.
      *
-     * <p>Currently, this method serves only the following use case:
+     * <p>This method serves three types of use cases:
+     *
+     * <ul>
+     *   <li>1. Derive physical columns from the input schema.
+     *   <li>2. Derive physical columns from the input schema but enrich with metadata column.
+     *   <li>3. Entirely use declared schema.
+     * </ul>
+     */
+    public static OutputResult fromInternal(
+            ResolvedSchema inputSchema, @Nullable Schema declaredSchema) {
+
+        // no schema has been declared by the user,
+        // the schema will be entirely derived from the input
+        if (declaredSchema == null) {
+            // go through data type to erase time attributes
+            final DataType physicalDataType = inputSchema.toSourceRowDataType();
+            final Schema schema = Schema.newBuilder().fromRowDataType(physicalDataType).build();
+            return new OutputResult(null, schema, null);
+        }
+
+        final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
+
+        // the declared schema does not contain physical information,
+        // thus, it only replaces physical columns with metadata rowtime
+        if (declaredColumns.stream().noneMatch(ExternalSchemaTranslator::isPhysical)) {
+            // go through data type to erase time attributes
+            final DataType sourceDataType = inputSchema.toSourceRowDataType();
+            final DataType physicalDataType =
+                    patchDataTypeWithoutMetadataRowtime(sourceDataType, declaredColumns);
+            final Schema.Builder builder = Schema.newBuilder();
+            builder.fromRowDataType(physicalDataType);
+            builder.fromColumns(declaredColumns);
+            return new OutputResult(null, builder.build(), null);
+        }
+
+        return new OutputResult(null, declaredSchema, null);
+    }
+
+    /**
+     * Converts the given {@link DataType} into the final {@link OutputResult}.
+     *
+     * <p>This method serves one type of use case:
      *
      * <ul>
      *   <li>1. Derive physical columns from the input data type.
@@ -117,17 +164,18 @@ public final class ExternalSchemaTranslator {
         // the schema will be entirely derived from the input
         if (declaredSchema == null) {
             final Schema.Builder builder = Schema.newBuilder();
-            addPhysicalDataTypeFields(builder, inputDataType);
+            addPhysicalSourceDataTypeFields(builder, inputDataType, null);
             return new InputResult(inputDataType, isTopLevelRecord, builder.build(), null);
         }
 
         final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
+        final UnresolvedPrimaryKey declaredPrimaryKey = declaredSchema.getPrimaryKey().orElse(null);
 
         // the declared schema does not contain physical information,
         // thus, it only enriches the non-physical column parts
         if (declaredColumns.stream().noneMatch(ExternalSchemaTranslator::isPhysical)) {
             final Schema.Builder builder = Schema.newBuilder();
-            addPhysicalDataTypeFields(builder, inputDataType);
+            addPhysicalSourceDataTypeFields(builder, inputDataType, declaredPrimaryKey);
             builder.fromSchema(declaredSchema);
             return new InputResult(inputDataType, isTopLevelRecord, builder.build(), null);
         }
@@ -140,6 +188,38 @@ public final class ExternalSchemaTranslator {
                 createPatchedSchema(isTopLevelRecord, patchedDataType, declaredSchema);
         final List<String> projections = extractProjections(patchedSchema, declaredSchema);
         return new InputResult(patchedDataType, isTopLevelRecord, patchedSchema, projections);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
+    // --------------------------------------------------------------------------------------------
+
+    private static DataType patchDataTypeWithoutMetadataRowtime(
+            DataType dataType, List<UnresolvedColumn> declaredColumns) {
+        // best effort logic to remove a rowtime column at the end of a derived schema,
+        // this enables 100% symmetrical API calls for from/toChangelogStream,
+        // otherwise the full schema must be declared
+        final List<DataType> columnDataTypes = dataType.getChildren();
+        final int columnCount = columnDataTypes.size();
+        final long persistedMetadataCount =
+                declaredColumns.stream()
+                        .filter(c -> c instanceof UnresolvedMetadataColumn)
+                        .map(UnresolvedMetadataColumn.class::cast)
+                        .filter(c -> !c.isVirtual())
+                        .count();
+        // we only truncate if exactly one persisted metadata column exists
+        if (persistedMetadataCount != 1L || columnCount < 1) {
+            return dataType;
+        }
+        // we only truncate timestamps
+        if (!hasFamily(
+                columnDataTypes.get(columnCount - 1).getLogicalType(),
+                LogicalTypeFamily.TIMESTAMP)) {
+            return dataType;
+        }
+        // truncate last field
+        final int[] indices = IntStream.range(0, columnCount - 1).toArray();
+        return DataTypeUtils.projectRow(dataType, indices);
     }
 
     private static @Nullable List<String> extractProjections(
@@ -164,7 +244,7 @@ public final class ExternalSchemaTranslator {
 
         // physical columns
         if (isTopLevelRecord) {
-            addPhysicalDataTypeFields(builder, patchedDataType);
+            addPhysicalSourceDataTypeFields(builder, patchedDataType, null);
         } else {
             builder.column(
                     LogicalTypeUtils.getAtomicName(Collections.emptyList()), patchedDataType);
@@ -304,10 +384,30 @@ public final class ExternalSchemaTranslator {
                 .toArray(DataTypes.Field[]::new);
     }
 
-    private static void addPhysicalDataTypeFields(Schema.Builder builder, DataType dataType) {
-        final List<DataType> fieldDataTypes = flattenToDataTypes(dataType);
+    private static void addPhysicalSourceDataTypeFields(
+            Schema.Builder builder, DataType dataType, @Nullable UnresolvedPrimaryKey primaryKey) {
         final List<String> fieldNames = flattenToNames(dataType);
-        builder.fromFields(fieldNames, fieldDataTypes);
+        final List<DataType> fieldDataTypes = flattenToDataTypes(dataType);
+
+        // fields of a Row class are always nullable, which causes problems in the primary key
+        // validation, it would force users to always fully declare the schema for row types and
+        // would make the automatic schema derivation less useful, we therefore patch the
+        // nullability for primary key columns
+        final List<DataType> fieldDataTypesWithPatchedNullability =
+                IntStream.range(0, fieldNames.size())
+                        .mapToObj(
+                                pos -> {
+                                    final String fieldName = fieldNames.get(pos);
+                                    final DataType fieldDataType = fieldDataTypes.get(pos);
+                                    if (primaryKey != null
+                                            && primaryKey.getColumnNames().contains(fieldName)) {
+                                        return fieldDataTypes.get(pos).notNull();
+                                    }
+                                    return fieldDataType;
+                                })
+                        .collect(Collectors.toList());
+
+        builder.fromFields(fieldNames, fieldDataTypesWithPatchedNullability);
     }
 
     private static boolean isPhysical(UnresolvedColumn column) {
@@ -397,26 +497,30 @@ public final class ExternalSchemaTranslator {
         /**
          * Data type expected from the first external operator after output conversion. The data
          * type might not be a row type and can possibly be nullable.
+         *
+         * <p>Null if equal to {@link ResolvedSchema#toPhysicalRowDataType()}.
          */
-        private final DataType physicalDataType;
+        private final @Nullable DataType physicalDataType;
 
         private OutputResult(
-                @Nullable List<String> projections, Schema schema, DataType physicalDataType) {
+                @Nullable List<String> projections,
+                Schema schema,
+                @Nullable DataType physicalDataType) {
             this.projections = projections;
             this.schema = schema;
             this.physicalDataType = physicalDataType;
         }
 
-        public @Nullable List<String> getProjections() {
-            return projections;
+        public Optional<List<String>> getProjections() {
+            return Optional.ofNullable(projections);
         }
 
         public Schema getSchema() {
             return schema;
         }
 
-        public DataType getPhysicalDataType() {
-            return physicalDataType;
+        public Optional<DataType> getPhysicalDataType() {
+            return Optional.ofNullable(physicalDataType);
         }
     }
 }

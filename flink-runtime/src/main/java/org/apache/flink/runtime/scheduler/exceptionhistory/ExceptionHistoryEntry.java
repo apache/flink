@@ -20,8 +20,11 @@ package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -39,7 +42,40 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     @Nullable private final String failingTaskName;
     @Nullable private final ArchivedTaskManagerLocation taskManagerLocation;
 
-    ExceptionHistoryEntry(
+    /**
+     * Creates an {@code ExceptionHistoryEntry} based on the provided {@code Execution}.
+     *
+     * @param failedExecution the failed {@code Execution}.
+     * @param taskName the name of the task.
+     * @return The {@code ExceptionHistoryEntry}.
+     * @throws IllegalArgumentException if the passed {@code Execution} does not provide a {@link
+     *     Execution#getFailureInfo() failureInfo}.
+     */
+    public static ExceptionHistoryEntry create(AccessExecution failedExecution, String taskName) {
+        Preconditions.checkArgument(
+                failedExecution.getFailureInfo().isPresent(),
+                "The selected Execution " + failedExecution.getAttemptId() + " didn't fail.");
+
+        final ErrorInfo failure = failedExecution.getFailureInfo().get();
+        return new ExceptionHistoryEntry(
+                failure.getException(),
+                failure.getTimestamp(),
+                taskName,
+                failedExecution.getAssignedResourceLocation());
+    }
+
+    /**
+     * Instantiates a {@code ExceptionHistoryEntry}.
+     *
+     * @param cause The reason for the failure.
+     * @param timestamp The time the failure was caught.
+     * @param failingTaskName The name of the task that failed.
+     * @param taskManagerLocation The host the task was running on.
+     * @throws NullPointerException if {@code cause} is {@code null}.
+     * @throws IllegalArgumentException if the passed {@code timestamp} is not bigger than {@code
+     *     0}.
+     */
+    protected ExceptionHistoryEntry(
             Throwable cause,
             long timestamp,
             @Nullable String failingTaskName,

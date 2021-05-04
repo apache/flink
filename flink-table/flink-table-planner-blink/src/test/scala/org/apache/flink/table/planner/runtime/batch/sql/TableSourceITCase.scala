@@ -18,14 +18,16 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.util.FileUtils
 
-import org.junit.{Before, Test}
+import org.junit.{Assert, Before, Test}
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -302,5 +304,82 @@ class TableSourceITCase extends BatchTestBase {
         row("5"),
         row("6"))
     )
+  }
+
+  @Test
+  def testTableHint(): Unit = {
+    tEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '$resultPath'
+         |)
+       """.stripMargin)
+
+    val stmtSet= tEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+        |""".stripMargin)
+    stmtSet.execute().await()
+
+    val result = TableTestUtil.readFromFile(resultPath)
+    val expected = Seq("2,2,Hello", "3,2,Hello world", "3,2,Hello world")
+    Assert.assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testTableHintWithLogicalTableScanReuse(): Unit = {
+    tEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    tEnv.getConfig.getConfiguration.setBoolean(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '$resultPath'
+         |)
+       """.stripMargin)
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink
+        |select a,b,c from MyTable /*+ OPTIONS('source.num-element-to-skip'='0') */
+        |union all
+        |select a,b,c from MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable
+        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+        |""".stripMargin)
+    stmtSet.execute().await()
+
+    val result = TableTestUtil.readFromFile(resultPath)
+    val expected = Seq(
+      "1,1,Hi", "2,2,Hello", "2,2,Hello", "3,2,Hello world", "3,2,Hello world", "3,2,Hello world")
+    Assert.assertEquals(expected.sorted, result.sorted)
   }
 }

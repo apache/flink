@@ -32,20 +32,19 @@ under the License.
 
 ## 下载连接器（connector）和格式（format）jar 包
 
-由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{< ref "docs/dev/python/table/dependency_management" >}})。
+由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，
+要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{< ref "docs/dev/python/dependency_management" >}})。
 
 ```python
-
 table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
-
 ```
 
 ## 如何使用连接器
 
-在 PyFink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，这可以通过 `TableEnvironment` 中的 `execute_sql()` 方法来完成，然后就可以在作业中使用这张表了。
+在 PyFink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，这可以通过
+`TableEnvironment` 中的 `execute_sql()` 方法来完成，然后就可以在作业中使用这张表了。
 
 ```python
-
 source_ddl = """
         CREATE TABLE source_table(
             a VARCHAR,
@@ -81,9 +80,7 @@ t_env.sql_query("SELECT a FROM source_table") \
 下面是如何在 PyFlink 中使用 Kafka source/sink 和 JSON 格式的完整示例。
 
 ```python
-
 from pyflink.table import TableEnvironment, EnvironmentSettings
-
 
 def log_processing():
     env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
@@ -127,17 +124,16 @@ if __name__ == '__main__':
     log_processing()
 ```
 
-
 ## 内置的 Sources 和 Sinks
 
-有些 source 和 sink 被内置在 Flink 中，可以直接使用。这些内置的 source 包括将 Pandas DataFrame 作为数据源，或者将一个元素集合作为数据源。内置的 sink 包括将数据转换为 Pandas DataFrame 等。
+有些 source 和 sink 被内置在 Flink 中，可以直接使用。这些内置的 source 包括将 Pandas DataFrame 作为数据源，
+或者将一个元素集合作为数据源。内置的 sink 包括将数据转换为 Pandas DataFrame 等。
 
 ### 和 Pandas 之间互转
 
 PyFlink 表支持与 Pandas DataFrame 之间互相转换。
 
 ```python
-
 import pandas as pd
 import numpy as np
 
@@ -154,7 +150,6 @@ pdf = table.to_pandas()
 `from_elements()` 用于从一个元素集合中创建一张表。元素类型必须是可支持的原子类型或者复杂类型。
 
 ```python
-
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
 # 使用第二个参数指定自定义字段名
@@ -180,5 +175,5 @@ table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
 
 ## 用户自定义的 source 和 sink
 
-在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink 必须使用 Java/Scala 实现，你可以定义一个 `TableFactory` ，然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 [Java/Scala 文档]({{< ref "docs/dev/table/sourcessinks" >}})。
-
+在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink 必须使用 Java/Scala 实现，你可以定义一个 `TableFactory` ，
+然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 [Java/Scala 文档]({{< ref "docs/dev/table/sourcessinks" >}})。

@@ -128,6 +128,26 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
+    public void addRecovered(BufferConsumer bufferConsumer) throws IOException {
+        NetworkActionsLogger.traceRecover(
+                "ResultSubpartitionRecoveredStateHandler#recover",
+                bufferConsumer,
+                parent.getOwningTaskName(),
+                subpartitionInfo);
+        if (!add(bufferConsumer, Integer.MIN_VALUE)) {
+            throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
+        }
+        BufferConsumerWithPartialRecordLength last = buffers.peekLast();
+        if (last != null) {
+            NetworkActionsLogger.traceRecover(
+                    "PipelinedSubpartition#addRecover",
+                    last.getBufferConsumer(),
+                    parent.getOwningTaskName(),
+                    subpartitionInfo);
+        }
+    }
+
+    @Override
     public void finishReadRecoveredState(boolean notifyAndBlockOnCompletion) throws IOException {
         if (notifyAndBlockOnCompletion) {
             add(EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false), 0, false);

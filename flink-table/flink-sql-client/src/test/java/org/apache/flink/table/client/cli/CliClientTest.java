@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
+import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -137,8 +138,9 @@ public class CliClientTest extends TestLogger {
         try (Terminal terminal =
                         new DumbTerminal(inputStream, new TerminalUtils.MockOutputStream());
                 CliClient client =
-                        new CliClient(terminal, sessionId, mockExecutor, historyFilePath, null)) {
-            client.executeInteractive();
+                        new CliClient(
+                                () -> terminal, sessionId, mockExecutor, historyFilePath, null)) {
+            client.executeInInteractiveMode();
             List<String> content = Files.readAllLines(historyFilePath);
             assertEquals(2, content.size());
             assertTrue(content.get(0).contains("help"));
@@ -231,7 +233,8 @@ public class CliClientTest extends TestLogger {
 
         final MockExecutor mockExecutor = new MockExecutor();
         String sessionId = mockExecutor.openSession("test-session");
-        CliClient cliClient = new CliClient(sessionId, mockExecutor, historyTempFile());
+        CliClient cliClient =
+                new CliClient(DEFAULT_TERMINAL_FACTORY, sessionId, mockExecutor, historyTempFile());
 
         assertFalse("Should fail", cliClient.executeInitialization(content));
     }
@@ -273,17 +276,12 @@ public class CliClientTest extends TestLogger {
 
         try (CliClient client =
                 new CliClient(
-                        TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
                         sessionId,
                         mockExecutor,
                         historyFilePath,
                         null)) {
-            Thread thread =
-                    new Thread(
-                            () ->
-                                    client.executeFile(
-                                            content,
-                                            CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION));
+            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(content));
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -330,7 +328,7 @@ public class CliClientTest extends TestLogger {
         final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
         final SqlMultiLineParser parser = new SqlMultiLineParser();
 
-        try (Terminal terminal = TerminalUtils.createDummyTerminal()) {
+        try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
 
             final ParsedLine parsedLine =
@@ -356,12 +354,12 @@ public class CliClientTest extends TestLogger {
         OutputStream outputStream = new ByteArrayOutputStream(256);
         try (CliClient client =
                 new CliClient(
-                        TerminalUtils.createDummyTerminal(outputStream),
+                        () -> TerminalUtils.createDumbTerminal(outputStream),
                         sessionId,
                         executor,
                         historyTempFile(),
                         null)) {
-            client.executeFile(content, CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION);
+            client.executeInNonInteractiveMode(content);
         }
         return outputStream.toString();
     }

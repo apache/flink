@@ -270,12 +270,12 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public Collection<SplitT> snapshotState() throws Exception {
+        public Collection<SplitT> snapshotState(long checkpointId) throws Exception {
             // this will be enqueued in the enumerator thread, so it will actually run after this
             // method (the snapshot operation) is complete!
             context.runInCoordinatorThread(this::fullFillPendingRequests);
 
-            return super.snapshotState();
+            return super.snapshotState(checkpointId);
         }
 
         private void fullFillPendingRequests() {

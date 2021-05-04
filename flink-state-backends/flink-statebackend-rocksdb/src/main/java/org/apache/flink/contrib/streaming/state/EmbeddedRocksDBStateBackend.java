@@ -18,7 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -111,8 +110,6 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private static final int UNDEFINED_NUMBER_OF_TRANSFER_THREADS = -1;
 
     private static final long UNDEFINED_WRITE_BATCH_SIZE = -1;
-
-    private Logger logger = LOG;
 
     // ------------------------------------------------------------------------
 
@@ -260,7 +257,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 original.predefinedOptions == null
                         ? PredefinedOptions.valueOf(config.get(RocksDBOptions.PREDEFINED_OPTIONS))
                         : original.predefinedOptions;
-        logger.info("Using predefined options: {}.", predefinedOptions.name());
+        LOG.info("Using predefined options: {}.", predefinedOptions.name());
 
         // configure RocksDB options factory
         try {
@@ -276,16 +273,6 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
-    }
-
-    /**
-     * Overrides the default logger for this class. It ensures users of the legacy {@link
-     * RocksDBStateBackend} see consistent logging.
-     */
-    @Internal
-    @SuppressWarnings("SameParameterValue")
-    void setLogger(Logger logger) {
-        this.logger = logger;
     }
 
     // ------------------------------------------------------------------------
@@ -334,7 +321,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                             "Local DB files directory '"
                                     + f
                                     + "' does not exist and cannot be created. ";
-                    logger.error(msg);
+                    LOG.error(msg);
                     errorMessage.append(msg);
                 } else {
                     dirs.add(f);
@@ -415,7 +402,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         // first, make sure that the RocksDB JNI library is loaded
         // we do this explicitly here to have better error handling
         String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
-        ensureRocksDBIsLoaded(tempDir, logger);
+        ensureRocksDBIsLoaded(tempDir);
 
         // replace all characters that are not legal for filenames with underscore
         String fileCompatibleIdentifier = operatorIdentifier.replaceAll("[^a-zA-Z0-9\\-]", "_");
@@ -437,10 +424,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         final OpaqueMemoryResource<RocksDBSharedResources> sharedResources =
                 RocksDBOperationUtils.allocateSharedCachesIfConfigured(
-                        memoryConfiguration, env.getMemoryManager(), managedMemoryFraction, logger);
+                        memoryConfiguration, env.getMemoryManager(), managedMemoryFraction, LOG);
         if (sharedResources != null) {
-            logger.info(
-                    "Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+            LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
         }
         final RocksDBResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(sharedResources);
@@ -512,7 +498,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         ((ConfigurableRocksDBOptionsFactory) originalOptionsFactory)
                                 .configure(config);
             }
-            logger.info("Using application-defined options factory: {}.", originalOptionsFactory);
+            LOG.info("Using application-defined options factory: {}.", originalOptionsFactory);
 
             return originalOptionsFactory;
         }
@@ -523,7 +509,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
             DefaultConfigurableOptionsFactory optionsFactory =
                     new DefaultConfigurableOptionsFactory();
             optionsFactory.configure(config);
-            logger.info("Using default options factory: {}.", optionsFactory);
+            LOG.info("Using default options factory: {}.", optionsFactory);
 
             return optionsFactory;
         } else {
@@ -537,7 +523,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                     optionsFactory =
                             ((ConfigurableRocksDBOptionsFactory) optionsFactory).configure(config);
                 }
-                logger.info("Using configured options factory: {}.", optionsFactory);
+                LOG.info("Using configured options factory: {}.", optionsFactory);
 
                 return optionsFactory;
             } catch (ClassNotFoundException e) {
@@ -834,12 +820,12 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static void ensureRocksDBIsLoaded(String tempDirectory, Logger logger) throws IOException {
+    static void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
         synchronized (EmbeddedRocksDBStateBackend.class) {
             if (!rocksDbInitialized) {
 
                 final File tempDirParent = new File(tempDirectory).getAbsoluteFile();
-                logger.info(
+                LOG.info(
                         "Attempting to load RocksDB native library and store it under '{}'",
                         tempDirParent);
 
@@ -863,7 +849,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
 
                         // make sure the temp path exists
-                        logger.debug(
+                        LOG.debug(
                                 "Attempting to create RocksDB native library folder {}",
                                 rocksLibFolder);
                         // noinspection ResultOfMethodCallIgnored
@@ -877,18 +863,18 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         RocksDB.loadLibrary();
 
                         // seems to have worked
-                        logger.info("Successfully loaded RocksDB native library");
+                        LOG.info("Successfully loaded RocksDB native library");
                         rocksDbInitialized = true;
                         return;
                     } catch (Throwable t) {
                         lastException = t;
-                        logger.debug("RocksDB JNI library loading attempt {} failed", attempt, t);
+                        LOG.debug("RocksDB JNI library loading attempt {} failed", attempt, t);
 
                         // try to force RocksDB to attempt reloading the library
                         try {
                             resetRocksDBLoadedFlag();
                         } catch (Throwable tt) {
-                            logger.debug(
+                            LOG.debug(
                                     "Failed to reset 'initialized' flag in RocksDB native code loader",
                                     tt);
                         }

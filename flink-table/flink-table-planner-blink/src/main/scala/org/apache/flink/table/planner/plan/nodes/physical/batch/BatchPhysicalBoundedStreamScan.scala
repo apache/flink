@@ -22,12 +22,16 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
+
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -39,9 +43,10 @@ import scala.collection.JavaConverters._
 class BatchPhysicalBoundedStreamScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     table: RelOptTable,
     outputRowType: RelDataType)
-  extends TableScan(cluster, traitSet, table)
+  extends TableScan(cluster, traitSet, hints, table)
   with BatchPhysicalRel {
 
   val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
@@ -49,7 +54,7 @@ class BatchPhysicalBoundedStreamScan(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchPhysicalBoundedStreamScan(cluster, traitSet, getTable, getRowType)
+    new BatchPhysicalBoundedStreamScan(cluster, traitSet, getHints, getTable, getRowType)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -61,6 +66,7 @@ class BatchPhysicalBoundedStreamScan(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
+      .itemIf("hints", RelExplainUtil.hintsToString(getHints), !(getHints.isEmpty));
   }
 
   override def translateToExecNode(): ExecNode[_] = {

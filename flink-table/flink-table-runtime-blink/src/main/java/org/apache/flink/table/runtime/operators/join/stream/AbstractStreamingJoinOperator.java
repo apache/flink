@@ -18,17 +18,15 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.operators.join.NullAwareJoinHelper;
+import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
@@ -60,14 +58,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
     protected final JoinInputSideSpec leftInputSideSpec;
     protected final JoinInputSideSpec rightInputSideSpec;
 
-    /** Should filter null keys. */
-    private final int[] nullFilterKeys;
-
-    /** No keys need to filter null. */
-    private final boolean nullSafe;
-
-    /** Filter null to all keys. */
-    private final boolean filterAllNulls;
+    private final boolean[] filterNullKeys;
 
     protected final long stateRetentionTime;
 
@@ -88,21 +79,17 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
         this.leftInputSideSpec = leftInputSideSpec;
         this.rightInputSideSpec = rightInputSideSpec;
         this.stateRetentionTime = stateRetentionTime;
-        this.nullFilterKeys = NullAwareJoinHelper.getNullFilterKeys(filterNullKeys);
-        this.nullSafe = nullFilterKeys.length == 0;
-        this.filterAllNulls = nullFilterKeys.length == filterNullKeys.length;
+        this.filterNullKeys = filterNullKeys;
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-
         JoinCondition condition =
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        condition.setRuntimeContext(getRuntimeContext());
-        condition.open(new Configuration());
-
-        this.joinCondition = new JoinConditionWithNullFilters(condition);
+        this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys, this);
+        this.joinCondition.setRuntimeContext(getRuntimeContext());
+        this.joinCondition.open(new Configuration());
 
         this.collector = new TimestampedCollector<>(output);
     }
@@ -111,35 +98,7 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
     public void close() throws Exception {
         super.close();
         if (joinCondition != null) {
-            joinCondition.backingJoinCondition.close();
-        }
-    }
-
-    // ----------------------------------------------------------------------------------------
-    // Utility Classes
-    // ----------------------------------------------------------------------------------------
-
-    private class JoinConditionWithNullFilters extends AbstractRichFunction
-            implements JoinCondition {
-
-        final JoinCondition backingJoinCondition;
-
-        private JoinConditionWithNullFilters(JoinCondition backingJoinCondition) {
-            this.backingJoinCondition = backingJoinCondition;
-        }
-
-        @Override
-        public boolean apply(RowData left, RowData right) {
-            if (!nullSafe) { // is not null safe, return false if any null exists
-                // key is always BinaryRowData
-                NullAwareGetters joinKey = (NullAwareGetters) getCurrentKey();
-                if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
-                    // find null present, return false directly
-                    return false;
-                }
-            }
-            // test condition
-            return backingJoinCondition.apply(left, right);
+            joinCondition.close();
         }
     }
 

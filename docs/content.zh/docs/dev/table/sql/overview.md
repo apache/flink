@@ -35,7 +35,7 @@ under the License.
 - [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/drop" >}})
 - [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/dev/table/sql/alter" >}})
 - [INSERT]({{< ref "docs/dev/table/sql/insert" >}})
-- [SQL HINTS]({{< ref "docs/dev/table/sql/hints" >}})
+- [SQL HINTS]({{< ref "docs/dev/table/sql/queries/hints" >}})
 - [DESCRIBE]({{< ref "docs/dev/table/sql/describe" >}})
 - [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}})
 - [USE]({{< ref "docs/dev/table/sql/use" >}})

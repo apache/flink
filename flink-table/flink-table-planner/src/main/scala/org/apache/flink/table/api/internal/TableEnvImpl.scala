@@ -44,6 +44,7 @@ import org.apache.flink.table.parse.CalciteParser
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
@@ -112,7 +113,10 @@ abstract class TableEnvImpl(
     catalogManager.getDataTypeFactory,
     tableLookup,
     new SqlExpressionResolver {
-      override def resolveExpression(sqlExpression: String, inputSchema: TableSchema)
+      override def resolveExpression(
+          sqlExpression: String,
+          inputRowType: RowType,
+          outputType: LogicalType)
         : ResolvedExpression = {
             throw new UnsupportedOperationException(
               "SQL expression parsing is only supported in the Blink planner.")
@@ -634,6 +638,7 @@ abstract class TableEnvImpl(
         .data(selectResultProvider.getResultIterator)
         .setPrintStyle(
           PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, true, false))
+        .setSessionTimeZone(getConfig.getLocalTimeZone)
         .build
     } catch {
       case e: Exception =>
@@ -827,6 +832,7 @@ abstract class TableEnvImpl(
           .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING)))
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.rawContent())
+          .setSessionTimeZone(getConfig.getLocalTimeZone)
           .build
       case descOperation: DescribeTableOperation =>
         val result = catalogManager.getTable(descOperation.getSqlIdentifier)

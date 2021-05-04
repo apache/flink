@@ -20,30 +20,29 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager.TableLookupResult;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
+import org.apache.flink.table.runtime.types.PlannerTypeUtils;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -52,9 +51,7 @@ import org.apache.calcite.schema.impl.AbstractTable;
 
 import java.util.List;
 import java.util.Optional;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
+import java.util.stream.Collectors;
 
 /**
  * Represents a wrapper for {@link CatalogBaseTable} in {@link org.apache.calcite.schema.Schema}.
@@ -124,34 +121,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
         final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-        TableSchema tableSchema = TableSchema.fromResolvedSchema(lookupResult.getResolvedSchema());
-        final DataType[] fieldDataTypes = tableSchema.getFieldDataTypes();
-        CatalogBaseTable catalogTable = lookupResult.getTable();
-        if (!isStreamingMode
-                && catalogTable instanceof ConnectorCatalogTable
-                && ((ConnectorCatalogTable<?, ?>) catalogTable).getTableSource().isPresent()) {
-            // If the table source is bounded, materialize the time attributes to normal TIMESTAMP
-            // type.
-            // Now for ConnectorCatalogTable, there is no way to
-            // deduce if it is bounded in the table environment, so the data types in TableSchema
-            // always patched with TimeAttribute.
-            // See ConnectorCatalogTable#calculateSourceSchema
-            // for details.
-
-            // Remove the patched time attributes type to let the TableSourceTable handle it.
-            // We should remove this logic if the isBatch flag in ConnectorCatalogTable is fixed.
-            // TODO: Fix FLINK-14844.
-            for (int i = 0; i < fieldDataTypes.length; i++) {
-                LogicalType lt = fieldDataTypes[i].getLogicalType();
-                if (lt instanceof TimestampType && isRowtimeAttribute(lt)) {
-                    int precision = ((TimestampType) lt).getPrecision();
-                    fieldDataTypes[i] = DataTypes.TIMESTAMP(precision);
-                } else if (lt instanceof LocalZonedTimestampType && isTimeAttribute(lt)) {
-                    int precision = ((LocalZonedTimestampType) lt).getPrecision();
-                    fieldDataTypes[i] = DataTypes.TIMESTAMP_LTZ(precision);
-                }
-            }
-        }
+        final ResolvedSchema schema = lookupResult.getResolvedSchema();
 
         // The following block is a workaround to support tables defined by
         // TableEnvironment.connect() and
@@ -159,9 +129,10 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
         // It should be removed after we remove DefinedProctimeAttribute/DefinedRowtimeAttributes.
         Optional<TableSource<?>> sourceOpt = findAndCreateTableSource();
         if (isStreamingMode
-                && tableSchema.getTableColumns().stream().allMatch(TableColumn::isPhysical)
-                && tableSchema.getWatermarkSpecs().isEmpty()
+                && schema.getColumns().stream().allMatch(Column::isPhysical)
+                && schema.getWatermarkSpecs().isEmpty()
                 && sourceOpt.isPresent()) {
+            TableSchema tableSchema = TableSchema.fromResolvedSchema(schema);
             TableSource<?> source = sourceOpt.get();
             if (TableSourceValidation.hasProctimeAttribute(source)
                     || TableSourceValidation.hasRowtimeAttribute(source)) {
@@ -171,10 +142,17 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                 // ConnectorCatalogTable#calculateSourceSchema
                 tableSchema = ConnectorCatalogTable.calculateSourceSchema(source, false);
             }
+            return TableSourceUtil.getSourceRowType(
+                    flinkTypeFactory, tableSchema, scala.Option.empty(), true);
         }
 
-        return TableSourceUtil.getSourceRowType(
-                flinkTypeFactory, tableSchema, scala.Option.empty(), isStreamingMode);
+        final List<String> fieldNames = schema.getColumnNames();
+        final List<LogicalType> fieldTypes =
+                schema.getColumnDataTypes().stream()
+                        .map(DataType::getLogicalType)
+                        .map(PlannerTypeUtils::removeLegacyTypes)
+                        .collect(Collectors.toList());
+        return flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes);
     }
 
     @Override

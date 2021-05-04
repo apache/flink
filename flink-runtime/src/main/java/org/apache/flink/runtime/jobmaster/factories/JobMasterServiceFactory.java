@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,19 +18,23 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
 
-/** Factory for a {@link JobMasterService}. */
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
+/** Factory for the {@link JobMasterService}. */
 public interface JobMasterServiceFactory {
 
-    JobMasterService createJobMasterService(
-            JobGraph jobGraph,
-            JobMasterId jobMasterId,
-            OnCompletionActions jobCompletionActions,
-            ClassLoader userCodeClassloader,
-            long initializationTimestamp)
-            throws Exception;
+    /**
+     * Creates a new {@link JobMasterService} for the given leaderSessionId and onCompletionActions.
+     *
+     * @param leaderSessionId leaderSessionId for which to create a {@link JobMasterService}
+     * @param onCompletionActions onCompletionActions which are given to the created {@link
+     *     JobMasterService}
+     * @return Future which contains the newly created {@link JobMasterService}
+     */
+    CompletableFuture<JobMasterService> createJobMasterService(
+            UUID leaderSessionId, OnCompletionActions onCompletionActions);
 }

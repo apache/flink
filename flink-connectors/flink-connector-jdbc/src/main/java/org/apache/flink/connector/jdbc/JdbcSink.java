@@ -30,7 +30,6 @@ import org.apache.flink.util.function.SerializableSupplier;
 
 import javax.sql.XADataSource;
 
-import java.util.Optional;
 import java.util.function.Function;
 
 /** Facade to create JDBC {@link SinkFunction sinks}. */
@@ -109,8 +108,7 @@ public class JdbcSink {
                 sql,
                 statementBuilder,
                 XaFacade.fromXaDataSourceSupplier(
-                        dataSourceSupplier,
-                        Optional.ofNullable(exactlyOnceOptions.getTimeoutSec())),
+                        dataSourceSupplier, exactlyOnceOptions.getTimeoutSec()),
                 executionOptions,
                 exactlyOnceOptions);
     }

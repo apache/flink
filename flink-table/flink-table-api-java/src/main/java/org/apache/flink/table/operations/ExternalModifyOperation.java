@@ -25,9 +25,12 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Internal operation used to convert a {@link Table} into a DataStream. */
@@ -42,7 +45,8 @@ public final class ExternalModifyOperation implements ModifyOperation {
 
     private final ResolvedSchema resolvedSchema;
 
-    private final ChangelogMode changelogMode;
+    /** Null if changelog mode is derived from input. */
+    private final @Nullable ChangelogMode changelogMode;
 
     private final DataType physicalDataType;
 
@@ -76,8 +80,8 @@ public final class ExternalModifyOperation implements ModifyOperation {
         return physicalDataType;
     }
 
-    public ChangelogMode getChangelogMode() {
-        return changelogMode;
+    public Optional<ChangelogMode> getChangelogMode() {
+        return Optional.ofNullable(changelogMode);
     }
 
     public ResolvedSchema getResolvedSchema() {

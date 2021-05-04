@@ -28,11 +28,9 @@ under the License.
 
 Apache Flink offers a DataStream API for building robust, stateful streaming applications. It provides fine-grained control over state and time, which allows for the implementation of advanced event-driven systems. In this step-by-step guide, you’ll learn how to build a simple streaming application with PyFlink and the DataStream API.
 
-
-
 ## What Will You Be Building? 
 
-In this tutorial, you will learn how to write a simple Python DataStream job.
+In this tutorial, you will learn how to write a simple Python DataStream pipeline.
 The pipeline will read data from a non-empty collection and write the results to the local file system.
 
 ## Prerequisites
@@ -143,4 +141,4 @@ $ find /tmp/output -type f -exec cat {} \;
 2,bbb
 ```
 
-This walkthrough gives you the foundations to get started writing your own PyFlink DataStream API programs. To learn more about the Python DataStream API, please refer to [Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+This walkthrough gives you the foundations to get started writing your own PyFlink DataStream API programs. To learn more about the Python DataStream API, please refer to {{< pythondoc name="Flink Python API Docs">}} for more details.
