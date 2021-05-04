@@ -97,6 +97,10 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 
     - 此模式还有一个版本，可以在 [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html) 中查找编写器的 schema（用于编写记录的 schema）。
     - 使用这些反序列化 schema 记录将读取从 schema 注册表检索到的 schema 转换为静态提供的 schema（或者通过 `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` 或 `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`）。
+    
+    - 您还可以使用AWS实现的[AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)来查找编写器的 schema 。相似地，反序列化的记录会读取从 AWS Glue Schema Registry 检索到的 schema 并转换为静态提供的 schema
+     （或者通过 `GlueSchemaRegistryAvroDeserializationSchema.forGeneric(...)` 或 `GlueSchemaRegistryAvroDeserializationSchema.forSpecific(...)`）。有关 AWS Glue Schema Registry 与 Apache Flink 适配的更多信息，请参见
+      [Use Case: Amazon Kinesis Data Analytics for Apache Flink](https://docs.aws.amazon.com/glue/latest/dg/schema-registry-integrations.html#schema-registry-integrations-kinesis-data-analytics-apache-flink).
 
     <br>要使用此反序列化 schema 必须添加以下依赖：
 
@@ -115,6 +119,15 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro-confluent-registry</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+```
+{{< /tab >}}
+{{< tab "GlueSchemaRegistryAvroDeserializationSchema" >}}
+```xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro-glue-schema-registry</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 ```
