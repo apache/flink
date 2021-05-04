@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.persistence;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FlinkException;
 
 /**
@@ -27,6 +28,11 @@ import org.apache.flink.util.FlinkException;
 public class PossibleInconsistentStateException extends FlinkException {
 
     private static final long serialVersionUID = 364105635349022882L;
+
+    @VisibleForTesting
+    public PossibleInconsistentStateException() {
+        super("The system might be in an inconsistent state.");
+    }
 
     public PossibleInconsistentStateException(String message, Throwable cause) {
         super(message, cause);
