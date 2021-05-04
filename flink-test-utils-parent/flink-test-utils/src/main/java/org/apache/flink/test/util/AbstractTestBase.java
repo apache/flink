@@ -25,6 +25,8 @@ import org.apache.flink.util.FileUtils;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,6 +58,8 @@ import java.io.IOException;
  */
 public abstract class AbstractTestBase extends TestBaseUtils {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractTestBase.class);
+
     private static final int DEFAULT_PARALLELISM = 4;
 
     @ClassRule
@@ -70,6 +74,12 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
     @After
     public final void cleanupRunningJobs() throws Exception {
+        if (!miniClusterResource.getMiniCluster().isRunning()) {
+            // do nothing if the MiniCluster is not running
+            LOG.warn("Mini cluster is not running after the test!");
+            return;
+        }
+
         for (JobStatusMessage path : miniClusterResource.getClusterClient().listJobs().get()) {
             if (!path.getJobState().isTerminalState()) {
                 try {
