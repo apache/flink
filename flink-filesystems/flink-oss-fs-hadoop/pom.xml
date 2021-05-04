@@ -154,7 +154,6 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
