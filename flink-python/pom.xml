@@ -356,6 +356,7 @@ under the License.
 									<artifact>org.apache.beam:beam-vendor-grpc-1_26_0</artifact>
 									<excludes>
 										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/jboss/**</exclude>
+										<exclude>schema/**</exclude>
 										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/eclipse/jetty/**</exclude>
 									</excludes>
 								</filter>
