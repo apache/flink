@@ -1209,20 +1209,7 @@ public class CheckpointCoordinator {
                         completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
             } catch (Exception exception) {
                 // we failed to store the completed checkpoint. Let's clean up
-                executor.execute(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    completedCheckpoint.discardOnFailedStoring();
-                                } catch (Throwable t) {
-                                    LOG.warn(
-                                            "Could not properly discard completed checkpoint {}.",
-                                            completedCheckpoint.getCheckpointID(),
-                                            t);
-                                }
-                            }
-                        });
+                checkpointsCleaner.cleanCheckpointOnFailedStoring(completedCheckpoint, executor);
 
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
