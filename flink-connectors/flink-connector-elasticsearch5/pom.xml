@@ -245,19 +245,6 @@ under the License.
 										<exclude>log4j.properties</exclude>
 										<exclude>config/favicon.ico</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/io*/**</exclude>
-										<exclude>META-INF/maven/joda*/**</exclude>
-										<exclude>META-INF/maven/net*/**</exclude>
-										<exclude>META-INF/maven/org.an*/**</exclude>
-										<exclude>META-INF/maven/org.apache.h*/**</exclude>
-										<exclude>META-INF/maven/org.apache.commons/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
-										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
-										<exclude>META-INF/maven/org.e*/**</exclude>
-										<exclude>META-INF/maven/org.h*/**</exclude>
-										<exclude>META-INF/maven/org.j*/**</exclude>
-										<exclude>META-INF/maven/org.y*/**</exclude>
 									</excludes>
 								</filter>
 								<filter>

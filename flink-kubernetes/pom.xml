@@ -156,7 +156,6 @@ under the License.
 									<artifact>*:*</artifact>
 									<excludes>
 										<exclude>*.aut</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/services/*com.fasterxml*</exclude>
 										<exclude>META-INF/proguard/**</exclude>
 										<exclude>OSGI-INF/**</exclude>

@@ -1345,6 +1345,8 @@ under the License.
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<archive>
+						<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+						<addMavenDescriptor>false</addMavenDescriptor>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
@@ -1713,6 +1715,21 @@ under the License.
 								<exclude>META-INF/*.SF</exclude>
 								<exclude>META-INF/*.DSA</exclude>
 								<exclude>META-INF/*.RSA</exclude>
+								<!-- META-INF/maven can contain 2 things:
+									- For archetypes, it contains an archetype-metadata.xml.
+									- For other jars, it contains the pom for all dependencies under the respective <groupId>/<artifactId>/ directory.
+
+								 	We want to exclude the poms because they may be under an incompatible license,
+								 	however the archetype metadata is required and we need to keep that around.
+
+								 	This pattern excludes directories under META-INF/maven.
+								 	('?*/**' does not work because '**' also matches zero directories;
+								 	everything that matches '?*' also matches '?*/**')
+
+									The initial '**' allows the pattern to also work for multi-release jars that may contain such entries under
+									'META-INF/versions/11/META-INF/maven/'.
+								 	-->
+								<exclude>**/META-INF/maven/?*/?*/**</exclude>
 							</excludes>
 						</filter>
 					</filters>
