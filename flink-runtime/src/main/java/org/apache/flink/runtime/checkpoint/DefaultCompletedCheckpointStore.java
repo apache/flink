@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -212,6 +213,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
      * older ones.
      *
      * @param checkpoint Completed checkpoint to add.
+     * @throws PossibleInconsistentStateException if adding the checkpoint failed and leaving the
+     *     system in an possibly inconsistent state, i.e. it's uncertain whether the checkpoint
+     *     metadata was fully written to the underlying systems or not.
      */
     @Override
     public void addCheckpoint(
