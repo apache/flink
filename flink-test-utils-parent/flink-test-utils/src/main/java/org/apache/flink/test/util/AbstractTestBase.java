@@ -70,6 +70,11 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
     @After
     public final void cleanupRunningJobs() throws Exception {
+        if (!miniClusterResource.getMiniCluster().isRunning()) {
+            // do nothing if the MiniCluster is not running
+            return;
+        }
+
         for (JobStatusMessage path : miniClusterResource.getClusterClient().listJobs().get()) {
             if (!path.getJobState().isTerminalState()) {
                 try {
