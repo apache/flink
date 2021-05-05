@@ -132,11 +132,7 @@ public class ClusterOptions {
                             "Defines whether the cluster uses fine-grained resource management.");
 
     public static boolean isDeclarativeResourceManagementEnabled(Configuration configuration) {
-        if (configuration.contains(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT)) {
-            return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT);
-        } else {
-            return !System.getProperties().containsKey("flink.tests.disable-declarative");
-        }
+        return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT);
     }
 
     public static JobManagerOptions.SchedulerType getSchedulerType(Configuration configuration) {
