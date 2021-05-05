@@ -23,7 +23,9 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
---> 
+-->
+
+# Versioned Tables
 
 Flink SQL operates over dynamic tables that evolve, which may either be append-only or updating. 
 Versioned tables represent a special type of updating table that remembers the past values for each key.
