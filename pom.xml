@@ -1726,6 +1726,35 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- This section contains the core configuration that is applied to every jar that we create.-->
+					<filters combine.children="append">
+						<filter>
+							<artifact>*</artifact>
+							<excludes>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<exclude>log4j.properties</exclude>
+								<exclude>log4j2.properties</exclude>
+								<exclude>log4j-test.properties</exclude>
+								<exclude>log4j2-test.properties</exclude>
+								<!-- Do not copy the signatures in the META-INF folder.
+								Otherwise, this might cause SecurityExceptions when using the JAR. -->
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+							</excludes>
+						</filter>
+					</filters>
+					<transformers combine.children="append">
+						<!-- The service transformer is needed to merge META-INF/services files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+						<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+							<projectName>Apache Flink</projectName>
+							<encoding>UTF-8</encoding>
+						</transformer>
+					</transformers>
+				</configuration>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -1740,16 +1769,6 @@ under the License.
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
 							<filters combine.children="append">
-								<!-- Globally exclude log4j.properties from our JAR files. -->
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j2.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>log4j2-test.properties</exclude>
-									</excludes>
-								</filter>
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
 								<filter>
 									<artifact>org.apache.flink:force-shading</artifact>
@@ -1776,15 +1795,6 @@ under the License.
 									<include>org.apache.flink:force-shading</include>
 								</includes>
 							</artifactSet>
-							<transformers combine.children="append">
-								<!-- The service transformer is needed to merge META-INF/services files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
-								</transformer>
-							</transformers>
 						</configuration>
 					</execution>
 				</executions>

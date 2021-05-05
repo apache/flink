@@ -129,7 +129,7 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.children="append">
+						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>io.fabric8:kubernetes-client</include>
