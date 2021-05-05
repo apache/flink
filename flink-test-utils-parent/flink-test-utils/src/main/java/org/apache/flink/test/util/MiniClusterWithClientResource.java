@@ -20,9 +20,11 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.ExceptionUtils;
 
 /**
  * Starts a Flink mini cluster as a resource and registers the respective ExecutionEnvironment and
@@ -31,6 +33,7 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 public class MiniClusterWithClientResource extends MiniClusterResource {
 
     private ClusterClient<?> clusterClient;
+    private RestClusterClient<MiniClusterClient.MiniClusterId> restClusterClient;
 
     private TestEnvironment executionEnvironment;
 
@@ -43,6 +46,15 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
         return clusterClient;
     }
 
+    /**
+     * Returns a {@link RestClusterClient} that can be used to communicate with this mini cluster.
+     * Only use this if the client returned via {@link #getClusterClient()} does not fulfill your
+     * needs.
+     */
+    public RestClusterClient<?> getRestClusterClient() throws Exception {
+        return restClusterClient;
+    }
+
     public TestEnvironment getTestEnvironment() {
         return executionEnvironment;
     }
@@ -52,6 +64,7 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
         super.before();
 
         clusterClient = createMiniClusterClient();
+        restClusterClient = createRestClusterClient();
 
         executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
         executionEnvironment.setAsContext();
@@ -76,6 +89,16 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
 
         clusterClient = null;
 
+        if (restClusterClient != null) {
+            try {
+                restClusterClient.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
+        }
+
+        restClusterClient = null;
+
         super.after();
 
         if (exception != null) {
@@ -85,5 +108,11 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
 
     private MiniClusterClient createMiniClusterClient() {
         return new MiniClusterClient(getClientConfiguration(), getMiniCluster());
+    }
+
+    private RestClusterClient<MiniClusterClient.MiniClusterId> createRestClusterClient()
+            throws Exception {
+        return new RestClusterClient<>(
+                getClientConfiguration(), MiniClusterClient.MiniClusterId.INSTANCE);
     }
 }
