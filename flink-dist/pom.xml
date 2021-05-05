@@ -675,6 +675,7 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-dist</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
