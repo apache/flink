@@ -75,6 +75,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -85,6 +86,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -250,13 +252,14 @@ public class AsyncWaitOperatorTest extends TestLogger {
     private static class TimeoutAfterCompletionTestFunction
             implements AsyncFunction<Integer, Integer> {
         static final AtomicBoolean TIMED_OUT = new AtomicBoolean(false);
+        static final CountDownLatch COMPLETION_TRIGGER = new CountDownLatch(1);
 
         @Override
         public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
             ForkJoinPool.commonPool()
                     .submit(
                             () -> {
-                                Thread.sleep(TIMEOUT / 2);
+                                COMPLETION_TRIGGER.await();
                                 resultFuture.complete(Collections.singletonList(input));
                                 return null;
                             });
@@ -821,7 +824,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        TimeoutAfterCompletionTestFunction.TIMED_OUT.set(false);
         try (StreamTaskMailboxTestHarness<Integer> harness =
                 builder.setupOutputForSingletonOperatorChain(
                                 new AsyncWaitOperatorFactory<>(
@@ -831,9 +833,22 @@ public class AsyncWaitOperatorTest extends TestLogger {
                                         AsyncDataStream.OutputMode.UNORDERED))
                         .build()) {
             harness.processElement(new StreamRecord<>(1));
-            Thread.sleep(2 * TIMEOUT);
+            // add a timer after AsyncIO added its timer to verify that AsyncIO timer is processed
+            ScheduledFuture<?> testTimer =
+                    harness.getTimerService()
+                            .registerTimer(
+                                    harness.getTimerService().getCurrentProcessingTime() + TIMEOUT,
+                                    ts -> {});
+            // trigger the regular completion in AsyncIO
+            TimeoutAfterCompletionTestFunction.COMPLETION_TRIGGER.countDown();
+            // wait until all timers have been processed
+            testTimer.get();
+            // handle normal completion call outputting the element in mailbox thread
             harness.processAll();
-            assertFalse(TimeoutAfterCompletionTestFunction.TIMED_OUT.get());
+            assertEquals(
+                    Collections.singleton(new StreamRecord<>(1)),
+                    new HashSet<>(harness.getOutput()));
+            assertFalse("no timeout expected", TimeoutAfterCompletionTestFunction.TIMED_OUT.get());
         }
     }
 
