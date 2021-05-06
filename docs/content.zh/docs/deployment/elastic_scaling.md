@@ -31,7 +31,7 @@ This page describes options where Flink automatically adjusts the parallelism in
 
 ## Reactive Mode
 
-{{< hint danger >}}
+{{< hint info >}}
 Reactive mode is an MVP ("minimum viable product") feature. The Flink community is actively looking for feedback by users through our mailing lists. Please check the limitations listed on this page.
 {{< /hint >}}
 
@@ -122,8 +122,8 @@ The [limitations of Adaptive Scheduler](#limitations-1) also apply to Reactive M
 
 ## Adaptive Scheduler
 
-{{< hint danger >}}
-Using Adaptive Scheduler directly (not through Reactive Mode) is only advised for advanced users.
+{{< hint warning >}}
+Using Adaptive Scheduler directly (not through Reactive Mode) is only advised for advanced users because slot allocation on a session cluster with multiple jobs is not defined.
 {{< /hint >}}
 
 The Adaptive Scheduler can adjust the parallelism of a job based on available slots. It will automatically reduce the parallelism if not enough slots are available to run the job with the originally configured parallelism; be it due to not enough resources being available at the time of submission, or TaskManager outages during the job execution. If new slots become available the job will be scaled up again, up to the configured parallelism.
