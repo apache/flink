@@ -388,7 +388,7 @@ state.checkpoint-storage: filesystem
 
 #### Code Configuration
 
-{{< tabs "memorystatebackendmigration" >}}
+{{< tabs "fsstatebackendmigration" >}}
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -432,7 +432,7 @@ state.checkpoint-storage: filesystem
 
 #### Code Configuration
 
-{{< tabs "memorystatebackendmigration" >}}
+{{< tabs "rocksdbstatebackendmigration" >}}
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
