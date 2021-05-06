@@ -25,15 +25,15 @@ under the License.
 # DataStream API Integration
 
 {{< hint info >}}
-Tthis page only discusses the integration with DataStream API in JVM languages such as Java or Scala.
+This page only discusses the integration with DataStream API in JVM languages such as Java or Scala.
 For Python, see the [Python API]({{< ref "docs/dev/python/overview" >}}) area.
 {{< /hint >}}
 
-Both Table & SQL API and DataStream API are equality important when it comes to defining a data
+Both Table API and DataStream API are equally important when it comes to defining a data
 processing pipeline.
 
 The DataStream API offers the primitives of stream processing (namely time, state, and dataflow
-management) in a rather low-level imperative programming API. The Table & SQL API abstracts many
+management) in a rather low-level imperative programming API. The Table API abstracts many
 internals and provides a structured and declarative API.
 
 Both APIs can work with bounded *and* unbounded streams.
@@ -80,8 +80,10 @@ DataStream API. Those environments extend the regular `TableEnvironment` with ad
 and take the `StreamExecutionEnvironment` used in the DataStream API as a parameter.
 
 {{< hint warning >}}
-Currently, the `StreamTableEnvironment` does not support batch execution mode. Use the regular `TableEnvironment`
-for this. Nevertheless, both bounded and unbounded streams can also be processed using streaming
+Currently, the `StreamTableEnvironment` does not support enabling the batch execution mode yet. Nevertheless,
+bounded streams can be processed there using the streaming execution mode but with lower efficiency.
+
+Note, however, that the general `TableEnvironment` can work in both streaming execution or optimized batch
 execution mode.
 {{< /hint >}}
 
@@ -167,7 +169,13 @@ and nested types. It also covers working with event-time and watermarks.
 
 Depending on the kind of query, in many cases the resulting dynamic table is a pipeline that does not
 only produce insert-only changes when coverting the `Table` to a `DataStream` but also produces retractions
-and other kinds of updates.
+and other kinds of updates. During table-to-stream conversion, this could lead to an exception similar to
+
+```
+Table sink 'Unregistered_DataStream_Sink_1' doesn't support consuming update changes [...].
+```
+
+in which case one needs to revise the query again or switch to `toChangelogStream`.
 
 The following example shows how updating tables can be converted. Every result row represents
 an entry in a changelog with a change flag that can be queried by calling `row.getKind()` on it. In
@@ -415,13 +423,13 @@ java.lang.IllegalStateException: No operators defined in streaming topology. Can
 
 `StreamExecutionEnvironment.execute()` submits the entire constructed pipeline and clears the builder
 afterwards. In other words: no sources and sinks are declared anymore and a new pipeline can be
-appended. Thus, every DataStream program usually ends with a call to `StreamExecutionEnvironment.execute()`.
+added to the builder. Thus, every DataStream program usually ends with a call to `StreamExecutionEnvironment.execute()`.
 Alternatively, `DataStream.executeAndCollect()` implictly defines a sink for streaming the results to
 the local client and only executes the current branch.
 
 **Table API**
 
-In Table API, branching pipelines are only supported within a `StatementSet` where each branch must
+In the Table API, branching pipelines are only supported within a `StatementSet` where each branch must
 declare a final sink. Both `TableEnvironment` and also `StreamTableEnvironment` do not offer a dedicated
 general `execute()` method. Instead, they offer methods for submitting a single source-to-sink
 pipeline or a statement set:
@@ -456,15 +464,19 @@ or `DataStream.executeAndCollect` must be called afterwards. An execution in Tab
 these "external parts".
 
 ```java
-// (1) only adds a branch with a sink to the StreamExecutionEnvironment
+// (1)
+
+// adds a branch with a printing sink to the StreamExecutionEnvironment
 tableEnv.toDataStream(table).print()
 
-// (2) executes a Table API end-to-end pipeline as a Flink job and prints locally,
-// (1) is still not executed
+// (2)
+
+// executes a Table API end-to-end pipeline as a Flink job and prints locally,
+// thus (1) has still not been executed
 table.execute().print()
 
-// executes the DataStream API pipeline with the sink defined in (1) as a Flink job,
-// (2) has no effect anymore
+// executes the DataStream API pipeline with the sink defined in (1) as a
+// Flink job, (2) was already running before
 env.execute()
 ```
 
@@ -528,8 +540,8 @@ The virtual DataStream table connector exposes the following metadata for every 
     </tbody>
 </table>
 
-The virtual DataStream table source implements [`SupportsSourceWatermark`]({{< ref "docs/dev/table/sourcesSinks" >}}#source-abilities),
-thus, enabling calling the `SOURCE_WATERMARK()` built-in function as a watermark strategy to adopt
+The virtual DataStream table source implements [`SupportsSourceWatermark`]({{< ref "docs/dev/table/sourcesSinks" >}}#source-abilities)
+and thus allows calling the `SOURCE_WATERMARK()` built-in function as a watermark strategy to adopt
 watermarks from the DataStream API.
 
 ### Examples for `fromDataStream`
@@ -815,9 +827,12 @@ joins should be part of the pipeline. Example 2 is the most common use case when
 operations should work in processing time.
 
 Example 5 fully relies on the declaration of the user. This can be useful to replace generic types
-from DataStream API (which would be `RAW` in Table API) with proper data types. Since `DataType` is
-richer than `TypeInformation`, we can enable immutable POJOs and other complex data structures easily.
-The following example in Java shows what is possible:
+from the DataStream API (which would be `RAW` in the Table API) with proper data types.
+
+Since `DataType` is richer than `TypeInformation`, we can enable immutable POJOs and other complex
+data structures easily. The following example in Java shows what is possible. Check also the
+[Data Types & Serialization]({{< ref "docs/dev/serialization/types_serialization" >}}) page of
+the DataStream API for more information about the supported types there.
 
 ```java
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -825,8 +840,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 
-// DataStream API does not support immutable POJOs yet
-// they will result in a generic type that is a RAW type in Table API by default
+// the DataStream API does not support immutable POJOs yet,
+// the class will result in a generic type that is a RAW type in Table API by default
 public static class User {
 
     public final String name;
@@ -894,7 +909,7 @@ table.printSchema();
 
 ### Examples for `createTemporaryView`
 
-A `DataStream` can be directly registered as a view (possibly enriched with a schema).
+A `DataStream` can be registered directly as a view (possibly enriched with a schema).
 
 {{< hint info >}}
 Views created from a `DataStream` can only be registered as temporary views. Due to their _inline_/_anonymous_
@@ -957,7 +972,7 @@ tableEnv.from("MyView").printSchema();
 
 // === EXAMPLE 3 ===
 
-// use Table API before creating the view if it is only about renaming columns
+// use the Table API before creating the view if it is only about renaming columns
 
 tableEnv.createTemporaryView(
     "MyView",
@@ -1022,7 +1037,7 @@ tableEnv.from("MyView").printSchema()
 
 // === EXAMPLE 3 ===
 
-// use Table API before creating the view if it is only about renaming columns
+// use the Table API before creating the view if it is only about renaming columns
 
 tableEnv.createTemporaryView(
     "MyView",
@@ -1178,16 +1193,16 @@ Handling of Changelog Streams
 -----------------------------
 
 Internally, Flink's table runtime is a changelog processor. The concepts page describes how
-[dynamic tables and streams are related]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})
-with each other.
+[dynamic tables and streams relate]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})
+to each other.
 
-A `StreamTableEnvironment` offers the following methods to expose these _change data capture_ (CDC) functionalities:
+A `StreamTableEnvironment` offers the following methods to expose these _change data capture_ (CDC)
+functionalities:
 
 - `fromChangelogStream(DataStream)`: Interprets a stream of changelog entries as a table. The stream
-record type must be `org.apache.flink.types.Row` as the `RowKind` flag that is contained in
-every record is evaluated during runtime. Event-time and watermarks are not propagated by default.
-This method expects a changelog containing all kinds of changes (enumerated in `RowKind`) as the
-default `ChangelogMode`.
+record type must be `org.apache.flink.types.Row` since its `RowKind` flag is evaluated during runtime.
+Event-time and watermarks are not propagated by default. This method expects a changelog containing
+all kinds of changes (enumerated in `org.apache.flink.types.RowKind`) as the default `ChangelogMode`.
 
 - `fromChangelogStream(DataStream, Schema)`: Allows to define a schema for the `DataStream` similar
 to `fromDataStream(DataStream, Schema)`. Otherwise the semantics are equal to `fromChangelogStream(DataStream)`.
@@ -1198,9 +1213,9 @@ _upsert_, or _retract_ behavior.
 
 - `toChangelogStream(Table)`: Reverse operation of `fromChangelogStream(DataStream)`. It produces a
 stream with instances of `org.apache.flink.types.Row` and sets the `RowKind` flag for every record
-during runtime. All kinds of updating tables are supported by this method. If the input
-table contains a single rowtime column, it will be propagated into a stream record's timestamp. Watermarks
-will be propagated as well.
+at runtime. All kinds of updating tables are supported by this method. If the input table contains a
+single rowtime column, it will be propagated into a stream record's timestamp. Watermarks will be
+propagated as well.
 
 - `toChangelogStream(Table, Schema)`: Reverse operation of `fromChangelogStream(DataStream, Schema)`.
 The method can enrich the produced column data types. The planner might insert implicit casts if necessary.
@@ -1214,10 +1229,10 @@ From a Table API's perspective, converting from and to DataStream API is similar
 writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
 in SQL.
 
-Because `fromChangelogStream` behaves similar to `fromDataStream`, we recommend to read
-the [previous section](#handling-of-insert-only-streams) before.
+Because `fromChangelogStream` behaves similar to `fromDataStream`, we recommend reading
+the [previous section](#handling-of-insert-only-streams) before continuing here.
 
-This virtual connector also supports to read and write the `rowtime` metadata key.
+This virtual connector also supports reading and writing the `rowtime` metadata of the stream record.
 
 The virtual table source implements [`SupportsSourceWatermark`]({{< ref "docs/dev/table/sourcesSinks" >}}#source-abilities).
 
@@ -1459,6 +1474,7 @@ dataStream.process(
              assert ctx.timestamp() == row.<Instant>getFieldAs("event_time").toEpochMilli();
         }
     });
+env.execute();
 
 
 // === EXAMPLE 3 ===
@@ -1488,6 +1504,7 @@ dataStream.process(
             System.out.println(ctx.timestamp());
         }
     });
+env.execute();
 
 
 // === EXAMPLE 4 ===
@@ -1585,6 +1602,7 @@ dataStream.process(new ProcessFunction[Row, Unit] {
         assert(ctx.timestamp() == row.getFieldAs[Instant]("event_time").toEpochMilli)
     }
 })
+env.execute()
 
 
 // === EXAMPLE 3 ===
@@ -1615,11 +1633,13 @@ dataStream.process(new ProcessFunction[Row, Unit] {
         println(ctx.timestamp())
     }
 })
+env.execute()
 
 
 // === EXAMPLE 4 ===
 
-// for advanced users, it is also possible to use more internal data structures for efficiency
+// for advanced users, it is also possible to use more internal data structures for better
+// efficiency
 
 // note that this is only mentioned here for completeness because using internal data structures
 // adds complexity and additional type handling
@@ -1646,7 +1666,10 @@ val dataStream: DataStream[Row] = tableEnv.toChangelogStream(
 {{< /tab >}}
 {{< /tabs >}}
 
-The bevavior of `toChangelogStream(Table).executeAndCollect()` is equal to calling `Table.execute().collect()`.
+For more information about which conversions are supported for data types in Example 4, see the
+[Table API's Data Types page]({{< ref "docs/dev/table/types" >}}).
+
+The behavior of `toChangelogStream(Table).executeAndCollect()` is equal to calling `Table.execute().collect()`.
 However, `toChangelogStream(Table)` might be more useful for tests because it allows to access the produced
 watermarks in a subsequent `ProcessFunction` in DataStream API.
 
@@ -1657,7 +1680,7 @@ Mapping between TypeInformation and DataType
 
 The DataStream API uses instances of `org.apache.flink.api.common.typeinfo.TypeInformation` to describe
 the record type that travels in the stream. In particular, it defines how to serialize and deserialize
-records from one DataStream operator to the other. It also helps in serializing state into savepoint
+records from one DataStream operator to the other. It also helps in serializing state into savepoints
 and checkpoints.
 
 The Table API uses custom data structures to represent records internally and exposes `org.apache.flink.table.types.DataType`
@@ -1833,7 +1856,7 @@ Once the Table is converted to a DataStream, please use the `StreamExecutionEnvi
 
 ### Mapping of Data Types to Table Schema
 
-Flink's DataStream API support many diverse types.
+Flink's DataStream API supports many diverse types.
 Composite types such as Tuples (built-in Scala and Flink Java tuples), POJOs, Scala case classes, and Flink's Row type allow for nested data structures with multiple fields that can be accessed in table expressions. Other types are treated as atomic types. In the following, we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
 
 The mapping of a data type to a table schema can happen in two ways: **based on the field positions** or **based on the field names**.
