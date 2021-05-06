@@ -96,16 +96,13 @@ public class ResourceManagerRuntimeServices {
                                     slotManagerConfiguration.getDefaultWorkerResourceSpec()),
                             slotManagerConfiguration.getNumSlotsPerWorker()),
                     Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
-        } else if (configuration.isDeclarativeResourceManagementEnabled()) {
+        } else {
             return new DeclarativeSlotManager(
                     scheduledExecutor,
                     slotManagerConfiguration,
                     slotManagerMetricGroup,
                     new DefaultResourceTracker(),
                     new DefaultSlotTracker());
-        } else {
-            return new SlotManagerImpl(
-                    scheduledExecutor, slotManagerConfiguration, slotManagerMetricGroup);
         }
     }
 }

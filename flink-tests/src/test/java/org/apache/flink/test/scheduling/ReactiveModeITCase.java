@@ -20,7 +20,6 @@ package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -34,14 +33,11 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-
-import static org.junit.Assume.assumeTrue;
 
 /** Tests for Reactive Mode (FLIP-159). */
 public class ReactiveModeITCase extends TestLogger {
@@ -63,11 +59,6 @@ public class ReactiveModeITCase extends TestLogger {
         final Configuration conf = new Configuration();
         conf.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
         return conf;
-    }
-
-    @Before
-    public void assumeDeclarativeResourceManagement() {
-        assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
     }
 
     /**
