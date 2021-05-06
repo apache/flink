@@ -310,7 +310,7 @@ CREATE CATALOG MyCatalog
     'type' = 'hive'
   );
 
-USE MyCatalog;
+USE CATALOG MyCatalog;
 
 -- Define available database
 
