@@ -1404,11 +1404,12 @@ public class Task
     public void deliverOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> evt)
             throws FlinkException {
         final AbstractInvokable invokable = this.invokable;
+        final ExecutionState currentState = this.executionState;
 
         if (invokable == null
-                || (executionState != ExecutionState.RUNNING
-                        && executionState != ExecutionState.INITIALIZING)) {
-            throw new TaskNotRunningException("Task is not yet running.");
+                || (currentState != ExecutionState.RUNNING
+                        && currentState != ExecutionState.INITIALIZING)) {
+            throw new TaskNotRunningException("Task is not running, but in state " + currentState);
         }
 
         try {

@@ -805,7 +805,7 @@ public class CheckpointCoordinatorTestingUtils {
 
     // ----------------- Mock class builders ---------------
 
-    public static final class MockOperatorCheckpointCoordinatorContextBuilder {
+    static final class MockOperatorCheckpointCoordinatorContextBuilder {
         private BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator = null;
         private Consumer<Long> onCallingAfterSourceBarrierInjection = null;
         private OperatorID operatorID = null;
