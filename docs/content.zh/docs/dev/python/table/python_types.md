@@ -28,8 +28,6 @@ under the License.
 
 本节描述PyFlink Table API中所支持的数据类型.
 
-
-
 Data Type
 ---------
 

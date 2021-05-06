@@ -37,7 +37,6 @@ Python Table API 程序的基本结构
 所有的 Table API 和 SQL 程序，不管批模式，还是流模式，都遵循相同的结构。下面代码示例展示了 Table API 和 SQL 程序的基本结构。
 
 ```python
-
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 1. 创建 TableEnvironment
@@ -80,7 +79,6 @@ result_table = source_table.select(source_table.id + 1, source_table.data)
 result_table.execute_insert("print").wait()
 # 或者通过 SQL 查询语句来写入 sink 表：
 table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
-
 ```
 
 {{< top >}}
@@ -91,7 +89,6 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 `TableEnvironment` 是 Table API 和 SQL 集成的核心概念。下面代码示例展示了如何创建一个 `TableEnvironment`:
 
 ```python
-
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a blink streaming TableEnvironment
@@ -101,7 +98,6 @@ table_env = TableEnvironment.create(env_settings)
 # or create a blink batch TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
-
 ```
 
 关于创建 `TableEnvironment` 的更多细节，请查阅 [TableEnvironment 文档]({{< ref "docs/dev/python/table/table_environment" >}}#create-a-tableenvironment)。
@@ -113,7 +109,7 @@ table_env = TableEnvironment.create(env_settings)
 * 执行 SQL 查询，更多细节可查阅 [SQL]({{< ref "docs/dev/table/sql/overview" >}})
 * 注册用户自定义的 (标量，表值，或者聚合) 函数, 更多细节可查阅 [普通的用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和 [向量化的用户自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
 * 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
-* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/table/dependency_management" >}})
+* 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
 * 提交作业执行
 
 目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
@@ -134,16 +130,14 @@ table_env = TableEnvironment.create(env_settings)
 你可以使用一个列表对象创建一张表：
 
 ```python
-
-# 创建 blink 批 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
+# 创建 blink 批 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 table.to_pandas()
-
 ```
 
 结果为：
@@ -157,10 +151,8 @@ table.to_pandas()
 你也可以创建具有指定列名的表：
 
 ```python
-
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table.to_pandas()
-
 ```
 
 结果为：
@@ -176,7 +168,6 @@ table.to_pandas()
 如果自动生成的表模式不符合你的要求，你也可以手动指定：
 
 ```python
-
 table_without_schema = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 # 默认情况下，“id” 列的类型是 64 位整型
 default_type = table_without_schema.to_pandas()["id"].dtype
@@ -189,7 +180,6 @@ table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
 # 现在 “id” 列的类型是 8 位整型
 type = table.to_pandas()["id"].dtype
 print('Now the type of the "id" column is %s.' % type)
-
 ```
 
 结果为：
@@ -204,9 +194,9 @@ print('Now the type of the "id" column is %s.' % type)
 你可以通过 DDL 创建一张表：
 
 ```python
-# 创建 blink 流 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
+# 创建 blink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
 
@@ -226,7 +216,6 @@ table_env.execute_sql("""
 """)
 table = table_env.from_path("random_source")
 table.to_pandas()
-
 ```
 
 结果为：
@@ -251,7 +240,6 @@ Catalog 中的表既可以是临时的，并与单个 Flink 会话生命周期�
 如果你要用 Table API 来使用 catalog 中的表，可以使用 "from_path" 方法来创建 Table API 对象：
 
 ```python
-
 # 准备 catalog
 # 将 Table API 表注册到 catalog 中
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -260,7 +248,6 @@ table_env.create_temporary_view('source_table', table)
 # 从 catalog 中获取 Table API 表
 new_table = table_env.from_path('source_table')
 new_table.to_pandas()
-
 ```
 
 结果为：
@@ -287,10 +274,9 @@ new_table.to_pandas()
 以下示例展示了一个简单的 Table API 聚合查询：
 
 ```python
-
-# 通过 batch table environment 来执行查询
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
+# 通过 batch table environment 来执行查询
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
 
@@ -305,7 +291,6 @@ revenue = orders \
     .select(orders.name, orders.revenue.sum.alias('rev_sum'))
     
 revenue.to_pandas()
-
 ```
 
 结果为：
@@ -321,13 +306,12 @@ Table API 也支持 [行操作]({{< ref "docs/dev/table/tableapi" >}}#row-based-
 以下示例展示了一个简单的 Table API 基于行操作的查询
 
 ```python
-
-# 通过 batch table environment 来执行查询
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 import pandas as pd
 
+# 通过 batch table environment 来执行查询
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
 
@@ -341,7 +325,6 @@ map_function = udf(lambda x: pd.concat([x.name, x.revenue * 10], axis=1),
                     func_type="pandas")
 
 orders.map(map_function).alias('name', 'revenue').to_pandas()
-
 ```
 
 结果为：
@@ -362,10 +345,9 @@ Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了
 下面示例展示了一个简单的 SQL 聚合查询：
 
 ```python
-
-# 通过 StreamTableEnvironment 来执行查询
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
+# 通过 stream table environment 来执行查询
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = TableEnvironment.create(env_settings)
 
@@ -401,7 +383,6 @@ table_env.execute_sql("""
         WHERE id > 1
         GROUP BY id
 """).wait()
-
 ```
 
 结果为：
@@ -440,7 +421,6 @@ Table API 中的 `Table` 对象和 SQL 中的 Table 可以自由地相互转换�
 下面例子展示了如何在 SQL 中使用 `Table` 对象：
 
 ```python
-
 # 创建一张 sink 表来接收结果数据
 table_env.execute_sql("""
     CREATE TABLE table_sink (
@@ -457,7 +437,6 @@ table_env.create_temporary_view('table_api_table', table)
 
 # 将 Table API 表的数据写入结果表
 table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
-
 ```
 
 结果为：
@@ -470,7 +449,6 @@ table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wa
 下面例子展示了如何在 Table API 中使用 SQL 表：
 
 ```python
-
 # 创建一张 SQL source 表
 table_env.execute_sql("""
     CREATE TABLE sql_source (
@@ -495,7 +473,6 @@ table = table_env.sql_query("SELECT * FROM sql_source")
 
 # 将表中的数据写出
 table.to_pandas()
-
 ```
 
 结果为：
@@ -518,10 +495,8 @@ table.to_pandas()
 你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
-
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table.to_pandas()
-
 ```
 
 结果为：
@@ -532,7 +507,8 @@ table.to_pandas()
 1   2  Hello
 ```
 
-<span class="label label-info">Note</span> "to_pandas" 会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a> 来限制收集数据的条数是一种很好的做法。
+<span class="label label-info">Note</span> "to_pandas" 会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}} 来限制收集数据的条数是一种很好的做法。
+
 <span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且，并不是所有的数据类型都可以转换为 pandas DataFrames。
 
 ### 将结果写入到一张 Sink 表中
@@ -540,7 +516,6 @@ table.to_pandas()
 你可以调用 "execute_insert" 方法来将 `Table` 对象中的数据写入到一张 sink 表中：
 
 ```python
-
 table_env.execute_sql("""
     CREATE TABLE sink_table (
         id BIGINT, 
@@ -552,7 +527,6 @@ table_env.execute_sql("""
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table.execute_insert("sink_table").wait()
-
 ```
 
 结果为：
@@ -565,10 +539,8 @@ table.execute_insert("sink_table").wait()
 也可以通过 SQL 来完成:
 
 ```python
-
 table_env.create_temporary_view("table_source", table)
 table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait()
-
 ```
 
 ### 将结果写入多张 Sink 表中
@@ -576,7 +548,6 @@ table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait(
 你也可以使用 `StatementSet` 在一个作业中将 `Table` 中的数据写入到多张 sink 表中：
 
 ```python
-
 # 准备 source 表和 sink 表
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view("simple_source", table)
@@ -608,7 +579,6 @@ statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple
 
 # 执行 statement set
 statement_set.execute().wait()
-
 ```
 
 结果为：
@@ -635,7 +605,6 @@ Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化�
 以下代码展示了如何使用 `Table.explain()` 方法：
 
 ```python
-
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
@@ -648,7 +617,6 @@ table = table1 \
     .where(table1.data.like('H%')) \
     .union_all(table2)
 print(table.explain())
-
 ```
 
 结果为：
@@ -690,7 +658,6 @@ Stage 136 : Data Source
 以下代码展示了如何使用 `StatementSet.explain()` 方法：
 
 ```python
-
 # 使用流模式 TableEnvironment
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
@@ -722,7 +689,6 @@ statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())
-
 ```
 
 结果为

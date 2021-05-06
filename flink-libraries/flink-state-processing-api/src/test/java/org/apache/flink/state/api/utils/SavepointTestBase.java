@@ -40,23 +40,15 @@ import java.util.function.Function;
 /** A test base that includes utilities for taking a savepoint. */
 public abstract class SavepointTestBase extends AbstractTestBase {
 
-    public <T> String takeSavepoint(
-            T[] data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory)
-            throws Exception {
-        return takeSavepoint(Arrays.asList(data), jobGraphFactory);
-    }
-
-    public <T> String takeSavepoint(
-            Collection<T> data,
-            Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory)
-            throws Exception {
+    public <T extends WaitingFunction> String takeSavepoint(
+            T waitingFunction, Function<T, StreamExecutionEnvironment> jobGraphFactory) {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().disableClosureCleaner();
 
-        WaitingSource<T> waitingSource = createSource(data);
+        StreamExecutionEnvironment executionEnvironment = jobGraphFactory.apply(waitingFunction);
+        JobGraph jobGraph = executionEnvironment.getStreamGraph().getJobGraph();
 
-        JobGraph jobGraph = jobGraphFactory.apply(waitingSource).getStreamGraph().getJobGraph();
         JobID jobId = jobGraph.getJobID();
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
@@ -64,7 +56,7 @@ public abstract class SavepointTestBase extends AbstractTestBase {
         try {
             JobID jobID = client.submitJob(jobGraph).get();
 
-            return CompletableFuture.runAsync(waitingSource::awaitSource)
+            return CompletableFuture.runAsync(waitingFunction::await)
                     .thenCompose(ignore -> triggerSavepoint(client, jobID))
                     .get(5, TimeUnit.MINUTES);
         } catch (Exception e) {
@@ -74,16 +66,25 @@ public abstract class SavepointTestBase extends AbstractTestBase {
         }
     }
 
-    private <T> WaitingSource<T> createSource(Collection<T> data) throws Exception {
+    public <T> WaitingSource<T> createSource(T[] data) {
+        return createSource(Arrays.asList(data));
+    }
+
+    public <T> WaitingSource<T> createSource(Collection<T> data) {
         T first = data.iterator().next();
         if (first == null) {
             throw new IllegalArgumentException("Collection must not contain null elements");
         }
 
         TypeInformation<T> typeInfo = TypeExtractor.getForObject(first);
-        SourceFunction<T> inner =
-                new FromElementsFunction<>(typeInfo.createSerializer(new ExecutionConfig()), data);
-        return new WaitingSource<>(inner, typeInfo);
+        try {
+            SourceFunction<T> inner =
+                    new FromElementsFunction<>(
+                            typeInfo.createSerializer(new ExecutionConfig()), data);
+            return new WaitingSource<>(inner, typeInfo);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private CompletableFuture<String> triggerSavepoint(ClusterClient<?> client, JobID jobID)

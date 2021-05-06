@@ -110,6 +110,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
+import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -529,7 +531,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     @Override
-    public void restore() throws Exception {
+    public final void restore() throws Exception {
+        runWithCleanUpOnFail(this::executeRestore);
+    }
+
+    void executeRestore() throws Exception {
         if (isRunning) {
             LOG.debug("Re-restore attempt rejected.");
             return;
@@ -609,42 +615,54 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void invoke() throws Exception {
+        runWithCleanUpOnFail(this::executeInvoke);
+
+        cleanUpInvoke();
+    }
+
+    private void executeInvoke() throws Exception {
+        // Allow invoking method 'invoke' without having to call 'restore' before it.
+        if (!isRunning) {
+            LOG.debug("Restoring during invoke will be called.");
+            executeRestore();
+        }
+
+        // final check to exit early before starting to run
+        ensureNotCanceled();
+
+        // let the task do its work
+        runMailboxLoop();
+
+        // if this left the run() method cleanly despite the fact that this was canceled,
+        // make sure the "clean shutdown" is not attempted
+        ensureNotCanceled();
+
+        afterInvoke();
+    }
+
+    private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
         try {
-            // Allow invoking method 'invoke' without having to call 'restore' before it.
-            if (!isRunning) {
-                LOG.debug("Restoring during invoke will be called.");
-                restore();
-            }
-
-            // final check to exit early before starting to run
-            ensureNotCanceled();
-
-            // let the task do its work
-            runMailboxLoop();
-
-            // if this left the run() method cleanly despite the fact that this was canceled,
-            // make sure the "clean shutdown" is not attempted
-            ensureNotCanceled();
-
-            afterInvoke();
+            run.run();
         } catch (Throwable invokeException) {
             failing = !canceled;
             try {
                 if (!canceled) {
-                    cancelTask();
+                    try {
+                        cancelTask();
+                    } catch (Throwable ex) {
+                        invokeException = firstOrSuppressed(ex, invokeException);
+                    }
                 }
 
                 cleanUpInvoke();
             }
             // TODO: investigate why Throwable instead of Exception is used here.
             catch (Throwable cleanUpException) {
-                Throwable throwable =
-                        ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
-                ExceptionUtils.rethrowException(throwable);
+                rethrowException(firstOrSuppressed(cleanUpException, invokeException));
             }
-            ExceptionUtils.rethrowException(invokeException);
+
+            rethrowException(invokeException);
         }
-        cleanUpInvoke();
     }
 
     @VisibleForTesting
@@ -817,7 +835,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } catch (Throwable t) {
             // TODO: investigate why Throwable instead of Exception is used here.
             Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
-            return ExceptionUtils.firstOrSuppressed(e, originalException);
+            return firstOrSuppressed(e, originalException);
         }
 
         return originalException;
@@ -836,7 +854,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 try {
                     operator.dispose();
                 } catch (Exception e) {
-                    disposalException = ExceptionUtils.firstOrSuppressed(e, disposalException);
+                    disposalException = firstOrSuppressed(e, disposalException);
                 }
             }
             disposedOperators = true;

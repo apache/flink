@@ -35,28 +35,25 @@ Create a TableEnvironment
 The recommended way to create a `TableEnvironment` is to create from an `EnvironmentSettings` object:
 
 ```python
-
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+
 # or a batch TableEnvironment
 # env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
 table_env = TableEnvironment.create(env_settings)
-
 ```
 
-Alternatively, users can create a StreamTableEnvironment from an existing StreamExecutionEnvironment to interoperate with the DataStream API.
+Alternatively, users can create a `StreamTableEnvironment` from an existing `StreamExecutionEnvironment` to interoperate with the DataStream API.
 
 ```python
-
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
 
 # create a blink streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
-
 ```
 
 TableEnvironment API
@@ -514,7 +511,7 @@ For more details about the different kinds of UDFs, please refer to [User Define
 ### Dependency Management
 
 These APIs are used to manage the Python dependencies which are required by the Python UDFs.
-Please refer to the [Dependency Management]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-python-program) documentation for more details.
+Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}#python-dependencies) documentation for more details.
 
 <table class="table table-bordered">
   <thead>

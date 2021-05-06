@@ -51,7 +51,7 @@
   <div class="operate">
     <span *ngIf="statusTips">{{ statusTips }}</span>
     <ng-container *ngIf="!statusTips">
-      <a nz-popconfirm nzTitle="Cancel Job?" (nzOnConfirm)="cancelJob()" *ngIf="jobDetail.state=='RUNNING' || jobDetail.state=='CREATED' || jobDetail.state=='RESTARTING'">Cancel Job</a>
+      <a nz-popconfirm nzTitle="Cancel Job?" (nzOnConfirm)="cancelJob()" *ngIf="webCancelEnabled && (jobDetail.state=='RUNNING' || jobDetail.state=='CREATED' || jobDetail.state=='RESTARTING')">Cancel Job</a>
     </ng-container>
   </div>
 </div>

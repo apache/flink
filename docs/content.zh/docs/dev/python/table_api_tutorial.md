@@ -201,4 +201,4 @@ pyflink	1
 ```
 
 上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
-的更多信息，可以参考[Flink Python API文档]({{ site.pythondocs_baseurl }}/api/python)。
+的更多信息，可以参考{{< pythondoc name="Flink Python API 文档">}}。

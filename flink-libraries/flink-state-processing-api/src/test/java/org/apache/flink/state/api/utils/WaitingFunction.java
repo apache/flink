@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,25 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.state.api.utils;
 
-/** Tests for the {@link DashboardConfiguration}. */
-public class DashboardConfigurationTest
-        extends RestResponseMarshallingTestBase<DashboardConfiguration> {
-
-    @Override
-    protected Class<DashboardConfiguration> getTestResponseClass() {
-        return DashboardConfiguration.class;
-    }
-
-    @Override
-    protected DashboardConfiguration getTestResponseInstance() {
-        return new DashboardConfiguration(
-                1L,
-                "foobar",
-                42,
-                "version",
-                "revision",
-                new DashboardConfiguration.Features(true, true));
-    }
+/** Interface which allow to await of certain action inside of function. */
+public interface WaitingFunction {
+    /** This method blocks until the function will be called. */
+    void await() throws RuntimeException;
 }
