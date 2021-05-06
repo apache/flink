@@ -123,6 +123,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
             electionEventHandler.init(leaderElectionDriver);
             testMethod.run();
 
+            electionEventHandler.close();
             leaderElectionDriver.close();
             leaderRetrievalDriver.close();
         }
