@@ -59,6 +59,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.userCodeClassLoader = userCodeClassLoader;
+        Preconditions.checkState(
+                executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
         deploy();
 
@@ -129,7 +131,10 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         for (ExecutionJobVertex executionJobVertex :
                 getExecutionGraph().getVerticesTopologically()) {
             for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
-                deploySafely(executionVertex);
+                if (executionVertex.getExecutionState() == ExecutionState.CREATED
+                        || executionVertex.getExecutionState() == ExecutionState.SCHEDULED) {
+                    deploySafely(executionVertex);
+                }
             }
         }
     }
