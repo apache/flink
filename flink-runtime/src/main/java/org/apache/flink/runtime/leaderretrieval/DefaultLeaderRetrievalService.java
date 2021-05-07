@@ -87,8 +87,7 @@ public class DefaultLeaderRetrievalService
     public void start(LeaderRetrievalListener listener) throws Exception {
         checkNotNull(listener, "Listener must not be null.");
         Preconditions.checkState(
-                leaderListener == null,
-                "DefaultLeaderRetrievalService can " + "only be started once.");
+                leaderListener == null, "DefaultLeaderRetrievalService can only be started once.");
 
         synchronized (lock) {
             leaderListener = listener;
