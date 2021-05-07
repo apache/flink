@@ -33,7 +33,7 @@ Both Table API and DataStream API are equally important when it comes to definin
 processing pipeline.
 
 The DataStream API offers the primitives of stream processing (namely time, state, and dataflow
-management) in a rather low-level imperative programming API. The Table API abstracts many
+management) in a relatively low-level imperative programming API. The Table API abstracts away many
 internals and provides a structured and declarative API.
 
 Both APIs can work with bounded *and* unbounded streams.
@@ -46,11 +46,11 @@ mode. However, since batch is just a special case of streaming, it is also possi
 of bounded streams in regular streaming execution mode.
 
 {{< hint warning >}}
-Both DataStream API and Table API provide their own way for enabling the batch execution mode at the
+Both DataStream API and Table API provide their own way of enabling the batch execution mode at the
 moment. In the near future, this will be further unified.
 {{< /hint >}}
 
-Pipelines in one API can be defined end-to-end without dependencies to the other API. However, it
+Pipelines in one API can be defined end-to-end without dependencies on the other API. However, it
 might be useful to mix both APIs for various reasons:
 
 - Use the table ecosystem for accessing catalogs or connecting to external systems easily, before
@@ -154,6 +154,7 @@ val resultStream = tableEnv.toDataStream(resultTable)
 // add a printing sink and execute in DataStream API
 resultStream.print()
 env.execute()
+
 
 // prints:
 // +I[Alice]
@@ -335,7 +336,7 @@ However, it cannot be guaranteed that further changes to the configuration of `S
 are propagated to the `StreamTableEnvironment` after its instantiation. Also, the reverse propagation
 of options from Table API to DataStream API is not supported.
 
-We recommend to set all configuration options in DataStream API early before switching to Table API.
+We recommend setting all configuration options in DataStream API early before switching to Table API.
 
 {{< tabs "47a32814-abea-11eb-8529-0242ac130003" >}}
 {{< tab "Java" >}}
@@ -412,24 +413,24 @@ behavior is slightly different between Table API and DataStream API.
 
 **DataStream API**
 
-The DataStream API's `StreamExecutionEnvironment` acts as kind of a _builder pattern_ that can construct
+The DataStream API's `StreamExecutionEnvironment` acts as a _builder pattern_ to construct
 a complex pipeline. The pipeline possibly splits into multiple branches that might or might not end with
 a sink.
 
-At least one sink must be defined otherwise the following exception is thrown:
+At least one sink must be defined. Otherwise, the following exception is thrown:
 ```
 java.lang.IllegalStateException: No operators defined in streaming topology. Cannot execute.
 ```
 
 `StreamExecutionEnvironment.execute()` submits the entire constructed pipeline and clears the builder
-afterwards. In other words: no sources and sinks are declared anymore and a new pipeline can be
+afterward. In other words: no sources and sinks are declared anymore, and a new pipeline can be
 added to the builder. Thus, every DataStream program usually ends with a call to `StreamExecutionEnvironment.execute()`.
-Alternatively, `DataStream.executeAndCollect()` implictly defines a sink for streaming the results to
+Alternatively, `DataStream.executeAndCollect()` implicitly defines a sink for streaming the results to
 the local client and only executes the current branch.
 
 **Table API**
 
-In the Table API, branching pipelines are only supported within a `StatementSet` where each branch must
+In the Table API, branching pipelines is only supported within a `StatementSet` where each branch must
 declare a final sink. Both `TableEnvironment` and also `StreamTableEnvironment` do not offer a dedicated
 general `execute()` method. Instead, they offer methods for submitting a single source-to-sink
 pipeline or a statement set:
@@ -457,7 +458,7 @@ tableEnv.from("InputTable").execute().print()
 tableEnv.executeSql("SELECT * FROM InputTable").print()
 ```
 
-In order to combine both execution behaviors, every call to `StreamTableEnvironment.toDataStream`
+To combine both execution behaviors, every call to `StreamTableEnvironment.toDataStream`
 or `StreamTableEnvironment.toChangelogStream` will materialize (i.e. compile) the Table API sub-pipeline
 and insert it into the DataStream API pipeline builder. This means that `StreamExecutionEnvironment.execute()`
 or `DataStream.executeAndCollect` must be called afterwards. An execution in Table API will not trigger
@@ -487,10 +488,10 @@ Handling of (Insert-Only) Streams
 
 A `StreamTableEnvironment` offers the following methods to convert from and to DataStream API:
 
-- `fromDataStream(DataStream)`: Interprets a stream of insert-only changes and of arbitrary type as
+- `fromDataStream(DataStream)`: Interprets a stream of insert-only changes and arbitrary type as
 a table. Event-time and watermarks are not propagated by default.
 
-- `fromDataStream(DataStream, Schema)`: Interprets a stream of insert-only changes and of arbitrary
+- `fromDataStream(DataStream, Schema)`: Interprets a stream of insert-only changes and arbitrary
 type as a table. The optional schema allows to enrich column data types and add time attributes,
 watermarks strategies, other computed columns, or primary keys.
 
@@ -645,7 +646,7 @@ table.printSchema();
 
 // derive all physical columns automatically
 // but access the stream record's timestamp for creating a rowtime attribute column
-// also rely on the watermarka generated in the DataStream API
+// also rely on the watermarks generated in the DataStream API
 
 // we assume that a watermark strategy has been defined for `dataStream` before
 // (not part of this example)
@@ -770,7 +771,7 @@ table.printSchema()
 
 // derive all physical columns automatically
 // but access the stream record's timestamp for creating a rowtime attribute column
-// also rely on the watermarka generated in the DataStream API
+// also rely on the watermarks generated in the DataStream API
 
 // we assume that a watermark strategy has been defined for `dataStream` before
 // (not part of this example)
@@ -826,11 +827,11 @@ Example 4 is the most common use case when time-based operations such as windows
 joins should be part of the pipeline. Example 2 is the most common use case when these time-based
 operations should work in processing time.
 
-Example 5 fully relies on the declaration of the user. This can be useful to replace generic types
+Example 5 entirely relies on the declaration of the user. This can be useful to replace generic types
 from the DataStream API (which would be `RAW` in the Table API) with proper data types.
 
-Since `DataType` is richer than `TypeInformation`, we can enable immutable POJOs and other complex
-data structures easily. The following example in Java shows what is possible. Check also the
+Since `DataType` is richer than `TypeInformation`, we can easily enable immutable POJOs and other complex
+data structures. The following example in Java shows what is possible. Check also the
 [Data Types & Serialization]({{< ref "docs/dev/serialization/types_serialization" >}}) page of
 the DataStream API for more information about the supported types there.
 
@@ -913,7 +914,7 @@ A `DataStream` can be registered directly as a view (possibly enriched with a sc
 
 {{< hint info >}}
 Views created from a `DataStream` can only be registered as temporary views. Due to their _inline_/_anonymous_
-nature it is not possible to register them in a permanent catalog.
+nature, it is not possible to register them in a permanent catalog.
 {{< /hint >}}
 
 The following code shows how to use `createTemporaryView` for different scenarios.
@@ -1070,7 +1071,7 @@ import org.apache.flink.types.Row;
 import java.time.Instant;
 
 // POJO with mutable fields
-// since no fully assigning constructor is defined the field order
+// since no fully assigning constructor is defined, the field order
 // is alphabetical [event_time, name, score]
 public static class User {
 
@@ -1460,7 +1461,7 @@ tableEnv
 DataStream<Row> dataStream = tableEnv.toChangelogStream(table);
 
 // since `event_time` is a single time attribute in the schema, it is set as the
-// stream record's timestamp by default, however, at the same time it remains part of the row
+// stream record's timestamp by default; however, at the same time, it remains part of the Row
 
 dataStream.process(
     new ProcessFunction<Row, Void>() {
@@ -1490,7 +1491,7 @@ DataStream<Row> dataStream = tableEnv.toChangelogStream(
         .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
         .build());
 
-// the stream record's timestamp is defined by the metadata, it is not part of the row
+// the stream record's timestamp is defined by the metadata; it is not part of the Row
 
 dataStream.process(
     new ProcessFunction<Row, Void>() {
@@ -1587,7 +1588,7 @@ tableEnv
 val dataStream: DataStream[Row] = tableEnv.toChangelogStream(table)
 
 // since `event_time` is a single time attribute in the schema, it is set as the
-// stream record's timestamp by default, however, at the same time it remains part of the row
+// stream record's timestamp by default; however, at the same time, it remains part of the Row
 
 dataStream.process(new ProcessFunction[Row, Unit] {
     override def processElement(
@@ -1618,7 +1619,7 @@ val dataStream: DataStream[Row] = tableEnv.toChangelogStream(
         .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
         .build())
 
-// the stream record's timestamp is defined by the metadata, it is not part of the row
+// the stream record's timestamp is defined by the metadata; it is not part of the Row
 
 dataStream.process(new ProcessFunction[Row, Unit] {
     override def processElement(
@@ -1700,7 +1701,7 @@ schema.
 
 The following rules apply when converting `TypeInformation` to a `DataType`:
 
-- All subclasses of `TypeInformation` are mapped to logical types including nullability that is aligned
+- All subclasses of `TypeInformation` are mapped to logical types, including nullability that is aligned
 with Flink's built-in serializers.
 
 - Subclasses of `TupleTypeInfoBase` are translated into a row (for `Row`) or structured type (for tuples,
@@ -1708,8 +1709,8 @@ POJOs, and case classes).
 
 - `BigDecimal` is converted to `DECIMAL(38, 18)` by default.
 
-- The order of `PojoTypeInfo` fields is determined during the conversion by looking for a constructor
-that orders all fields with its parameters. Otherwise the field order will be alphabetical.
+- The order of `PojoTypeInfo` fields is determined by a constructor
+with all fields as its parameters. If that is not found during the conversion, the field order will be alphabetical.
 
 - `GenericTypeInfo` and other `TypeInformation` that cannot be represented as one of the listed
 `org.apache.flink.table.api.DataTypes` will be treated as a black-box `RAW` type. The current session
@@ -1726,7 +1727,7 @@ The table runtime will make sure to properly serialize the output records to the
 DataStream API.
 
 {{< hint warning >}}
-Afterwards, the type information semantics of the DataStream API need to be considered.
+Afterward, the type information semantics of the DataStream API need to be considered.
 {{< /hint >}}
 
 {{< top >}}
