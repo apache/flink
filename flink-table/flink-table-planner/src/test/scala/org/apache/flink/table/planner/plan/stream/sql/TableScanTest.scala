@@ -629,7 +629,7 @@ class TableScanTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
-      "doesn't support a changelog which contains UPDATE_BEFORE but no UPDATE_AFTER. Please " +
+      "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. Please " +
       "adapt the implementation of class 'org.apache.flink.table.planner.factories." +
       "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
     util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
@@ -650,8 +650,8 @@ class TableScanTest extends TableTestBase {
       """.stripMargin)
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Table 'default_catalog.default_database.src' produces a " +
-      "changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. " +
-      "This requires to define primary key constraint on the table.")
+      "changelog stream that contains UPDATE_AFTER but no UPDATE_BEFORE. " +
+      "This requires defining a primary key constraint on the table.")
     util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 

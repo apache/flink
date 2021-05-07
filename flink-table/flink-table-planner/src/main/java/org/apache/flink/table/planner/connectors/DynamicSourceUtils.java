@@ -477,15 +477,15 @@ public final class DynamicSourceUtils {
             if (!schema.getPrimaryKey().isPresent()) {
                 throw new TableException(
                         String.format(
-                                "Table '%s' produces a changelog stream contains UPDATE_AFTER, no UPDATE_BEFORE. "
-                                        + "This requires to define primary key constraint on the table.",
+                                "Table '%s' produces a changelog stream that contains UPDATE_AFTER but no UPDATE_BEFORE. "
+                                        + "This requires defining a primary key constraint on the table.",
                                 sourceIdentifier.asSummaryString()));
             }
         } else if (hasUpdateBefore && !hasUpdateAfter) {
             // only UPDATE_BEFORE
             throw new ValidationException(
                     String.format(
-                            "Invalid source for table '%s'. A %s doesn't support a changelog which contains "
+                            "Invalid source for table '%s'. A %s doesn't support a changelog stream that contains "
                                     + "UPDATE_BEFORE but no UPDATE_AFTER. Please adapt the implementation of class '%s'.",
                             sourceIdentifier.asSummaryString(),
                             ScanTableSource.class.getSimpleName(),
