@@ -45,7 +45,6 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
     @Test
     public void testGetEffectiveConfigurationForResourceManagerCoarseGrained() {
         final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, false);
         config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, false);
         config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
@@ -65,7 +64,6 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
     @Test
     public void testGetEffectiveConfigurationForResourceManagerFineGrained() {
         final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
         config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
         config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
