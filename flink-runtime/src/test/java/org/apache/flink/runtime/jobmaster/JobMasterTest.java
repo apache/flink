@@ -68,6 +68,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -2275,6 +2276,26 @@ public class JobMasterTest extends TestLogger {
                             testingTimeout);
 
             assertThat(registrationResponse.get(), instanceOf(JMTMRegistrationRejection.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    /** Tests that the JobMaster can be restarted multiple times. See FLINK-22597. */
+    @Test
+    public void testMultipleStartsWork() throws Exception {
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withHighAvailabilityServices(
+                                new StandaloneHaServices("localhost", "localhost", "localhost"))
+                        .createJobMaster();
+
+        try {
+            jobMaster.start(JobMasterId.generate()).join();
+
+            jobMaster.suspend(new FlinkException("Test exception."));
+
+            jobMaster.start(JobMasterId.generate()).join();
         } finally {
             RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
         }
