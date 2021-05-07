@@ -1,5 +1,5 @@
 ---
-title: "普通自定义函数（UDF）"
+title: "普通自定义函数"
 weight: 21
 type: docs
 aliases:
