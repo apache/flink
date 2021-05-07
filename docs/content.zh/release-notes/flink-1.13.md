@@ -127,6 +127,14 @@ The most important differences include:
 * Structured types are represented as POJOs of the original class and not Row anymore.
 * Raw types are serialized according to the configuration in TableConfig.
 
+#### Add new StreamTableEnvironment.fromDataStream
+
+##### [FLINK-19977](https://issues.apache.org/jira/browse/FLINK-19977)
+
+`StreamTableEnvironment.fromDataStream` has slightly different semantics now because it has been
+integrated into the new type system. Esp. row fields derived from composite type information
+might be in a different order compared to 1.12. The old behavior is still available via the
+overloaded method that takes expressions like `fromDataStream(ds, $("field1"), $("field2"))`.
 
 #### Update the Row.toString method
 
