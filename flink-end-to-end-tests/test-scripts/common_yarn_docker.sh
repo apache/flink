@@ -138,13 +138,13 @@ END
 
 function debug_copy_and_show_logs {
     echo "Debugging failed YARN Docker test:"
-    echo "\nCurrently running containers"
+    echo -e "\nCurrently running containers"
     docker ps
 
-    echo "\n\nCurrently running JVMs"
+    echo -e "\n\nCurrently running JVMs"
     jps -v
 
-    echo "\n\nHadoop logs:"
+    echo -e "\n\nHadoop logs:"
     mkdir -p $TEST_DATA_DIR/logs
     docker cp master:/var/log/hadoop/ $TEST_DATA_DIR/logs/
     ls -lisah $TEST_DATA_DIR/logs/hadoop
@@ -153,15 +153,15 @@ function debug_copy_and_show_logs {
         cat $f
     done
 
-    echo "\n\nDocker logs:"
+    echo -e "\n\nDocker logs:"
     docker logs master
 
-    echo "\n\nFlink logs:"
+    echo -e "\n\nFlink logs:"
     docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
     docker exec master bash -c "yarn application -list -appStates ALL"
     application_id=`docker exec master bash -c "yarn application -list -appStates ALL" | grep -i "Flink" | grep -i "cluster" | awk '{print \$1}'`
 
-    echo "Application ID: '$application_id'"
+    echo -e "\n\nApplication ID: '$application_id'"
     docker exec master bash -c "yarn logs -applicationId $application_id"
 
     docker exec master bash -c "kdestroy"
