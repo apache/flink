@@ -162,3 +162,32 @@ ds.map(lambda i: (i[0] + 1, i[1]), Types.TUPLE([Types.INT(), Types.STRING()])) \
 ```
 
 Generally, the output type needs to be specified for the map operation in the above example if the sink only accepts special kinds of data, e.g. Row, etc.
+
+## Bundling Python Functions
+
+To run Python functions in any non-local mode, it is strongly recommended
+bundling your Python functions definitions using the config option [`python-files`]({{< ref "docs/dev/python/python_config" >}}#python-files),
+if your Python functions live outside the file where the `main()` function is defined.
+Otherwise, you may run into `ModuleNotFoundError: No module named 'my_function'`
+if you define Python functions in a file called `my_function.py`.
+
+## Loading resources in Python Functions
+
+There are scenarios when you want to load some resources in Python functions first,
+then running computation over and over again, without having to re-load the resources.
+For example, you may want to load a large deep learning model only once,
+then run batch prediction against the model multiple times.
+
+Overriding the `open` method inherited from the base class `Function` is exactly what you need.
+
+```python
+class Predict(MapFunction):
+    def open(self, runtime_context: RuntimeContext):
+        import pickle
+
+        with open("resources.zip/resources/model.pkl", "rb") as f:
+            self.model = pickle.load(f)
+
+    def eval(self, x):
+        return self.model.predict(x)
+```
