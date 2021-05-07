@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -35,6 +33,8 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -109,7 +110,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
             // wait for the timeout of the pending slot request
             timeoutFuture.get();
 
-            assertEquals(0L, pool.getAllocatedSlotsInformation().size());
+            assertEquals(1L, pool.getAllocatedSlotsInformation().size());
         }
     }
 
@@ -140,7 +141,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
             // wait until we have timed out the slot request
             slotRequestTimeoutFuture.get();
 
-            assertEquals(0L, pool.getAllocatedSlotsInformation().size());
+            assertEquals(1L, pool.getAllocatedSlotsInformation().size());
         }
     }
 
@@ -180,7 +181,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
             // wait until we have timed out the slot request
             slotRequestTimeoutFuture.get();
 
-            assertEquals(0L, pool.getAllocatedSlotsInformation().size());
+            assertEquals(1L, pool.getAllocatedSlotsInformation().size());
 
             AllocationID allocationId = allocationIdFuture.get();
             final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
@@ -189,13 +190,17 @@ public class SlotPoolInteractionsTest extends TestLogger {
 
             testMainThreadExecutor.execute(
                     () -> pool.registerTaskManager(taskManagerLocation.getResourceID()));
-                    ;
+            ;
             assertTrue(
-                    testMainThreadExecutor.execute(() ->
-                            pool.offerSlots(taskManagerLocation, taskManagerGateway,
-                                    Lists.newArrayList(slotOffer)) != null));
+                    testMainThreadExecutor.execute(
+                            () ->
+                                    pool.offerSlots(
+                                                    taskManagerLocation,
+                                                    taskManagerGateway,
+                                                    Lists.newArrayList(slotOffer))
+                                            != null));
 
-            assertTrue(pool.getAllocatedSlotsInformation().contains(slotOffer));
+            assertFalse(pool.getAvailableSlotsInformation().isEmpty());
         }
     }
 

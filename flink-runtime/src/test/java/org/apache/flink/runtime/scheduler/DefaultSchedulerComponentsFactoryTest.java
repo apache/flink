@@ -88,12 +88,16 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
     private static DefaultSchedulerComponents createSchedulerComponents(
             final Configuration configuration,
             boolean iApproximateLocalRecoveryEnabled,
-            JobType jobType) throws Exception {
+            JobType jobType)
+            throws Exception {
         return DefaultSchedulerComponents.createSchedulerComponents(
                 jobType,
                 iApproximateLocalRecoveryEnabled,
                 configuration,
-                new SlotPoolBuilder(new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor("not init")).build(),
+                new SlotPoolBuilder(
+                                new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
+                                        "not init"))
+                        .build(),
                 Time.milliseconds(10L));
     }
 }

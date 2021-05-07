@@ -144,9 +144,9 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
     Collection<SlotInfo> getAllocatedSlotsInformation();
 
     /**
-     * Allocates the available slot with the given allocation id under the given request id for the
-     * given requirement profile. The slot must be able to fulfill the requirement profile,
-     * otherwise an {@link IllegalStateException} will be thrown.
+     * QueryableStateClient.java Allocates the available slot with the given allocation id under the
+     * given request id for the given requirement profile. The slot must be able to fulfill the
+     * requirement profile, otherwise an {@link IllegalStateException} will be thrown.
      *
      * @param slotRequestId identifying the requested slot
      * @param allocationID the allocation id of the requested available slot

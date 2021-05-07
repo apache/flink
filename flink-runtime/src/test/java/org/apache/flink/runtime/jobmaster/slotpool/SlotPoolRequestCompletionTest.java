@@ -78,8 +78,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
     }
 
     private void runSlotRequestCompletionTest(
-            Supplier<SlotPool> slotPoolSupplier,
-            Consumer<SlotPool> actionAfterSlotRequest) {
+            Supplier<SlotPool> slotPoolSupplier, Consumer<SlotPool> actionAfterSlotRequest) {
         try (final SlotPool slotPool = slotPoolSupplier.get()) {
 
             final int requestNum = 10;

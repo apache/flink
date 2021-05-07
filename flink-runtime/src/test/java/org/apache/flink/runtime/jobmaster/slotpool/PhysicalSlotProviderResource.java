@@ -46,7 +46,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     private final SlotSelectionStrategy slotSelectionStrategy;
 
-    private TestingSlotPoolImpl slotPool;
+    private SlotPool slotPool;
 
     private PhysicalSlotProvider physicalSlotProvider;
 

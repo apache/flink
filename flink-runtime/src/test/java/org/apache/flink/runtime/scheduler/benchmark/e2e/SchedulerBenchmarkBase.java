@@ -91,9 +91,7 @@ public class SchedulerBenchmarkBase {
             throws Exception {
         final int slotPoolSize = jobConfiguration.getParallelism() * numberOfJobVertices;
 
-        final SlotPool slotPool = new SlotPoolBuilder(mainThreadExecutor).build().castInto(SlotPool.class).orElseThrow(() ->
-                new IllegalStateException(
-                        "The DefaultScheduler requires a SlotPool."));;
+        final SlotPool slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
         final TestingTaskExecutorGateway testingTaskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
         offerSlots(

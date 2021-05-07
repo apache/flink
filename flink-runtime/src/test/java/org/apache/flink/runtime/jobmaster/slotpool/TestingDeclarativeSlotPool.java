@@ -40,7 +40,7 @@ import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
 /** Testing {@link DeclarativeSlotPool} implementation. */
-final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
+public final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<ResourceCounter> increaseResourceRequirementsByConsumer;
 

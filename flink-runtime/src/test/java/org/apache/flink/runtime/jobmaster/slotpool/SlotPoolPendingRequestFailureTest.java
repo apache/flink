@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import com.google.common.collect.Lists;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,6 +35,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -120,7 +120,8 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
             final SlotOffer slotOffer = new SlotOffer(allocationId2, 0, ResourceProfile.ANY);
             slotPool.registerTaskManager(location.getResourceID());
 
-            slotPool.offerSlots(location, new SimpleAckingTaskManagerGateway(), Lists.newArrayList(slotOffer));
+            slotPool.offerSlots(
+                    location, new SimpleAckingTaskManagerGateway(), Lists.newArrayList(slotOffer));
 
             assertThat(slotFuture1.isDone(), is(true));
             assertThat(slotFuture2.isDone(), is(false));

@@ -37,11 +37,13 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridge;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
@@ -52,7 +54,6 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Before;
@@ -104,9 +105,17 @@ public class ExecutionGraphRestartTest extends TestLogger {
     }
 
     private SlotPool createSlotPoolImpl() {
-        return new DeclarativeSlotPoolBridgeServiceFactory(SystemClock.getInstance(), DEFAULT_RPC_TIME_OUT, DEFAULT_IDLE_SLOT_TIME_OUT, DEFAULT_BATCH_TIME_OUT).createSlotPoolService(TEST_JOB_ID).castInto(SlotPool.class).orElseThrow(() ->
-                new IllegalStateException(
-                        "The AdaptiveScheduler requires a DeclarativeSlotPool."));
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPool.builder());
+        DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
+                new DeclarativeSlotPoolBridge(
+                        new JobID(),
+                        declarativeSlotPoolFactory,
+                        SystemClock.getInstance(),
+                        Time.seconds(20),
+                        Time.seconds(20),
+                        Time.seconds(20));
+        return declarativeSlotPoolBridge;
     }
 
     @Test
@@ -280,8 +289,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     /**
      * Tests that a graph is not restarted after cancellation via a call to {@link
-     * ExecutionGraph#failJob(Throwable, long)} . This can happen when a slot is released concurrently
-     * with cancellation.
+     * ExecutionGraph#failJob(Throwable, long)} . This can happen when a slot is released
+     * concurrently with cancellation.
      */
     @Test
     public void testFailExecutionAfterCancel() throws Exception {
