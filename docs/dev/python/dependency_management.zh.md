@@ -103,8 +103,8 @@ the Python UDF worker.
 You could prepare the `requirements.txt` manually as following:
 
 {% highlight shell %}
-echo numpy==1.16.5 > requirements.txt
-echo pandas==1.0.0 > requirements.txt
+echo numpy==1.16.5 >> requirements.txt
+echo pandas==1.0.0 >> requirements.txt
 {% endhighlight %}
 
 or using `pip freeze` which lists all the packages installed in the current Python environment:
