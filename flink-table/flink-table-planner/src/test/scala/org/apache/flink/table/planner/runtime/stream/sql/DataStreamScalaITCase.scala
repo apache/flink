@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.streaming.api.scala.{CloseableIterator, DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, Table, TableResult}
@@ -82,6 +82,17 @@ class DataStreamScalaITCase extends AbstractTestBase {
     val resultStream = tableEnv.toDataStream(table, classOf[ComplexCaseClass])
 
     testResult(resultStream, caseClasses: _*)
+  }
+
+  @Test
+  def testImplicitConversions(): Unit = {
+    // DataStream to Table implicit
+    val table = env.fromElements((42, "hello")).toTable(tableEnv)
+
+    // Table to DataStream implicit
+    assertEquals(
+      List(Row.of(Int.box(42), "hello")),
+      table.executeAndCollect().toList)
   }
 
   // --------------------------------------------------------------------------------------------
