@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.window;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.time.ZoneId;
 
@@ -50,8 +50,8 @@ public class WindowJoinOperatorBuilder {
         return new WindowJoinOperatorBuilder();
     }
 
-    private InternalTypeInfo<RowData> leftType;
-    private InternalTypeInfo<RowData> rightType;
+    private TypeSerializer<RowData> leftSerializer;
+    private TypeSerializer<RowData> rightSerializer;
     private GeneratedJoinCondition generatedJoinCondition;
     private int leftWindowEndIndex = -1;
     private int rightWindowEndIndex = -1;
@@ -59,13 +59,13 @@ public class WindowJoinOperatorBuilder {
     private FlinkJoinType joinType;
     private ZoneId shiftTimeZone = ZoneId.of("UTC");
 
-    public WindowJoinOperatorBuilder leftType(InternalTypeInfo<RowData> leftType) {
-        this.leftType = leftType;
+    public WindowJoinOperatorBuilder leftSerializer(TypeSerializer<RowData> leftSerializer) {
+        this.leftSerializer = leftSerializer;
         return this;
     }
 
-    public WindowJoinOperatorBuilder rightType(InternalTypeInfo<RowData> rightType) {
-        this.rightType = rightType;
+    public WindowJoinOperatorBuilder rightSerializer(TypeSerializer<RowData> rightSerializer) {
+        this.rightSerializer = rightSerializer;
         return this;
     }
 
@@ -106,8 +106,8 @@ public class WindowJoinOperatorBuilder {
     }
 
     public WindowJoinOperator build() {
-        checkNotNull(leftType);
-        checkNotNull(rightType);
+        checkNotNull(leftSerializer);
+        checkNotNull(rightSerializer);
         checkNotNull(generatedJoinCondition);
         checkNotNull(filterNullKeys);
         checkNotNull(joinType);
@@ -126,8 +126,8 @@ public class WindowJoinOperatorBuilder {
         switch (joinType) {
             case INNER:
                 return new WindowJoinOperator.InnerJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,
@@ -135,8 +135,8 @@ public class WindowJoinOperatorBuilder {
                         shiftTimeZone);
             case SEMI:
                 return new WindowJoinOperator.SemiAntiJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,
@@ -145,8 +145,8 @@ public class WindowJoinOperatorBuilder {
                         shiftTimeZone);
             case ANTI:
                 return new WindowJoinOperator.SemiAntiJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,
@@ -155,8 +155,8 @@ public class WindowJoinOperatorBuilder {
                         shiftTimeZone);
             case LEFT:
                 return new WindowJoinOperator.LeftOuterJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,
@@ -164,8 +164,8 @@ public class WindowJoinOperatorBuilder {
                         shiftTimeZone);
             case RIGHT:
                 return new WindowJoinOperator.RightOuterJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,
@@ -173,8 +173,8 @@ public class WindowJoinOperatorBuilder {
                         shiftTimeZone);
             case FULL:
                 return new WindowJoinOperator.FullOuterJoinOperator(
-                        leftType,
-                        rightType,
+                        leftSerializer,
+                        rightSerializer,
                         generatedJoinCondition,
                         leftWindowEndIndex,
                         rightWindowEndIndex,

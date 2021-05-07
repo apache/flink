@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.window;
 
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
@@ -45,7 +46,7 @@ import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilter
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerServiceImpl;
 import org.apache.flink.table.runtime.operators.window.state.WindowListState;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
 import java.time.ZoneId;
@@ -81,8 +82,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     private static final String LEFT_RECORDS_STATE_NAME = "left-records";
     private static final String RIGHT_RECORDS_STATE_NAME = "right-records";
 
-    protected final InternalTypeInfo<RowData> leftType;
-    protected final InternalTypeInfo<RowData> rightType;
+    protected final RowDataSerializer leftSerializer;
+    protected final RowDataSerializer rightSerializer;
     private final GeneratedJoinCondition generatedJoinCondition;
 
     private final int leftWindowEndIndex;
@@ -116,15 +117,15 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     private transient Gauge<Long> watermarkLatency;
 
     WindowJoinOperator(
-            InternalTypeInfo<RowData> leftType,
-            InternalTypeInfo<RowData> rightType,
+            TypeSerializer<RowData> leftSerializer,
+            TypeSerializer<RowData> rightSerializer,
             GeneratedJoinCondition generatedJoinCondition,
             int leftWindowEndIndex,
             int rightWindowEndIndex,
             boolean[] filterNullKeys,
             ZoneId shiftTimeZone) {
-        this.leftType = leftType;
-        this.rightType = rightType;
+        this.leftSerializer = (RowDataSerializer) leftSerializer;
+        this.rightSerializer = (RowDataSerializer) rightSerializer;
         this.generatedJoinCondition = generatedJoinCondition;
         this.leftWindowEndIndex = leftWindowEndIndex;
         this.rightWindowEndIndex = rightWindowEndIndex;
@@ -155,14 +156,14 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
 
         // init state
         ListStateDescriptor<RowData> leftRecordStateDesc =
-                new ListStateDescriptor<>(LEFT_RECORDS_STATE_NAME, leftType);
+                new ListStateDescriptor<>(LEFT_RECORDS_STATE_NAME, leftSerializer);
         ListState<RowData> leftListState =
                 getOrCreateKeyedState(windowSerializer, leftRecordStateDesc);
         this.leftWindowState =
                 new WindowListState<>((InternalListState<RowData, Long, RowData>) leftListState);
 
         ListStateDescriptor<RowData> rightRecordStateDesc =
-                new ListStateDescriptor<>(RIGHT_RECORDS_STATE_NAME, rightType);
+                new ListStateDescriptor<>(RIGHT_RECORDS_STATE_NAME, rightSerializer);
         ListState<RowData> rightListState =
                 getOrCreateKeyedState(windowSerializer, rightRecordStateDesc);
         this.rightWindowState =
@@ -264,8 +265,12 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         List<RowData> rightData = rightWindowState.get(window);
         join(leftData, rightData);
         // clear state
-        leftWindowState.clear(window);
-        rightWindowState.clear(window);
+        if (leftData != null) {
+            leftWindowState.clear(window);
+        }
+        if (rightData != null) {
+            rightWindowState.clear(window);
+        }
     }
 
     public abstract void join(Iterable<RowData> leftRecords, Iterable<RowData> rightRecords);
@@ -275,8 +280,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private final boolean isAntiJoin;
 
         SemiAntiJoinOperator(
-                InternalTypeInfo leftType,
-                InternalTypeInfo rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
@@ -284,8 +289,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
                 boolean isAntiJoin,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,
@@ -336,16 +341,16 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private transient JoinedRowData outRow;
 
         InnerJoinOperator(
-                InternalTypeInfo leftType,
-                InternalTypeInfo rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
                 boolean[] filterNullKeys,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,
@@ -385,16 +390,16 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private transient JoinedRowData outRow;
 
         AbstractOuterJoinOperator(
-                InternalTypeInfo<RowData> leftType,
-                InternalTypeInfo<RowData> rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
                 boolean[] filterNullKeys,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,
@@ -405,8 +410,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         @Override
         public void open() throws Exception {
             super.open();
-            leftNullRow = new GenericRowData(leftType.toRowSize());
-            rightNullRow = new GenericRowData(rightType.toRowSize());
+            leftNullRow = new GenericRowData(leftSerializer.getArity());
+            rightNullRow = new GenericRowData(rightSerializer.getArity());
             outRow = new JoinedRowData();
         }
 
@@ -442,16 +447,16 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private static final long serialVersionUID = 1L;
 
         LeftOuterJoinOperator(
-                InternalTypeInfo leftType,
-                InternalTypeInfo rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
                 boolean[] filterNullKeys,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,
@@ -489,16 +494,16 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private static final long serialVersionUID = 1L;
 
         RightOuterJoinOperator(
-                InternalTypeInfo leftType,
-                InternalTypeInfo rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
                 boolean[] filterNullKeys,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,
@@ -535,16 +540,16 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
         private static final long serialVersionUID = 1L;
 
         FullOuterJoinOperator(
-                InternalTypeInfo leftType,
-                InternalTypeInfo rightType,
+                TypeSerializer<RowData> leftSerializer,
+                TypeSerializer<RowData> rightSerializer,
                 GeneratedJoinCondition generatedJoinCondition,
                 int leftWindowEndIndex,
                 int rightWindowEndIndex,
                 boolean[] filterNullKeys,
                 ZoneId shiftTimeZone) {
             super(
-                    leftType,
-                    rightType,
+                    leftSerializer,
+                    rightSerializer,
                     generatedJoinCondition,
                     leftWindowEndIndex,
                     rightWindowEndIndex,

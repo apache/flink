@@ -517,8 +517,8 @@ public class WindowJoinOperatorTest {
         TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
         WindowJoinOperator operator =
                 WindowJoinOperatorBuilder.builder()
-                        .leftType(INPUT_ROW_TYPE)
-                        .rightType(INPUT_ROW_TYPE)
+                        .leftSerializer(INPUT_ROW_TYPE.toRowSerializer())
+                        .rightSerializer(INPUT_ROW_TYPE.toRowSerializer())
                         .generatedJoinCondition(joinFunction)
                         .leftWindowEndIndex(0)
                         .rightWindowEndIndex(0)
