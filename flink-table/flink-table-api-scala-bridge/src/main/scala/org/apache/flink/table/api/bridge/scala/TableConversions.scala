@@ -20,20 +20,158 @@ package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.internal.TableImpl
-import org.apache.flink.table.api.{Table, TableException, ValidationException}
+import org.apache.flink.table.api.{Schema, Table, TableException, ValidationException}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.types.{AbstractDataType, DataType}
+import org.apache.flink.types.Row
 
 /**
-  * Holds methods to convert a [[Table]] into a [[DataStream]].
-  *
-  * @param table The table to convert.
-  */
+ * Holds methods to convert a [[Table]] into a [[DataStream]].
+ *
+ * @param table The [[Table]] to convert.
+ */
 @PublicEvolving
 class TableConversions(table: Table) {
 
-  private val internalTable = table.asInstanceOf[TableImpl]
+  private val internalEnv = table.asInstanceOf[TableImpl].getTableEnvironment
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]].
+   *
+   * The [[Table]] to convert must be insert-only.
+   *
+   * See [[StreamTableEnvironment.toDataStream(Table)]] for more information.
+   *
+   * @return The converted [[DataStream]].
+   */
+  def toDataStream: DataStream[Row] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toDataStream(table)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]].
+   *
+   * The [[Table]] to convert must be insert-only.
+   *
+   * See [[StreamTableEnvironment.toDataStream(Table, Class)]] for more information.
+   *
+   * @param targetClass The [[Class]] that decides about the final external representation in
+   *                    [[DataStream]] records.
+   * @return The converted [[DataStream]].
+   */
+  def toDataStream[T](targetClass: Class[T]): DataStream[T] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toDataStream(table, targetClass)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]].
+   *
+   * The [[Table]] to convert must be insert-only.
+   *
+   * See [[StreamTableEnvironment.toDataStream(Table, AbstractDataType)]] for more information.
+   *
+   * @param targetDataType The [[DataType]] that decides about the final external
+   *                       representation in [[DataStream]] records.
+   * @return The converted [[DataStream]].
+   */
+  def toDataStream[T](targetDataType: AbstractDataType[_]): DataStream[T] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toDataStream(table, targetDataType)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * The [[Table]] to convert can be updating or insert-only.
+   *
+   * See [[StreamTableEnvironment.toChangelogStream(Table)]] for more information.
+   *
+   * @return The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream: DataStream[Row] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toChangelogStream(table)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * The [[Table]] to convert can be updating or insert-only.
+   *
+   * See [[StreamTableEnvironment.toChangelogStream(Table, Schema)]] for more information.
+   *
+   * @param targetSchema The [[Schema]] that decides about the final external representation
+   *                     in [[DataStream]] records.
+   * @return The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream(targetSchema: Schema): DataStream[Row] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toChangelogStream(table, targetSchema)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  /**
+   * Converts the given [[Table]] into a [[DataStream]] of changelog entries.
+   *
+   * The [[Table]] to convert can be updating or insert-only.
+   *
+   * See [[StreamTableEnvironment.toChangelogStream(Table, Schema, ChangelogMode)]] for more
+   * information.
+   *
+   * @param targetSchema The [[Schema]] that decides about the final external representation
+   *                     in [[DataStream]] records.
+   * @param changelogMode The required kinds of changes in the result changelog. An exception will
+   *                      be thrown if the given updating table cannot be represented in this
+   *                      changelog mode.
+   * @return The converted changelog stream of [[Row]].
+   */
+  def toChangelogStream(targetSchema: Schema, changelogMode: ChangelogMode): DataStream[Row] = {
+    internalEnv match {
+      case tableEnv: StreamTableEnvironment =>
+        tableEnv.toChangelogStream(table, targetSchema, changelogMode)
+      case _ =>
+        throw new ValidationException(
+          "Table cannot be converted into a Scala DataStream. " +
+          "It is not part of a Scala StreamTableEnvironment.")
+    }
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Legacy before FLIP-136
+  // ----------------------------------------------------------------------------------------------
 
   /**
     * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
@@ -50,8 +188,7 @@ class TableConversions(table: Table) {
     * @return The converted [[DataStream]].
     */
   def toAppendStream[T: TypeInformation]: DataStream[T] = {
-
-    internalTable.getTableEnvironment match {
+    internalEnv match {
       case tEnv: StreamTableEnvironment =>
         tEnv.toAppendStream(table)
       case _ =>
@@ -69,8 +206,7 @@ class TableConversions(table: Table) {
     *
     */
   def toRetractStream[T: TypeInformation]: DataStream[(Boolean, T)] = {
-
-    internalTable.getTableEnvironment match {
+    internalEnv match {
       case tEnv: StreamTableEnvironment =>
         tEnv.toRetractStream(table)
       case _ =>

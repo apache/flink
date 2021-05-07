@@ -629,8 +629,8 @@ class TableScanTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
-      "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. Please " +
-      "adapt the implementation of class 'org.apache.flink.table.planner.factories." +
+      "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. " +
+      "Please adapt the implementation of class 'org.apache.flink.table.planner.factories." +
       "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
     util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
