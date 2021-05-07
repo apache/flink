@@ -557,7 +557,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         if (isLegacyConnector) {
             inputFormat = new HBaseRowInputFormat(getConf(), TEST_TABLE_1, tableSchema);
         } else {
-            inputFormat = new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null", null);
+            inputFormat =
+                    new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null", null);
         }
         inputFormat.open(inputFormat.createInputSplits(1)[0]);
         assertNotNull(inputFormat.getConnection());
