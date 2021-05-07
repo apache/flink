@@ -152,7 +152,7 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 
     @Override
     public T nextRecord(T reuse) throws IOException {
-        if (limit != null && limit >= scannedRows) {
+        if (limit != null && limit <= scannedRows) {
             endReached = true;
             return null;
         }
