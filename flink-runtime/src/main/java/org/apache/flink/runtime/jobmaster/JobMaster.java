@@ -174,7 +174,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     // --------- ResourceManager --------
 
-    private final LeaderRetrievalService resourceManagerLeaderRetriever;
+    @Nullable private LeaderRetrievalService resourceManagerLeaderRetriever;
 
     // --------- TaskManagers --------
 
@@ -300,9 +300,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         final JobID jid = jobGraph.getJobID();
 
         log.info("Initializing job {} ({}).", jobName, jid);
-
-        resourceManagerLeaderRetriever =
-                highAvailabilityServices.getResourceManagerLeaderRetriever();
 
         this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jid);
 
@@ -910,6 +907,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         //   - activate leader retrieval for the resource manager
         //   - on notification of the leader, the connection will be established and
         //     the slot pool will start requesting slots
+        if (resourceManagerLeaderRetriever != null) {
+            resourceManagerLeaderRetriever.stop();
+        }
+        resourceManagerLeaderRetriever =
+                highAvailabilityServices.getResourceManagerLeaderRetriever();
         resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
     }
 
@@ -956,7 +958,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         setFencingToken(null);
 
         try {
-            resourceManagerLeaderRetriever.stop();
+            if (resourceManagerLeaderRetriever != null) {
+                resourceManagerLeaderRetriever.stop();
+                resourceManagerLeaderRetriever = null;
+            }
             resourceManagerAddress = null;
         } catch (Throwable t) {
             log.warn("Failed to stop resource manager leader retriever when suspending.", t);
