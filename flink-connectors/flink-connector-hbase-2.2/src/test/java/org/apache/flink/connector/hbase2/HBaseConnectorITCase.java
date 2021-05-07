@@ -152,7 +152,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                             + " rowkey INT,"
                             + " PRIMARY KEY (rowkey) NOT ENFORCED"
                             + ") WITH ("
-                            + " 'connector' = 'hbase-1.4',"
+                            + " 'connector' = 'hbase-2.2',"
                             + " 'table-name' = '"
                             + TEST_TABLE_1
                             + "',"
