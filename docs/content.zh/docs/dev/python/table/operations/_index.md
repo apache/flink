@@ -1,9 +1,7 @@
 ---
-title: "Operations"
+title: Operations
+bookCollapseSection: true
 weight: 30
-type: docs
-aliases:
-- /zh/dev/python/table-api-users-guide/operations.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,5 +21,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<meta http-equiv="refresh" content="0; url={{< ref "docs/dev/table/tableapi" >}} "/>

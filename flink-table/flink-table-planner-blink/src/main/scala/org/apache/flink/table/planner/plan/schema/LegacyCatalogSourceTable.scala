@@ -135,7 +135,7 @@ class LegacyCatalogSourceTable[T](
             s"`$name`"
           }
         }.toArray
-      val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
+      val rexNodes = toRexFactory.create(newRelTable.getRowType, null).convertToRexNodes(fieldExprs)
       relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
     }
 
@@ -158,7 +158,7 @@ class LegacyCatalogSourceTable[T](
       }
       val rowtimeIndex = fieldNames.indexOf(rowtime)
       val watermarkRexNode = toRexFactory
-        .create(actualRowType)
+        .create(actualRowType, null)
         .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
       relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
@@ -252,7 +252,7 @@ class LegacyCatalogSourceTable[T](
           f.getType
         }
       }
-      factory.buildRelNodeRowType(fieldNames, fieldTypes)
+      factory.buildRelNodeRowType(fieldNames.asScala, fieldTypes)
     }
   }
 }

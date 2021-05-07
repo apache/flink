@@ -38,7 +38,8 @@ import java.util.UUID;
  * @param <T> The output type of the inner source.
  */
 @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
-public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTypeQueryable<T> {
+public class WaitingSource<T> extends RichSourceFunction<T>
+        implements ResultTypeQueryable<T>, WaitingFunction {
 
     private static final Map<String, OneShotLatch> guards = new HashMap<>();
 
@@ -105,7 +106,8 @@ public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTyp
     }
 
     /** This method blocks until the inner source has completed. */
-    public void awaitSource() throws RuntimeException {
+    @Override
+    public void await() throws RuntimeException {
         try {
             guards.get(guardId).await();
         } catch (InterruptedException e) {

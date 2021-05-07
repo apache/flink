@@ -332,7 +332,7 @@ public class ExpressionResolverTest {
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),
-                            (sqlExpression, inputSchema) -> {
+                            (sqlExpression, inputRowType, outputType) -> {
                                 throw new UnsupportedOperationException();
                             },
                             Arrays.stream(schemas)

@@ -144,7 +144,8 @@ class DefaultSchemaResolver implements SchemaResolver {
             UnresolvedComputedColumn unresolvedColumn, List<Column> inputColumns) {
         final ResolvedExpression resolvedExpression;
         try {
-            resolvedExpression = resolveExpression(inputColumns, unresolvedColumn.getExpression());
+            resolvedExpression =
+                    resolveExpression(inputColumns, unresolvedColumn.getExpression(), null);
         } catch (Exception e) {
             throw new ValidationException(
                     String.format(
@@ -189,22 +190,26 @@ class DefaultSchemaResolver implements SchemaResolver {
         final ResolvedExpression watermarkExpression;
         try {
             watermarkExpression =
-                    resolveExpression(inputColumns, watermarkSpec.getWatermarkExpression());
+                    resolveExpression(
+                            inputColumns,
+                            watermarkSpec.getWatermarkExpression(),
+                            validatedTimeColumn.getDataType());
         } catch (Exception e) {
             throw new ValidationException(
                     String.format(
                             "Invalid expression for watermark '%s'.", watermarkSpec.toString()),
                     e);
         }
-        validateWatermarkExpression(watermarkExpression.getOutputDataType().getLogicalType());
+        final LogicalType outputType = watermarkExpression.getOutputDataType().getLogicalType();
+        final LogicalType timeColumnType = validatedTimeColumn.getDataType().getLogicalType();
+        validateWatermarkExpression(outputType);
 
-        if (!(watermarkExpression.getOutputDataType().getLogicalType().getTypeRoot()
-                == validatedTimeColumn.getDataType().getLogicalType().getTypeRoot())) {
+        if (outputType.getTypeRoot() != timeColumnType.getTypeRoot()) {
             throw new ValidationException(
                     String.format(
-                            "The watermark output type %s is different from input time filed type %s.",
-                            watermarkExpression.getOutputDataType(),
-                            validatedTimeColumn.getDataType()));
+                            "The watermark declaration's output data type '%s' is different "
+                                    + "from the time field's data type '%s'.",
+                            outputType, timeColumnType));
         }
 
         return Collections.singletonList(
@@ -348,13 +353,15 @@ class DefaultSchemaResolver implements SchemaResolver {
         }
     }
 
-    private ResolvedExpression resolveExpression(List<Column> columns, Expression expression) {
+    private ResolvedExpression resolveExpression(
+            List<Column> columns, Expression expression, @Nullable DataType outputDataType) {
         final LocalReferenceExpression[] localRefs =
                 columns.stream()
                         .map(c -> localRef(c.getName(), c.getDataType()))
                         .toArray(LocalReferenceExpression[]::new);
         return resolverBuilder
                 .withLocalReferences(localRefs)
+                .withOutputDataType(outputDataType)
                 .build()
                 .resolve(Collections.singletonList(expression))
                 .get(0);

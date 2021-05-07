@@ -177,11 +177,7 @@ $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 
 ### Unaligned checkpoints
 
-{{< hint danger >}}
-Unaligned checkpoints may produce corrupted checkpoints in 1.12.0 and 1.12.1 and we discourage use in production settings.
-{{< /hint >}}
-
-Starting with Flink 1.11, checkpoints can be unaligned. 
+Starting with Flink 1.11, checkpoints can be unaligned.
 [Unaligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) contain in-flight data (i.e., data stored in
 buffers) as part of the checkpoint state, which allows checkpoint barriers to
 overtake these buffers. Thus, the checkpoint duration becomes independent of the
@@ -194,13 +190,10 @@ independent of the end-to-end latency. Be aware unaligned checkpointing
 adds to I/O to the state backends, so you shouldn't use it when the I/O to
 the state backend is actually the bottleneck during checkpointing.
 
-Note that unaligned checkpoints is a brand-new feature that currently has the
+Note that unaligned checkpointing is a new feature that currently has the
 following limitations:
 
-- You cannot rescale or change job graph with from unaligned checkpoints. You 
-  have to take a savepoint before rescaling. Savepoints are always aligned 
-  independent of the alignment setting of checkpoints.
-- Flink currently does not support concurrent unaligned checkpoints. However, 
+- Flink currently does not support concurrent unaligned checkpoints. However,
   due to the more predictable and shorter checkpointing times, concurrent 
   checkpoints might not be needed at all. However, savepoints can also not 
   happen concurrently to unaligned checkpoints, so they will take slightly 
@@ -219,10 +212,10 @@ state. To support rescaling, watermarks should be stored per key-group in a
 union-state. We most likely will implement this approach as a general solution 
 (didn't make it into Flink 1.11.0).
 
-In the upcoming release(s), Flink will address these limitations and will
-provide a fine-grained way to trigger unaligned checkpoints only for the 
-in-flight data that moves slowly with timeout mechanism. These options will
-decrease the pressure on I/O in the state backends and eventually allow
-unaligned checkpoints to become the default checkpointing. 
+After enabling unaligned checkpoints, you can also specify the alignment timeout via
+`CheckpointConfig.setAlignmentTimeout(Duration)` or `execution.checkpointing.alignment-timeout` in
+the configuration file. When activated, each checkpoint will still begin as an aligned checkpoint,
+but if the alignment time for some subtask exceeds this timeout, then the checkpoint will proceed as an
+unaligned checkpoint.
 
 {{< top >}}

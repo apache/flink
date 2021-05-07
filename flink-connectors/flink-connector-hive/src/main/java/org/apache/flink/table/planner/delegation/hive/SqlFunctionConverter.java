@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlTimestampFunction;
@@ -95,9 +96,10 @@ public class SqlFunctionConverter extends RexShuttle {
                 Timestamp currentTS =
                         ((HiveParser.HiveParserSessionState) SessionState.get())
                                 .getHiveParserCurrentTS();
+                HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();
                 try {
                     return HiveParserRexNodeConverter.convertConstant(
-                            new ExprNodeConstantDesc(currentTS), cluster);
+                            new ExprNodeConstantDesc(hiveShim.toHiveTimestamp(currentTS)), cluster);
                 } catch (SemanticException e) {
                     throw new FlinkHiveException(e);
                 }

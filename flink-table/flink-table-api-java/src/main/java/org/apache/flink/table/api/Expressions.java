@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -462,6 +463,21 @@ public final class Expressions {
     /** Calculates the logarithm of the given value to the given base. */
     public static ApiExpression log(Object base, Object value) {
         return apiCall(BuiltInFunctionDefinitions.LOG, base, value);
+    }
+
+    /**
+     * Source watermark declaration for {@link Schema}.
+     *
+     * <p>This is a marker function that doesn't have concrete runtime implementation. It can only
+     * be used as a single expression in {@link Schema.Builder#watermark(String, Expression)}. The
+     * declaration will be pushed down into a table source that implements the {@link
+     * SupportsSourceWatermark} interface. The source will emit system-defined watermarks
+     * afterwards.
+     *
+     * <p>Please check the documentation whether the connector supports source watermarks.
+     */
+    public static ApiExpression sourceWatermark() {
+        return apiCall(BuiltInFunctionDefinitions.SOURCE_WATERMARK);
     }
 
     /**

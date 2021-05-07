@@ -129,17 +129,6 @@ public class SqlToOperationConverterTest {
                             .createFlinkPlanner(
                                     catalogManager.getCurrentCatalog(),
                                     catalogManager.getCurrentDatabase());
-    private final Parser parser =
-            new ParserImpl(
-                    catalogManager,
-                    plannerSupplier,
-                    () -> plannerSupplier.get().parser(),
-                    t ->
-                            getPlannerContext()
-                                    .createSqlExprToRexConverter(
-                                            getPlannerContext()
-                                                    .getTypeFactory()
-                                                    .buildRelNodeRowType(t)));
     private final PlannerContext plannerContext =
             new PlannerContext(
                     tableConfig,
@@ -147,6 +136,13 @@ public class SqlToOperationConverterTest {
                     catalogManager,
                     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
                     Collections.emptyList());
+
+    private final Parser parser =
+            new ParserImpl(
+                    catalogManager,
+                    plannerSupplier,
+                    () -> plannerSupplier.get().parser(),
+                    getPlannerContext().getSqlExprToRexConverterFactory());
 
     private PlannerContext getPlannerContext() {
         return plannerContext;
@@ -477,7 +473,7 @@ public class SqlToOperationConverterTest {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
                 "Flink doesn't support ENFORCED mode for PRIMARY KEY "
-                        + "constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+                        + "constraint. ENFORCED/NOT ENFORCED  controls if the constraint "
                         + "checks are performed on the incoming/outgoing data. "
                         + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode");
         parse(sql, planner, parser);
@@ -1234,7 +1230,7 @@ public class SqlToOperationConverterTest {
         // Test alter table add enforced
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Flink doesn't support ENFORCED mode for PRIMARY KEY constaint. "
+                "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
                         + "ENFORCED/NOT ENFORCED  controls if the constraint checks are performed on the "
                         + "incoming/outgoing data. Flink does not own the data therefore the "
                         + "only supported mode is the NOT ENFORCED mode");

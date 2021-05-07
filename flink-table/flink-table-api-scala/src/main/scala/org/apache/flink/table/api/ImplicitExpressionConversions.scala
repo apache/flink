@@ -20,10 +20,11 @@ package org.apache.flink.table.api
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, ImperativeAggregateFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
@@ -464,12 +465,9 @@ trait ImplicitExpressionConversions {
   /**
    * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
    *
-   * <p>The supported precision is 0 or 3:
-   *
-   * <ul>
-   *   <li>0 means the numericEpochTime is in second.
-   *   <li>3 means the numericEpochTime is in millisecond.
-   * </ul>
+   * The supported precision is 0 or 3:
+   *   - 0 means the numericEpochTime is in second.
+   *   - 3 means the numericEpochTime is in millisecond.
    */
   def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
     Expressions.toTimestampLtz(numericEpochTime, precision)
@@ -679,6 +677,21 @@ trait ImplicitExpressionConversions {
     */
   def log(base: Expression, value: Expression): Expression = {
     Expressions.log(base, value)
+  }
+
+  /**
+   * Source watermark declaration for [[Schema]].
+   *
+   * This is a marker function that doesn't have concrete runtime implementation.
+   * It can only be used as a single expression in [[Schema.Builder#watermark(String, Expression)]].
+   * The declaration will be pushed down into a table source that implements the
+   * [[SupportsSourceWatermark]] interface. The source will emit system-defined watermarks
+   * afterwards.
+   *
+   * Please check the documentation whether the connector supports source watermarks.
+   */
+  def sourceWatermark(): Expression = {
+    Expressions.sourceWatermark()
   }
 
   /**

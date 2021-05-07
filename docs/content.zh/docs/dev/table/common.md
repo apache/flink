@@ -508,7 +508,7 @@ Table orders = tableEnv.from("Orders");
 // compute revenue for all customers from France
 Table revenue = orders
   .filter($("cCountry").isEqual("FRANCE"))
-  .groupBy($("cID"), $("cName")
+  .groupBy($("cID"), $("cName"))
   .select($("cID"), $("cName"), $("revenue").sum().as("revSum"));
 
 // emit or convert Table

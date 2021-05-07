@@ -19,14 +19,13 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.combines;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowState;
@@ -36,16 +35,15 @@ import org.apache.flink.table.runtime.util.WindowKey;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
- * An implementation of {@link WindowCombineFunction} that accumulates local accumulators records
- * into the window accumulator state.
+ * An implementation of {@link RecordsCombiner} that accumulates local accumulators records into the
+ * window accumulator state.
  *
  * <p>Note: this only supports event-time window.
  */
-public final class GlobalAggAccCombiner implements WindowCombineFunction {
+public class GlobalAggCombiner implements RecordsCombiner {
 
     /** The service to register event-time or processing-time timers. */
     private final WindowTimerService<Long> timerService;
@@ -62,50 +60,35 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
     /** Global aggregate function to handle global accumulator rows. */
     private final NamespaceAggsHandleFunction<Long> globalAggregator;
 
-    /** Whether to copy key and input record, because key and record are reused. */
-    private final boolean requiresCopy;
-
-    /** Serializer to copy key if required. */
-    private final TypeSerializer<RowData> keySerializer;
-
-    public GlobalAggAccCombiner(
+    public GlobalAggCombiner(
             WindowTimerService<Long> timerService,
             StateKeyContext keyContext,
             WindowValueState<Long> accState,
             NamespaceAggsHandleFunction<Long> localAggregator,
-            NamespaceAggsHandleFunction<Long> globalAggregator,
-            boolean requiresCopy,
-            TypeSerializer<RowData> keySerializer) {
+            NamespaceAggsHandleFunction<Long> globalAggregator) {
         this.timerService = timerService;
         this.keyContext = keyContext;
         this.accState = accState;
         this.localAggregator = localAggregator;
         this.globalAggregator = globalAggregator;
-        this.requiresCopy = requiresCopy;
-        this.keySerializer = keySerializer;
     }
 
     @Override
     public void combine(WindowKey windowKey, Iterator<RowData> localAccs) throws Exception {
-        // step 0: set current key for states and timers
-        final RowData key;
-        if (requiresCopy) {
-            // the incoming key is reused, we should copy it if state backend doesn't copy it
-            key = keySerializer.copy(windowKey.getKey());
-        } else {
-            key = windowKey.getKey();
-        }
-        keyContext.setCurrentKey(key);
         Long window = windowKey.getWindow();
-
-        // step 1: merge localAccs into one acc
         RowData acc = localAggregator.createAccumulators();
         localAggregator.setAccumulators(window, acc);
         while (localAccs.hasNext()) {
             RowData localAcc = localAccs.next();
             localAggregator.merge(window, localAcc);
         }
-        RowData mergedLocalAcc = localAggregator.getAccumulators();
+        combineAccumulator(windowKey, localAggregator.getAccumulators());
+    }
+
+    private void combineAccumulator(WindowKey windowKey, RowData acc) throws Exception {
+        // step 1: set current key for states and timers
+        keyContext.setCurrentKey(windowKey.getKey());
+        Long window = windowKey.getWindow();
 
         // step2: merge acc into state
         RowData stateAcc = accState.value(window);
@@ -113,7 +96,7 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
             stateAcc = globalAggregator.createAccumulators();
         }
         globalAggregator.setAccumulators(window, stateAcc);
-        globalAggregator.merge(window, mergedLocalAcc);
+        globalAggregator.merge(window, acc);
         stateAcc = globalAggregator.getAccumulators();
         accState.update(window, stateAcc);
 
@@ -136,26 +119,23 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
     // Factory
     // ----------------------------------------------------------------------------------------
 
-    /** Factory to create {@link GlobalAggAccCombiner}. */
-    public static final class Factory implements WindowCombineFunction.Factory {
+    /** Factory to create {@link GlobalAggCombiner}. */
+    public static final class Factory implements RecordsCombiner.Factory {
 
         private static final long serialVersionUID = 1L;
 
         private final GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler;
         private final GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler;
-        private final TypeSerializer<RowData> keySerializer;
 
         public Factory(
                 GeneratedNamespaceAggsHandleFunction<Long> genLocalAggsHandler,
-                GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler,
-                TypeSerializer<RowData> keySerializer) {
+                GeneratedNamespaceAggsHandleFunction<Long> genGlobalAggsHandler) {
             this.genLocalAggsHandler = genLocalAggsHandler;
             this.genGlobalAggsHandler = genGlobalAggsHandler;
-            this.keySerializer = keySerializer;
         }
 
         @Override
-        public WindowCombineFunction create(
+        public RecordsCombiner createRecordsCombiner(
                 RuntimeContext runtimeContext,
                 WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
@@ -172,16 +152,13 @@ public final class GlobalAggAccCombiner implements WindowCombineFunction {
             globalAggregator.open(
                     new PerWindowStateDataViewStore(
                             stateBackend, LongSerializer.INSTANCE, runtimeContext));
-            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
             WindowValueState<Long> windowValueState = (WindowValueState<Long>) windowState;
-            return new GlobalAggAccCombiner(
+            return new GlobalAggCombiner(
                     timerService,
                     stateBackend::setCurrentKey,
                     windowValueState,
                     localAggregator,
-                    globalAggregator,
-                    requiresCopy,
-                    keySerializer);
+                    globalAggregator);
         }
     }
 }

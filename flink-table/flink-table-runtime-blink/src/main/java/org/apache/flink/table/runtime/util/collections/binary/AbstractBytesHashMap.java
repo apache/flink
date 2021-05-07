@@ -194,12 +194,12 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
 
     /** Returns an iterator for iterating over the entries of this map. */
     @SuppressWarnings("WeakerAccess")
-    public KeyValueIterator<K, BinaryRowData> getEntryIterator() {
+    public KeyValueIterator<K, BinaryRowData> getEntryIterator(boolean requiresCopy) {
         if (destructiveIterator != null) {
             throw new IllegalArgumentException(
                     "DestructiveIterator is not null, so this method can't be invoke!");
         }
-        return ((RecordArea) recordArea).entryIterator();
+        return ((RecordArea) recordArea).entryIterator(requiresCopy);
     }
 
     /** @return the underlying memory segments of the hash map's record area */
@@ -329,8 +329,8 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
 
         // ----------------------- Iterator -----------------------
 
-        private KeyValueIterator<K, BinaryRowData> entryIterator() {
-            return new EntryIterator();
+        private KeyValueIterator<K, BinaryRowData> entryIterator(boolean requiresCopy) {
+            return new EntryIterator(requiresCopy);
         }
 
         private final class EntryIterator extends AbstractPagedInputView
@@ -338,10 +338,12 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
 
             private int count = 0;
             private int currentSegmentIndex = 0;
+            private final boolean requiresCopy;
 
-            private EntryIterator() {
+            private EntryIterator(boolean requiresCopy) {
                 super(segments.get(0), segmentSize, 0);
                 destructiveIterator = this;
+                this.requiresCopy = requiresCopy;
             }
 
             @Override
@@ -358,12 +360,12 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
 
             @Override
             public K getKey() {
-                return reusedKey;
+                return requiresCopy ? keySerializer.copy(reusedKey) : reusedKey;
             }
 
             @Override
             public BinaryRowData getValue() {
-                return reusedValue;
+                return requiresCopy ? reusedValue.copy() : reusedValue;
             }
 
             public boolean hasNext() {

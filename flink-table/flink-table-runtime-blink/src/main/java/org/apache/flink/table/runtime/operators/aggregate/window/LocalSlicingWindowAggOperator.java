@@ -26,16 +26,10 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
 import java.time.ZoneId;
 import java.util.TimeZone;
@@ -55,8 +49,7 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     private final RowDataKeySelector keySelector;
     private final SliceAssigner sliceAssigner;
     private final long windowInterval;
-    private final WindowBuffer.Factory windowBufferFactory;
-    private final WindowCombineFunction.LocalFactory combinerFactory;
+    private final WindowBuffer.LocalFactory windowBufferFactory;
 
     /**
      * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
@@ -88,29 +81,12 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     public LocalSlicingWindowAggOperator(
             RowDataKeySelector keySelector,
             SliceAssigner sliceAssigner,
-            PagedTypeSerializer<RowData> keySer,
-            AbstractRowDataSerializer<RowData> inputSer,
-            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
-            ZoneId shiftTimezone) {
-        this(
-                keySelector,
-                sliceAssigner,
-                new RecordsWindowBuffer.Factory(keySer, inputSer),
-                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer),
-                shiftTimezone);
-    }
-
-    public LocalSlicingWindowAggOperator(
-            RowDataKeySelector keySelector,
-            SliceAssigner sliceAssigner,
-            WindowBuffer.Factory windowBufferFactory,
-            WindowCombineFunction.LocalFactory combinerFactory,
+            WindowBuffer.LocalFactory windowBufferFactory,
             ZoneId shiftTimezone) {
         this.keySelector = keySelector;
         this.sliceAssigner = sliceAssigner;
         this.windowInterval = sliceAssigner.getSliceEndInterval();
         this.windowBufferFactory = windowBufferFactory;
-        this.combinerFactory = combinerFactory;
         this.shiftTimezone = shiftTimezone;
         this.useDayLightSaving = TimeZone.getTimeZone(shiftTimezone).useDaylightTime();
     }
@@ -123,14 +99,13 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
 
-        final WindowCombineFunction localCombiner =
-                combinerFactory.create(getRuntimeContext(), collector);
         this.windowBuffer =
                 windowBufferFactory.create(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
-                        localCombiner,
+                        getRuntimeContext(),
+                        collector,
                         shiftTimezone);
     }
 

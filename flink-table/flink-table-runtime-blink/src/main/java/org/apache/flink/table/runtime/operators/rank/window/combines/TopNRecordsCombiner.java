@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.TopNBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
 import org.apache.flink.table.runtime.operators.window.state.WindowMapState;
@@ -41,13 +41,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
-import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 
 /**
- * An implementation of {@link WindowCombineFunction} that save topN records of incremental input
- * records into the window state.
+ * An implementation of {@link RecordsCombiner} that save topN records of incremental input records
+ * into the window state.
  */
-public final class TopNRecordsCombiner implements WindowCombineFunction {
+public final class TopNRecordsCombiner implements RecordsCombiner {
 
     /** The service to register event-time or processing-time timers. */
     private final WindowTimerService<Long> timerService;
@@ -67,12 +66,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
     /** TopN size. */
     private final long topN;
 
-    /** Whether to copy input key, because key is reused. */
-    private final boolean requiresCopyKey;
-
-    /** Serializer to copy key if required. */
-    private final TypeSerializer<RowData> keySerializer;
-
     /** Serializer to copy record if required. */
     private final TypeSerializer<RowData> recordSerializer;
 
@@ -86,8 +79,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
             Comparator<RowData> sortKeyComparator,
             KeySelector<RowData, RowData> sortKeySelector,
             long topN,
-            boolean requiresCopyKey,
-            TypeSerializer<RowData> keySerializer,
             TypeSerializer<RowData> recordSerializer,
             boolean isEventTime) {
         this.timerService = timerService;
@@ -96,8 +87,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
         this.sortKeyComparator = sortKeyComparator;
         this.sortKeySelector = sortKeySelector;
         this.topN = topN;
-        this.requiresCopyKey = requiresCopyKey;
-        this.keySerializer = keySerializer;
         this.recordSerializer = recordSerializer;
         this.isEventTime = isEventTime;
     }
@@ -123,14 +112,7 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
 
         // step 2: flush data in TopNBuffer into state
         Iterator<Map.Entry<RowData, Collection<RowData>>> bufferItr = buffer.entrySet().iterator();
-        final RowData key;
-        if (requiresCopyKey) {
-            // the incoming key is reused, we should copy it if state backend doesn't copy it
-            key = keySerializer.copy(windowKey.getKey());
-        } else {
-            key = windowKey.getKey();
-        }
-        keyContext.setCurrentKey(key);
+        keyContext.setCurrentKey(windowKey.getKey());
         Long window = windowKey.getWindow();
         while (bufferItr.hasNext()) {
             Map.Entry<RowData, Collection<RowData>> entry = bufferItr.next();
@@ -158,32 +140,29 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
     // ----------------------------------------------------------------------------------------
 
     /** Factory to create {@link TopNRecordsCombiner}. */
-    public static final class Factory implements WindowCombineFunction.Factory {
+    public static final class Factory implements RecordsCombiner.Factory {
 
         private static final long serialVersionUID = 1L;
 
         // The util to compare two sortKey equals to each other.
         private final GeneratedRecordComparator generatedSortKeyComparator;
         private final KeySelector<RowData, RowData> sortKeySelector;
-        private final TypeSerializer<RowData> keySerializer;
         private final TypeSerializer<RowData> recordSerializer;
         private final long topN;
 
         public Factory(
                 GeneratedRecordComparator genSortKeyComparator,
                 RowDataKeySelector sortKeySelector,
-                TypeSerializer<RowData> keySerializer,
                 TypeSerializer<RowData> recordSerializer,
                 long topN) {
             this.generatedSortKeyComparator = genSortKeyComparator;
             this.sortKeySelector = sortKeySelector;
-            this.keySerializer = keySerializer;
             this.recordSerializer = recordSerializer;
             this.topN = topN;
         }
 
         @Override
-        public WindowCombineFunction create(
+        public RecordsCombiner createRecordsCombiner(
                 RuntimeContext runtimeContext,
                 WindowTimerService<Long> timerService,
                 KeyedStateBackend<RowData> stateBackend,
@@ -192,7 +171,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
                 throws Exception {
             final Comparator<RowData> sortKeyComparator =
                     generatedSortKeyComparator.newInstance(runtimeContext.getUserCodeClassLoader());
-            boolean requiresCopyKey = !isStateImmutableInStateBackend(stateBackend);
             WindowMapState<Long, List<RowData>> windowMapState =
                     (WindowMapState<Long, List<RowData>>) windowState;
             return new TopNRecordsCombiner(
@@ -202,8 +180,6 @@ public final class TopNRecordsCombiner implements WindowCombineFunction {
                     sortKeyComparator,
                     sortKeySelector,
                     topN,
-                    requiresCopyKey,
-                    keySerializer,
                     recordSerializer,
                     isEventTime);
         }

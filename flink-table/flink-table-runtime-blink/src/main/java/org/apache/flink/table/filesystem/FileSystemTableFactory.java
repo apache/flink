@@ -45,6 +45,8 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static java.time.ZoneId.SHORT_IDS;
+
 /**
  * File system {@link TableFactory}.
  *
@@ -106,6 +108,7 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         options.add(FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER);
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_DELAY);
+        options.add(FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE);
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_CLASS);
         options.add(FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
@@ -119,6 +122,20 @@ public class FileSystemTableFactory implements DynamicTableSourceFactory, Dynami
         // Except format options, some formats like parquet and orc can not list all supported
         // options.
         helper.validateExcept(helper.getOptions().get(FactoryUtil.FORMAT) + ".");
+
+        // validate time zone of watermark
+        String watermarkTimeZone =
+                helper.getOptions()
+                        .get(FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE);
+        if (watermarkTimeZone.startsWith("UTC+")
+                || watermarkTimeZone.startsWith("UTC-")
+                || SHORT_IDS.containsKey(watermarkTimeZone)) {
+            throw new ValidationException(
+                    String.format(
+                            "The supported watermark time zone is either a full name such as 'America/Los_Angeles',"
+                                    + " or a custom time zone id such as 'GMT-8:00', but configured time zone is '%s'.",
+                            watermarkTimeZone));
+        }
     }
 
     private <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(

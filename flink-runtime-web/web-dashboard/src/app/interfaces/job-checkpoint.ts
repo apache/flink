@@ -115,8 +115,11 @@ export interface CheckPointConfigInterface {
     enabled: boolean;
     delete_on_cancellation: boolean;
   };
+  state_backend: string;
+  checkpoint_storage: string;
   unaligned_checkpoints: boolean;
   tolerable_failed_checkpoints: number;
+  alignment_timeout: number;
 }
 
 export interface CheckPointDetailInterface {

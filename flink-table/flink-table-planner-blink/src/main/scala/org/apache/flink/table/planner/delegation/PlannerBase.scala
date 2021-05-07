@@ -51,19 +51,17 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_S
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-import org.apache.flink.table.utils.TableSchemaUtils
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.lang.{Long => JLong}
 import java.util
 import java.util.TimeZone
-
-import org.apache.calcite.rel.hint.RelHint
 
 import _root_.scala.collection.JavaConversions._
 
@@ -92,11 +90,6 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
-  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
-    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
-      plannerContext.createSqlExprToRexConverter(tableRowType)
-  }
-
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
@@ -109,6 +102,8 @@ abstract class PlannerBase(
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
+
+  private val sqlExprToRexConverterFactory = plannerContext.getSqlExprToRexConverterFactory
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
@@ -185,7 +180,7 @@ abstract class PlannerBase(
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(
           input,
-          sinkSchema,
+          catalogManager.getSchemaResolver.resolve(sinkSchema.toSchema),
           null,
           dataTypeFactory,
           getTypeFactory)
@@ -214,7 +209,7 @@ abstract class PlannerBase(
             // validate query schema and sink schema, and apply cast if possible
             val query = validateSchemaAndApplyImplicitCast(
               input,
-              TableSchemaUtils.getPhysicalSchema(table.getSchema),
+              table.getResolvedSchema,
               catalogSink.getTableIdentifier,
               dataTypeFactory,
               getTypeFactory)
@@ -259,7 +254,7 @@ abstract class PlannerBase(
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(
           input,
-          sinkPhysicalSchema,
+          catalogManager.getSchemaResolver.resolve(sinkPhysicalSchema.toSchema),
           null,
           dataTypeFactory,
           getTypeFactory)

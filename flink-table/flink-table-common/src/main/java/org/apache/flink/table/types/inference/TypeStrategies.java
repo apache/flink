@@ -69,6 +69,7 @@ public final class TypeStrategies {
     /** Placeholder for a missing type strategy. */
     public static final TypeStrategy MISSING = new MissingTypeStrategy();
 
+    /** Type strategy that returns a common, least restrictive type of all arguments. */
     public static final TypeStrategy COMMON = new CommonTypeStrategy();
 
     /** Type strategy that returns a fixed {@link DataType}. */
@@ -416,6 +417,21 @@ public final class TypeStrategies {
                     return Optional.of(inputDataType);
                 }
                 return Optional.of(nullReplacementDataType);
+            };
+
+    /** Type strategy specific for source watermarks that depend on the output type. */
+    public static final TypeStrategy SOURCE_WATERMARK =
+            callContext -> {
+                final DataType timestampDataType =
+                        callContext
+                                .getOutputDataType()
+                                .filter(
+                                        dt ->
+                                                hasFamily(
+                                                        dt.getLogicalType(),
+                                                        LogicalTypeFamily.TIMESTAMP))
+                                .orElse(DataTypes.TIMESTAMP_LTZ(3));
+                return Optional.of(timestampDataType);
             };
 
     /**

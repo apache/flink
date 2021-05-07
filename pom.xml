@@ -153,7 +153,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.13.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
 
@@ -1366,6 +1366,8 @@ under the License.
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<archive>
+						<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+						<addMavenDescriptor>false</addMavenDescriptor>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
@@ -1726,6 +1728,50 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- This section contains the core configuration that is applied to every jar that we create.-->
+					<filters combine.children="append">
+						<filter>
+							<artifact>*</artifact>
+							<excludes>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<exclude>log4j.properties</exclude>
+								<exclude>log4j2.properties</exclude>
+								<exclude>log4j-test.properties</exclude>
+								<exclude>log4j2-test.properties</exclude>
+								<!-- Do not copy the signatures in the META-INF folder.
+								Otherwise, this might cause SecurityExceptions when using the JAR. -->
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<!-- META-INF/maven can contain 2 things:
+									- For archetypes, it contains an archetype-metadata.xml.
+									- For other jars, it contains the pom for all dependencies under the respective <groupId>/<artifactId>/ directory.
+
+								 	We want to exclude the poms because they may be under an incompatible license,
+								 	however the archetype metadata is required and we need to keep that around.
+
+								 	This pattern excludes directories under META-INF/maven.
+								 	('?*/**' does not work because '**' also matches zero directories;
+								 	everything that matches '?*' also matches '?*/**')
+
+									The initial '**' allows the pattern to also work for multi-release jars that may contain such entries under
+									'META-INF/versions/11/META-INF/maven/'.
+								 	-->
+								<exclude>**/META-INF/maven/?*/?*/**</exclude>
+							</excludes>
+						</filter>
+					</filters>
+					<transformers combine.children="append">
+						<!-- The service transformer is needed to merge META-INF/services files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+						<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+							<projectName>Apache Flink</projectName>
+							<encoding>UTF-8</encoding>
+						</transformer>
+					</transformers>
+				</configuration>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -1740,16 +1786,6 @@ under the License.
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
 							<filters combine.children="append">
-								<!-- Globally exclude log4j.properties from our JAR files. -->
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j2.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>log4j2-test.properties</exclude>
-									</excludes>
-								</filter>
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
 								<filter>
 									<artifact>org.apache.flink:force-shading</artifact>
@@ -1776,15 +1812,6 @@ under the License.
 									<include>org.apache.flink:force-shading</include>
 								</includes>
 							</artifactSet>
-							<transformers combine.children="append">
-								<!-- The service transformer is needed to merge META-INF/services files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
-								</transformer>
-							</transformers>
 						</configuration>
 					</execution>
 				</executions>

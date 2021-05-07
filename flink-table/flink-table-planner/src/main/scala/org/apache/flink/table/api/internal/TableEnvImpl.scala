@@ -44,6 +44,7 @@ import org.apache.flink.table.parse.CalciteParser
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
@@ -112,7 +113,10 @@ abstract class TableEnvImpl(
     catalogManager.getDataTypeFactory,
     tableLookup,
     new SqlExpressionResolver {
-      override def resolveExpression(sqlExpression: String, inputSchema: TableSchema)
+      override def resolveExpression(
+          sqlExpression: String,
+          inputRowType: RowType,
+          outputType: LogicalType)
         : ResolvedExpression = {
             throw new UnsupportedOperationException(
               "SQL expression parsing is only supported in the Blink planner.")

@@ -1035,14 +1035,24 @@ public class AdaptiveScheduler
 
     @Override
     public void onFinished(ArchivedExecutionGraph archivedExecutionGraph) {
+
+        @Nullable
+        final Throwable optionalFailure =
+                archivedExecutionGraph.getFailureInfo() != null
+                        ? archivedExecutionGraph.getFailureInfo().getException()
+                        : null;
+        LOG.info(
+                "Job {} reached terminal state {}.",
+                archivedExecutionGraph.getJobID(),
+                archivedExecutionGraph.getState(),
+                optionalFailure);
+
         if (jobStatusListener != null) {
             jobStatusListener.jobStatusChanges(
                     jobInformation.getJobID(),
                     archivedExecutionGraph.getState(),
                     archivedExecutionGraph.getStatusTimestamp(archivedExecutionGraph.getState()),
-                    archivedExecutionGraph.getFailureInfo() != null
-                            ? archivedExecutionGraph.getFailureInfo().getException()
-                            : null);
+                    optionalFailure);
         }
 
         jobTerminationFuture.complete(archivedExecutionGraph.getState());
@@ -1058,7 +1068,7 @@ public class AdaptiveScheduler
         restartBackoffTimeStrategy.notifyFailure(failure);
         if (restartBackoffTimeStrategy.canRestart()) {
             return Executing.FailureResult.canRestart(
-                    Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
+                    failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
         } else {
             return Executing.FailureResult.canNotRestart(
                     new JobException(

@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -29,11 +28,15 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.parse.CalciteParser;
 import org.apache.flink.table.parse.ExtendedParser;
 import org.apache.flink.table.sqlexec.SqlToOperationConverter;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.advise.SqlAdvisor;
 import org.apache.calcite.sql.advise.SqlAdvisorValidator;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -105,7 +108,8 @@ public class ParserImpl implements Parser {
     }
 
     @Override
-    public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+    public ResolvedExpression parseSqlExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
         throw new UnsupportedOperationException(
                 "Computed columns is only supported by the Blink planner.");
     }

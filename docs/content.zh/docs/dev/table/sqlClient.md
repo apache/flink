@@ -215,7 +215,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to
-                                               a name can directory with the
+                                               a directory with the
                                                specified name. Otherwise, the
                                                archive file will be extracted to a
                                                directory with the same name of the
@@ -247,9 +247,9 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                (version >= 37.0.0). Please ensure
                                                that the specified environment meets
                                                the above requirements.
-         -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
-                                               The standard python resource file
-                                               suffixes such as .py/.egg/.zip or
+         -pyfs,--pyFiles <pythonFiles>         Attach custom files for job.
+                                               The standard resource file suffixes
+                                               such as .py/.egg/.zip/.whl or
                                                directory are all supported. These
                                                files will be added to the PYTHONPATH
                                                of both the local client and the
@@ -310,7 +310,7 @@ CREATE CATALOG MyCatalog
     'type' = 'hive'
   );
 
-USE MyCatalog;
+USE CATALOG MyCatalog;
 
 -- Define available database
 

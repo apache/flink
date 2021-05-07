@@ -55,6 +55,9 @@
           "properties" : {
             "web-submit" : {
               "type" : "boolean"
+            },
+            "web-cancel" : {
+              "type" : "boolean"
             }
           }
         }
@@ -1253,6 +1256,9 @@
           "type" : "boolean"
         },
         "tolerable_failed_checkpoints" : {
+          "type" : "integer"
+        },
+        "alignment_timeout" : {
           "type" : "integer"
         }
       }

@@ -82,18 +82,26 @@ public class NetworkActionsLogger {
     }
 
     public static void traceRecover(
-            String action, BufferConsumer bufferConsumer, ResultSubpartitionInfo channelInfo) {
+            String action,
+            BufferConsumer bufferConsumer,
+            String taskName,
+            ResultSubpartitionInfo channelInfo) {
         if (LOG.isTraceEnabled()) {
             LOG.trace(
-                    "{} {} @ {}", action, bufferConsumer.toDebugString(INCLUDE_HASH), channelInfo);
+                    "[{}] {} {} @ {}",
+                    taskName,
+                    action,
+                    bufferConsumer.toDebugString(INCLUDE_HASH),
+                    channelInfo);
         }
     }
 
     public static void tracePersist(
-            String action, Buffer buffer, Object channelInfo, long checkpointId) {
+            String action, Buffer buffer, String taskName, Object channelInfo, long checkpointId) {
         if (LOG.isTraceEnabled()) {
             LOG.trace(
-                    "{} {}, checkpoint {} @ {}",
+                    "[{}] {} {}, checkpoint {} @ {}",
+                    taskName,
                     action,
                     buffer.toDebugString(INCLUDE_HASH),
                     checkpointId,
