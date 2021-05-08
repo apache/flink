@@ -692,8 +692,8 @@ public class SlicingWindowAggOperatorTest {
 
         final SliceAssigner assigner =
                 SliceAssigners.tumbling(-1, shiftTimeZone, Duration.ofHours(5));
-        // the assigned windows should like as following, e.g. the given timeZone is GMT+8:00:
-        //  local windows(timestamp in GMT+8:00)   <=>  epoch windows(timestamp in UTC)
+        // the assigned windows should like as following, e.g. the given timeZone is GMT+08:00:
+        //  local windows(timestamp in GMT+08:00)   <=>  epoch windows(timestamp in UTC)
         // [1970-01-01 00:00, 1970-01-01 05:00] <=> [1969-12-31 16:00, 1969-12-31 21:00]
         // [1970-01-01 05:00, 1970-01-01 10:00] <=> [1969-12-31 21:00, 1970-01-01 02:00]
 
