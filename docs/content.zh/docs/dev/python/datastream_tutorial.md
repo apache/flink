@@ -83,7 +83,7 @@ ds = env.from_collection(
 
 ```python
 ds.add_sink(StreamingFileSink
-    .for_row_format('/tmp/output', SimpleStringEncoder())
+    .for_row_format('/tmp/output', Encoder.simple_string_encoder())
     .build())
 ```
 
@@ -96,7 +96,7 @@ env.execute("tutorial_job")
 完整的代码如下:
 
 ```python
-from pyflink.common.serialization import SimpleStringEncoder
+from pyflink.common.serialization import Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import StreamingFileSink
@@ -109,7 +109,7 @@ def tutorial():
         collection=[(1, 'aaa'), (2, 'bbb')],
         type_info=Types.ROW([Types.INT(), Types.STRING()]))
     ds.add_sink(StreamingFileSink
-                .for_row_format('/tmp/output', SimpleStringEncoder())
+                .for_row_format('/tmp/output', Encoder.simple_string_encoder())
                 .build())
     env.execute("tutorial_job")
 
