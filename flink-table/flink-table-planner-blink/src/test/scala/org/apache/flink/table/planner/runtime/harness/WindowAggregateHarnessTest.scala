@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -280,6 +282,82 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.setup(new RowDataSerializer(outputTypes: _*))
     // simulate a failover after a failed task open, expect no exception happens
     testHarness.close()
+  }
+
+  /**
+   * Processing time window doesn't support two-phase, so add a single two-phase test.
+    */
+  @Test
+  def testTwoPhaseWindowAggregateCloseWithoutOpen(): Unit = {
+    val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T2 (
+         | `ts` STRING,
+         | `int` INT,
+         | `double` DOUBLE,
+         | `float` FLOAT,
+         | `bigdec` DECIMAL(10, 2),
+         | `string` STRING,
+         | `name` STRING,
+         | `rowtime` AS
+         | TO_TIMESTAMP(`ts`),
+         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '${timestampDataId}',
+         | 'failing-source' = 'false'
+         |)
+         |""".stripMargin)
+
+    tEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  MAX(`double`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T2, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+    val stream: DataStream[Row] = t1.toAppendStream[Row]
+
+    val testHarness = createHarnessTesterForNoState(stream, "LocalWindowAggregate")
+    // window aggregate put window properties at the end of aggs
+    val outputTypes = Array(
+      DataTypes.STRING().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.DOUBLE().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
+    testHarness.setup(new RowDataSerializer(outputTypes: _*))
+
+    // simulate a failover after a failed task open, expect no exception happens
+    testHarness.close()
+
+    val testHarness1 = createHarnessTester(stream, "GlobalWindowAggregate")
+    // window aggregate put window properties at the end of aggs
+    val outputTypes1 = Array(
+      DataTypes.STRING().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.DOUBLE().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
+      DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
+    testHarness1.setup(new RowDataSerializer(outputTypes1: _*))
+
+    // simulate a failover after a failed task open, expect no exception happens
+    testHarness1.close()
+
+
   }
 
   /**
