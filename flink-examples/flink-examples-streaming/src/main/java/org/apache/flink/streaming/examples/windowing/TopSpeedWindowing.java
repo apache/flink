@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
@@ -66,7 +66,10 @@ public class TopSpeedWindowing {
         int evictionSec = 10;
         double triggerMeters = 50;
         DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds =
-                carData.assignTimestampsAndWatermarks(new CarTimestamp())
+                carData.assignTimestampsAndWatermarks(
+                            WatermarkStrategy
+                                .<Tuple4<Integer, Integer, Double, Long>>forMonotonousTimestamps()
+                                .withTimestampAssigner((element, recordTimestamp) -> element.f3))
                         .keyBy(value -> value.f0)
                         .window(GlobalWindows.create())
                         .evictor(TimeEvictor.of(Time.of(evictionSec, TimeUnit.SECONDS)))
@@ -171,13 +174,5 @@ public class TopSpeedWindowing {
         }
     }
 
-    private static class CarTimestamp
-            extends AscendingTimestampExtractor<Tuple4<Integer, Integer, Double, Long>> {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public long extractAscendingTimestamp(Tuple4<Integer, Integer, Double, Long> element) {
-            return element.f3;
-        }
-    }
+    
 }
