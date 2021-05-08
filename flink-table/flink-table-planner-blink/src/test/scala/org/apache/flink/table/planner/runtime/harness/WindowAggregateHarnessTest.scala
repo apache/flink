@@ -27,10 +27,11 @@ import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills
-
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind.INSERT
 
@@ -84,30 +85,8 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
    */
   @Test
   def testProcessingTimeTumbleWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  MAX(`double`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
-    // window aggregate put window properties at the end of aggs
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.DOUBLE().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-        DataTypes.TIMESTAMP_LTZ(3).getLogicalType))
+    val (testHarness, outputTypes) = createProcessingTimeTumbleWindowOperator
+    val assertor = new RowDataHarnessAssertor(outputTypes)
 
     testHarness.open()
     ingestData(testHarness)
@@ -128,6 +107,35 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
     testHarness.close()
+  }
+
+  private def createProcessingTimeTumbleWindowOperator()
+    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  MAX(`double`),
+        |  COUNT(DISTINCT `string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(proctime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
+    // window aggregate put window properties at the end of aggs
+    val outputTypes =
+      Array(
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.DOUBLE().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
+        DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
+    (testHarness, outputTypes)
   }
 
   /**
@@ -263,6 +271,14 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
 
     assertor.assertOutputEqualsSorted("result mismatch", expected, testHarness.getOutput)
 
+    testHarness.close()
+  }
+
+  @Test
+  def testCloseWithoutOpen(): Unit = {
+    val (testHarness, outputTypes) = createProcessingTimeTumbleWindowOperator
+    testHarness.setup(new RowDataSerializer(outputTypes: _*))
+    // simulate a failover after a failed task open, expect no exception happens
     testHarness.close()
   }
 
