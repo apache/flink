@@ -37,91 +37,96 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link ListViewSerializerSnapshot}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link ListViewSerializerSnapshot}. */
 @RunWith(Parameterized.class)
-public class ListViewSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<ListView<String>, ListView<String>> {
+public class ListViewSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<ListView<String>, ListView<String>> {
 
-	private static final String SPEC_NAME = "list-view-serializer";
+    private static final String SPEC_NAME = "list-view-serializer";
 
-	public ListViewSerializerUpgradeTest(TestSpecification<ListView<String>, ListView<String>> testSpecification) {
-		super(testSpecification);
-	}
+    public ListViewSerializerUpgradeTest(
+            TestSpecification<ListView<String>, ListView<String>> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					ListViewSerializerSetup.class,
-					ListViewSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            ListViewSerializerSetup.class,
+                            ListViewSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "list-view-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "list-view-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ListViewSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<ListView<String>> {
-		@Override
-		public TypeSerializer<ListView<String>> createPriorSerializer() {
-			return new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE));
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ListViewSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<ListView<String>> {
+        @Override
+        public TypeSerializer<ListView<String>> createPriorSerializer() {
+            return new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE));
+        }
 
-		@Override
-		public ListView<String> createTestData() {
-			return mockTestData();
-		}
-	}
+        @Override
+        public ListView<String> createTestData() {
+            return mockTestData();
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class ListViewSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<ListView<String>> {
-		@Override
-		public TypeSerializer<ListView<String>> createUpgradedSerializer() {
-			return new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE));
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class ListViewSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<ListView<String>> {
+        @Override
+        public TypeSerializer<ListView<String>> createUpgradedSerializer() {
+            return new ListViewSerializer<>(new ListSerializer<>(StringSerializer.INSTANCE));
+        }
 
-		@Override
-		public Matcher<ListView<String>> testDataMatcher() {
-			// ListViewSerializer will not (de)serialize the TypeInformation, so we have to create
-			// a ListView without TypeInformation for comparison
-			return is(mockTestDataWithoutTypeInfo());
-		}
+        @Override
+        public Matcher<ListView<String>> testDataMatcher() {
+            // ListViewSerializer will not (de)serialize the TypeInformation, so we have to create
+            // a ListView without TypeInformation for comparison
+            return is(mockTestDataWithoutTypeInfo());
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<ListView<String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<ListView<String>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	public static ListView<String> mockTestData() {
-		ListView<String> view = new ListView<>(TypeInformation.of(String.class));
-		try {
-			view.add("ApacheFlink");
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		return view;
-	}
+    public static ListView<String> mockTestData() {
+        ListView<String> view = new ListView<>(TypeInformation.of(String.class));
+        try {
+            view.add("ApacheFlink");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return view;
+    }
 
-	public static ListView<String> mockTestDataWithoutTypeInfo() {
-		ListView<String> view = new ListView<>();
-		try {
-			view.add("ApacheFlink");
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		return view;
-	}
+    public static ListView<String> mockTestDataWithoutTypeInfo() {
+        ListView<String> view = new ListView<>();
+        try {
+            view.add("ApacheFlink");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return view;
+    }
 }

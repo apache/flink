@@ -31,134 +31,157 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Utility class for converting between Flink {@link TaskExecutorProcessSpec} and Yarn {@link Resource} and {@link Priority}.
+ * Utility class for converting between Flink {@link TaskExecutorProcessSpec} and Yarn {@link
+ * Resource} and {@link Priority}.
  */
 public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorProcessSpecContainerResourcePriorityAdapter.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(TaskExecutorProcessSpecContainerResourcePriorityAdapter.class);
 
-	private final Map<TaskExecutorProcessSpec, PriorityAndResource> taskExecutorProcessSpecToPriorityAndResource;
-	private final Map<Priority, TaskExecutorProcessSpec> priorityToTaskExecutorProcessSpec;
+    private final Map<TaskExecutorProcessSpec, PriorityAndResource>
+            taskExecutorProcessSpecToPriorityAndResource;
+    private final Map<Priority, TaskExecutorProcessSpec> priorityToTaskExecutorProcessSpec;
 
-	private final Resource maxContainerResource;
-	private final Map<String, Long> externalResourceConfigs;
+    private final Resource maxContainerResource;
+    private final Map<String, Long> maxExternalResources;
+    private final Map<String, String> externalResourceConfigKeys;
 
-	private int nextPriority = 1;
+    private int nextPriority = 1;
 
-	TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-			final Resource maxContainerResource,
-			final Map<String, Long> externalResourceConfigs) {
-		this.maxContainerResource = Preconditions.checkNotNull(maxContainerResource);
-		this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
+    TaskExecutorProcessSpecContainerResourcePriorityAdapter(
+            final Resource maxContainerResource,
+            final Map<String, String> externalResourceConfigKeys) {
+        this.maxContainerResource = Preconditions.checkNotNull(maxContainerResource);
+        this.externalResourceConfigKeys = Preconditions.checkNotNull(externalResourceConfigKeys);
 
-		taskExecutorProcessSpecToPriorityAndResource = new HashMap<>();
-		priorityToTaskExecutorProcessSpec = new HashMap<>();
+        taskExecutorProcessSpecToPriorityAndResource = new HashMap<>();
+        priorityToTaskExecutorProcessSpec = new HashMap<>();
+        maxExternalResources =
+                ResourceInformationReflector.INSTANCE.getExternalResources(maxContainerResource);
+    }
 
-		validateExternalResourceConfigs();
-	}
+    Optional<PriorityAndResource> getPriorityAndResource(
+            final TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        tryAdaptAndAddTaskExecutorResourceSpecIfNotExist(taskExecutorProcessSpec);
+        return Optional.ofNullable(
+                taskExecutorProcessSpecToPriorityAndResource.get(taskExecutorProcessSpec));
+    }
 
-	Optional<PriorityAndResource> getPriorityAndResource(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		tryAdaptAndAddTaskExecutorResourceSpecIfNotExist(taskExecutorProcessSpec);
-		return Optional.ofNullable(taskExecutorProcessSpecToPriorityAndResource.get(taskExecutorProcessSpec));
-	}
+    Optional<TaskExecutorProcessSpecAndResource> getTaskExecutorProcessSpecAndResource(
+            Priority priority) {
+        final TaskExecutorProcessSpec taskExecutorProcessSpec =
+                priorityToTaskExecutorProcessSpec.get(priority);
 
-	Optional<TaskExecutorProcessSpecAndResource> getTaskExecutorProcessSpecAndResource(Priority priority) {
-		final TaskExecutorProcessSpec taskExecutorProcessSpec = priorityToTaskExecutorProcessSpec.get(priority);
+        if (taskExecutorProcessSpec == null) {
+            return Optional.empty();
+        }
 
-		if (taskExecutorProcessSpec == null) {
-			return Optional.empty();
-		}
+        final PriorityAndResource priorityAndResource =
+                taskExecutorProcessSpecToPriorityAndResource.get(taskExecutorProcessSpec);
+        Preconditions.checkState(priorityAndResource != null);
+        Preconditions.checkState(priority.equals(priorityAndResource.getPriority()));
 
-		final PriorityAndResource priorityAndResource = taskExecutorProcessSpecToPriorityAndResource.get(taskExecutorProcessSpec);
-		Preconditions.checkState(priorityAndResource != null);
-		Preconditions.checkState(priority.equals(priorityAndResource.getPriority()));
+        return Optional.of(
+                new TaskExecutorProcessSpecAndResource(
+                        taskExecutorProcessSpec, priorityAndResource.getResource()));
+    }
 
-		return Optional.of(new TaskExecutorProcessSpecAndResource(taskExecutorProcessSpec, priorityAndResource.getResource()));
-	}
+    private void validateExternalResourceConfig(String configKey, long value) {
+        Preconditions.checkState(
+                maxExternalResources.containsKey(configKey),
+                "External resource %s is not supported by the Yarn cluster.",
+                configKey);
+        Preconditions.checkState(
+                value <= maxExternalResources.get(configKey),
+                "Configured value for external resource %s (%s) exceeds the max limitation of the Yarn cluster (%s).",
+                configKey,
+                value,
+                maxExternalResources.get(configKey));
+    }
 
-	private void validateExternalResourceConfigs() {
-		final Map<String, Long> maxExternalResources =
-			ResourceInformationReflector.INSTANCE.getExternalResources(maxContainerResource);
-		for (Map.Entry<String, Long> entry : externalResourceConfigs.entrySet()) {
-			final String resourceName = entry.getKey();
-			final long configuredValue = entry.getValue();
-			Preconditions.checkState(maxExternalResources.containsKey(resourceName),
-				"External resource %s is not supported by the Yarn cluster.",
-				resourceName);
-			Preconditions.checkState(configuredValue <= maxExternalResources.get(resourceName),
-				"Configured value for external resource %s (%s) exceeds the max limitation of the Yarn cluster (%s).",
-				resourceName,
-				configuredValue,
-				maxExternalResources.get(resourceName));
-		}
-	}
+    private void tryAdaptAndAddTaskExecutorResourceSpecIfNotExist(
+            final TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        if (!taskExecutorProcessSpecToPriorityAndResource.containsKey(taskExecutorProcessSpec)) {
+            tryAdaptResource(taskExecutorProcessSpec)
+                    .ifPresent(
+                            (resource) -> {
+                                final Priority priority = Priority.newInstance(nextPriority++);
+                                taskExecutorProcessSpecToPriorityAndResource.put(
+                                        taskExecutorProcessSpec,
+                                        new PriorityAndResource(priority, resource));
+                                priorityToTaskExecutorProcessSpec.put(
+                                        priority, taskExecutorProcessSpec);
+                            });
+        }
+    }
 
-	private void tryAdaptAndAddTaskExecutorResourceSpecIfNotExist(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		if (!taskExecutorProcessSpecToPriorityAndResource.containsKey(taskExecutorProcessSpec)) {
-			tryAdaptResource(taskExecutorProcessSpec)
-				.ifPresent((resource) -> {
-					final Priority priority = Priority.newInstance(nextPriority++);
-					taskExecutorProcessSpecToPriorityAndResource.put(
-						taskExecutorProcessSpec, new PriorityAndResource(priority, resource));
-					priorityToTaskExecutorProcessSpec.put(priority, taskExecutorProcessSpec);
-				});
-		}
-	}
+    private Optional<Resource> tryAdaptResource(
+            final TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        final Resource resource =
+                Resource.newInstance(
+                        taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(),
+                        taskExecutorProcessSpec.getCpuCores().getValue().intValue());
 
-	private Optional<Resource> tryAdaptResource(final TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		final Resource resource = Resource.newInstance(
-			taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(),
-			taskExecutorProcessSpec.getCpuCores().getValue().intValue());
+        if (resource.getMemory() > maxContainerResource.getMemory()
+                || resource.getVirtualCores() > maxContainerResource.getVirtualCores()) {
+            LOG.warn(
+                    "Requested container resource ({}) exceeds the max limitation of the Yarn cluster ({}). Will not allocate resource.",
+                    resource,
+                    maxContainerResource);
+            return Optional.empty();
+        }
 
-		if (resource.getMemory() > maxContainerResource.getMemory() ||
-			resource.getVirtualCores() > maxContainerResource.getVirtualCores()) {
-			LOG.warn("Requested container resource ({}) exceeds the max limitation of the Yarn cluster ({}). Will not allocate resource.",
-				resource,
-				maxContainerResource);
-			return Optional.empty();
-		}
+        taskExecutorProcessSpec
+                .getExtendedResources()
+                .forEach(
+                        (resourceName, externalResource) -> {
+                            final String configKey = externalResourceConfigKeys.get(resourceName);
+                            final long value = externalResource.getValue().longValue();
+                            if (configKey != null) {
+                                validateExternalResourceConfig(configKey, value);
+                                ResourceInformationReflector.INSTANCE.setResourceInformation(
+                                        resource, configKey, value);
+                            }
+                        });
 
-		for (Map.Entry<String, Long> externalResource: externalResourceConfigs.entrySet()) {
-			ResourceInformationReflector.INSTANCE.setResourceInformation(
-				resource, externalResource.getKey(), externalResource.getValue());
-		}
+        return Optional.of(resource);
+    }
 
-		return Optional.of(resource);
-	}
+    class PriorityAndResource {
+        private final Priority priority;
+        private final Resource resource;
 
-	class PriorityAndResource {
-		private final Priority priority;
-		private final Resource resource;
+        private PriorityAndResource(Priority priority, Resource resource) {
+            this.priority = Preconditions.checkNotNull(priority);
+            this.resource = Preconditions.checkNotNull(resource);
+        }
 
-		private PriorityAndResource(Priority priority, Resource resource) {
-			this.priority = Preconditions.checkNotNull(priority);
-			this.resource = Preconditions.checkNotNull(resource);
-		}
+        Priority getPriority() {
+            return priority;
+        }
 
-		Priority getPriority() {
-			return priority;
-		}
+        Resource getResource() {
+            return resource;
+        }
+    }
 
-		Resource getResource() {
-			return resource;
-		}
-	}
+    class TaskExecutorProcessSpecAndResource {
+        private final TaskExecutorProcessSpec taskExecutorProcessSpec;
+        private final Resource resource;
 
-	class TaskExecutorProcessSpecAndResource {
-		private final TaskExecutorProcessSpec taskExecutorProcessSpec;
-		private final Resource resource;
+        private TaskExecutorProcessSpecAndResource(
+                TaskExecutorProcessSpec taskExecutorProcessSpec, Resource resource) {
+            this.taskExecutorProcessSpec = Preconditions.checkNotNull(taskExecutorProcessSpec);
+            this.resource = Preconditions.checkNotNull(resource);
+        }
 
-		private TaskExecutorProcessSpecAndResource(TaskExecutorProcessSpec taskExecutorProcessSpec, Resource resource) {
-			this.taskExecutorProcessSpec = Preconditions.checkNotNull(taskExecutorProcessSpec);
-			this.resource = Preconditions.checkNotNull(resource);
-		}
+        TaskExecutorProcessSpec getTaskExecutorProcessSpec() {
+            return taskExecutorProcessSpec;
+        }
 
-		TaskExecutorProcessSpec getTaskExecutorProcessSpec() {
-			return taskExecutorProcessSpec;
-		}
-
-		Resource getResource() {
-			return resource;
-		}
-	}
+        Resource getResource() {
+            return resource;
+        }
+    }
 }

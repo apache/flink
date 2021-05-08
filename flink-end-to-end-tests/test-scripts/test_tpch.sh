@@ -83,7 +83,7 @@ EOF
         SQL_STATEMENT="INSERT INTO q$i $(cat "$ORIGIN_QUERY_DIR/q$i.sql")"
     fi
 
-    JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" embedded \
+    JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" \
         --environment "$SQL_CONF" \
         --update "$SQL_STATEMENT" | grep "Job ID:" | sed 's/.* //g')
 

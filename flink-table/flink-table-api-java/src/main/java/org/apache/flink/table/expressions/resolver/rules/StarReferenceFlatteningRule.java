@@ -29,37 +29,37 @@ import java.util.stream.Collectors;
 import static java.util.Collections.singletonList;
 
 /**
- * Replaces '*' with all available {@link org.apache.flink.table.expressions.FieldReferenceExpression}s
- * from underlying inputs.
+ * Replaces '*' with all available {@link
+ * org.apache.flink.table.expressions.FieldReferenceExpression}s from underlying inputs.
  */
 @Internal
 final class StarReferenceFlatteningRule implements ResolverRule {
 
-	@Override
-	public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-		return expression.stream()
-			.flatMap(expr -> expr.accept(new FieldFlatteningVisitor(context)).stream())
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        return expression.stream()
+                .flatMap(expr -> expr.accept(new FieldFlatteningVisitor(context)).stream())
+                .collect(Collectors.toList());
+    }
 
-	private static class FieldFlatteningVisitor extends RuleExpressionVisitor<List<Expression>> {
+    private static class FieldFlatteningVisitor extends RuleExpressionVisitor<List<Expression>> {
 
-		FieldFlatteningVisitor(ResolutionContext resolutionContext) {
-			super(resolutionContext);
-		}
+        FieldFlatteningVisitor(ResolutionContext resolutionContext) {
+            super(resolutionContext);
+        }
 
-		@Override
-		public List<Expression> visit(UnresolvedReferenceExpression unresolvedReference) {
-			if (unresolvedReference.getName().equals("*")) {
-				return new ArrayList<>(resolutionContext.referenceLookup().getAllInputFields());
-			} else {
-				return singletonList(unresolvedReference);
-			}
-		}
+        @Override
+        public List<Expression> visit(UnresolvedReferenceExpression unresolvedReference) {
+            if (unresolvedReference.getName().equals("*")) {
+                return new ArrayList<>(resolutionContext.referenceLookup().getAllInputFields());
+            } else {
+                return singletonList(unresolvedReference);
+            }
+        }
 
-		@Override
-		protected List<Expression> defaultMethod(Expression expression) {
-			return singletonList(expression);
-		}
-	}
+        @Override
+        protected List<Expression> defaultMethod(Expression expression) {
+            return singletonList(expression);
+        }
+    }
 }

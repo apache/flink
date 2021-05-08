@@ -18,10 +18,10 @@
 
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
 
 /**
  * The collection of access methods that can be used to retrieve statistical information about the
@@ -29,41 +29,39 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
  * statistics.
  */
 public class DataStatistics {
-	
-	private final Map<String, BaseStatistics> baseStatisticsCache;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Creates a new statistics object, with an empty cache. 
-	 */
-	public DataStatistics() {
-		this.baseStatisticsCache = new HashMap<String, BaseStatistics>();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Gets the base statistics for the input identified by the given identifier.
-	 *  
-	 * @param inputIdentifier The identifier for the input.
-	 * @return The statistics that were cached for this input.
-	 */
-	public BaseStatistics getBaseStatistics(String inputIdentifier) {
-		synchronized (this.baseStatisticsCache) {
-			return this.baseStatisticsCache.get(inputIdentifier);
-		}
-	}
-	
-	/**
-	 * Caches the given statistics. They are later retrievable under the given identifier.
-	 * 
-	 * @param statistics The statistics to cache.
-	 * @param identifier The identifier which may be later used to retrieve the statistics.
-	 */
-	public void cacheBaseStatistics(BaseStatistics statistics, String identifier) {
-		synchronized (this.baseStatisticsCache) {
-			this.baseStatisticsCache.put(identifier, statistics);
-		}
-	}
+
+    private final Map<String, BaseStatistics> baseStatisticsCache;
+
+    // --------------------------------------------------------------------------------------------
+
+    /** Creates a new statistics object, with an empty cache. */
+    public DataStatistics() {
+        this.baseStatisticsCache = new HashMap<String, BaseStatistics>();
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Gets the base statistics for the input identified by the given identifier.
+     *
+     * @param inputIdentifier The identifier for the input.
+     * @return The statistics that were cached for this input.
+     */
+    public BaseStatistics getBaseStatistics(String inputIdentifier) {
+        synchronized (this.baseStatisticsCache) {
+            return this.baseStatisticsCache.get(inputIdentifier);
+        }
+    }
+
+    /**
+     * Caches the given statistics. They are later retrievable under the given identifier.
+     *
+     * @param statistics The statistics to cache.
+     * @param identifier The identifier which may be later used to retrieve the statistics.
+     */
+    public void cacheBaseStatistics(BaseStatistics statistics, String identifier) {
+        synchronized (this.baseStatisticsCache) {
+            this.baseStatisticsCache.put(identifier, statistics);
+        }
+    }
 }

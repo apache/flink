@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { JobDetailCorrectInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
+import {JobService, StatusService} from 'services';
 
 @Component({
   selector: 'flink-job-status',
@@ -56,6 +56,8 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     }
   ];
 
+  webCancelEnabled = this.statusService.configuration.features["web-cancel"];
+
   cancelJob() {
     this.jobService.cancelJob(this.jobDetail.jid).subscribe(() => {
       this.statusTips = 'Cancelling...';
@@ -63,7 +65,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     });
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  constructor(private jobService: JobService, public statusService: StatusService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     const jobDetail$ = this.jobService.jobDetail$.pipe(takeUntil(this.destroy$));

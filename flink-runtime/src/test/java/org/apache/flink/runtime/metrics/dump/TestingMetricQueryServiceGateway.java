@@ -26,56 +26,60 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-/**
- * Testing implementation of the {@link MetricQueryServiceGateway}.
- */
+/** Testing implementation of the {@link MetricQueryServiceGateway}. */
 public class TestingMetricQueryServiceGateway implements MetricQueryServiceGateway {
 
-	@Nonnull
-	private final Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>> queryMetricsSupplier;
+    @Nonnull
+    private final Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>>
+            queryMetricsSupplier;
 
-	@Nonnull
-	private final String address;
+    @Nonnull private final String address;
 
-	public TestingMetricQueryServiceGateway(@Nonnull Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>> queryMetricsSupplier, @Nonnull String address) {
-		this.queryMetricsSupplier = queryMetricsSupplier;
-		this.address = address;
-	}
+    public TestingMetricQueryServiceGateway(
+            @Nonnull
+                    Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>>
+                            queryMetricsSupplier,
+            @Nonnull String address) {
+        this.queryMetricsSupplier = queryMetricsSupplier;
+        this.address = address;
+    }
 
-	@Override
-	public CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(Time timeout) {
-		return queryMetricsSupplier.get();
-	}
+    @Override
+    public CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(
+            Time timeout) {
+        return queryMetricsSupplier.get();
+    }
 
-	@Override
-	public String getAddress() {
-		return address;
-	}
+    @Override
+    public String getAddress() {
+        return address;
+    }
 
-	@Override
-	public String getHostname() {
-		return "localhost";
-	}
+    @Override
+    public String getHostname() {
+        return "localhost";
+    }
 
-	/**
-	 * Builder for the {@link TestingMetricQueryServiceGateway}.
-	 */
-	public static class Builder {
-		private Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>> queryMetricsSupplier = CompletableFuture::new;
-		private String address = "localhost";
+    /** Builder for the {@link TestingMetricQueryServiceGateway}. */
+    public static class Builder {
+        private Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>>
+                queryMetricsSupplier = CompletableFuture::new;
+        private String address = "localhost";
 
-		public Builder setQueryMetricsSupplier(Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>> queryMetricsSupplier) {
-			this.queryMetricsSupplier = queryMetricsSupplier;
-			return this;
-		}
+        public Builder setQueryMetricsSupplier(
+                Supplier<CompletableFuture<MetricDumpSerialization.MetricSerializationResult>>
+                        queryMetricsSupplier) {
+            this.queryMetricsSupplier = queryMetricsSupplier;
+            return this;
+        }
 
-		public Builder setAddress(String address) {
-			this.address = address;
-			return this;
-		}
+        public Builder setAddress(String address) {
+            this.address = address;
+            return this;
+        }
 
-		public TestingMetricQueryServiceGateway build() {
-			return new TestingMetricQueryServiceGateway(queryMetricsSupplier, address);
-		}
-	}
+        public TestingMetricQueryServiceGateway build() {
+            return new TestingMetricQueryServiceGateway(queryMetricsSupplier, address);
+        }
+    }
 }

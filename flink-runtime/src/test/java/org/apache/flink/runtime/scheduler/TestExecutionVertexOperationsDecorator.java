@@ -36,46 +36,46 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOperations {
 
-	private final ExecutionVertexOperations delegate;
+    private final ExecutionVertexOperations delegate;
 
-	private final List<ExecutionVertexID> deployedVertices = new ArrayList<>();
+    private final List<ExecutionVertexID> deployedVertices = new ArrayList<>();
 
-	private boolean failDeploy;
+    private boolean failDeploy;
 
-	public TestExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
-		this.delegate = checkNotNull(delegate);
-	}
+    public TestExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
+        this.delegate = checkNotNull(delegate);
+    }
 
-	@Override
-	public void deploy(final ExecutionVertex executionVertex) throws JobException {
-		deployedVertices.add(executionVertex.getID());
+    @Override
+    public void deploy(final ExecutionVertex executionVertex) throws JobException {
+        deployedVertices.add(executionVertex.getID());
 
-		if (failDeploy) {
-			throw new RuntimeException("Expected");
-		}
+        if (failDeploy) {
+            throw new RuntimeException("Expected");
+        }
 
-		delegate.deploy(executionVertex);
-	}
+        delegate.deploy(executionVertex);
+    }
 
-	@Override
-	public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
-		return delegate.cancel(executionVertex);
-	}
+    @Override
+    public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
+        return delegate.cancel(executionVertex);
+    }
 
-	@Override
-	public void markFailed(ExecutionVertex executionVertex, Throwable cause) {
-		delegate.markFailed(executionVertex, cause);
-	}
+    @Override
+    public void markFailed(ExecutionVertex executionVertex, Throwable cause) {
+        delegate.markFailed(executionVertex, cause);
+    }
 
-	public void enableFailDeploy() {
-		failDeploy = true;
-	}
+    public void enableFailDeploy() {
+        failDeploy = true;
+    }
 
-	public void disableFailDeploy() {
-		failDeploy = false;
-	}
+    public void disableFailDeploy() {
+        failDeploy = false;
+    }
 
-	public List<ExecutionVertexID> getDeployedVertices() {
-		return Collections.unmodifiableList(deployedVertices);
-	}
+    public List<ExecutionVertexID> getDeployedVertices() {
+        return Collections.unmodifiableList(deployedVertices);
+    }
 }

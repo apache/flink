@@ -29,48 +29,46 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-/**
- * Represents a bulk of physical slot requests.
- */
+/** Represents a bulk of physical slot requests. */
 class PhysicalSlotRequestBulkImpl implements PhysicalSlotRequestBulk {
 
-	private final Map<SlotRequestId, ResourceProfile> pendingRequests;
+    private final Map<SlotRequestId, ResourceProfile> pendingRequests;
 
-	private final Map<SlotRequestId, AllocationID> fulfilledRequests = new HashMap<>();
+    private final Map<SlotRequestId, AllocationID> fulfilledRequests = new HashMap<>();
 
-	private final BiConsumer<SlotRequestId, Throwable> canceller;
+    private final BiConsumer<SlotRequestId, Throwable> canceller;
 
-	PhysicalSlotRequestBulkImpl(
-			Map<SlotRequestId, ResourceProfile> physicalSlotRequests,
-			BiConsumer<SlotRequestId, Throwable> canceller) {
-		this.pendingRequests = new HashMap<>(physicalSlotRequests);
-		this.canceller = canceller;
-	}
+    PhysicalSlotRequestBulkImpl(
+            Map<SlotRequestId, ResourceProfile> physicalSlotRequests,
+            BiConsumer<SlotRequestId, Throwable> canceller) {
+        this.pendingRequests = new HashMap<>(physicalSlotRequests);
+        this.canceller = canceller;
+    }
 
-	void markRequestFulfilled(final SlotRequestId slotRequestId, final AllocationID allocationID) {
-		pendingRequests.remove(slotRequestId);
-		fulfilledRequests.put(slotRequestId, allocationID);
-	}
+    void markRequestFulfilled(final SlotRequestId slotRequestId, final AllocationID allocationID) {
+        pendingRequests.remove(slotRequestId);
+        fulfilledRequests.put(slotRequestId, allocationID);
+    }
 
-	@Override
-	public Collection<ResourceProfile> getPendingRequests() {
-		return pendingRequests.values();
-	}
+    @Override
+    public Collection<ResourceProfile> getPendingRequests() {
+        return pendingRequests.values();
+    }
 
-	@Override
-	public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
-		return new HashSet<>(fulfilledRequests.values());
-	}
+    @Override
+    public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
+        return new HashSet<>(fulfilledRequests.values());
+    }
 
-	@Override
-	public void cancel(Throwable cause) {
-		// pending requests must be canceled first otherwise they might be fulfilled by
-		// allocated slots released from this bulk
-		for (SlotRequestId slotRequestId : pendingRequests.keySet()) {
-			canceller.accept(slotRequestId, cause);
-		}
-		for (SlotRequestId slotRequestId : fulfilledRequests.keySet()) {
-			canceller.accept(slotRequestId, cause);
-		}
-	}
+    @Override
+    public void cancel(Throwable cause) {
+        // pending requests must be canceled first otherwise they might be fulfilled by
+        // allocated slots released from this bulk
+        for (SlotRequestId slotRequestId : pendingRequests.keySet()) {
+            canceller.accept(slotRequestId, cause);
+        }
+        for (SlotRequestId slotRequestId : fulfilledRequests.keySet()) {
+            canceller.accept(slotRequestId, cause);
+        }
+    }
 }

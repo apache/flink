@@ -31,20 +31,17 @@ import javax.annotation.Nullable;
 @Internal
 public abstract class RecyclableIterator<E> implements BulkFormat.RecordIterator<E> {
 
-	@Nullable
-	private final Runnable recycler;
+    @Nullable private final Runnable recycler;
 
-	/**
-	 * Creates a {@code RecyclableIterator} with the given optional recycler.
-	 */
-	protected RecyclableIterator(@Nullable Runnable recycler) {
-		this.recycler = recycler;
-	}
+    /** Creates a {@code RecyclableIterator} with the given optional recycler. */
+    protected RecyclableIterator(@Nullable Runnable recycler) {
+        this.recycler = recycler;
+    }
 
-	@Override
-	public void releaseBatch() {
-		if (recycler != null) {
-			recycler.run();
-		}
-	}
+    @Override
+    public void releaseBatch() {
+        if (recycler != null) {
+            recycler.run();
+        }
+    }
 }

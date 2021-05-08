@@ -38,81 +38,85 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Strategy for inferring and validating a function signature like {@code f(STRING, NUMERIC)}
- * or {@code f(s STRING, n NUMERIC)} using a sequence of {@link ArgumentTypeStrategy}s.
+ * Strategy for inferring and validating a function signature like {@code f(STRING, NUMERIC)} or
+ * {@code f(s STRING, n NUMERIC)} using a sequence of {@link ArgumentTypeStrategy}s.
  */
 @Internal
 public final class SequenceInputTypeStrategy implements InputTypeStrategy {
 
-	private final List<? extends ArgumentTypeStrategy> argumentStrategies;
+    private final List<? extends ArgumentTypeStrategy> argumentStrategies;
 
-	private final @Nullable List<String> argumentNames;
+    private final @Nullable List<String> argumentNames;
 
-	public SequenceInputTypeStrategy(
-			List<? extends ArgumentTypeStrategy> argumentStrategies,
-			@Nullable List<String> argumentNames) {
-		Preconditions.checkArgument(argumentNames == null || argumentNames.size() == argumentStrategies.size());
-		this.argumentStrategies = argumentStrategies;
-		this.argumentNames = argumentNames;
-	}
+    public SequenceInputTypeStrategy(
+            List<? extends ArgumentTypeStrategy> argumentStrategies,
+            @Nullable List<String> argumentNames) {
+        Preconditions.checkArgument(
+                argumentNames == null || argumentNames.size() == argumentStrategies.size());
+        this.argumentStrategies = argumentStrategies;
+        this.argumentNames = argumentNames;
+    }
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.of(argumentStrategies.size());
-	}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        return ConstantArgumentCount.of(argumentStrategies.size());
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		final List<DataType> dataTypes = callContext.getArgumentDataTypes();
-		if (dataTypes.size() != argumentStrategies.size()) {
-			return Optional.empty();
-		}
-		final List<DataType> inferredDataTypes = new ArrayList<>(dataTypes.size());
-		for (int i = 0; i < argumentStrategies.size(); i++) {
-			final ArgumentTypeStrategy argumentTypeStrategy = argumentStrategies.get(i);
-			final Optional<DataType> inferredDataType = argumentTypeStrategy.inferArgumentType(
-				callContext,
-				i,
-				throwOnFailure);
-			if (!inferredDataType.isPresent()) {
-				return Optional.empty();
-			}
-			inferredDataTypes.add(inferredDataType.get());
-		}
-		return Optional.of(inferredDataTypes);
-	}
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        final List<DataType> dataTypes = callContext.getArgumentDataTypes();
+        if (dataTypes.size() != argumentStrategies.size()) {
+            return Optional.empty();
+        }
+        final List<DataType> inferredDataTypes = new ArrayList<>(dataTypes.size());
+        for (int i = 0; i < argumentStrategies.size(); i++) {
+            final ArgumentTypeStrategy argumentTypeStrategy = argumentStrategies.get(i);
+            final Optional<DataType> inferredDataType =
+                    argumentTypeStrategy.inferArgumentType(callContext, i, throwOnFailure);
+            if (!inferredDataType.isPresent()) {
+                return Optional.empty();
+            }
+            inferredDataTypes.add(inferredDataType.get());
+        }
+        return Optional.of(inferredDataTypes);
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		final List<Signature.Argument> arguments = new ArrayList<>();
-		for (int i = 0; i < argumentStrategies.size(); i++) {
-			if (argumentNames == null) {
-				arguments.add(argumentStrategies.get(i).getExpectedArgument(definition, i));
-			} else {
-				arguments.add(Signature.Argument.of(
-					argumentNames.get(i),
-					argumentStrategies.get(i).getExpectedArgument(definition, i).getType()));
-			}
-		}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        final List<Signature.Argument> arguments = new ArrayList<>();
+        for (int i = 0; i < argumentStrategies.size(); i++) {
+            if (argumentNames == null) {
+                arguments.add(argumentStrategies.get(i).getExpectedArgument(definition, i));
+            } else {
+                arguments.add(
+                        Signature.Argument.of(
+                                argumentNames.get(i),
+                                argumentStrategies
+                                        .get(i)
+                                        .getExpectedArgument(definition, i)
+                                        .getType()));
+            }
+        }
 
-		return Collections.singletonList(Signature.of(arguments));
-	}
+        return Collections.singletonList(Signature.of(arguments));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		SequenceInputTypeStrategy that = (SequenceInputTypeStrategy) o;
-		return Objects.equals(argumentStrategies, that.argumentStrategies) &&
-			Objects.equals(argumentNames, that.argumentNames);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SequenceInputTypeStrategy that = (SequenceInputTypeStrategy) o;
+        return Objects.equals(argumentStrategies, that.argumentStrategies)
+                && Objects.equals(argumentNames, that.argumentNames);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(argumentStrategies, argumentNames);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(argumentStrategies, argumentNames);
+    }
 }

@@ -38,67 +38,62 @@ import java.util.function.Function;
  */
 public class AvroWriters {
 
-	/**
-	 * Creates an {@link AvroWriterFactory} for an Avro specific type. The Avro writers
-	 * will use the schema of that specific type to build and write the records.
-	 *
-	 * @param type The class of the type to write.
-	 */
-	public static <T extends SpecificRecordBase> AvroWriterFactory<T> forSpecificRecord(Class<T> type) {
-		String schemaString = SpecificData.get().getSchema(type).toString();
-		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
-			schemaString,
-			SpecificDatumWriter::new,
-			out);
-		return new AvroWriterFactory<>(builder);
-	}
+    /**
+     * Creates an {@link AvroWriterFactory} for an Avro specific type. The Avro writers will use the
+     * schema of that specific type to build and write the records.
+     *
+     * @param type The class of the type to write.
+     */
+    public static <T extends SpecificRecordBase> AvroWriterFactory<T> forSpecificRecord(
+            Class<T> type) {
+        String schemaString = SpecificData.get().getSchema(type).toString();
+        AvroBuilder<T> builder =
+                (out) -> createAvroDataFileWriter(schemaString, SpecificDatumWriter::new, out);
+        return new AvroWriterFactory<>(builder);
+    }
 
-	/**
-	 * Creates an {@link AvroWriterFactory} that accepts and writes Avro generic types.
-	 * The Avro writers will use the given schema to build and write the records.
-	 *
-	 * @param schema The schema of the generic type.
-	 */
-	public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
-		String schemaString = schema.toString();
-		AvroBuilder<GenericRecord> builder = (out) -> createAvroDataFileWriter(
-			schemaString,
-			GenericDatumWriter::new,
-			out);
-		return new AvroWriterFactory<>(builder);
-	}
+    /**
+     * Creates an {@link AvroWriterFactory} that accepts and writes Avro generic types. The Avro
+     * writers will use the given schema to build and write the records.
+     *
+     * @param schema The schema of the generic type.
+     */
+    public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
+        String schemaString = schema.toString();
+        AvroBuilder<GenericRecord> builder =
+                (out) -> createAvroDataFileWriter(schemaString, GenericDatumWriter::new, out);
+        return new AvroWriterFactory<>(builder);
+    }
 
-	/**
-	 * Creates an {@link AvroWriterFactory} for the given type. The Avro writers will
-	 * use reflection to create the schema for the type and use that schema to write
-	 * the records.
-	 *
-	 * @param type The class of the type to write.
-	 */
-	public static <T> AvroWriterFactory<T> forReflectRecord(Class<T> type) {
-		String schemaString = ReflectData.get().getSchema(type).toString();
-		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
-			schemaString,
-			ReflectDatumWriter::new,
-			out);
-		return new AvroWriterFactory<>(builder);
-	}
+    /**
+     * Creates an {@link AvroWriterFactory} for the given type. The Avro writers will use reflection
+     * to create the schema for the type and use that schema to write the records.
+     *
+     * @param type The class of the type to write.
+     */
+    public static <T> AvroWriterFactory<T> forReflectRecord(Class<T> type) {
+        String schemaString = ReflectData.get().getSchema(type).toString();
+        AvroBuilder<T> builder =
+                (out) -> createAvroDataFileWriter(schemaString, ReflectDatumWriter::new, out);
+        return new AvroWriterFactory<>(builder);
+    }
 
-	private static <T> DataFileWriter<T> createAvroDataFileWriter(
-		String schemaString,
-		Function<Schema, DatumWriter<T>> datumWriterFactory,
-		OutputStream out) throws IOException {
+    private static <T> DataFileWriter<T> createAvroDataFileWriter(
+            String schemaString,
+            Function<Schema, DatumWriter<T>> datumWriterFactory,
+            OutputStream out)
+            throws IOException {
 
-		Schema schema = new Schema.Parser().parse(schemaString);
-		DatumWriter<T> datumWriter = datumWriterFactory.apply(schema);
+        Schema schema = new Schema.Parser().parse(schemaString);
+        DatumWriter<T> datumWriter = datumWriterFactory.apply(schema);
 
-		DataFileWriter<T> dataFileWriter = new DataFileWriter<>(datumWriter);
-		dataFileWriter.create(schema, out);
-		return dataFileWriter;
-	}
+        DataFileWriter<T> dataFileWriter = new DataFileWriter<>(datumWriter);
+        dataFileWriter.create(schema, out);
+        return dataFileWriter;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** Class is not meant to be instantiated. */
-	private AvroWriters() {}
+    /** Class is not meant to be instantiated. */
+    private AvroWriters() {}
 }

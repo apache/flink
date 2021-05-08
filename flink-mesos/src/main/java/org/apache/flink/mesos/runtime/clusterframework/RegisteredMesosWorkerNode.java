@@ -27,32 +27,34 @@ import java.io.Serializable;
 
 /**
  * A representation of a registered Mesos task managed by the {@link MesosResourceManagerDriver}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class RegisteredMesosWorkerNode implements Serializable, ResourceIDRetrievable {
 
-	private static final long serialVersionUID = 2;
+    private static final long serialVersionUID = 2;
 
-	private final MesosWorkerStore.Worker worker;
+    private final MesosWorkerStore.Worker worker;
 
-	public RegisteredMesosWorkerNode(MesosWorkerStore.Worker worker) {
-		this.worker = Preconditions.checkNotNull(worker);
-		Preconditions.checkArgument(worker.slaveID().isDefined());
-		Preconditions.checkArgument(worker.hostname().isDefined());
-	}
+    public RegisteredMesosWorkerNode(MesosWorkerStore.Worker worker) {
+        this.worker = Preconditions.checkNotNull(worker);
+        Preconditions.checkArgument(worker.slaveID().isDefined());
+        Preconditions.checkArgument(worker.hostname().isDefined());
+    }
 
-	public MesosWorkerStore.Worker getWorker() {
-		return worker;
-	}
+    public MesosWorkerStore.Worker getWorker() {
+        return worker;
+    }
 
-	@Override
-	public ResourceID getResourceID() {
-		return MesosResourceManagerDriver.extractResourceID(worker.taskID());
-	}
+    @Override
+    public ResourceID getResourceID() {
+        return MesosResourceManagerDriver.extractResourceID(worker.taskID());
+    }
 
-	@Override
-	public String toString() {
-		return "RegisteredMesosWorkerNode{" +
-			"worker=" + worker +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "RegisteredMesosWorkerNode{" + "worker=" + worker + '}';
+    }
 }

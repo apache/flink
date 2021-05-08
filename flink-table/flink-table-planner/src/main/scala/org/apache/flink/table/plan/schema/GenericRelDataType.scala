@@ -37,8 +37,6 @@ class GenericRelDataType(
     typeSystem,
     SqlTypeName.ANY) {
 
-  isNullable = nullable
-
   override def toString = s"ANY($typeInfo)"
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[GenericRelDataType]
@@ -54,5 +52,11 @@ class GenericRelDataType(
 
   override def hashCode(): Int = {
     typeInfo.hashCode()
+  }
+
+  override def isNullable: Boolean = nullable
+
+  override def generateTypeString(sb: java.lang.StringBuilder, withDetail: Boolean): Unit = {
+    sb.append(s"ANY($typeInfo)")
   }
 }

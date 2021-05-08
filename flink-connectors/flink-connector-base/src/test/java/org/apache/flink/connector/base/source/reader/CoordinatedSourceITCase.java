@@ -36,56 +36,51 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * IT case for the {@link Source} with a coordinator.
- */
+/** IT case for the {@link Source} with a coordinator. */
 public class CoordinatedSourceITCase extends AbstractTestBase {
 
-	@Test
-	public void testEnumeratorReaderCommunication() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
-		DataStream<Integer> stream = env.fromSource(
-				source,
-				WatermarkStrategy.noWatermarks(),
-				"TestingSource");
-		executeAndVerify(env, stream, 20);
-	}
+    @Test
+    public void testEnumeratorReaderCommunication() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
+        DataStream<Integer> stream =
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "TestingSource");
+        executeAndVerify(env, stream, 20);
+    }
 
-	@Test
-	public void testMultipleSources() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		MockBaseSource source1 = new MockBaseSource(2, 10, Boundedness.BOUNDED);
-		MockBaseSource source2 = new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
-		DataStream<Integer> stream1 = env.fromSource(
-				source1,
-				WatermarkStrategy.noWatermarks(),
-				"TestingSource1");
-		DataStream<Integer> stream2 = env.fromSource(
-				source2,
-				WatermarkStrategy.noWatermarks(),
-				"TestingSource2");
-		executeAndVerify(env, stream1.union(stream2), 40);
-	}
+    @Test
+    public void testMultipleSources() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        MockBaseSource source1 = new MockBaseSource(2, 10, Boundedness.BOUNDED);
+        MockBaseSource source2 = new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
+        DataStream<Integer> stream1 =
+                env.fromSource(source1, WatermarkStrategy.noWatermarks(), "TestingSource1");
+        DataStream<Integer> stream2 =
+                env.fromSource(source2, WatermarkStrategy.noWatermarks(), "TestingSource2");
+        executeAndVerify(env, stream1.union(stream2), 40);
+    }
 
-	@SuppressWarnings("serial")
-	private void executeAndVerify(StreamExecutionEnvironment env, DataStream<Integer> stream, int numRecords) throws Exception {
-		stream.addSink(new RichSinkFunction<Integer>() {
-			@Override
-			public void open(Configuration parameters) throws Exception {
-				getRuntimeContext().addAccumulator("result", new ListAccumulator<Integer>());
-			}
+    @SuppressWarnings("serial")
+    private void executeAndVerify(
+            StreamExecutionEnvironment env, DataStream<Integer> stream, int numRecords)
+            throws Exception {
+        stream.addSink(
+                new RichSinkFunction<Integer>() {
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        getRuntimeContext()
+                                .addAccumulator("result", new ListAccumulator<Integer>());
+                    }
 
-			@Override
-			public void invoke(Integer value, Context context) throws Exception {
-				getRuntimeContext().getAccumulator("result").add(value);
-			}
-		});
-		List<Integer> result = env.execute().getAccumulatorResult("result");
-		Collections.sort(result);
-		assertEquals(numRecords, result.size());
-		assertEquals(0, (int) result.get(0));
-		assertEquals(numRecords - 1, (int) result.get(result.size() - 1));
-	}
-
+                    @Override
+                    public void invoke(Integer value, Context context) throws Exception {
+                        getRuntimeContext().getAccumulator("result").add(value);
+                    }
+                });
+        List<Integer> result = env.execute().getAccumulatorResult("result");
+        Collections.sort(result);
+        assertEquals(numRecords, result.size());
+        assertEquals(0, (int) result.get(0));
+        assertEquals(numRecords - 1, (int) result.get(result.size() - 1));
+    }
 }

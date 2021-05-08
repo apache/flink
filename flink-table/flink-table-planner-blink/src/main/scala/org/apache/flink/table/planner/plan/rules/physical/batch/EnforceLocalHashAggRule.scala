@@ -18,61 +18,61 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalHashAggregate}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
 
 /**
-  * An [[EnforceLocalAggRuleBase]] that matches [[BatchExecHashAggregate]]
-  *
-  * for example: select count(*) from t group by rollup (a, b)
-  * The physical plan
-  *
-  * {{{
-  * HashAggregate(isMerge=[false], groupBy=[a, b, $e], select=[a, b, $e, COUNT(*)])
-  * +- Exchange(distribution=[hash[a, b, $e]])
-  *    +- Expand(projects=[{a=[$0], b=[$1], $e=[0]},
-  *                        {a=[$0], b=[null], $e=[1]},
-  *                        {a=[null], b=[null], $e=[3]}])
-  * }}}
-  *
-  * will be rewritten to
-  *
-  * {{{
-  * HashAggregate(isMerge=[true], groupBy=[a, b, $e], select=[a, b, $e, Final_COUNT(count1$0)])
-  * +- Exchange(distribution=[hash[a, b, $e]])
-  *    +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(*) AS count1$0]
-  *       +- Expand(projects=[{a=[$0], b=[$1], $e=[0]},
-  *                           {a=[$0], b=[null], $e=[1]},
-  *                           {a=[null], b=[null], $e=[3]}])
-  * }}}
-  */
+ * An [[EnforceLocalAggRuleBase]] that matches [[BatchPhysicalHashAggregate]]
+ *
+ * for example: select count(*) from t group by rollup (a, b)
+ * The physical plan
+ *
+ * {{{
+ * HashAggregate(isMerge=[false], groupBy=[a, b, $e], select=[a, b, $e, COUNT(*)])
+ * +- Exchange(distribution=[hash[a, b, $e]])
+ *    +- Expand(projects=[{a=[$0], b=[$1], $e=[0]},
+ *                        {a=[$0], b=[null], $e=[1]},
+ *                        {a=[null], b=[null], $e=[3]}])
+ * }}}
+ *
+ * will be rewritten to
+ *
+ * {{{
+ * HashAggregate(isMerge=[true], groupBy=[a, b, $e], select=[a, b, $e, Final_COUNT(count1$0)])
+ * +- Exchange(distribution=[hash[a, b, $e]])
+ *    +- LocalHashAggregate(groupBy=[a, b, $e], select=[a, b, $e, Partial_COUNT(*) AS count1$0]
+ *       +- Expand(projects=[{a=[$0], b=[$1], $e=[0]},
+ *                           {a=[$0], b=[null], $e=[1]},
+ *                           {a=[null], b=[null], $e=[3]}])
+ * }}}
+ */
 class EnforceLocalHashAggRule extends EnforceLocalAggRuleBase(
-  operand(classOf[BatchExecHashAggregate],
-    operand(classOf[BatchExecExchange],
-      operand(classOf[BatchExecExpand], any))),
+  operand(classOf[BatchPhysicalHashAggregate],
+    operand(classOf[BatchPhysicalExchange],
+      operand(classOf[BatchPhysicalExpand], any))),
   "EnforceLocalHashAggRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: BatchExecHashAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(2)
+    val agg: BatchPhysicalHashAggregate = call.rel(0)
+    val expand: BatchPhysicalExpand = call.rel(2)
 
     val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
 
-    val grouping = agg.getGrouping
+    val grouping = agg.grouping
     val constantShuffleKey = hasConstantShuffleKey(grouping, expand)
 
     grouping.nonEmpty && enableTwoPhaseAgg && constantShuffleKey
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg: BatchExecHashAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(2)
+    val agg: BatchPhysicalHashAggregate = call.rel(0)
+    val expand: BatchPhysicalExpand = call.rel(2)
 
-    val localAgg = createLocalAgg(agg, expand, call.builder)
+    val localAgg = createLocalAgg(agg, expand)
     val exchange = createExchange(agg, localAgg)
-    val globalAgg = createGlobalAgg(agg, exchange, call.builder)
+    val globalAgg = createGlobalAgg(agg, exchange)
     call.transformTo(globalAgg)
   }
 

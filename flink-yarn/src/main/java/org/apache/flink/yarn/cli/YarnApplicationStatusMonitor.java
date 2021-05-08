@@ -33,70 +33,70 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Utility class which monitors the specified yarn application status periodically.
- */
+/** Utility class which monitors the specified yarn application status periodically. */
 public class YarnApplicationStatusMonitor implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationStatusMonitor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationStatusMonitor.class);
 
-	private static final long UPDATE_INTERVAL = 1000L;
+    private static final long UPDATE_INTERVAL = 1000L;
 
-	private final YarnClient yarnClient;
+    private final YarnClient yarnClient;
 
-	private final ApplicationId yarnApplicationId;
+    private final ApplicationId yarnApplicationId;
 
-	private final ScheduledFuture<?> applicationStatusUpdateFuture;
+    private final ScheduledFuture<?> applicationStatusUpdateFuture;
 
-	private volatile ApplicationStatus applicationStatus;
+    private volatile ApplicationStatus applicationStatus;
 
-	public YarnApplicationStatusMonitor(
-			YarnClient yarnClient,
-			ApplicationId yarnApplicationId,
-			ScheduledExecutor scheduledExecutor) {
-		this.yarnClient = Preconditions.checkNotNull(yarnClient);
-		this.yarnApplicationId = Preconditions.checkNotNull(yarnApplicationId);
+    public YarnApplicationStatusMonitor(
+            YarnClient yarnClient,
+            ApplicationId yarnApplicationId,
+            ScheduledExecutor scheduledExecutor) {
+        this.yarnClient = Preconditions.checkNotNull(yarnClient);
+        this.yarnApplicationId = Preconditions.checkNotNull(yarnApplicationId);
 
-		applicationStatusUpdateFuture = scheduledExecutor.scheduleWithFixedDelay(
-			this::updateApplicationStatus,
-			0L,
-			UPDATE_INTERVAL,
-			TimeUnit.MILLISECONDS);
+        applicationStatusUpdateFuture =
+                scheduledExecutor.scheduleWithFixedDelay(
+                        this::updateApplicationStatus, 0L, UPDATE_INTERVAL, TimeUnit.MILLISECONDS);
 
-		applicationStatus = ApplicationStatus.UNKNOWN;
-	}
+        applicationStatus = ApplicationStatus.UNKNOWN;
+    }
 
-	public ApplicationStatus getApplicationStatusNow() {
-		return applicationStatus;
-	}
+    public ApplicationStatus getApplicationStatusNow() {
+        return applicationStatus;
+    }
 
-	@Override
-	public void close() {
-		applicationStatusUpdateFuture.cancel(false);
-	}
+    @Override
+    public void close() {
+        applicationStatusUpdateFuture.cancel(false);
+    }
 
-	private void updateApplicationStatus() {
-		if (yarnClient.isInState(Service.STATE.STARTED)) {
-			final ApplicationReport applicationReport;
+    private void updateApplicationStatus() {
+        if (yarnClient.isInState(Service.STATE.STARTED)) {
+            final ApplicationReport applicationReport;
 
-			try {
-				applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
-			} catch (Exception e) {
-				LOG.info("Could not retrieve the Yarn application report for {}.", yarnApplicationId);
-				applicationStatus = ApplicationStatus.UNKNOWN;
-				return;
-			}
+            try {
+                applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
+            } catch (Exception e) {
+                LOG.info(
+                        "Could not retrieve the Yarn application report for {}.",
+                        yarnApplicationId);
+                applicationStatus = ApplicationStatus.UNKNOWN;
+                return;
+            }
 
-			YarnApplicationState yarnApplicationState = applicationReport.getYarnApplicationState();
+            YarnApplicationState yarnApplicationState = applicationReport.getYarnApplicationState();
 
-			if (yarnApplicationState == YarnApplicationState.FAILED || yarnApplicationState == YarnApplicationState.KILLED) {
-				applicationStatus = ApplicationStatus.FAILED;
-			} else {
-				applicationStatus = ApplicationStatus.SUCCEEDED;
-			}
-		} else {
-			LOG.info("Yarn client is no longer in state STARTED. Stopping the Yarn application status monitor.");
-			applicationStatusUpdateFuture.cancel(false);
-		}
-	}
+            if (yarnApplicationState == YarnApplicationState.FAILED
+                    || yarnApplicationState == YarnApplicationState.KILLED) {
+                applicationStatus = ApplicationStatus.FAILED;
+            } else {
+                applicationStatus = ApplicationStatus.SUCCEEDED;
+            }
+        } else {
+            LOG.info(
+                    "Yarn client is no longer in state STARTED. Stopping the Yarn application status monitor.");
+            applicationStatusUpdateFuture.cancel(false);
+        }
+    }
 }

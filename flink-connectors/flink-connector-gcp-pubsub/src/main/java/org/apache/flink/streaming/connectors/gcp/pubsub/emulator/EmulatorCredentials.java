@@ -27,36 +27,36 @@ import static java.lang.Long.MAX_VALUE;
 
 /**
  * A placeholder for credentials to signify that requests sent to the server should not be
- * authenticated. This is typically useful when using local service emulators.
- * NOTE: The Google provided NoCredentials and NoCredentialsProvider do not behave as expected
- *       See https://github.com/googleapis/gax-java/issues/1148
+ * authenticated. This is typically useful when using local service emulators. NOTE: The Google
+ * provided NoCredentials and NoCredentialsProvider do not behave as expected See
+ * https://github.com/googleapis/gax-java/issues/1148
  */
 public final class EmulatorCredentials extends OAuth2Credentials {
-	private static final EmulatorCredentials INSTANCE = new EmulatorCredentials();
+    private static final EmulatorCredentials INSTANCE = new EmulatorCredentials();
 
-	private EmulatorCredentials() {
-	}
+    private EmulatorCredentials() {}
 
-	private Object readResolve() {
-		return INSTANCE;
-	}
+    private Object readResolve() {
+        return INSTANCE;
+    }
 
-	public static EmulatorCredentials getInstance() {
-		return INSTANCE;
-	}
+    public static EmulatorCredentials getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return this == obj;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj;
+    }
 
-	@Override
-	public int hashCode() {
-		return System.identityHashCode(this);
-	}
+    @Override
+    public int hashCode() {
+        return System.identityHashCode(this);
+    }
 
-	@Override
-	public AccessToken refreshAccessToken() {
-		return new AccessToken("Dummy credentials for emulator", Date.from(Instant.ofEpochMilli(MAX_VALUE)));
-	}
+    @Override
+    public AccessToken refreshAccessToken() {
+        return new AccessToken(
+                "Dummy credentials for emulator", Date.from(Instant.ofEpochMilli(MAX_VALUE)));
+    }
 }

@@ -21,19 +21,17 @@ package org.apache.flink.runtime.testtasks;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-/**
- * A simple task that does nothing and finishes after a short delay of 100 milliseconds.
- */
+/** A simple task that does nothing and finishes after a short delay of 100 milliseconds. */
 public class WaitingNoOpInvokable extends AbstractInvokable {
 
-	private static final long waitingTime = 100L;
+    private static final long waitingTime = 100L;
 
-	public WaitingNoOpInvokable(Environment environment) {
-		super(environment);
-	}
+    public WaitingNoOpInvokable(Environment environment) {
+        super(environment);
+    }
 
-	@Override
-	public void invoke() throws Exception {
-		Thread.sleep(waitingTime);
-	}
+    @Override
+    public void invoke() throws Exception {
+        Thread.sleep(waitingTime);
+    }
 }

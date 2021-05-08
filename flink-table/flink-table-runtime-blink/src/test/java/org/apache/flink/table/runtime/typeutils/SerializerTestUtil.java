@@ -37,107 +37,96 @@ import java.io.Serializable;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Utils for testing serializers.
- */
+/** Utils for testing serializers. */
 public class SerializerTestUtil {
 
-	/**
-	 * Snapshot and restore the given serializer. Returns the restored serializer.
-	 */
-	public static <T> TypeSerializer<T> snapshotAndReconfigure(
-		TypeSerializer<T> serializer, SerializerGetter<T> serializerGetter) throws IOException {
-		TypeSerializerSnapshot<T> configSnapshot = serializer.snapshotConfiguration();
+    /** Snapshot and restore the given serializer. Returns the restored serializer. */
+    public static <T> TypeSerializer<T> snapshotAndReconfigure(
+            TypeSerializer<T> serializer, SerializerGetter<T> serializerGetter) throws IOException {
+        TypeSerializerSnapshot<T> configSnapshot = serializer.snapshotConfiguration();
 
-		byte[] serializedConfig;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-				new DataOutputViewStreamWrapper(out), configSnapshot, serializer);
-			serializedConfig = out.toByteArray();
-		}
+        byte[] serializedConfig;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+                    new DataOutputViewStreamWrapper(out), configSnapshot, serializer);
+            serializedConfig = out.toByteArray();
+        }
 
-		TypeSerializerSnapshot<T> restoredConfig;
-		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-				new DataInputViewStreamWrapper(in),
-				Thread.currentThread().getContextClassLoader(),
-				serializerGetter.getSerializer());
-		}
+        TypeSerializerSnapshot<T> restoredConfig;
+        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+            restoredConfig =
+                    TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+                            new DataInputViewStreamWrapper(in),
+                            Thread.currentThread().getContextClassLoader(),
+                            serializerGetter.getSerializer());
+        }
 
-		TypeSerializerSchemaCompatibility<T> strategy =
-			restoredConfig.resolveSchemaCompatibility(serializerGetter.getSerializer());
-		final TypeSerializer<T> restoredSerializer;
-		if (strategy.isCompatibleAsIs()) {
-			restoredSerializer = restoredConfig.restoreSerializer();
-		}
-		else if (strategy.isCompatibleWithReconfiguredSerializer()) {
-			restoredSerializer = strategy.getReconfiguredSerializer();
-		}
-		else {
-			throw new AssertionError("Unable to restore serializer with " + strategy);
-		}
-		assertEquals(serializer.getClass(), restoredSerializer.getClass());
+        TypeSerializerSchemaCompatibility<T> strategy =
+                restoredConfig.resolveSchemaCompatibility(serializerGetter.getSerializer());
+        final TypeSerializer<T> restoredSerializer;
+        if (strategy.isCompatibleAsIs()) {
+            restoredSerializer = restoredConfig.restoreSerializer();
+        } else if (strategy.isCompatibleWithReconfiguredSerializer()) {
+            restoredSerializer = strategy.getReconfiguredSerializer();
+        } else {
+            throw new AssertionError("Unable to restore serializer with " + strategy);
+        }
+        assertEquals(serializer.getClass(), restoredSerializer.getClass());
 
-		return restoredSerializer;
-	}
+        return restoredSerializer;
+    }
 
-	/**
-	 * Used for snapshotAndReconfigure method to provide serializers when restoring.
-	 */
-	public interface SerializerGetter<T> {
-		TypeSerializer<T> getSerializer();
-	}
+    /** Used for snapshotAndReconfigure method to provide serializers when restoring. */
+    public interface SerializerGetter<T> {
+        TypeSerializer<T> getSerializer();
+    }
 
-	/**
-	 * A simple POJO.
-	 */
-	public static class MyObj {
-		private int a;
-		private int b;
+    /** A simple POJO. */
+    public static class MyObj {
+        private int a;
+        private int b;
 
-		public MyObj(int a, int b) {
-			this.a = a;
-			this.b = b;
-		}
+        public MyObj(int a, int b) {
+            this.a = a;
+            this.b = b;
+        }
 
-		int getA() {
-			return a;
-		}
+        int getA() {
+            return a;
+        }
 
-		int getB() {
-			return b;
-		}
+        int getB() {
+            return b;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			return o instanceof MyObj && ((MyObj) o).a == a && ((MyObj) o).b == b;
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof MyObj && ((MyObj) o).a == a && ((MyObj) o).b == b;
+        }
+    }
 
-	/**
-	 * Kryo serializer for POJO.
-	 */
-	public static class MyObjSerializer extends Serializer<MyObj> implements Serializable {
+    /** Kryo serializer for POJO. */
+    public static class MyObjSerializer extends Serializer<MyObj> implements Serializable {
 
-		private static final long serialVersionUID = 1L;
-		private static final int delta = 7;
+        private static final long serialVersionUID = 1L;
+        private static final int delta = 7;
 
-		@Override
-		public void write(Kryo kryo, Output output, MyObj myObj) {
-			output.writeInt(myObj.getA() + delta);
-			output.writeInt(myObj.getB() + delta);
-		}
+        @Override
+        public void write(Kryo kryo, Output output, MyObj myObj) {
+            output.writeInt(myObj.getA() + delta);
+            output.writeInt(myObj.getB() + delta);
+        }
 
-		@Override
-		public MyObj read(Kryo kryo, Input input, Class<MyObj> aClass) {
-			int a = input.readInt() - delta;
-			int b = input.readInt() - delta;
-			return new MyObj(a, b);
-		}
+        @Override
+        public MyObj read(Kryo kryo, Input input, Class<MyObj> aClass) {
+            int a = input.readInt() - delta;
+            int b = input.readInt() - delta;
+            return new MyObj(a, b);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			return o instanceof MyObjSerializer;
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof MyObjSerializer;
+        }
+    }
 }

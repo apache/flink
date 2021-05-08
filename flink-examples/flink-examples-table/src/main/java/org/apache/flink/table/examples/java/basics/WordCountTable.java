@@ -28,59 +28,54 @@ import static org.apache.flink.table.api.Expressions.$;
 /**
  * Simple example for demonstrating the use of the Table API for a Word Count in Java.
  *
- * <p>This example shows how to:
- *  - Convert DataSets to Tables
- *  - Apply group, aggregate, select, and filter operations
+ * <p>This example shows how to: - Convert DataSets to Tables - Apply group, aggregate, select, and
+ * filter operations
  */
 public class WordCountTable {
 
-	// *************************************************************************
-	//     PROGRAM
-	// *************************************************************************
+    // *************************************************************************
+    //     PROGRAM
+    // *************************************************************************
 
-	public static void main(String[] args) throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
+    public static void main(String[] args) throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		DataSet<WC> input = env.fromElements(
-				new WC("Hello", 1),
-				new WC("Ciao", 1),
-				new WC("Hello", 1));
+        DataSet<WC> input =
+                env.fromElements(new WC("Hello", 1), new WC("Ciao", 1), new WC("Hello", 1));
 
-		Table table = tEnv.fromDataSet(input);
+        Table table = tEnv.fromDataSet(input);
 
-		Table filtered = table
-				.groupBy($("word"))
-				.select($("word"), $("frequency").sum().as("frequency"))
-				.filter($("frequency").isEqual(2));
+        Table filtered =
+                table.groupBy($("word"))
+                        .select($("word"), $("frequency").sum().as("frequency"))
+                        .filter($("frequency").isEqual(2));
 
-		DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
+        DataSet<WC> result = tEnv.toDataSet(filtered, WC.class);
 
-		result.print();
-	}
+        result.print();
+    }
 
-	// *************************************************************************
-	//     USER DATA TYPES
-	// *************************************************************************
+    // *************************************************************************
+    //     USER DATA TYPES
+    // *************************************************************************
 
-	/**
-	 * Simple POJO containing a word and its respective count.
-	 */
-	public static class WC {
-		public String word;
-		public long frequency;
+    /** Simple POJO containing a word and its respective count. */
+    public static class WC {
+        public String word;
+        public long frequency;
 
-		// public constructor to make it a Flink POJO
-		public WC() {}
+        // public constructor to make it a Flink POJO
+        public WC() {}
 
-		public WC(String word, long frequency) {
-			this.word = word;
-			this.frequency = frequency;
-		}
+        public WC(String word, long frequency) {
+            this.word = word;
+            this.frequency = frequency;
+        }
 
-		@Override
-		public String toString() {
-			return "WC " + word + " " + frequency;
-		}
-	}
+        @Override
+        public String toString() {
+            return "WC " + word + " " + frequency;
+        }
+    }
 }

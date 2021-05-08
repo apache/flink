@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.{JList, JSet}
+import org.apache.flink.table.planner.JList
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -30,7 +30,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.util.{ControlFlowException, Sarg, Util}
+import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
 
 import java.lang.Iterable
 import java.util
@@ -81,6 +81,16 @@ object FlinkRexUtil {
       maxCnfNodeCount
     }
     new CnfHelper(rexBuilder, maxCnfNodeCnt).toCnf(rex)
+  }
+
+  /**
+   * Returns true if the RexNode contains any node in the given expected [[RexInputRef]] nodes.
+   */
+  def containsExpectedInputRef(rex: RexNode, expectedInputRefs: ImmutableBitSet): Boolean = {
+    val visitor = new InputRefVisitor
+    rex.accept(visitor)
+    val inputRefs = ImmutableBitSet.of(visitor.getFields: _*)
+    !inputRefs.intersect(expectedInputRefs).isEmpty
   }
 
   /**
@@ -343,6 +353,17 @@ object FlinkRexUtil {
         }
       }
     })
+
+  /** Expands the RexProgram to projection list and condition. */
+  def expandRexProgram(program: RexProgram): (Seq[RexNode], Option[RexNode]) = {
+    val projection = program.getProjectList.map(program.expandLocalRef)
+    val filter = if (program.getCondition != null) {
+      Some(program.expandLocalRef(program.getCondition))
+    } else {
+      None
+    }
+    (projection, filter)
+  }
 
   /** Expands the SEARCH into normal disjunctions recursively. */
   def expandSearch(

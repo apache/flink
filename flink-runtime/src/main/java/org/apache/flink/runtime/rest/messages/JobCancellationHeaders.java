@@ -23,53 +23,53 @@ import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobCancellationHandler}.
- */
-public class JobCancellationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
+/** Message headers for the {@link JobCancellationHandler}. */
+public class JobCancellationHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, EmptyResponseBody, JobCancellationMessageParameters> {
 
-	public static final String URL = "/jobs/:jobid";
+    public static final String URL = "/jobs/:jobid";
 
-	private static final JobCancellationHeaders INSTANCE = new JobCancellationHeaders();
+    private static final JobCancellationHeaders INSTANCE = new JobCancellationHeaders();
 
-	private JobCancellationHeaders() {}
+    private JobCancellationHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.ACCEPTED;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.ACCEPTED;
+    }
 
-	@Override
-	public JobCancellationMessageParameters getUnresolvedMessageParameters() {
-		return new JobCancellationMessageParameters();
-	}
+    @Override
+    public JobCancellationMessageParameters getUnresolvedMessageParameters() {
+        return new JobCancellationMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.PATCH;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.PATCH;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobCancellationHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobCancellationHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Terminates a job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Terminates a job.";
+    }
 }

@@ -20,63 +20,61 @@ package org.apache.flink.core.io;
 
 import org.apache.flink.annotation.Public;
 
-/**
- * A generic input split that has only a partition number.
- */
+/** A generic input split that has only a partition number. */
 @Public
 public class GenericInputSplit implements InputSplit, java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The number of this split. */
-	private final int partitionNumber;
+    /** The number of this split. */
+    private final int partitionNumber;
 
-	/** The total number of partitions */
-	private final int totalNumberOfPartitions;
-	
-	// --------------------------------------------------------------------------------------------
+    /** The total number of partitions */
+    private final int totalNumberOfPartitions;
 
-	/**
-	 * Creates a generic input split with the given split number.
-	 * 
-	 * @param partitionNumber The number of the split's partition.
-	 * @param totalNumberOfPartitions The total number of the splits (partitions).
-	 */
-	public GenericInputSplit(int partitionNumber, int totalNumberOfPartitions) {
-		this.partitionNumber = partitionNumber;
-		this.totalNumberOfPartitions = totalNumberOfPartitions;
-	}
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
+    /**
+     * Creates a generic input split with the given split number.
+     *
+     * @param partitionNumber The number of the split's partition.
+     * @param totalNumberOfPartitions The total number of the splits (partitions).
+     */
+    public GenericInputSplit(int partitionNumber, int totalNumberOfPartitions) {
+        this.partitionNumber = partitionNumber;
+        this.totalNumberOfPartitions = totalNumberOfPartitions;
+    }
 
-	@Override
-	public int getSplitNumber() {
-		return this.partitionNumber;
-	}
-	
-	public int getTotalNumberOfSplits() {
-		return this.totalNumberOfPartitions;
-	}
-	
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return this.partitionNumber ^ this.totalNumberOfPartitions;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof GenericInputSplit) {
-			GenericInputSplit other = (GenericInputSplit) obj;
-			return this.partitionNumber == other.partitionNumber &&
-					this.totalNumberOfPartitions == other.totalNumberOfPartitions;
-		} else {
-			return false;
-		}
-	}
-	
-	public String toString() {
-		return "GenericSplit (" + this.partitionNumber + '/' + this.totalNumberOfPartitions + ')';
-	}
+    @Override
+    public int getSplitNumber() {
+        return this.partitionNumber;
+    }
+
+    public int getTotalNumberOfSplits() {
+        return this.totalNumberOfPartitions;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public int hashCode() {
+        return this.partitionNumber ^ this.totalNumberOfPartitions;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof GenericInputSplit) {
+            GenericInputSplit other = (GenericInputSplit) obj;
+            return this.partitionNumber == other.partitionNumber
+                    && this.totalNumberOfPartitions == other.totalNumberOfPartitions;
+        } else {
+            return false;
+        }
+    }
+
+    public String toString() {
+        return "GenericSplit (" + this.partitionNumber + '/' + this.totalNumberOfPartitions + ')';
+    }
 }

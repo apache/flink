@@ -24,52 +24,50 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * No-op implementation of {@link TransientBlobService}.
- */
+/** No-op implementation of {@link TransientBlobService}. */
 public enum NoOpTransientBlobService implements TransientBlobService {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public File getFile(TransientBlobKey key) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public File getFile(TransientBlobKey key) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TransientBlobKey putTransient(byte[] value) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TransientBlobKey putTransient(byte[] value) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean deleteFromCache(TransientBlobKey key) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean deleteFromCache(TransientBlobKey key) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public boolean deleteFromCache(JobID jobId, TransientBlobKey key) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean deleteFromCache(JobID jobId, TransientBlobKey key) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void close() throws IOException {}
+    @Override
+    public void close() throws IOException {}
 }

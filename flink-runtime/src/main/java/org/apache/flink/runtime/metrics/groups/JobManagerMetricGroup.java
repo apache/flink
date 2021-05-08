@@ -31,87 +31,90 @@ import java.util.Map;
 /**
  * Special {@link org.apache.flink.metrics.MetricGroup} representing a JobManager.
  *
- * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do
- * not contain tasks any more
+ * <p>Contains extra logic for adding jobs with tasks, and removing jobs when they do not contain
+ * tasks any more
  */
 public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetricGroup> {
 
-	private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
+    private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
-	private final String hostname;
+    private final String hostname;
 
-	public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname), null);
-		this.hostname = hostname;
-	}
+    public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
+        super(
+                registry,
+                registry.getScopeFormats().getJobManagerFormat().formatScope(hostname),
+                null);
+        this.hostname = hostname;
+    }
 
-	public String hostname() {
-		return hostname;
-	}
+    public String hostname() {
+        return hostname;
+    }
 
-	@Override
-	protected QueryScopeInfo.JobManagerQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.JobManagerQueryScopeInfo();
-	}
+    @Override
+    protected QueryScopeInfo.JobManagerQueryScopeInfo createQueryServiceMetricInfo(
+            CharacterFilter filter) {
+        return new QueryScopeInfo.JobManagerQueryScopeInfo();
+    }
 
-	// ------------------------------------------------------------------------
-	//  job groups
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  job groups
+    // ------------------------------------------------------------------------
 
-	public JobManagerJobMetricGroup addJob(JobGraph job) {
-		JobID jobId = job.getJobID();
-		String jobName = job.getName();
-		// get or create a jobs metric group
-		JobManagerJobMetricGroup currentJobGroup;
-		synchronized (this) {
-			if (!isClosed()) {
-				currentJobGroup = jobs.get(jobId);
+    public JobManagerJobMetricGroup addJob(JobGraph job) {
+        JobID jobId = job.getJobID();
+        String jobName = job.getName();
+        // get or create a jobs metric group
+        JobManagerJobMetricGroup currentJobGroup;
+        synchronized (this) {
+            if (!isClosed()) {
+                currentJobGroup = jobs.get(jobId);
 
-				if (currentJobGroup == null || currentJobGroup.isClosed()) {
-					currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
-					jobs.put(jobId, currentJobGroup);
-				}
-				return currentJobGroup;
-			} else {
-				return null;
-			}
-		}
-	}
+                if (currentJobGroup == null || currentJobGroup.isClosed()) {
+                    currentJobGroup = new JobManagerJobMetricGroup(registry, this, jobId, jobName);
+                    jobs.put(jobId, currentJobGroup);
+                }
+                return currentJobGroup;
+            } else {
+                return null;
+            }
+        }
+    }
 
-	public void removeJob(JobID jobId) {
-		if (jobId == null) {
-			return;
-		}
+    public void removeJob(JobID jobId) {
+        if (jobId == null) {
+            return;
+        }
 
-		synchronized (this) {
-			JobManagerJobMetricGroup containedGroup = jobs.remove(jobId);
-			if (containedGroup != null) {
-				containedGroup.close();
-			}
-		}
-	}
+        synchronized (this) {
+            JobManagerJobMetricGroup containedGroup = jobs.remove(jobId);
+            if (containedGroup != null) {
+                containedGroup.close();
+            }
+        }
+    }
 
-	public int numRegisteredJobMetricGroups() {
-		return jobs.size();
-	}
+    public int numRegisteredJobMetricGroups() {
+        return jobs.size();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Component Metric Group Specifics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Component Metric Group Specifics
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_HOST, hostname);
-	}
+    @Override
+    protected void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.SCOPE_HOST, hostname);
+    }
 
-	@Override
-	protected Iterable<? extends ComponentMetricGroup> subComponents() {
-		return jobs.values();
-	}
+    @Override
+    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+        return jobs.values();
+    }
 
-	@Override
-	protected String getGroupName(CharacterFilter filter) {
-		return "jobmanager";
-	}
+    @Override
+    protected String getGroupName(CharacterFilter filter) {
+        return "jobmanager";
+    }
 }
-

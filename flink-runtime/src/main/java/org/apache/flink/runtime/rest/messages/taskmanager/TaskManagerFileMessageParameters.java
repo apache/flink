@@ -26,18 +26,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Parameters for {@link TaskManagerCustomLogHandler}.
- */
+/** Parameters for {@link TaskManagerCustomLogHandler}. */
 public class TaskManagerFileMessageParameters extends TaskManagerMessageParameters {
 
-	public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
+    public final LogFileNamePathParameter logFileNamePathParameter = new LogFileNamePathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			logFileNamePathParameter,
-			taskManagerIdParameter
-		));
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.unmodifiableCollection(
+                Arrays.asList(logFileNamePathParameter, taskManagerIdParameter));
+    }
 }

@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.di
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.JoinType
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.hamcrest.CoreMatchers.equalTo
@@ -36,6 +37,9 @@ import scala.collection.mutable
 import scala.util.Random
 
 class SetOperatorsITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
@@ -64,10 +68,11 @@ class SetOperatorsITCase extends BatchTestBase {
 
     val unionTable = table1.unionAll(table2)
 
+    val schema = unionTable.getResolvedSchema.getColumnDataTypes
     assertThat(
-      unionTable.getSchema.getFieldDataTypes()(0),
+      schema.get(0),
       equalTo(DataTypes.DECIMAL(13, 3).notNull()))
-    assertThat(unionTable.getSchema.getFieldDataTypes()(1), equalTo(DataTypes.VARCHAR(3).notNull()))
+    assertThat(schema.get(1), equalTo(DataTypes.VARCHAR(3).notNull()))
 
     val results = executeQuery(unionTable)
     val expected = "12.000,\n" + "1234.123,ABC\n"

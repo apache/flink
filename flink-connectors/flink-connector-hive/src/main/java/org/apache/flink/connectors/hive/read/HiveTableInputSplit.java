@@ -29,52 +29,51 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An wrapper class that wraps info needed for a hadoop input split.
- * Right now, it contains info about the partition of the split.
+ * An wrapper class that wraps info needed for a hadoop input split. Right now, it contains info
+ * about the partition of the split.
  */
 public class HiveTableInputSplit extends HadoopInputSplit {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	protected final HiveTablePartition hiveTablePartition;
+    protected final HiveTablePartition hiveTablePartition;
 
-	public HiveTableInputSplit(
-			int splitNumber,
-			InputSplit hInputSplit,
-			JobConf jobconf,
-			HiveTablePartition hiveTablePartition) {
-		super(splitNumber, hInputSplit, jobconf);
-		this.hiveTablePartition = checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
-	}
+    public HiveTableInputSplit(
+            int splitNumber,
+            InputSplit hInputSplit,
+            JobConf jobconf,
+            HiveTablePartition hiveTablePartition) {
+        super(splitNumber, hInputSplit, jobconf);
+        this.hiveTablePartition =
+                checkNotNull(hiveTablePartition, "hiveTablePartition can not be null");
+    }
 
-	public HiveTablePartition getHiveTablePartition() {
-		return hiveTablePartition;
-	}
+    public HiveTablePartition getHiveTablePartition() {
+        return hiveTablePartition;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		if (!super.equals(o)) {
-			return false;
-		}
-		HiveTableInputSplit split = (HiveTableInputSplit) o;
-		return Objects.equals(hiveTablePartition, split.hiveTablePartition);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        HiveTableInputSplit split = (HiveTableInputSplit) o;
+        return Objects.equals(hiveTablePartition, split.hiveTablePartition);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), hiveTablePartition);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), hiveTablePartition);
+    }
 
-	@Override
-	public String toString() {
-		return "HiveTableInputSplit{" +
-				"hiveTablePartition=" + hiveTablePartition +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "HiveTableInputSplit{" + "hiveTablePartition=" + hiveTablePartition + '}';
+    }
 }

@@ -48,21 +48,21 @@ class ModifiedMonotonicityTest extends TableTestBase {
   def testMaxWithRetractOptimize(): Unit = {
     val query =
       "SELECT a1, MAX(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMinWithRetractOptimize(): Unit = {
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MIN(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testMinCanNotOptimize(): Unit = {
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -73,7 +73,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(100))
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
       "group by a1"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -83,7 +83,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(100))
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -94,7 +94,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(100))
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
-    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

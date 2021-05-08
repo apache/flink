@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
+import org.apache.flink.runtime.executiongraph.EdgeManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -40,165 +44,302 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}.
- */
+/** Adapter of {@link ExecutionGraph} to {@link SchedulingTopology}. */
 public class DefaultExecutionTopology implements SchedulingTopology {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionTopology.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultExecutionTopology.class);
 
-	private final boolean containsCoLocationConstraints;
+    private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
 
-	private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
+    private final List<DefaultExecutionVertex> executionVerticesList;
 
-	private final List<DefaultExecutionVertex> executionVerticesList;
+    private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById;
 
-	private final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById;
+    private final Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex;
 
-	private final Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex;
+    private final List<DefaultSchedulingPipelinedRegion> pipelinedRegions;
 
-	private final List<DefaultSchedulingPipelinedRegion> pipelinedRegions;
+    private final EdgeManager edgeManager;
 
-	public DefaultExecutionTopology(ExecutionGraph graph) {
-		checkNotNull(graph, "execution graph can not be null");
+    private DefaultExecutionTopology(
+            Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById,
+            List<DefaultExecutionVertex> executionVerticesList,
+            Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById,
+            Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex,
+            List<DefaultSchedulingPipelinedRegion> pipelinedRegions,
+            EdgeManager edgeManager) {
+        this.executionVerticesById = checkNotNull(executionVerticesById);
+        this.executionVerticesList = checkNotNull(executionVerticesList);
+        this.resultPartitionsById = checkNotNull(resultPartitionsById);
+        this.pipelinedRegionsByVertex = checkNotNull(pipelinedRegionsByVertex);
+        this.pipelinedRegions = checkNotNull(pipelinedRegions);
+        this.edgeManager = edgeManager;
+    }
 
-		this.containsCoLocationConstraints = graph.getAllVertices().values().stream()
-			.map(ExecutionJobVertex::getCoLocationGroup)
-			.anyMatch(Objects::nonNull);
+    @Override
+    public Iterable<DefaultExecutionVertex> getVertices() {
+        return Collections.unmodifiableList(executionVerticesList);
+    }
 
-		this.executionVerticesById = new HashMap<>();
-		this.executionVerticesList = new ArrayList<>(graph.getTotalNumberOfVertices());
-		Map<IntermediateResultPartitionID, DefaultResultPartition> tmpResultPartitionsById = new HashMap<>();
-		Map<ExecutionVertex, DefaultExecutionVertex> executionVertexMap = new HashMap<>();
+    @Override
+    public DefaultExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
+        final DefaultExecutionVertex executionVertex = executionVerticesById.get(executionVertexId);
+        if (executionVertex == null) {
+            throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
+        }
+        return executionVertex;
+    }
 
-		for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
-			List<DefaultResultPartition> producedPartitions = generateProducedSchedulingResultPartition(vertex.getProducedPartitions());
+    @Override
+    public DefaultResultPartition getResultPartition(
+            final IntermediateResultPartitionID intermediateResultPartitionId) {
+        final DefaultResultPartition resultPartition =
+                resultPartitionsById.get(intermediateResultPartitionId);
+        if (resultPartition == null) {
+            throw new IllegalArgumentException(
+                    "can not find partition: " + intermediateResultPartitionId);
+        }
+        return resultPartition;
+    }
 
-			producedPartitions.forEach(partition -> tmpResultPartitionsById.put(partition.getId(), partition));
+    @Override
+    public Iterable<DefaultSchedulingPipelinedRegion> getAllPipelinedRegions() {
+        checkNotNull(pipelinedRegions);
 
-			DefaultExecutionVertex schedulingVertex = generateSchedulingExecutionVertex(vertex, producedPartitions);
-			this.executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
-			this.executionVerticesList.add(schedulingVertex);
-			executionVertexMap.put(vertex, schedulingVertex);
-		}
-		this.resultPartitionsById = tmpResultPartitionsById;
+        return Collections.unmodifiableCollection(pipelinedRegions);
+    }
 
-		connectVerticesToConsumedPartitions(executionVertexMap, tmpResultPartitionsById);
+    @Override
+    public DefaultSchedulingPipelinedRegion getPipelinedRegionOfVertex(
+            final ExecutionVertexID vertexId) {
+        checkNotNull(pipelinedRegionsByVertex);
 
-		this.pipelinedRegionsByVertex = new HashMap<>();
-		this.pipelinedRegions = new ArrayList<>();
-		initializePipelinedRegions();
-	}
+        final DefaultSchedulingPipelinedRegion pipelinedRegion =
+                pipelinedRegionsByVertex.get(vertexId);
+        if (pipelinedRegion == null) {
+            throw new IllegalArgumentException("Unknown execution vertex " + vertexId);
+        }
+        return pipelinedRegion;
+    }
 
-	private void initializePipelinedRegions() {
-		final long buildRegionsStartTime = System.nanoTime();
+    public EdgeManager getEdgeManager() {
+        return edgeManager;
+    }
 
-		final Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions = PipelinedRegionComputeUtil.computePipelinedRegions(this);
-		for (Set<? extends SchedulingExecutionVertex> rawPipelinedRegion : rawPipelinedRegions) {
-			//noinspection unchecked
-			final DefaultSchedulingPipelinedRegion pipelinedRegion = new DefaultSchedulingPipelinedRegion((Set<DefaultExecutionVertex>) rawPipelinedRegion);
-			pipelinedRegions.add(pipelinedRegion);
+    public static DefaultExecutionTopology fromExecutionGraph(
+            DefaultExecutionGraph executionGraph) {
+        checkNotNull(executionGraph, "execution graph can not be null");
 
-			for (SchedulingExecutionVertex executionVertex : rawPipelinedRegion) {
-				pipelinedRegionsByVertex.put(executionVertex.getId(), pipelinedRegion);
-			}
-		}
+        EdgeManager edgeManager = executionGraph.getEdgeManager();
 
-		final long buildRegionsDuration = (System.nanoTime() - buildRegionsStartTime) / 1_000_000;
-		LOG.info("Built {} pipelined regions in {} ms", pipelinedRegions.size(), buildRegionsDuration);
-	}
+        ExecutionGraphIndex executionGraphIndex =
+                computeExecutionGraphIndex(
+                        executionGraph.getAllExecutionVertices(),
+                        executionGraph.getTotalNumberOfVertices(),
+                        edgeManager);
 
-	@Override
-	public Iterable<DefaultExecutionVertex> getVertices() {
-		return executionVerticesList;
-	}
+        IndexedPipelinedRegions indexedPipelinedRegions =
+                computePipelinedRegions(
+                        executionGraphIndex.executionVerticesList,
+                        executionGraphIndex.resultPartitionsById::get);
 
-	@Override
-	public boolean containsCoLocationConstraints() {
-		return containsCoLocationConstraints;
-	}
+        ensureCoLocatedVerticesInSameRegion(
+                indexedPipelinedRegions.pipelinedRegions, executionGraph);
 
-	@Override
-	public DefaultExecutionVertex getVertex(final ExecutionVertexID executionVertexId) {
-		final DefaultExecutionVertex executionVertex = executionVerticesById.get(executionVertexId);
-		if (executionVertex == null) {
-			throw new IllegalArgumentException("can not find vertex: " + executionVertexId);
-		}
-		return executionVertex;
-	}
+        return new DefaultExecutionTopology(
+                executionGraphIndex.executionVerticesById,
+                executionGraphIndex.executionVerticesList,
+                executionGraphIndex.resultPartitionsById,
+                indexedPipelinedRegions.pipelinedRegionsByVertex,
+                indexedPipelinedRegions.pipelinedRegions,
+                edgeManager);
+    }
 
-	@Override
-	public DefaultResultPartition getResultPartition(final IntermediateResultPartitionID intermediateResultPartitionId) {
-		final DefaultResultPartition resultPartition = resultPartitionsById.get(intermediateResultPartitionId);
-		if (resultPartition == null) {
-			throw new IllegalArgumentException("can not find partition: " + intermediateResultPartitionId);
-		}
-		return resultPartition;
-	}
+    private static ExecutionGraphIndex computeExecutionGraphIndex(
+            Iterable<ExecutionVertex> executionVertices,
+            int vertexNumber,
+            EdgeManager edgeManager) {
+        Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById = new HashMap<>();
+        List<DefaultExecutionVertex> executionVerticesList = new ArrayList<>(vertexNumber);
+        Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById =
+                new HashMap<>();
+        for (ExecutionVertex vertex : executionVertices) {
+            List<DefaultResultPartition> producedPartitions =
+                    generateProducedSchedulingResultPartition(
+                            vertex.getProducedPartitions(),
+                            edgeManager::getConsumerVertexGroupsForPartition,
+                            executionVerticesById::get);
 
-	@Override
-	public Iterable<DefaultSchedulingPipelinedRegion> getAllPipelinedRegions() {
-		return Collections.unmodifiableCollection(pipelinedRegions);
-	}
+            producedPartitions.forEach(
+                    partition -> resultPartitionsById.put(partition.getId(), partition));
 
-	@Override
-	public DefaultSchedulingPipelinedRegion getPipelinedRegionOfVertex(final ExecutionVertexID vertexId) {
-		final DefaultSchedulingPipelinedRegion pipelinedRegion = pipelinedRegionsByVertex.get(vertexId);
-		if (pipelinedRegion == null) {
-			throw new IllegalArgumentException("Unknown execution vertex " + vertexId);
-		}
-		return pipelinedRegion;
-	}
+            DefaultExecutionVertex schedulingVertex =
+                    generateSchedulingExecutionVertex(
+                            vertex,
+                            producedPartitions,
+                            edgeManager.getConsumedPartitionGroupsForVertex(vertex.getID()),
+                            resultPartitionsById::get);
+            executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
+            executionVerticesList.add(schedulingVertex);
+        }
+        return new ExecutionGraphIndex(
+                executionVerticesById, executionVerticesList, resultPartitionsById);
+    }
 
-	private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
-		Map<IntermediateResultPartitionID, IntermediateResultPartition> producedIntermediatePartitions) {
+    private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
+            Map<IntermediateResultPartitionID, IntermediateResultPartition>
+                    producedIntermediatePartitions,
+            Function<IntermediateResultPartitionID, List<ConsumerVertexGroup>>
+                    partitionConsumerVertexGroups,
+            Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever) {
 
-		List<DefaultResultPartition> producedSchedulingPartitions = new ArrayList<>(producedIntermediatePartitions.size());
+        List<DefaultResultPartition> producedSchedulingPartitions =
+                new ArrayList<>(producedIntermediatePartitions.size());
 
-		producedIntermediatePartitions.values().forEach(
-			irp -> producedSchedulingPartitions.add(
-				new DefaultResultPartition(
-					irp.getPartitionId(),
-					irp.getIntermediateResult().getId(),
-					irp.getResultType(),
-					() -> irp.isConsumable() ? ResultPartitionState.CONSUMABLE : ResultPartitionState.CREATED)));
+        producedIntermediatePartitions
+                .values()
+                .forEach(
+                        irp ->
+                                producedSchedulingPartitions.add(
+                                        new DefaultResultPartition(
+                                                irp.getPartitionId(),
+                                                irp.getIntermediateResult().getId(),
+                                                irp.getResultType(),
+                                                () ->
+                                                        irp.isConsumable()
+                                                                ? ResultPartitionState.CONSUMABLE
+                                                                : ResultPartitionState.CREATED,
+                                                partitionConsumerVertexGroups.apply(
+                                                        irp.getPartitionId()),
+                                                executionVertexRetriever)));
 
-		return producedSchedulingPartitions;
-	}
+        return producedSchedulingPartitions;
+    }
 
-	private static DefaultExecutionVertex generateSchedulingExecutionVertex(
-		ExecutionVertex vertex,
-		List<DefaultResultPartition> producedPartitions) {
+    private static DefaultExecutionVertex generateSchedulingExecutionVertex(
+            ExecutionVertex vertex,
+            List<DefaultResultPartition> producedPartitions,
+            List<ConsumedPartitionGroup> consumedPartitionGroups,
+            Function<IntermediateResultPartitionID, DefaultResultPartition>
+                    resultPartitionRetriever) {
 
-		DefaultExecutionVertex schedulingVertex = new DefaultExecutionVertex(
-			vertex.getID(),
-			producedPartitions,
-			() -> vertex.getExecutionState(),
-			vertex.getInputDependencyConstraint());
+        DefaultExecutionVertex schedulingVertex =
+                new DefaultExecutionVertex(
+                        vertex.getID(),
+                        producedPartitions,
+                        vertex::getExecutionState,
+                        consumedPartitionGroups,
+                        resultPartitionRetriever);
 
-		producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
+        producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
 
-		return schedulingVertex;
-	}
+        return schedulingVertex;
+    }
 
-	private static void connectVerticesToConsumedPartitions(
-		Map<ExecutionVertex, DefaultExecutionVertex> executionVertexMap,
-		Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitions) {
+    private static IndexedPipelinedRegions computePipelinedRegions(
+            Iterable<DefaultExecutionVertex> topologicallySortedVertexes,
+            Function<IntermediateResultPartitionID, DefaultResultPartition>
+                    resultPartitionRetriever) {
+        long buildRegionsStartTime = System.nanoTime();
 
-		for (Map.Entry<ExecutionVertex, DefaultExecutionVertex> mapEntry : executionVertexMap.entrySet()) {
-			final DefaultExecutionVertex schedulingVertex = mapEntry.getValue();
-			final ExecutionVertex executionVertex = mapEntry.getKey();
+        Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions =
+                PipelinedRegionComputeUtil.computePipelinedRegions(topologicallySortedVertexes);
 
-			for (int index = 0; index < executionVertex.getNumberOfInputs(); index++) {
-				for (ExecutionEdge edge : executionVertex.getInputEdges(index)) {
-					DefaultResultPartition partition = resultPartitions.get(edge.getSource().getPartitionId());
-					schedulingVertex.addConsumedResult(partition);
-					partition.addConsumer(schedulingVertex);
-				}
-			}
-		}
-	}
+        Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex =
+                new HashMap<>();
+        List<DefaultSchedulingPipelinedRegion> pipelinedRegions = new ArrayList<>();
+
+        for (Set<? extends SchedulingExecutionVertex> rawPipelinedRegion : rawPipelinedRegions) {
+            //noinspection unchecked
+            final DefaultSchedulingPipelinedRegion pipelinedRegion =
+                    new DefaultSchedulingPipelinedRegion(
+                            (Set<DefaultExecutionVertex>) rawPipelinedRegion,
+                            resultPartitionRetriever);
+            pipelinedRegions.add(pipelinedRegion);
+
+            for (SchedulingExecutionVertex executionVertex : rawPipelinedRegion) {
+                pipelinedRegionsByVertex.put(executionVertex.getId(), pipelinedRegion);
+            }
+        }
+
+        long buildRegionsDuration = (System.nanoTime() - buildRegionsStartTime) / 1_000_000;
+        LOG.info(
+                "Built {} pipelined regions in {} ms",
+                pipelinedRegions.size(),
+                buildRegionsDuration);
+
+        return new IndexedPipelinedRegions(pipelinedRegionsByVertex, pipelinedRegions);
+    }
+
+    /**
+     * Co-location constraints are only used for iteration head and tail. A paired head and tail
+     * needs to be in the same pipelined region so that they can be restarted together.
+     */
+    private static void ensureCoLocatedVerticesInSameRegion(
+            List<DefaultSchedulingPipelinedRegion> pipelinedRegions,
+            ExecutionGraph executionGraph) {
+
+        final Map<CoLocationConstraint, DefaultSchedulingPipelinedRegion> constraintToRegion =
+                new HashMap<>();
+        for (DefaultSchedulingPipelinedRegion region : pipelinedRegions) {
+            for (DefaultExecutionVertex vertex : region.getVertices()) {
+                final CoLocationConstraint constraint =
+                        getCoLocationConstraint(vertex.getId(), executionGraph);
+                if (constraint != null) {
+                    final DefaultSchedulingPipelinedRegion regionOfConstraint =
+                            constraintToRegion.get(constraint);
+                    checkState(
+                            regionOfConstraint == null || regionOfConstraint == region,
+                            "co-located tasks must be in the same pipelined region");
+                    constraintToRegion.putIfAbsent(constraint, region);
+                }
+            }
+        }
+    }
+
+    private static CoLocationConstraint getCoLocationConstraint(
+            ExecutionVertexID executionVertexId, ExecutionGraph executionGraph) {
+
+        CoLocationGroup coLocationGroup =
+                Objects.requireNonNull(
+                                executionGraph.getJobVertex(executionVertexId.getJobVertexId()))
+                        .getCoLocationGroup();
+        return coLocationGroup == null
+                ? null
+                : coLocationGroup.getLocationConstraint(executionVertexId.getSubtaskIndex());
+    }
+
+    private static class ExecutionGraphIndex {
+        private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
+        private final List<DefaultExecutionVertex> executionVerticesList;
+        private final Map<IntermediateResultPartitionID, DefaultResultPartition>
+                resultPartitionsById;
+
+        private ExecutionGraphIndex(
+                Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById,
+                List<DefaultExecutionVertex> executionVerticesList,
+                Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById) {
+            this.executionVerticesById = checkNotNull(executionVerticesById);
+            this.executionVerticesList = checkNotNull(executionVerticesList);
+            this.resultPartitionsById = checkNotNull(resultPartitionsById);
+        }
+    }
+
+    private static class IndexedPipelinedRegions {
+        private final Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion>
+                pipelinedRegionsByVertex;
+        private final List<DefaultSchedulingPipelinedRegion> pipelinedRegions;
+
+        private IndexedPipelinedRegions(
+                Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex,
+                List<DefaultSchedulingPipelinedRegion> pipelinedRegions) {
+            this.pipelinedRegionsByVertex = checkNotNull(pipelinedRegionsByVertex);
+            this.pipelinedRegions = checkNotNull(pipelinedRegions);
+        }
+    }
 }

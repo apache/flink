@@ -28,10 +28,9 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-
 /**
- * This transformation represents a selection of a side output of an upstream operation with a
- * given {@link OutputTag}.
+ * This transformation represents a selection of a side output of an upstream operation with a given
+ * {@link OutputTag}.
  *
  * <p>This does not create a physical operation, it only affects how upstream operations are
  * connected to downstream operations.
@@ -39,30 +38,30 @@ import static java.util.Objects.requireNonNull;
  * @param <T> The type of the elements that result from this {@code SideOutputTransformation}
  */
 public class SideOutputTransformation<T> extends Transformation<T> {
-	private final Transformation<?> input;
+    private final Transformation<?> input;
 
-	private final OutputTag<T> tag;
+    private final OutputTag<T> tag;
 
-	public SideOutputTransformation(Transformation<?> input, final OutputTag<T> tag) {
-		super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
-		this.input = input;
-		this.tag = requireNonNull(tag);
-	}
+    public SideOutputTransformation(Transformation<?> input, final OutputTag<T> tag) {
+        super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
+        this.input = input;
+        this.tag = requireNonNull(tag);
+    }
 
-	public OutputTag<T> getOutputTag() {
-		return tag;
-	}
+    public OutputTag<T> getOutputTag() {
+        return tag;
+    }
 
-	@Override
-	public List<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	@Override
-	public List<Transformation<?>> getInputs() {
-		return Collections.singletonList(input);
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 }

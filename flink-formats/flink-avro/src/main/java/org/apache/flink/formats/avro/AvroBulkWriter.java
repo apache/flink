@@ -24,35 +24,33 @@ import org.apache.avro.file.DataFileWriter;
 
 import java.io.IOException;
 
-/**
- * A simple {@link BulkWriter} implementation that wraps an Avro {@link DataFileWriter}.
- */
+/** A simple {@link BulkWriter} implementation that wraps an Avro {@link DataFileWriter}. */
 public class AvroBulkWriter<T> implements BulkWriter<T> {
 
-	/** The underlying Avro writer. */
-	private final DataFileWriter<T> dataFileWriter;
+    /** The underlying Avro writer. */
+    private final DataFileWriter<T> dataFileWriter;
 
-	/**
-	 * Create a new AvroBulkWriter wrapping the given Avro {@link DataFileWriter}.
-	 *
-	 * @param dataFileWriter The underlying Avro writer.
-	 */
-	public AvroBulkWriter(DataFileWriter<T> dataFileWriter) {
-		this.dataFileWriter = dataFileWriter;
-	}
+    /**
+     * Create a new AvroBulkWriter wrapping the given Avro {@link DataFileWriter}.
+     *
+     * @param dataFileWriter The underlying Avro writer.
+     */
+    public AvroBulkWriter(DataFileWriter<T> dataFileWriter) {
+        this.dataFileWriter = dataFileWriter;
+    }
 
-	@Override
-	public void addElement(T element) throws IOException {
-		dataFileWriter.append(element);
-	}
+    @Override
+    public void addElement(T element) throws IOException {
+        dataFileWriter.append(element);
+    }
 
-	@Override
-	public void flush() throws IOException {
-		dataFileWriter.flush();
-	}
+    @Override
+    public void flush() throws IOException {
+        dataFileWriter.flush();
+    }
 
-	@Override
-	public void finish() throws IOException {
-		dataFileWriter.close();
-	}
+    @Override
+    public void finish() throws IOException {
+        dataFileWriter.close();
+    }
 }

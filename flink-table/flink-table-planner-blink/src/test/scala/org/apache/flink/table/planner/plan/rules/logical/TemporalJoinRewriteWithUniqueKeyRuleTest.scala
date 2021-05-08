@@ -106,13 +106,13 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
 
   @Test
   def testPrimaryKeyInTemporalJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T " +
+    util.verifyRelPlan("SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T " +
       "ON T1.id = T.id")
   }
 
   @Test
   def testInferredPrimaryKeyInTemporalJoin(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF " +
+    util.verifyRelPlan("SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF " +
       "T1.rowtime AS T ON T1.id = T.id")
   }
 
@@ -121,7 +121,7 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Currently the join key in " +
       "Temporal Table Join can not be empty.")
-    util.verifyPlan("SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T " +
+    util.verifyRelPlan("SELECT * FROM T1 JOIN T2 FOR SYSTEM_TIME AS OF T1.rowtime AS T " +
       "ON TRUE")
   }
 
@@ -141,9 +141,11 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
       """.stripMargin)
 
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(s"Event-Time Temporal Table Join requires both primary key" +
-      s" and row time attribute in versioned table, but no primary key can be found.")
-    util.verifyPlan("SELECT * FROM T1 LEFT JOIN noPkTable FOR SYSTEM_TIME AS OF " +
+    expectedException.expectMessage("Temporal Table Join requires primary key in versioned table," +
+      " but no primary key can be found. The physical plan is:\nFlinkLogicalJoin(" +
+      "condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION($3, $6," +
+      " __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[left])")
+    util.verifyRelPlan("SELECT * FROM T1 LEFT JOIN noPkTable FOR SYSTEM_TIME AS OF " +
       "T1.rowtime AS T ON T1.id = T.id")
   }
 
@@ -158,9 +160,11 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         "  WHERE rowNum = 2")
 
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(s"Event-Time Temporal Table Join requires both primary key" +
-      s" and row time attribute in versioned table, but no primary key can be found.")
-    util.verifyPlan("SELECT * FROM T1 JOIN noPkView FOR SYSTEM_TIME AS OF " +
+    expectedException.expectMessage("Temporal Table Join requires primary key in versioned table," +
+      " but no primary key can be found. The physical plan is:\n" +
+      "FlinkLogicalJoin(condition=[AND(=($0, $4), __INITIAL_TEMPORAL_JOIN_CONDITION(" +
+      "$3, $6, __TEMPORAL_JOIN_LEFT_KEY($0), __TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])")
+    util.verifyRelPlan("SELECT * FROM T1 JOIN noPkView FOR SYSTEM_TIME AS OF " +
       "T1.rowtime AS T ON T1.id = T.id")
   }
 
@@ -169,7 +173,7 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Currently the join key in " +
       "Temporal Table Join can not be empty.")
-    util.verifyPlan("SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF " +
+    util.verifyRelPlan("SELECT * FROM T1 JOIN DeduplicatedView FOR SYSTEM_TIME AS OF " +
       "T1.rowtime AS T ON TRUE")
   }
 }

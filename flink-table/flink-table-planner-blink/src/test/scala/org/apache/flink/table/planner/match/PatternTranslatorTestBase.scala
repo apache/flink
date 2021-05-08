@@ -30,7 +30,9 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecMatch}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalMatch}
+import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
@@ -95,13 +97,17 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val optimized: RelNode = plannerBase.optimize(Seq(converted)).head
 
     // throw exception if plan contains more than a match
-    // the plan should be: StreamExecMatch -> StreamExecExchange -> StreamExecDataStreamScan
-    if (!optimized.getInput(0).getInput(0).isInstanceOf[StreamExecDataStreamScan]) {
+    // the plan should be: StreamExecMatch -> StreamPhysicalExchange -> StreamPhysicalDataStreamScan
+    if (!optimized.getInput(0).getInput(0).isInstanceOf[StreamPhysicalDataStreamScan]) {
       fail("Expression is converted into more than a Match operation. Use a different test method.")
     }
 
-    val dataMatch = optimized.asInstanceOf[StreamExecMatch]
-    val p = dataMatch.translatePattern(new TableConfig, context._1, testTableRowType)._1
+    val dataMatch = optimized.asInstanceOf[StreamPhysicalMatch]
+    val p = StreamExecMatch.translatePattern(
+      MatchUtil.createMatchSpec(dataMatch.logicalMatch),
+      new TableConfig,
+      context._1,
+      testTableRowType).f0
 
     compare(expected, p)
   }

@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVar
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
-import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
@@ -47,7 +47,6 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.tools.RelBuilder
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.lang.{Long => JLong}
 import java.util
@@ -201,7 +200,7 @@ class MatchCodeGenerator(
     */
   def generateOneRowPerMatchExpression(
       returnType: RowType,
-      partitionKeys: ImmutableBitSet,
+      partitionKeys: Array[Int],
       measures: util.Map[String, RexNode])
     : PatternProcessFunctionRunner = {
     val resultExpression = generateOneRowPerMatchExpression(
@@ -297,7 +296,7 @@ class MatchCodeGenerator(
   }
 
   private def generateOneRowPerMatchExpression(
-      partitionKeys: ImmutableBitSet,
+      partitionKeys: Array[Int],
       measures: java.util.Map[String, RexNode],
       returnType: RowType): GeneratedExpression = {
 
@@ -305,7 +304,7 @@ class MatchCodeGenerator(
     // 1) the partition columns;
     // 2) the columns defined in the measures clause.
     val resultExprs =
-    partitionKeys.toArray.map(generatePartitionKeyAccess) ++
+    partitionKeys.map(generatePartitionKeyAccess) ++
       returnType.getFieldNames
         .filter(measures.containsKey(_))
         .map { fieldName =>
@@ -372,11 +371,14 @@ class MatchCodeGenerator(
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new TimestampType(true, TimestampKind.PROCTIME, 3),
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
           ctx.nullCheck)
 
       case MATCH_ROWTIME =>
-        generateRowtimeAccess(ctx, contextTerm)
+        generateRowtimeAccess(
+          ctx,
+          contextTerm,
+          FlinkTypeFactory.isTimestampLtzIndicatorType(call.getType))
 
       case PROCTIME_MATERIALIZE =>
         // override proctime materialize code generation
@@ -388,7 +390,7 @@ class MatchCodeGenerator(
   }
 
   private def generateProctimeTimestamp(): GeneratedExpression = {
-    val resultType = new TimestampType(3)
+    val resultType = new LocalZonedTimestampType(3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
@@ -682,8 +684,8 @@ class MatchCodeGenerator(
         matchAgg.inputExprs.indices.map(i => s"TMP$i"))
 
       val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        FlinkTypeFactory.toLogicalRowType(inputRelType),
         aggCalls,
-        inputRelType,
         needRetraction,
         needInputCount = false,
         isStateBackendDataViews = false,

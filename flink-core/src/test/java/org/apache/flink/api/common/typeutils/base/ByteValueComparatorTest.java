@@ -27,38 +27,39 @@ import java.util.Random;
 
 public class ByteValueComparatorTest extends ComparatorTestBase<ByteValue> {
 
-	@Override
-	protected TypeComparator<ByteValue> createComparator(boolean ascending) {
-		return new ByteValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<ByteValue> createComparator(boolean ascending) {
+        return new ByteValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<ByteValue> createSerializer() {
-		return new ByteValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<ByteValue> createSerializer() {
+        return new ByteValueSerializer();
+    }
 
-	@Override
-	protected ByteValue[] getSortedTestData() {
+    @Override
+    protected ByteValue[] getSortedTestData() {
 
-		Random rnd = new Random(874597969123412338L);
-		int rndByte = rnd.nextInt(Byte.MAX_VALUE);
-		if (rndByte < 0) {
-			rndByte = -rndByte;
-		}
-		if (rndByte == Byte.MAX_VALUE) {
-			rndByte -= 3;
-		}
-		if (rndByte <= 2) {
-			rndByte += 3;
-		}
-		return new ByteValue[]{
-			new ByteValue(Byte.MIN_VALUE),
-			new ByteValue(Integer.valueOf(-rndByte).byteValue()),
-			new ByteValue(Integer.valueOf(-1).byteValue()),
-			new ByteValue(Integer.valueOf(0).byteValue()),
-			new ByteValue(Integer.valueOf(1).byteValue()),
-			new ByteValue(Integer.valueOf(2).byteValue()),
-			new ByteValue(Integer.valueOf(rndByte).byteValue()),
-			new ByteValue(Byte.MAX_VALUE)};
-	}
+        Random rnd = new Random(874597969123412338L);
+        int rndByte = rnd.nextInt(Byte.MAX_VALUE);
+        if (rndByte < 0) {
+            rndByte = -rndByte;
+        }
+        if (rndByte == Byte.MAX_VALUE) {
+            rndByte -= 3;
+        }
+        if (rndByte <= 2) {
+            rndByte += 3;
+        }
+        return new ByteValue[] {
+            new ByteValue(Byte.MIN_VALUE),
+            new ByteValue(Integer.valueOf(-rndByte).byteValue()),
+            new ByteValue(Integer.valueOf(-1).byteValue()),
+            new ByteValue(Integer.valueOf(0).byteValue()),
+            new ByteValue(Integer.valueOf(1).byteValue()),
+            new ByteValue(Integer.valueOf(2).byteValue()),
+            new ByteValue(Integer.valueOf(rndByte).byteValue()),
+            new ByteValue(Byte.MAX_VALUE)
+        };
+    }
 }

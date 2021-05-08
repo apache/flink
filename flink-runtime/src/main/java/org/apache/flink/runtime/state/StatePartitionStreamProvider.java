@@ -26,37 +26,35 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * This class provides access to input streams that contain data of one state partition of a partitionable state.
+ * This class provides access to input streams that contain data of one state partition of a
+ * partitionable state.
  *
- * TODO use bounded stream that fail fast if the limit is exceeded on corrupted reads.
+ * <p>TODO use bounded stream that fail fast if the limit is exceeded on corrupted reads.
  */
 @PublicEvolving
 public class StatePartitionStreamProvider {
 
-	/** A ready-made stream that contains data for one state partition */
-	private final InputStream stream;
+    /** A ready-made stream that contains data for one state partition */
+    private final InputStream stream;
 
-	/** Holds potential exception that happened when actually trying to create the stream */
-	private final IOException creationException;
+    /** Holds potential exception that happened when actually trying to create the stream */
+    private final IOException creationException;
 
-	public StatePartitionStreamProvider(IOException creationException) {
-		this.creationException = Preconditions.checkNotNull(creationException);
-		this.stream = null;
-	}
+    public StatePartitionStreamProvider(IOException creationException) {
+        this.creationException = Preconditions.checkNotNull(creationException);
+        this.stream = null;
+    }
 
-	public StatePartitionStreamProvider(InputStream stream) {
-		this.stream = new NonClosingInputStreamDecorator(Preconditions.checkNotNull(stream));
-		this.creationException = null;
-	}
+    public StatePartitionStreamProvider(InputStream stream) {
+        this.stream = new NonClosingInputStreamDecorator(Preconditions.checkNotNull(stream));
+        this.creationException = null;
+    }
 
-
-	/**
-	 * Returns a stream with the data of one state partition.
-	 */
-	public InputStream getStream() throws IOException {
-		if (creationException != null) {
-			throw new IOException(creationException);
-		}
-		return stream;
-	}
+    /** Returns a stream with the data of one state partition. */
+    public InputStream getStream() throws IOException {
+        if (creationException != null) {
+            throw new IOException(creationException);
+        }
+        return stream;
+    }
 }

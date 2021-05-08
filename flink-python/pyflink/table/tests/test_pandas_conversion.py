@@ -24,7 +24,7 @@ from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -63,7 +63,7 @@ class PandasConversionTestBase(object):
                  [DataTypes.FIELD("a", DataTypes.INT()),
                   DataTypes.FIELD("b", DataTypes.STRING()),
                   DataTypes.FIELD("c", DataTypes.TIMESTAMP(3)),
-                  DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.INT()))]))])
+                  DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.INT()))]))], False)
         cls.pdf = cls.create_pandas_data_frame()
 
     @classmethod
@@ -82,6 +82,7 @@ class PandasConversionTestBase(object):
         data_dict["f15"] = [row.as_dict() for row in data_dict["f15"]]
         import pandas as pd
         return pd.DataFrame(data=data_dict,
+                            index=[2., 3.],
                             columns=['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9',
                                      'f10', 'f11', 'f12', 'f13', 'f14', 'f15'])
 
@@ -127,16 +128,21 @@ class PandasConversionITTests(PandasConversionTestBase):
         table.execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"
-                            "1000000000000000000.010000000000000000,2014-09-13,01:00:01,"
-                            "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
-                            "1970-01-01 00:00:00.123,[1, 2]"])
+                           ["+I[1, 1, 1, 1, true, 1.1, 1.2, hello, [97, 97, 97], "
+                            "1000000000000000000.010000000000000000, 2014-09-13, 01:00:01, "
+                            "1970-01-01 00:00:00.123, [hello, 中文], +I[1, hello, "
+                            "1970-01-01 00:00:00.123, [1, 2]]]"])
 
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
+        result_pdf.index = self.pdf.index
         self.assertEqual(2, len(result_pdf))
-        assert_frame_equal(self.pdf, result_pdf)
+        expected_arrow = self.pdf.to_records(index=False)
+        result_arrow = result_pdf.to_records(index=False)
+        for r in range(len(expected_arrow)):
+            for e in range(len(expected_arrow[r])):
+                self.assert_equal_field(expected_arrow[r][e], result_arrow[r][e])
 
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
@@ -153,9 +159,21 @@ class PandasConversionITTests(PandasConversionTestBase):
         result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
+    def assert_equal_field(self, expected_field, result_field):
+        import numpy as np
+        result_type = type(result_field)
+        if result_type == dict:
+            self.assertEqual(expected_field.keys(), result_field.keys())
+            for key in expected_field:
+                self.assert_equal_field(expected_field[key], result_field[key])
+        elif result_type == np.ndarray:
+            self.assertTrue((expected_field == result_field).all())
+        else:
+            self.assertTrue(expected_field == result_field)
+
 
 class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkStreamTableTestCase):
+                                  PyFlinkOldStreamTableTestCase):
     pass
 
 
@@ -167,4 +185,51 @@ class BlinkBatchPandasConversionTests(PandasConversionTests,
 
 class BlinkStreamPandasConversionTests(PandasConversionITTests,
                                        PyFlinkBlinkStreamTableTestCase):
-    pass
+    def test_to_pandas_with_event_time(self):
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:10:00',
+            '2018-03-11 03:40:00',
+            '2018-03-11 04:20:00',
+            '2018-03-11 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_to_pandas_with_event_time.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
+
+        source_table = """
+            create table source_table(
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+        result_pdf = t.to_pandas()
+        import pandas as pd
+        os.remove(source_path)
+        assert_frame_equal(result_pdf, pd.DataFrame(
+            data={"rowtime": [
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 10),
+                datetime.datetime(2018, 3, 11, 3, 40),
+                datetime.datetime(2018, 3, 11, 4, 20),
+                datetime.datetime(2018, 3, 11, 3, 30),
+            ]}))

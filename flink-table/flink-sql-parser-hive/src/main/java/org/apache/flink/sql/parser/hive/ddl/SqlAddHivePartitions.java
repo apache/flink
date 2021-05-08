@@ -32,57 +32,64 @@ import java.util.List;
 /**
  * Add partitions to a Hive table.
  *
- * <p>Hive syntax:
- * ALTER TABLE table_name ADD [IF NOT EXISTS]
- *     PARTITION partition_spec [LOCATION 'location'][PARTITION partition_spec [LOCATION 'location']][...];
+ * <p>Hive syntax: ALTER TABLE table_name ADD [IF NOT EXISTS] PARTITION partition_spec [LOCATION
+ * 'location'][PARTITION partition_spec [LOCATION 'location']][...];
  */
 public class SqlAddHivePartitions extends SqlAddPartitions {
 
-	private final List<SqlCharStringLiteral> partLocations;
+    private final List<SqlCharStringLiteral> partLocations;
 
-	public SqlAddHivePartitions(SqlParserPos pos, SqlIdentifier tableName, boolean ifNotExists,
-			List<SqlNodeList> partSpecs, List<SqlCharStringLiteral> partLocations) {
-		super(pos, tableName, ifNotExists, partSpecs, toProps(partLocations));
-		for (SqlNodeList spec : partSpecs) {
-			HiveDDLUtils.unescapePartitionSpec(spec);
-		}
-		this.partLocations = partLocations;
-	}
+    public SqlAddHivePartitions(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            boolean ifNotExists,
+            List<SqlNodeList> partSpecs,
+            List<SqlCharStringLiteral> partLocations) {
+        super(pos, tableName, ifNotExists, partSpecs, toProps(partLocations));
+        for (SqlNodeList spec : partSpecs) {
+            HiveDDLUtils.unescapePartitionSpec(spec);
+        }
+        this.partLocations = partLocations;
+    }
 
-	private static List<SqlNodeList> toProps(List<SqlCharStringLiteral> partLocations) {
-		List<SqlNodeList> res = new ArrayList<>(partLocations.size());
-		for (SqlCharStringLiteral partLocation : partLocations) {
-			SqlNodeList prop = null;
-			if (partLocation != null) {
-				prop = new SqlNodeList(partLocation.getParserPosition());
-				prop.add(HiveDDLUtils.toTableOption(SqlCreateHiveTable.TABLE_LOCATION_URI, partLocation, partLocation.getParserPosition()));
-			}
-			res.add(prop);
-		}
-		return res;
-	}
+    private static List<SqlNodeList> toProps(List<SqlCharStringLiteral> partLocations) {
+        List<SqlNodeList> res = new ArrayList<>(partLocations.size());
+        for (SqlCharStringLiteral partLocation : partLocations) {
+            SqlNodeList prop = null;
+            if (partLocation != null) {
+                prop = new SqlNodeList(partLocation.getParserPosition());
+                prop.add(
+                        HiveDDLUtils.toTableOption(
+                                SqlCreateHiveTable.TABLE_LOCATION_URI,
+                                partLocation,
+                                partLocation.getParserPosition()));
+            }
+            res.add(prop);
+        }
+        return res;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		writer.newlineAndIndent();
-		writer.keyword("ADD");
-		if (ifNotExists()) {
-			writer.keyword("IF NOT EXISTS");
-		}
-		int opLeftPrec = getOperator().getLeftPrec();
-		int opRightPrec = getOperator().getRightPrec();
-		for (int i = 0; i < getPartSpecs().size(); i++) {
-			writer.newlineAndIndent();
-			SqlNodeList partSpec = getPartSpecs().get(i);
-			writer.keyword("PARTITION");
-			partSpec.unparse(writer, opLeftPrec, opRightPrec);
-			SqlCharStringLiteral location = partLocations.get(i);
-			if (location != null) {
-				writer.keyword("LOCATION");
-				location.unparse(writer, opLeftPrec, opRightPrec);
-			}
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        writer.newlineAndIndent();
+        writer.keyword("ADD");
+        if (ifNotExists()) {
+            writer.keyword("IF NOT EXISTS");
+        }
+        int opLeftPrec = getOperator().getLeftPrec();
+        int opRightPrec = getOperator().getRightPrec();
+        for (int i = 0; i < getPartSpecs().size(); i++) {
+            writer.newlineAndIndent();
+            SqlNodeList partSpec = getPartSpecs().get(i);
+            writer.keyword("PARTITION");
+            partSpec.unparse(writer, opLeftPrec, opRightPrec);
+            SqlCharStringLiteral location = partLocations.get(i);
+            if (location != null) {
+                writer.keyword("LOCATION");
+                location.unparse(writer, opLeftPrec, opRightPrec);
+            }
+        }
+    }
 }

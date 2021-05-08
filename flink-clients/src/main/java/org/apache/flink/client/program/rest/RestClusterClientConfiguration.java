@@ -26,66 +26,62 @@ import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * A configuration object for {@link RestClusterClient}s.
- */
+/** A configuration object for {@link RestClusterClient}s. */
 public final class RestClusterClientConfiguration {
 
-	private final RestClientConfiguration restClientConfiguration;
+    private final RestClientConfiguration restClientConfiguration;
 
-	private final long awaitLeaderTimeout;
+    private final long awaitLeaderTimeout;
 
-	private final int retryMaxAttempts;
+    private final int retryMaxAttempts;
 
-	private final long retryDelay;
+    private final long retryDelay;
 
-	private RestClusterClientConfiguration(
-			final RestClientConfiguration endpointConfiguration,
-			final long awaitLeaderTimeout,
-			final int retryMaxAttempts,
-			final long retryDelay) {
-		checkArgument(awaitLeaderTimeout >= 0, "awaitLeaderTimeout must be equal to or greater than 0");
-		checkArgument(retryMaxAttempts >= 0, "retryMaxAttempts must be equal to or greater than 0");
-		checkArgument(retryDelay >= 0, "retryDelay must be equal to or greater than 0");
+    private RestClusterClientConfiguration(
+            final RestClientConfiguration endpointConfiguration,
+            final long awaitLeaderTimeout,
+            final int retryMaxAttempts,
+            final long retryDelay) {
+        checkArgument(
+                awaitLeaderTimeout >= 0, "awaitLeaderTimeout must be equal to or greater than 0");
+        checkArgument(retryMaxAttempts >= 0, "retryMaxAttempts must be equal to or greater than 0");
+        checkArgument(retryDelay >= 0, "retryDelay must be equal to or greater than 0");
 
-		this.restClientConfiguration = Preconditions.checkNotNull(endpointConfiguration);
-		this.awaitLeaderTimeout = awaitLeaderTimeout;
-		this.retryMaxAttempts = retryMaxAttempts;
-		this.retryDelay = retryDelay;
-	}
+        this.restClientConfiguration = Preconditions.checkNotNull(endpointConfiguration);
+        this.awaitLeaderTimeout = awaitLeaderTimeout;
+        this.retryMaxAttempts = retryMaxAttempts;
+        this.retryDelay = retryDelay;
+    }
 
-	public RestClientConfiguration getRestClientConfiguration() {
-		return restClientConfiguration;
-	}
+    public RestClientConfiguration getRestClientConfiguration() {
+        return restClientConfiguration;
+    }
 
-	/**
-	 * @see RestOptions#AWAIT_LEADER_TIMEOUT
-	 */
-	public long getAwaitLeaderTimeout() {
-		return awaitLeaderTimeout;
-	}
+    /** @see RestOptions#AWAIT_LEADER_TIMEOUT */
+    public long getAwaitLeaderTimeout() {
+        return awaitLeaderTimeout;
+    }
 
-	/**
-	 * @see RestOptions#RETRY_MAX_ATTEMPTS
-	 */
-	public int getRetryMaxAttempts() {
-		return retryMaxAttempts;
-	}
+    /** @see RestOptions#RETRY_MAX_ATTEMPTS */
+    public int getRetryMaxAttempts() {
+        return retryMaxAttempts;
+    }
 
-	/**
-	 * @see RestOptions#RETRY_DELAY
-	 */
-	public long getRetryDelay() {
-		return retryDelay;
-	}
+    /** @see RestOptions#RETRY_DELAY */
+    public long getRetryDelay() {
+        return retryDelay;
+    }
 
-	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
-		RestClientConfiguration restClientConfiguration = RestClientConfiguration.fromConfiguration(config);
+    public static RestClusterClientConfiguration fromConfiguration(Configuration config)
+            throws ConfigurationException {
+        RestClientConfiguration restClientConfiguration =
+                RestClientConfiguration.fromConfiguration(config);
 
-		final long awaitLeaderTimeout = config.getLong(RestOptions.AWAIT_LEADER_TIMEOUT);
-		final int retryMaxAttempts = config.getInteger(RestOptions.RETRY_MAX_ATTEMPTS);
-		final long retryDelay = config.getLong(RestOptions.RETRY_DELAY);
+        final long awaitLeaderTimeout = config.getLong(RestOptions.AWAIT_LEADER_TIMEOUT);
+        final int retryMaxAttempts = config.getInteger(RestOptions.RETRY_MAX_ATTEMPTS);
+        final long retryDelay = config.getLong(RestOptions.RETRY_DELAY);
 
-		return new RestClusterClientConfiguration(restClientConfiguration, awaitLeaderTimeout, retryMaxAttempts, retryDelay);
-	}
+        return new RestClusterClientConfiguration(
+                restClientConfiguration, awaitLeaderTimeout, retryMaxAttempts, retryDelay);
+    }
 }

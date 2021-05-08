@@ -24,7 +24,7 @@ package org.apache.flink.streaming.tests;
  * resolved in ClassLoaderTestProgram.
  */
 public class ParentChildTestingVehicle {
-	public static String getMessage() {
-		return "Hello, from lib package!";
-	}
+    public static String getMessage() {
+        return "Hello, from lib package!";
+    }
 }

@@ -31,48 +31,52 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Marshalling tests for the {@link SavepointInfo}.
- */
+/** Marshalling tests for the {@link SavepointInfo}. */
 @RunWith(Parameterized.class)
 public class SavepointInfoMarshallingTest extends RestResponseMarshallingTestBase<SavepointInfo> {
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> data() {
-		return Arrays.asList(new Object[][]{
-			{new SavepointInfo(
-				"/tmp",
-				null
-			)},
-			{new SavepointInfo(
-				null,
-				new SerializedThrowable(new RuntimeException("expected")))}});
-	}
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {new SavepointInfo("/tmp", null)},
+                    {
+                        new SavepointInfo(
+                                null, new SerializedThrowable(new RuntimeException("expected")))
+                    }
+                });
+    }
 
-	private final SavepointInfo savepointInfo;
+    private final SavepointInfo savepointInfo;
 
-	public SavepointInfoMarshallingTest(SavepointInfo savepointInfo) {
-		this.savepointInfo = savepointInfo;
-	}
+    public SavepointInfoMarshallingTest(SavepointInfo savepointInfo) {
+        this.savepointInfo = savepointInfo;
+    }
 
-	@Override
-	protected Class<SavepointInfo> getTestResponseClass() {
-		return SavepointInfo.class;
-	}
+    @Override
+    protected Class<SavepointInfo> getTestResponseClass() {
+        return SavepointInfo.class;
+    }
 
-	@Override
-	protected SavepointInfo getTestResponseInstance() throws Exception {
-		return savepointInfo;
-	}
+    @Override
+    protected SavepointInfo getTestResponseInstance() throws Exception {
+        return savepointInfo;
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(SavepointInfo expected, SavepointInfo actual) {
-		assertThat(actual.getLocation(), is(expected.getLocation()));
-		if (expected.getFailureCause() != null) {
-			assertThat(actual.getFailureCause(), notNullValue());
-			assertThat(
-				actual.getFailureCause().deserializeError(ClassLoader.getSystemClassLoader()).getMessage(),
-				is(expected.getFailureCause().deserializeError(ClassLoader.getSystemClassLoader()).getMessage()));
-		}
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            SavepointInfo expected, SavepointInfo actual) {
+        assertThat(actual.getLocation(), is(expected.getLocation()));
+        if (expected.getFailureCause() != null) {
+            assertThat(actual.getFailureCause(), notNullValue());
+            assertThat(
+                    actual.getFailureCause()
+                            .deserializeError(ClassLoader.getSystemClassLoader())
+                            .getMessage(),
+                    is(
+                            expected.getFailureCause()
+                                    .deserializeError(ClassLoader.getSystemClassLoader())
+                                    .getMessage()));
+        }
+    }
 }

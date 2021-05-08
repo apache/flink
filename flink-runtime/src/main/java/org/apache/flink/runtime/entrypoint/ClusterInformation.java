@@ -22,38 +22,39 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
-/**
- * Information about the cluster which is shared with the cluster components.
- */
+/** Information about the cluster which is shared with the cluster components. */
 public class ClusterInformation implements Serializable {
 
-	private static final long serialVersionUID = 316958921518479205L;
+    private static final long serialVersionUID = 316958921518479205L;
 
-	private final String blobServerHostname;
+    private final String blobServerHostname;
 
-	private final int blobServerPort;
+    private final int blobServerPort;
 
-	public ClusterInformation(String blobServerHostname, int blobServerPort) {
-		this.blobServerHostname = Preconditions.checkNotNull(blobServerHostname);
-		Preconditions.checkArgument(
-			0 < blobServerPort && blobServerPort < 65_536,
-			"The blob port must between 0 and 65_536. However, it was " + blobServerPort + '.');
-		this.blobServerPort = blobServerPort;
-	}
+    public ClusterInformation(String blobServerHostname, int blobServerPort) {
+        this.blobServerHostname = Preconditions.checkNotNull(blobServerHostname);
+        Preconditions.checkArgument(
+                0 < blobServerPort && blobServerPort < 65_536,
+                "The blob port must between 0 and 65_536. However, it was " + blobServerPort + '.');
+        this.blobServerPort = blobServerPort;
+    }
 
-	public String getBlobServerHostname() {
-		return blobServerHostname;
-	}
+    public String getBlobServerHostname() {
+        return blobServerHostname;
+    }
 
-	public int getBlobServerPort() {
-		return blobServerPort;
-	}
+    public int getBlobServerPort() {
+        return blobServerPort;
+    }
 
-	@Override
-	public String toString() {
-		return "ClusterInformation{" +
-			"blobServerHostname='" + blobServerHostname + '\'' +
-			", blobServerPort=" + blobServerPort +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "ClusterInformation{"
+                + "blobServerHostname='"
+                + blobServerHostname
+                + '\''
+                + ", blobServerPort="
+                + blobServerPort
+                + '}';
+    }
 }

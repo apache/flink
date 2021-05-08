@@ -431,29 +431,29 @@ object FlinkRelOptUtil {
       interval2 == MiniBatchInterval.NO_MINIBATCH) {
       return MiniBatchInterval.NO_MINIBATCH
     }
-    interval1.mode match {
+    interval1.getMode match {
       case MiniBatchMode.None => interval2
       case MiniBatchMode.RowTime =>
-        interval2.mode match {
+        interval2.getMode match {
           case MiniBatchMode.None => interval1
           case MiniBatchMode.RowTime =>
-            val gcd = ArithmeticUtils.gcd(interval1.interval, interval2.interval)
-            MiniBatchInterval(gcd, MiniBatchMode.RowTime)
+            val gcd = ArithmeticUtils.gcd(interval1.getInterval, interval2.getInterval)
+            new MiniBatchInterval(gcd, MiniBatchMode.RowTime)
           case MiniBatchMode.ProcTime =>
-            if (interval1.interval == 0) {
-              MiniBatchInterval(interval2.interval, MiniBatchMode.RowTime)
+            if (interval1.getInterval == 0) {
+              new MiniBatchInterval(interval2.getInterval, MiniBatchMode.RowTime)
             } else {
               interval1
             }
         }
       case MiniBatchMode.ProcTime =>
-        interval2.mode match {
+        interval2.getMode match {
           case MiniBatchMode.None | MiniBatchMode.ProcTime => interval1
           case MiniBatchMode.RowTime =>
-            if (interval2.interval > 0) {
+            if (interval2.getInterval > 0) {
               interval2
             } else {
-              MiniBatchInterval(interval1.interval, MiniBatchMode.RowTime)
+              new MiniBatchInterval(interval1.getInterval, MiniBatchMode.RowTime)
             }
         }
     }

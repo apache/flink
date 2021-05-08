@@ -29,91 +29,102 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
 /**
- * A reduce operator that takes 3-tuples (groupKey, sortKey, value), and applies the sorted group reduce
- * operation only on the unwrapped values.
+ * A reduce operator that takes 3-tuples (groupKey, sortKey, value), and applies the sorted group
+ * reduce operation only on the unwrapped values.
  */
 @Internal
-public class PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> extends GroupReduceOperatorBase<Tuple3<K1, K2, IN>, OUT, GroupReduceFunction<Tuple3<K1, K2, IN>, OUT>> {
+public class PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2>
+        extends GroupReduceOperatorBase<
+                Tuple3<K1, K2, IN>, OUT, GroupReduceFunction<Tuple3<K1, K2, IN>, OUT>> {
 
-	public PlanUnwrappingSortedReduceGroupOperator(
-		GroupReduceFunction<IN, OUT> udf,
-		Keys.SelectorFunctionKeys<IN, K1> groupingKey,
-		Keys.SelectorFunctionKeys<IN, K2> sortingKey,
-		String name,
-		TypeInformation<OUT> outType,
-		TypeInformation<Tuple3<K1, K2, IN>>
-		typeInfoWithKey, boolean combinable) {
-		super(
-			combinable ?
-				new TupleUnwrappingGroupCombinableGroupReducer<IN, OUT, K1, K2>(udf) :
-				new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K1, K2>(udf),
-			new UnaryOperatorInformation<>(typeInfoWithKey, outType), groupingKey.computeLogicalKeyPositions(), name);
+    public PlanUnwrappingSortedReduceGroupOperator(
+            GroupReduceFunction<IN, OUT> udf,
+            Keys.SelectorFunctionKeys<IN, K1> groupingKey,
+            Keys.SelectorFunctionKeys<IN, K2> sortingKey,
+            String name,
+            TypeInformation<OUT> outType,
+            TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey,
+            boolean combinable) {
+        super(
+                combinable
+                        ? new TupleUnwrappingGroupCombinableGroupReducer<IN, OUT, K1, K2>(udf)
+                        : new TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K1, K2>(udf),
+                new UnaryOperatorInformation<>(typeInfoWithKey, outType),
+                groupingKey.computeLogicalKeyPositions(),
+                name);
 
-		super.setCombinable(combinable);
-	}
+        super.setCombinable(combinable);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static final class TupleUnwrappingGroupCombinableGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
-		implements GroupReduceFunction<Tuple3<K1, K2, IN>, OUT>, GroupCombineFunction<Tuple3<K1, K2, IN>, Tuple3<K1, K2, IN>> {
+    private static final class TupleUnwrappingGroupCombinableGroupReducer<IN, OUT, K1, K2>
+            extends WrappingFunction<GroupReduceFunction<IN, OUT>>
+            implements GroupReduceFunction<Tuple3<K1, K2, IN>, OUT>,
+                    GroupCombineFunction<Tuple3<K1, K2, IN>, Tuple3<K1, K2, IN>> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private Tuple3UnwrappingIterator<IN, K1, K2> iter;
-		private Tuple3WrappingCollector<IN, K1, K2> coll;
+        private Tuple3UnwrappingIterator<IN, K1, K2> iter;
+        private Tuple3WrappingCollector<IN, K1, K2> coll;
 
-		private TupleUnwrappingGroupCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
-			super(wrapped);
+        private TupleUnwrappingGroupCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
+            super(wrapped);
 
-			if (!GroupCombineFunction.class.isAssignableFrom(wrappedFunction.getClass())) {
-				throw new IllegalArgumentException("Wrapped reduce function does not implement the GroupCombineFunction interface.");
-			}
+            if (!GroupCombineFunction.class.isAssignableFrom(wrappedFunction.getClass())) {
+                throw new IllegalArgumentException(
+                        "Wrapped reduce function does not implement the GroupCombineFunction interface.");
+            }
 
-			this.iter = new Tuple3UnwrappingIterator<>();
-			this.coll = new Tuple3WrappingCollector<>(this.iter);
-		}
+            this.iter = new Tuple3UnwrappingIterator<>();
+            this.coll = new Tuple3WrappingCollector<>(this.iter);
+        }
 
-		@Override
-		public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {
-			iter.set(values.iterator());
-			this.wrappedFunction.reduce(iter, out);
-		}
+        @Override
+        public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out)
+                throws Exception {
+            iter.set(values.iterator());
+            this.wrappedFunction.reduce(iter, out);
+        }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		public void combine(Iterable<Tuple3<K1, K2, IN>> values, Collector<Tuple3<K1, K2, IN>> out) throws Exception {
-			iter.set(values.iterator());
-			coll.set(out);
-			((GroupCombineFunction<IN, IN>) this.wrappedFunction).combine(iter, coll);
-		}
+        @SuppressWarnings("unchecked")
+        @Override
+        public void combine(Iterable<Tuple3<K1, K2, IN>> values, Collector<Tuple3<K1, K2, IN>> out)
+                throws Exception {
+            iter.set(values.iterator());
+            coll.set(out);
+            ((GroupCombineFunction<IN, IN>) this.wrappedFunction).combine(iter, coll);
+        }
 
-		@Override
-		public String toString() {
-			return this.wrappedFunction.toString();
-		}
-	}
+        @Override
+        public String toString() {
+            return this.wrappedFunction.toString();
+        }
+    }
 
-	private static final class TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
-		implements GroupReduceFunction<Tuple3<K1, K2, IN>, OUT> {
+    private static final class TupleUnwrappingNonCombinableGroupReducer<IN, OUT, K1, K2>
+            extends WrappingFunction<GroupReduceFunction<IN, OUT>>
+            implements GroupReduceFunction<Tuple3<K1, K2, IN>, OUT> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final Tuple3UnwrappingIterator<IN, K1, K2> iter;
+        private final Tuple3UnwrappingIterator<IN, K1, K2> iter;
 
-		private TupleUnwrappingNonCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
-			super(wrapped);
-			this.iter = new Tuple3UnwrappingIterator<>();
-		}
+        private TupleUnwrappingNonCombinableGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
+            super(wrapped);
+            this.iter = new Tuple3UnwrappingIterator<>();
+        }
 
-		@Override
-		public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {
-			iter.set(values.iterator());
-			this.wrappedFunction.reduce(iter, out);
-		}
+        @Override
+        public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out)
+                throws Exception {
+            iter.set(values.iterator());
+            this.wrappedFunction.reduce(iter, out);
+        }
 
-		@Override
-		public String toString() {
-			return this.wrappedFunction.toString();
-		}
-	}
+        @Override
+        public String toString() {
+            return this.wrappedFunction.toString();
+        }
+    }
 }

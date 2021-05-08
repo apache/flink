@@ -24,76 +24,74 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Unique identifier for a slot on a TaskManager. This ID is constant across the
- * life time of the TaskManager.
- * 
- * <p>In contrast, the {@link AllocationID} represents the a slot allocation and changes
- * every time the slot is allocated by a JobManager.
+ * Unique identifier for a slot on a TaskManager. This ID is constant across the life time of the
+ * TaskManager.
+ *
+ * <p>In contrast, the {@link AllocationID} represents the a slot allocation and changes every time
+ * the slot is allocated by a JobManager.
  */
 public class SlotID implements ResourceIDRetrievable, Serializable {
 
-	private static final long serialVersionUID = -6399206032549807771L;
+    private static final long serialVersionUID = -6399206032549807771L;
 
-	/** The resource id which this slot located */
-	private final ResourceID resourceId;
+    /** The resource id which this slot located */
+    private final ResourceID resourceId;
 
-	/** The numeric id for single slot */
-	private final int slotNumber;
-	
-	public SlotID(ResourceID resourceId, int slotNumber) {
-		checkArgument(0 <= slotNumber, "Slot number must be positive.");
-		this.resourceId = checkNotNull(resourceId, "ResourceID must not be null");
-		this.slotNumber = slotNumber;
-	}
+    /** The numeric id for single slot */
+    private final int slotNumber;
 
-	private SlotID(ResourceID resourceID) {
-		this.resourceId = checkNotNull(resourceID, "ResourceID must not be null");
-		this.slotNumber = -1;
-	}
+    public SlotID(ResourceID resourceId, int slotNumber) {
+        checkArgument(0 <= slotNumber, "Slot number must be positive.");
+        this.resourceId = checkNotNull(resourceId, "ResourceID must not be null");
+        this.slotNumber = slotNumber;
+    }
 
-	// ------------------------------------------------------------------------
+    private SlotID(ResourceID resourceID) {
+        this.resourceId = checkNotNull(resourceID, "ResourceID must not be null");
+        this.slotNumber = -1;
+    }
 
-	@Override
-	public ResourceID getResourceID() {
-		return resourceId;
-	}
+    // ------------------------------------------------------------------------
 
-	public int getSlotNumber() {
-		return slotNumber;
-	}
+    @Override
+    public ResourceID getResourceID() {
+        return resourceId;
+    }
 
-	// ------------------------------------------------------------------------
+    public int getSlotNumber() {
+        return slotNumber;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    // ------------------------------------------------------------------------
 
-		SlotID slotID = (SlotID) o;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		return slotNumber == slotID.slotNumber && resourceId.equals(slotID.resourceId);
-	}
+        SlotID slotID = (SlotID) o;
 
-	@Override
-	public int hashCode() {
-		int result = resourceId.hashCode();
-		result = 31 * result + slotNumber;
-		return result;
-	}
+        return slotNumber == slotID.slotNumber && resourceId.equals(slotID.resourceId);
+    }
 
-	@Override
-	public String toString() {
-		return resourceId + "_" + (slotNumber >= 0 ? slotNumber : "dynamic");
-	}
+    @Override
+    public int hashCode() {
+        int result = resourceId.hashCode();
+        result = 31 * result + slotNumber;
+        return result;
+    }
 
-	/**
-	 * Generate a SlotID without actual slot index for dynamic slot allocation.
-	 */
-	public static SlotID generateDynamicSlotID(ResourceID resourceID) {
-		return new SlotID(resourceID);
-	}
+    @Override
+    public String toString() {
+        return resourceId + "_" + (slotNumber >= 0 ? slotNumber : "dynamic");
+    }
+
+    /** Get a SlotID without actual slot index for dynamic slot allocation. */
+    public static SlotID getDynamicSlotID(ResourceID resourceID) {
+        return new SlotID(resourceID);
+    }
 }

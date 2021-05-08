@@ -29,68 +29,66 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Local context used to create {@link ShuffleEnvironment}.
- */
+/** Local context used to create {@link ShuffleEnvironment}. */
 public class ShuffleEnvironmentContext {
-	private final Configuration configuration;
-	private final ResourceID taskExecutorResourceId;
-	private final MemorySize networkMemorySize;
-	private final boolean localCommunicationOnly;
-	private final InetAddress hostAddress;
-	private final TaskEventPublisher eventPublisher;
-	private final MetricGroup parentMetricGroup;
+    private final Configuration configuration;
+    private final ResourceID taskExecutorResourceId;
+    private final MemorySize networkMemorySize;
+    private final boolean localCommunicationOnly;
+    private final InetAddress hostAddress;
+    private final TaskEventPublisher eventPublisher;
+    private final MetricGroup parentMetricGroup;
 
-	private final Executor ioExecutor;
+    private final Executor ioExecutor;
 
-	public ShuffleEnvironmentContext(
-			Configuration configuration,
-			ResourceID taskExecutorResourceId,
-			MemorySize networkMemorySize,
-			boolean localCommunicationOnly,
-			InetAddress hostAddress,
-			TaskEventPublisher eventPublisher,
-			MetricGroup parentMetricGroup,
-			Executor ioExecutor) {
-		this.configuration = checkNotNull(configuration);
-		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
-		this.networkMemorySize = networkMemorySize;
-		this.localCommunicationOnly = localCommunicationOnly;
-		this.hostAddress = checkNotNull(hostAddress);
-		this.eventPublisher = checkNotNull(eventPublisher);
-		this.parentMetricGroup = checkNotNull(parentMetricGroup);
-		this.ioExecutor = ioExecutor;
-	}
+    public ShuffleEnvironmentContext(
+            Configuration configuration,
+            ResourceID taskExecutorResourceId,
+            MemorySize networkMemorySize,
+            boolean localCommunicationOnly,
+            InetAddress hostAddress,
+            TaskEventPublisher eventPublisher,
+            MetricGroup parentMetricGroup,
+            Executor ioExecutor) {
+        this.configuration = checkNotNull(configuration);
+        this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
+        this.networkMemorySize = networkMemorySize;
+        this.localCommunicationOnly = localCommunicationOnly;
+        this.hostAddress = checkNotNull(hostAddress);
+        this.eventPublisher = checkNotNull(eventPublisher);
+        this.parentMetricGroup = checkNotNull(parentMetricGroup);
+        this.ioExecutor = ioExecutor;
+    }
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	public ResourceID getTaskExecutorResourceId() {
-		return taskExecutorResourceId;
-	}
+    public ResourceID getTaskExecutorResourceId() {
+        return taskExecutorResourceId;
+    }
 
-	public MemorySize getNetworkMemorySize() {
-		return networkMemorySize;
-	}
+    public MemorySize getNetworkMemorySize() {
+        return networkMemorySize;
+    }
 
-	public boolean isLocalCommunicationOnly() {
-		return localCommunicationOnly;
-	}
+    public boolean isLocalCommunicationOnly() {
+        return localCommunicationOnly;
+    }
 
-	public InetAddress getHostAddress() {
-		return hostAddress;
-	}
+    public InetAddress getHostAddress() {
+        return hostAddress;
+    }
 
-	public TaskEventPublisher getEventPublisher() {
-		return eventPublisher;
-	}
+    public TaskEventPublisher getEventPublisher() {
+        return eventPublisher;
+    }
 
-	public MetricGroup getParentMetricGroup() {
-		return parentMetricGroup;
-	}
+    public MetricGroup getParentMetricGroup() {
+        return parentMetricGroup;
+    }
 
-	public Executor getIoExecutor() {
-		return ioExecutor;
-	}
+    public Executor getIoExecutor() {
+        return ioExecutor;
+    }
 }

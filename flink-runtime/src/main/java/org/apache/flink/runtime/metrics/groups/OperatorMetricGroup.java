@@ -30,66 +30,74 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator.
- */
+/** Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator. */
 @Internal
 public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
-	private final String operatorName;
-	private final OperatorID operatorID;
+    private final String operatorName;
+    private final OperatorID operatorID;
 
-	private final OperatorIOMetricGroup ioMetrics;
+    private final OperatorIOMetricGroup ioMetrics;
 
-	public OperatorMetricGroup(MetricRegistry registry, TaskMetricGroup parent, OperatorID operatorID, String operatorName) {
-		super(registry, registry.getScopeFormats().getOperatorFormat().formatScope(checkNotNull(parent), operatorID, operatorName), parent);
-		this.operatorID = operatorID;
-		this.operatorName = operatorName;
+    public OperatorMetricGroup(
+            MetricRegistry registry,
+            TaskMetricGroup parent,
+            OperatorID operatorID,
+            String operatorName) {
+        super(
+                registry,
+                registry.getScopeFormats()
+                        .getOperatorFormat()
+                        .formatScope(checkNotNull(parent), operatorID, operatorName),
+                parent);
+        this.operatorID = operatorID;
+        this.operatorName = operatorName;
 
-		ioMetrics = new OperatorIOMetricGroup(this);
-	}
+        ioMetrics = new OperatorIOMetricGroup(this);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public final TaskMetricGroup parent() {
-		return parent;
-	}
+    public final TaskMetricGroup parent() {
+        return parent;
+    }
 
-	@Override
-	protected QueryScopeInfo.OperatorQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
-		return new QueryScopeInfo.OperatorQueryScopeInfo(
-			this.parent.parent.jobId.toString(),
-			this.parent.vertexId.toString(),
-			this.parent.subtaskIndex,
-			filter.filterCharacters(this.operatorName));
-	}
+    @Override
+    protected QueryScopeInfo.OperatorQueryScopeInfo createQueryServiceMetricInfo(
+            CharacterFilter filter) {
+        return new QueryScopeInfo.OperatorQueryScopeInfo(
+                this.parent.parent.jobId.toString(),
+                this.parent.vertexId.toString(),
+                this.parent.subtaskIndex,
+                filter.filterCharacters(this.operatorName));
+    }
 
-	/**
-	 * Returns the OperatorIOMetricGroup for this operator.
-	 *
-	 * @return OperatorIOMetricGroup for this operator.
-	 */
-	public OperatorIOMetricGroup getIOMetricGroup() {
-		return ioMetrics;
-	}
+    /**
+     * Returns the OperatorIOMetricGroup for this operator.
+     *
+     * @return OperatorIOMetricGroup for this operator.
+     */
+    public OperatorIOMetricGroup getIOMetricGroup() {
+        return ioMetrics;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Component Metric Group Specifics
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Component Metric Group Specifics
+    // ------------------------------------------------------------------------
 
-	@Override
-	protected void putVariables(Map<String, String> variables) {
-		variables.put(ScopeFormat.SCOPE_OPERATOR_ID, String.valueOf(operatorID));
-		variables.put(ScopeFormat.SCOPE_OPERATOR_NAME, operatorName);
-		// we don't enter the subtask_index as the task group does that already
-	}
+    @Override
+    protected void putVariables(Map<String, String> variables) {
+        variables.put(ScopeFormat.SCOPE_OPERATOR_ID, String.valueOf(operatorID));
+        variables.put(ScopeFormat.SCOPE_OPERATOR_NAME, operatorName);
+        // we don't enter the subtask_index as the task group does that already
+    }
 
-	@Override
-	protected Iterable<? extends ComponentMetricGroup> subComponents() {
-		return Collections.emptyList();
-	}
+    @Override
+    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	protected String getGroupName(CharacterFilter filter) {
-		return "operator";
-	}
+    @Override
+    protected String getGroupName(CharacterFilter filter) {
+        return "operator";
+    }
 }

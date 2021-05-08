@@ -29,39 +29,39 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
- * A mocked {@link DeserializationSchema} that verifies that {@link DeserializationSchema#open(InitializationContext)}
- * was called at most once. It also checks that the {@link InitializationContext} returns a not
- * null {@link MetricGroup}.
+ * A mocked {@link DeserializationSchema} that verifies that {@link
+ * DeserializationSchema#open(InitializationContext)} was called at most once. It also checks that
+ * the {@link InitializationContext} returns a not null {@link MetricGroup}.
  *
  * <p>It does not implement any of the deserialization methods.
  */
 public class MockDeserializationSchema<T> implements DeserializationSchema<T> {
 
-	private boolean openCalled = false;
+    private boolean openCalled = false;
 
-	@Override
-	public void open(InitializationContext context) throws Exception {
-		assertThat("Open was called multiple times", openCalled, is(false));
-		assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
-		this.openCalled = true;
-	}
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        assertThat("Open was called multiple times", openCalled, is(false));
+        assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+        this.openCalled = true;
+    }
 
-	@Override
-	public T deserialize(byte[] message) throws IOException {
-		throw new UnsupportedOperationException("Not implemented");
-	}
+    @Override
+    public T deserialize(byte[] message) throws IOException {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
-	@Override
-	public boolean isEndOfStream(T nextElement) {
-		throw new UnsupportedOperationException("Not implemented");
-	}
+    @Override
+    public boolean isEndOfStream(T nextElement) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		throw new UnsupportedOperationException("Not implemented");
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 
-	public boolean isOpenCalled() {
-		return openCalled;
-	}
+    public boolean isOpenCalled() {
+        return openCalled;
+    }
 }

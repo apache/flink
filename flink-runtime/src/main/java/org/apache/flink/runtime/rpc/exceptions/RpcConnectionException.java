@@ -23,17 +23,17 @@ package org.apache.flink.runtime.rpc.exceptions;
  * host cannot be reached.
  */
 public class RpcConnectionException extends RpcException {
-	private static final long serialVersionUID = -5500560405481142472L;
+    private static final long serialVersionUID = -5500560405481142472L;
 
-	public RpcConnectionException(String message) {
-		super(message);
-	}
+    public RpcConnectionException(String message) {
+        super(message);
+    }
 
-	public RpcConnectionException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public RpcConnectionException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public RpcConnectionException(Throwable cause) {
-		super(cause);
-	}
+    public RpcConnectionException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -18,13 +18,13 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -42,98 +42,110 @@ import java.util.Optional;
  */
 public class HiveTableMetaStoreFactory implements TableMetaStoreFactory {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final JobConfWrapper conf;
-	private final String hiveVersion;
-	private final String database;
-	private final String tableName;
+    private final JobConfWrapper conf;
+    private final String hiveVersion;
+    private final String database;
+    private final String tableName;
 
-	HiveTableMetaStoreFactory(
-			JobConf conf,
-			String hiveVersion,
-			String database,
-			String tableName) {
-		this.conf = new JobConfWrapper(conf);
-		this.hiveVersion = hiveVersion;
-		this.database = database;
-		this.tableName = tableName;
-	}
+    HiveTableMetaStoreFactory(JobConf conf, String hiveVersion, String database, String tableName) {
+        this.conf = new JobConfWrapper(conf);
+        this.hiveVersion = hiveVersion;
+        this.database = database;
+        this.tableName = tableName;
+    }
 
-	@Override
-	public HiveTableMetaStore createTableMetaStore() throws Exception {
-		return new HiveTableMetaStore();
-	}
+    @Override
+    public HiveTableMetaStore createTableMetaStore() throws Exception {
+        return new HiveTableMetaStore();
+    }
 
-	private class HiveTableMetaStore implements TableMetaStore {
+    private class HiveTableMetaStore implements TableMetaStore {
 
-		private HiveMetastoreClientWrapper client;
-		private StorageDescriptor sd;
+        private HiveMetastoreClientWrapper client;
+        private StorageDescriptor sd;
 
-		private HiveTableMetaStore() throws TException {
-			client = HiveMetastoreClientFactory.create(
-					new HiveConf(conf.conf(), HiveConf.class), hiveVersion);
-			sd = client.getTable(database, tableName).getSd();
-		}
+        private HiveTableMetaStore() throws TException {
+            client =
+                    HiveMetastoreClientFactory.create(
+                            HiveConfUtils.create(conf.conf()), hiveVersion);
+            sd = client.getTable(database, tableName).getSd();
+        }
 
-		@Override
-		public Path getLocationPath() {
-			return new Path(sd.getLocation());
-		}
+        @Override
+        public Path getLocationPath() {
+            return new Path(sd.getLocation());
+        }
 
-		@Override
-		public Optional<Path> getPartition(
-				LinkedHashMap<String, String> partSpec) throws Exception {
-			try {
-				return Optional.of(new Path(client.getPartition(
-						database,
-						tableName,
-						new ArrayList<>(partSpec.values()))
-						.getSd().getLocation()));
-			} catch (NoSuchObjectException ignore) {
-				return Optional.empty();
-			}
-		}
+        @Override
+        public Optional<Path> getPartition(LinkedHashMap<String, String> partSpec)
+                throws Exception {
+            try {
+                return Optional.of(
+                        new Path(
+                                client.getPartition(
+                                                database,
+                                                tableName,
+                                                new ArrayList<>(partSpec.values()))
+                                        .getSd()
+                                        .getLocation()));
+            } catch (NoSuchObjectException ignore) {
+                return Optional.empty();
+            }
+        }
 
-		@Override
-		public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
-			Partition partition;
-			try {
-				partition = client.getPartition(database, tableName, new ArrayList<>(partitionSpec.values()));
-			} catch (NoSuchObjectException e) {
-				createPartition(partitionSpec, partitionPath);
-				return;
-			}
-			alterPartition(partitionSpec, partitionPath, partition);
-		}
+        @Override
+        public void createOrAlterPartition(
+                LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
+            Partition partition;
+            try {
+                partition =
+                        client.getPartition(
+                                database, tableName, new ArrayList<>(partitionSpec.values()));
+            } catch (NoSuchObjectException e) {
+                createPartition(partitionSpec, partitionPath);
+                return;
+            }
+            alterPartition(partitionSpec, partitionPath, partition);
+        }
 
-		private void createPartition(LinkedHashMap<String, String> partSpec, Path path) throws Exception {
-			StorageDescriptor newSd = new StorageDescriptor(sd);
-			newSd.setLocation(path.toString());
-			Partition partition = HiveTableUtil.createHivePartition(database, tableName,
-					new ArrayList<>(partSpec.values()), newSd, new HashMap<>());
-			partition.setValues(new ArrayList<>(partSpec.values()));
-			client.add_partition(partition);
-		}
+        private void createPartition(LinkedHashMap<String, String> partSpec, Path path)
+                throws Exception {
+            StorageDescriptor newSd = new StorageDescriptor(sd);
+            newSd.setLocation(path.toString());
+            Partition partition =
+                    HiveTableUtil.createHivePartition(
+                            database,
+                            tableName,
+                            new ArrayList<>(partSpec.values()),
+                            newSd,
+                            new HashMap<>());
+            partition.setValues(new ArrayList<>(partSpec.values()));
+            client.add_partition(partition);
+        }
 
-		private void alterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath,
-				Partition currentPartition) throws Exception {
-			StorageDescriptor partSD = currentPartition.getSd();
-			// the following logic copied from Hive::alterPartitionSpecInMemory
-			partSD.setOutputFormat(sd.getOutputFormat());
-			partSD.setInputFormat(sd.getInputFormat());
-			partSD.getSerdeInfo().setSerializationLib(sd.getSerdeInfo().getSerializationLib());
-			partSD.getSerdeInfo().setParameters(sd.getSerdeInfo().getParameters());
-			partSD.setBucketCols(sd.getBucketCols());
-			partSD.setNumBuckets(sd.getNumBuckets());
-			partSD.setSortCols(sd.getSortCols());
-			partSD.setLocation(partitionPath.toString());
-			client.alter_partition(database, tableName, currentPartition);
-		}
+        private void alterPartition(
+                LinkedHashMap<String, String> partitionSpec,
+                Path partitionPath,
+                Partition currentPartition)
+                throws Exception {
+            StorageDescriptor partSD = currentPartition.getSd();
+            // the following logic copied from Hive::alterPartitionSpecInMemory
+            partSD.setOutputFormat(sd.getOutputFormat());
+            partSD.setInputFormat(sd.getInputFormat());
+            partSD.getSerdeInfo().setSerializationLib(sd.getSerdeInfo().getSerializationLib());
+            partSD.getSerdeInfo().setParameters(sd.getSerdeInfo().getParameters());
+            partSD.setBucketCols(sd.getBucketCols());
+            partSD.setNumBuckets(sd.getNumBuckets());
+            partSD.setSortCols(sd.getSortCols());
+            partSD.setLocation(partitionPath.toString());
+            client.alter_partition(database, tableName, currentPartition);
+        }
 
-		@Override
-		public void close() {
-			client.close();
-		}
-	}
+        @Override
+        public void close() {
+            client.close();
+        }
+    }
 }

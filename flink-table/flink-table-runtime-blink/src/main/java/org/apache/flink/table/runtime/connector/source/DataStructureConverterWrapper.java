@@ -33,21 +33,21 @@ import javax.annotation.Nullable;
 @Internal
 class DataStructureConverterWrapper implements DynamicTableSource.DataStructureConverter {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final DataStructureConverter<Object, Object> structureConverter;
+    private final DataStructureConverter<Object, Object> structureConverter;
 
-	DataStructureConverterWrapper(DataStructureConverter<Object, Object> structureConverter) {
-		this.structureConverter = structureConverter;
-	}
+    DataStructureConverterWrapper(DataStructureConverter<Object, Object> structureConverter) {
+        this.structureConverter = structureConverter;
+    }
 
-	@Override
-	public void open(RuntimeConverter.Context context) {
-		structureConverter.open(context.getClassLoader());
-	}
+    @Override
+    public void open(RuntimeConverter.Context context) {
+        structureConverter.open(context.getClassLoader());
+    }
 
-	@Override
-	public @Nullable Object toInternal(@Nullable Object externalStructure) {
-		return structureConverter.toInternalOrNull(externalStructure);
-	}
+    @Override
+    public @Nullable Object toInternal(@Nullable Object externalStructure) {
+        return structureConverter.toInternalOrNull(externalStructure);
+    }
 }

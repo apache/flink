@@ -23,47 +23,39 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-/**
- * An internal data structure representing data of {@link CharType} and {@link VarCharType}.
- */
+/** An internal data structure representing data of {@link CharType} and {@link VarCharType}. */
 @PublicEvolving
 public interface StringData extends Comparable<StringData> {
 
-	/**
-	 * Converts this {@link StringData} object to a UTF-8 byte array.
-	 *
-	 * <p>Note: The returned byte array may be reused.
-	 */
-	byte[] toBytes();
+    /**
+     * Converts this {@link StringData} object to a UTF-8 byte array.
+     *
+     * <p>Note: The returned byte array may be reused.
+     */
+    byte[] toBytes();
 
-	/**
-	 * Converts this {@link StringData} object to a {@link String}.
-	 */
-	String toString();
+    /** Converts this {@link StringData} object to a {@link String}. */
+    String toString();
 
-	// ------------------------------------------------------------------------------------------
-	// Construction Utilities
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Construction Utilities
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates an instance of {@link StringData} from the given {@link String}.
-	 */
-	static StringData fromString(String str) {
-		return BinaryStringData.fromString(str);
-	}
+    /** Creates an instance of {@link StringData} from the given {@link String}. */
+    static StringData fromString(String str) {
+        return BinaryStringData.fromString(str);
+    }
 
-	/**
-	 * Creates an instance of {@link StringData} from the given UTF-8 byte array.
-	 */
-	static StringData fromBytes(byte[] bytes) {
-		return BinaryStringData.fromBytes(bytes);
-	}
+    /** Creates an instance of {@link StringData} from the given UTF-8 byte array. */
+    static StringData fromBytes(byte[] bytes) {
+        return BinaryStringData.fromBytes(bytes);
+    }
 
-	/**
-	 * Creates an instance of {@link StringData} from the given UTF-8 byte array with offset and number
-	 * of bytes.
-	 */
-	static StringData fromBytes(byte[] bytes, int offset, int numBytes) {
-		return BinaryStringData.fromBytes(bytes, offset, numBytes);
-	}
+    /**
+     * Creates an instance of {@link StringData} from the given UTF-8 byte array with offset and
+     * number of bytes.
+     */
+    static StringData fromBytes(byte[] bytes, int offset, int numBytes) {
+        return BinaryStringData.fromBytes(bytes, offset, numBytes);
+    }
 }

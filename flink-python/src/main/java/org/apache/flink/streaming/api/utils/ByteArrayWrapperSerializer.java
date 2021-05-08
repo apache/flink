@@ -28,89 +28,89 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.Arrays;
 
-/**
- * The serializer of {@link ByteArrayWrapper}.
- */
+/** The serializer of {@link ByteArrayWrapper}. */
 @Internal
 public class ByteArrayWrapperSerializer extends TypeSerializerSingleton<ByteArrayWrapper> {
 
-	public static final ByteArrayWrapperSerializer INSTANCE = new ByteArrayWrapperSerializer();
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final ByteArrayWrapperSerializer INSTANCE = new ByteArrayWrapperSerializer();
 
-	@Override
-	public ByteArrayWrapper createInstance() {
-		return new ByteArrayWrapper(new byte[0]);
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public ByteArrayWrapper copy(ByteArrayWrapper from) {
-		byte[] data = Arrays.copyOfRange(from.getData(), from.getOffset(), from.getLimit());
-		return new ByteArrayWrapper(data);
-	}
+    @Override
+    public ByteArrayWrapper createInstance() {
+        return new ByteArrayWrapper(new byte[0]);
+    }
 
-	@Override
-	public ByteArrayWrapper copy(ByteArrayWrapper from, ByteArrayWrapper reuse) {
-		byte[] data = Arrays.copyOfRange(from.getData(), from.getOffset(), from.getLimit());
-		reuse.setData(data);
-		reuse.setOffset(0);
-		reuse.setLimit(data.length);
-		return reuse;
-	}
+    @Override
+    public ByteArrayWrapper copy(ByteArrayWrapper from) {
+        byte[] data = Arrays.copyOfRange(from.getData(), from.getOffset(), from.getLimit());
+        return new ByteArrayWrapper(data);
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public ByteArrayWrapper copy(ByteArrayWrapper from, ByteArrayWrapper reuse) {
+        byte[] data = Arrays.copyOfRange(from.getData(), from.getOffset(), from.getLimit());
+        reuse.setData(data);
+        reuse.setOffset(0);
+        reuse.setLimit(data.length);
+        return reuse;
+    }
 
-	@Override
-	public void serialize(ByteArrayWrapper record, DataOutputView target) throws IOException {
-		target.write(record.getLimit() - record.getOffset());
-		target.write(record.getData(), record.getOffset(), record.getLimit() - record.getOffset());
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public ByteArrayWrapper deserialize(DataInputView source) throws IOException {
-		int length = source.readInt();
-		byte[] result = new byte[length];
-		source.read(result);
-		return new ByteArrayWrapper(result);
-	}
+    @Override
+    public void serialize(ByteArrayWrapper record, DataOutputView target) throws IOException {
+        target.write(record.getLimit() - record.getOffset());
+        target.write(record.getData(), record.getOffset(), record.getLimit() - record.getOffset());
+    }
 
-	@Override
-	public ByteArrayWrapper deserialize(ByteArrayWrapper reuse, DataInputView source) throws IOException {
-		int length = source.readInt();
-		byte[] result = new byte[length];
-		source.read(result);
-		reuse.setData(result);
-		return reuse;
-	}
+    @Override
+    public ByteArrayWrapper deserialize(DataInputView source) throws IOException {
+        int length = source.readInt();
+        byte[] result = new byte[length];
+        source.read(result);
+        return new ByteArrayWrapper(result);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		int length = source.readInt();
-		byte[] result = new byte[length];
-		source.read(result);
-		target.write(length);
-		target.write(result);
-	}
+    @Override
+    public ByteArrayWrapper deserialize(ByteArrayWrapper reuse, DataInputView source)
+            throws IOException {
+        int length = source.readInt();
+        byte[] result = new byte[length];
+        source.read(result);
+        reuse.setData(result);
+        return reuse;
+    }
 
-	@Override
-	public TypeSerializerSnapshot<ByteArrayWrapper> snapshotConfiguration() {
-		return new ByteArrayWrapperSerializerSnapshot();
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        int length = source.readInt();
+        byte[] result = new byte[length];
+        source.read(result);
+        target.write(length);
+        target.write(result);
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static class ByteArrayWrapperSerializerSnapshot extends SimpleTypeSerializerSnapshot<ByteArrayWrapper> {
+    @Override
+    public TypeSerializerSnapshot<ByteArrayWrapper> snapshotConfiguration() {
+        return new ByteArrayWrapperSerializerSnapshot();
+    }
 
-		public ByteArrayWrapperSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static class ByteArrayWrapperSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<ByteArrayWrapper> {
+
+        public ByteArrayWrapperSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

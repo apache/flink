@@ -24,9 +24,10 @@ import org.apache.flink.table.planner.expressions.utils.{Func1, Func18, FuncWith
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils._
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.{Assert, Test}
+import org.junit.{Assert, Rule, Test}
 
 import java.sql.{Date, Timestamp}
 
@@ -34,6 +35,9 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class CorrelateITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testCrossJoin(): Unit = {

@@ -39,62 +39,73 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-
 /**
- * Base class for request handlers whose response depends on a specific subtask (defined
- * via the "{@link SubtaskIndexPathParameter#KEY}" in a specific job vertex, (defined
- * via the "{@link JobVertexIdPathParameter#KEY}" parameter) in a specific job,
- * defined via (defined via the "{@link JobIDPathParameter#KEY}" parameter).
- *
+ * Base class for request handlers whose response depends on a specific subtask (defined via the
+ * "{@link SubtaskIndexPathParameter#KEY}" in a specific job vertex, (defined via the "{@link
+ * JobVertexIdPathParameter#KEY}" parameter) in a specific job, defined via (defined via the "{@link
+ * JobIDPathParameter#KEY}" parameter).
  *
  * @param <R> the response type
  * @param <M> the message parameters type
  */
-public abstract class AbstractSubtaskHandler<R extends ResponseBody, M extends SubtaskMessageParameters> extends AbstractJobVertexHandler<R, M> {
+public abstract class AbstractSubtaskHandler<
+                R extends ResponseBody, M extends SubtaskMessageParameters>
+        extends AbstractJobVertexHandler<R, M> {
 
-	/**
-	 * Instantiates a new Abstract job vertex handler.
-	 *
-	 * @param leaderRetriever     the leader retriever
-	 * @param timeout             the timeout
-	 * @param responseHeaders     the response headers
-	 * @param messageHeaders      the message headers
-	 * @param executionGraphCache the execution graph cache
-	 * @param executor            the executor
-	 */
-	protected AbstractSubtaskHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout, Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
+    /**
+     * Instantiates a new Abstract job vertex handler.
+     *
+     * @param leaderRetriever the leader retriever
+     * @param timeout the timeout
+     * @param responseHeaders the response headers
+     * @param messageHeaders the message headers
+     * @param executionGraphCache the execution graph cache
+     * @param executor the executor
+     */
+    protected AbstractSubtaskHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
 
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
-	}
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected R handleRequest(
-			HandlerRequest<EmptyRequestBody, M> request,
-			AccessExecutionJobVertex jobVertex) throws RestHandlerException {
+    @Override
+    protected R handleRequest(
+            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionJobVertex jobVertex)
+            throws RestHandlerException {
 
-		final Integer subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
-		final AccessExecutionVertex[] executionVertices = jobVertex.getTaskVertices();
+        final Integer subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
+        final AccessExecutionVertex[] executionVertices = jobVertex.getTaskVertices();
 
-		if (subtaskIndex >= executionVertices.length || subtaskIndex < 0) {
-			throw new RestHandlerException("Invalid subtask index for vertex " + jobVertex.getJobVertexId(), HttpResponseStatus.NOT_FOUND);
-		}
+        if (subtaskIndex >= executionVertices.length || subtaskIndex < 0) {
+            throw new RestHandlerException(
+                    "Invalid subtask index for vertex " + jobVertex.getJobVertexId(),
+                    HttpResponseStatus.NOT_FOUND);
+        }
 
-		return handleRequest(request, executionVertices[subtaskIndex]);
-	}
+        return handleRequest(request, executionVertices[subtaskIndex]);
+    }
 
-	/**
-	 * Called for each request after the corresponding {@link AccessExecutionVertex} has been retrieved from the
-	 * {@link AccessExecutionJobVertex}.
-	 *
-	 * @param request         the request
-	 * @param executionVertex the execution vertex
-	 * @return the response
-	 * @throws RestHandlerException the rest handler exception
-	 */
-	protected abstract R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionVertex executionVertex) throws RestHandlerException;
+    /**
+     * Called for each request after the corresponding {@link AccessExecutionVertex} has been
+     * retrieved from the {@link AccessExecutionJobVertex}.
+     *
+     * @param request the request
+     * @param executionVertex the execution vertex
+     * @return the response
+     * @throws RestHandlerException the rest handler exception
+     */
+    protected abstract R handleRequest(
+            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionVertex executionVertex)
+            throws RestHandlerException;
 }

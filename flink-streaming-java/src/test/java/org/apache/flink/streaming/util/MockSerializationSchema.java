@@ -26,29 +26,29 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
 /**
- * A mocked {@link SerializationSchema} that verifies that {@link SerializationSchema#open(InitializationContext)}
- * was called at most once. It also checks that the {@link InitializationContext} returns a not
- * null {@link MetricGroup}.
+ * A mocked {@link SerializationSchema} that verifies that {@link
+ * SerializationSchema#open(InitializationContext)} was called at most once. It also checks that the
+ * {@link InitializationContext} returns a not null {@link MetricGroup}.
  *
  * <p>It does not implement any of the deserialization methods.
  */
 public class MockSerializationSchema<T> implements SerializationSchema<T> {
 
-	private boolean openCalled = false;
+    private boolean openCalled = false;
 
-	@Override
-	public void open(SerializationSchema.InitializationContext context) throws Exception {
-		assertThat("Open was called multiple times", openCalled, is(false));
-		assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
-		this.openCalled = true;
-	}
+    @Override
+    public void open(SerializationSchema.InitializationContext context) throws Exception {
+        assertThat("Open was called multiple times", openCalled, is(false));
+        assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+        this.openCalled = true;
+    }
 
-	@Override
-	public byte[] serialize(T element) {
-		return new byte[0];
-	}
+    @Override
+    public byte[] serialize(T element) {
+        return new byte[0];
+    }
 
-	public boolean isOpenCalled() {
-		return openCalled;
-	}
+    public boolean isOpenCalled() {
+        return openCalled;
+    }
 }

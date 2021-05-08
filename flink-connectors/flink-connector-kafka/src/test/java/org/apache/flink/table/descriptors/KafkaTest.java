@@ -26,97 +26,90 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-/**
- * Tests for the {@link Kafka} descriptor.
- */
+/** Tests for the {@link Kafka} descriptor. */
 public class KafkaTest extends DescriptorTestBase {
 
-	@Override
-	public List<Descriptor> descriptors() {
-		final Descriptor earliestDesc =
-			new Kafka()
-				.version("0.8")
-				.startFromEarliest()
-				.topic("WhateverTopic");
+    @Override
+    public List<Descriptor> descriptors() {
+        final Descriptor earliestDesc =
+                new Kafka().version("0.8").startFromEarliest().topic("WhateverTopic");
 
-		final Descriptor specificOffsetsDesc =
-			new Kafka()
-				.version("0.11")
-				.topic("MyTable")
-				.startFromSpecificOffset(0, 42L)
-				.startFromSpecificOffset(1, 300L)
-				.property("zookeeper.stuff", "12")
-				.property("kafka.stuff", "42");
+        final Descriptor specificOffsetsDesc =
+                new Kafka()
+                        .version("0.11")
+                        .topic("MyTable")
+                        .startFromSpecificOffset(0, 42L)
+                        .startFromSpecificOffset(1, 300L)
+                        .property("zookeeper.stuff", "12")
+                        .property("kafka.stuff", "42");
 
-		final Map<Integer, Long> offsets = new HashMap<>();
-		offsets.put(0, 42L);
-		offsets.put(1, 300L);
+        final Map<Integer, Long> offsets = new HashMap<>();
+        offsets.put(0, 42L);
+        offsets.put(1, 300L);
 
-		final Properties properties = new Properties();
-		properties.put("zookeeper.stuff", "12");
-		properties.put("kafka.stuff", "42");
+        final Properties properties = new Properties();
+        properties.put("zookeeper.stuff", "12");
+        properties.put("kafka.stuff", "42");
 
-		final Descriptor specificOffsetsMapDesc =
-			new Kafka()
-				.version("0.11")
-				.topic("MyTable")
-				.startFromSpecificOffsets(offsets)
-				.properties(properties)
-				.sinkPartitionerCustom(FlinkFixedPartitioner.class);
+        final Descriptor specificOffsetsMapDesc =
+                new Kafka()
+                        .version("0.11")
+                        .topic("MyTable")
+                        .startFromSpecificOffsets(offsets)
+                        .properties(properties)
+                        .sinkPartitionerCustom(FlinkFixedPartitioner.class);
 
-		final Descriptor timestampDesc =
-			new Kafka()
-				.version("0.11")
-				.topic("MyTable")
-				.startFromTimestamp(1577014729000L);
+        final Descriptor timestampDesc =
+                new Kafka().version("0.11").topic("MyTable").startFromTimestamp(1577014729000L);
 
-		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc, timestampDesc);
-	}
+        return Arrays.asList(
+                earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc, timestampDesc);
+    }
 
-	@Override
-	public List<Map<String, String>> properties() {
-		final Map<String, String> props1 = new HashMap<>();
-		props1.put("connector.property-version", "1");
-		props1.put("connector.type", "kafka");
-		props1.put("connector.version", "0.8");
-		props1.put("connector.topic", "WhateverTopic");
-		props1.put("connector.startup-mode", "earliest-offset");
+    @Override
+    public List<Map<String, String>> properties() {
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put("connector.property-version", "1");
+        props1.put("connector.type", "kafka");
+        props1.put("connector.version", "0.8");
+        props1.put("connector.topic", "WhateverTopic");
+        props1.put("connector.startup-mode", "earliest-offset");
 
-		final Map<String, String> props2 = new HashMap<>();
-		props2.put("connector.property-version", "1");
-		props2.put("connector.type", "kafka");
-		props2.put("connector.version", "0.11");
-		props2.put("connector.topic", "MyTable");
-		props2.put("connector.startup-mode", "specific-offsets");
-		props2.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
-		props2.put("connector.properties.zookeeper.stuff", "12");
-		props2.put("connector.properties.kafka.stuff", "42");
+        final Map<String, String> props2 = new HashMap<>();
+        props2.put("connector.property-version", "1");
+        props2.put("connector.type", "kafka");
+        props2.put("connector.version", "0.11");
+        props2.put("connector.topic", "MyTable");
+        props2.put("connector.startup-mode", "specific-offsets");
+        props2.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
+        props2.put("connector.properties.zookeeper.stuff", "12");
+        props2.put("connector.properties.kafka.stuff", "42");
 
-		final Map<String, String> props3 = new HashMap<>();
-		props3.put("connector.property-version", "1");
-		props3.put("connector.type", "kafka");
-		props3.put("connector.version", "0.11");
-		props3.put("connector.topic", "MyTable");
-		props3.put("connector.startup-mode", "specific-offsets");
-		props3.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
-		props3.put("connector.properties.zookeeper.stuff", "12");
-		props3.put("connector.properties.kafka.stuff", "42");
-		props3.put("connector.sink-partitioner", "custom");
-		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
+        final Map<String, String> props3 = new HashMap<>();
+        props3.put("connector.property-version", "1");
+        props3.put("connector.type", "kafka");
+        props3.put("connector.version", "0.11");
+        props3.put("connector.topic", "MyTable");
+        props3.put("connector.startup-mode", "specific-offsets");
+        props3.put("connector.specific-offsets", "partition:0,offset:42;partition:1,offset:300");
+        props3.put("connector.properties.zookeeper.stuff", "12");
+        props3.put("connector.properties.kafka.stuff", "42");
+        props3.put("connector.sink-partitioner", "custom");
+        props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 
-		final Map<String, String> props4 = new HashMap<>();
-		props4.put("connector.property-version", "1");
-		props4.put("connector.type", "kafka");
-		props4.put("connector.version", "0.11");
-		props4.put("connector.topic", "MyTable");
-		props4.put("connector.startup-mode", "timestamp");
-		props4.put("connector.startup-timestamp-millis", "1577014729000");
+        final Map<String, String> props4 = new HashMap<>();
+        props4.put("connector.property-version", "1");
+        props4.put("connector.type", "kafka");
+        props4.put("connector.version", "0.11");
+        props4.put("connector.topic", "MyTable");
+        props4.put("connector.startup-mode", "timestamp");
+        props4.put("connector.startup-timestamp-millis", "1577014729000");
 
-		return Arrays.asList(props1, props2, props3, props4);
-	}
+        return Arrays.asList(props1, props2, props3, props4);
+    }
 
-	@Override
-	public DescriptorValidator validator() {
-		return new KafkaValidator();
-	}
+    @Override
+    public DescriptorValidator validator() {
+        return new KafkaValidator();
+    }
 }

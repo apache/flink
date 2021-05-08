@@ -28,36 +28,38 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.function.Supplier;
 
-/**
- * A Yarn {@link RegisterApplicationMasterResponse} implementation for testing.
- */
-public class TestingRegisterApplicationMasterResponse extends RegisterApplicationMasterResponsePBImpl {
-	private static final Resource MAX_CAPABILITY = Resource.newInstance(1024 * 10000, 10000);
-	private final Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier;
+/** A Yarn {@link RegisterApplicationMasterResponse} implementation for testing. */
+public class TestingRegisterApplicationMasterResponse
+        extends RegisterApplicationMasterResponsePBImpl {
+    private static final Resource MAX_CAPABILITY = Resource.newInstance(1024 * 10000, 10000);
+    private final Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier;
 
-	TestingRegisterApplicationMasterResponse(Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier) {
-		this.getContainersFromPreviousAttemptsSupplier = getContainersFromPreviousAttemptsSupplier;
-	}
+    TestingRegisterApplicationMasterResponse(
+            Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier) {
+        this.getContainersFromPreviousAttemptsSupplier = getContainersFromPreviousAttemptsSupplier;
+    }
 
-	/**
-	 * The @Override annotation is intentionally removed for this method to align with the production codes' assumption
-	 * that this interface may not be available for the given hadoop version.
-	 */
-	public List<Container> getContainersFromPreviousAttempts() {
-		return getContainersFromPreviousAttemptsSupplier.get();
-	}
+    /**
+     * The @Override annotation is intentionally removed for this method to align with the
+     * production codes' assumption that this interface may not be available for the given hadoop
+     * version.
+     */
+    public List<Container> getContainersFromPreviousAttempts() {
+        return getContainersFromPreviousAttemptsSupplier.get();
+    }
 
-	/**
-	 * The @Override annotation is intentionally removed for this method to align with the production codes' assumption
-	 * that this interface may not be available for the given hadoop version.
-	 */
-	@SuppressWarnings("unchecked")
-	public EnumSet getSchedulerResourceTypes() {
-		return EnumSet.copyOf(Collections.<Enum>emptySet());
-	}
+    /**
+     * The @Override annotation is intentionally removed for this method to align with the
+     * production codes' assumption that this interface may not be available for the given hadoop
+     * version.
+     */
+    @SuppressWarnings("unchecked")
+    public EnumSet getSchedulerResourceTypes() {
+        return EnumSet.copyOf(Collections.<Enum>emptySet());
+    }
 
-	@Override
-	public Resource getMaximumResourceCapability() {
-		return MAX_CAPABILITY;
-	}
+    @Override
+    public Resource getMaximumResourceCapability() {
+        return MAX_CAPABILITY;
+    }
 }

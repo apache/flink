@@ -35,77 +35,76 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
 
-	/** The maximum number of checkpoints to retain (at least 1). */
-	private final int maxNumberOfCheckpointsToRetain;
+    /** The maximum number of checkpoints to retain (at least 1). */
+    private final int maxNumberOfCheckpointsToRetain;
 
-	/** The completed checkpoints. */
-	private final ArrayDeque<CompletedCheckpoint> checkpoints;
+    /** The completed checkpoints. */
+    private final ArrayDeque<CompletedCheckpoint> checkpoints;
 
-	/**
-	 * Creates {@link StandaloneCompletedCheckpointStore}.
-	 *
-	 * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain (at
-	 *                                       least 1). Adding more checkpoints than this results
-	 *                                       in older checkpoints being discarded.
-	 */
-	public StandaloneCompletedCheckpointStore(int maxNumberOfCheckpointsToRetain) {
-		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
-		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-		this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-	}
+    /**
+     * Creates {@link StandaloneCompletedCheckpointStore}.
+     *
+     * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain (at least
+     *     1). Adding more checkpoints than this results in older checkpoints being discarded.
+     */
+    public StandaloneCompletedCheckpointStore(int maxNumberOfCheckpointsToRetain) {
+        checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
+        this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
+        this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
+    }
 
-	@Override
-	public void recover() throws Exception {
-		// Nothing to do
-	}
+    @Override
+    public void recover() throws Exception {
+        // Nothing to do
+    }
 
-	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
+    @Override
+    public void addCheckpoint(
+            CompletedCheckpoint checkpoint,
+            CheckpointsCleaner checkpointsCleaner,
+            Runnable postCleanup)
+            throws Exception {
 
-		checkpoints.addLast(checkpoint);
+        checkpoints.addLast(checkpoint);
 
-		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			try {
-				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-				checkpointToSubsume.discardOnSubsume();
-			} catch (Exception e) {
-				LOG.warn("Fail to subsume the old checkpoint.", e);
-			}
-		}
-	}
+        CheckpointSubsumeHelper.subsume(
+                checkpoints, maxNumberOfCheckpointsToRetain, CompletedCheckpoint::discardOnSubsume);
+    }
 
-	@Override
-	public List<CompletedCheckpoint> getAllCheckpoints() {
-		return new ArrayList<>(checkpoints);
-	}
+    @Override
+    public List<CompletedCheckpoint> getAllCheckpoints() {
+        return new ArrayList<>(checkpoints);
+    }
 
-	@Override
-	public int getNumberOfRetainedCheckpoints() {
-		return checkpoints.size();
-	}
+    @Override
+    public int getNumberOfRetainedCheckpoints() {
+        return checkpoints.size();
+    }
 
-	@Override
-	public int getMaxNumberOfRetainedCheckpoints() {
-		return maxNumberOfCheckpointsToRetain;
-	}
+    @Override
+    public int getMaxNumberOfRetainedCheckpoints() {
+        return maxNumberOfCheckpointsToRetain;
+    }
 
-	@Override
-	public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
-		try {
-			LOG.info("Shutting down");
+    @Override
+    public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
+            throws Exception {
+        try {
+            LOG.info("Shutting down");
 
-			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discardOnShutdown(jobStatus);
-			}
-		} finally {
-			checkpoints.clear();
-		}
-	}
+            for (CompletedCheckpoint checkpoint : checkpoints) {
+                checkpoint.discardOnShutdown(jobStatus);
+            }
+        } finally {
+            checkpoints.clear();
+        }
+    }
 
-	@Override
-	public boolean requiresExternalizedCheckpoints() {
-		return false;
-	}
+    @Override
+    public boolean requiresExternalizedCheckpoints() {
+        return false;
+    }
 }

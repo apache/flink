@@ -21,104 +21,131 @@ package org.apache.flink.runtime.scheduler.strategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A simple implementation of {@link SchedulingResultPartition} for testing.
- */
+/** A simple implementation of {@link SchedulingResultPartition} for testing. */
 public class TestingSchedulingResultPartition implements SchedulingResultPartition {
 
-	private final IntermediateDataSetID intermediateDataSetID;
+    private final IntermediateDataSetID intermediateDataSetID;
 
-	private final IntermediateResultPartitionID intermediateResultPartitionID;
+    private final IntermediateResultPartitionID intermediateResultPartitionID;
 
-	private final ResultPartitionType partitionType;
+    private final ResultPartitionType partitionType;
 
-	private TestingSchedulingExecutionVertex producer;
+    private TestingSchedulingExecutionVertex producer;
 
-	private Collection<TestingSchedulingExecutionVertex> consumers;
+    private final List<ConsumerVertexGroup> consumerVertexGroups;
 
-	private ResultPartitionState state;
+    private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> executionVerticesById;
 
-	TestingSchedulingResultPartition(IntermediateDataSetID dataSetID, ResultPartitionType type, ResultPartitionState state) {
-		this.intermediateDataSetID = dataSetID;
-		this.partitionType = type;
-		this.state = state;
-		this.intermediateResultPartitionID = new IntermediateResultPartitionID();
-		this.consumers = new ArrayList<>();
-	}
+    private ResultPartitionState state;
 
-	@Override
-	public IntermediateResultPartitionID getId() {
-		return intermediateResultPartitionID;
-	}
+    private TestingSchedulingResultPartition(
+            IntermediateDataSetID dataSetID,
+            int partitionNum,
+            ResultPartitionType type,
+            ResultPartitionState state) {
+        this.intermediateDataSetID = dataSetID;
+        this.partitionType = type;
+        this.state = state;
+        this.intermediateResultPartitionID =
+                new IntermediateResultPartitionID(dataSetID, partitionNum);
+        this.consumerVertexGroups = new ArrayList<>();
+        this.executionVerticesById = new HashMap<>();
+    }
 
-	@Override
-	public IntermediateDataSetID getResultId() {
-		return intermediateDataSetID;
-	}
+    @Override
+    public IntermediateResultPartitionID getId() {
+        return intermediateResultPartitionID;
+    }
 
-	@Override
-	public ResultPartitionType getResultType() {
-		return partitionType;
-	}
+    @Override
+    public IntermediateDataSetID getResultId() {
+        return intermediateDataSetID;
+    }
 
-	@Override
-	public ResultPartitionState getState() {
-		return state;
-	}
+    @Override
+    public ResultPartitionType getResultType() {
+        return partitionType;
+    }
 
-	@Override
-	public TestingSchedulingExecutionVertex getProducer() {
-		return producer;
-	}
+    @Override
+    public ResultPartitionState getState() {
+        return state;
+    }
 
-	@Override
-	public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
-		return consumers;
-	}
+    @Override
+    public TestingSchedulingExecutionVertex getProducer() {
+        return producer;
+    }
 
-	void addConsumer(TestingSchedulingExecutionVertex consumer) {
-		this.consumers.add(consumer);
-	}
+    @Override
+    public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
+        return IterableUtils.flatMap(consumerVertexGroups, executionVerticesById::get);
+    }
 
-	void setProducer(TestingSchedulingExecutionVertex producer) {
-		this.producer = checkNotNull(producer);
-	}
+    @Override
+    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
+        return consumerVertexGroups;
+    }
 
-	void setState(ResultPartitionState state) {
-		this.state = state;
-	}
+    void addConsumer(TestingSchedulingExecutionVertex consumer) {
+        this.consumerVertexGroups.add(ConsumerVertexGroup.fromSingleVertex(consumer.getId()));
+        this.executionVerticesById.putIfAbsent(consumer.getId(), consumer);
+    }
 
-	/**
-	 * Builder for {@link TestingSchedulingResultPartition}.
-	 */
-	public static final class Builder {
-		private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
-		private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
-		private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
+    void addConsumerGroup(
+            ConsumerVertexGroup consumerVertexGroup,
+            Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById) {
+        this.consumerVertexGroups.add(consumerVertexGroup);
+        this.executionVerticesById.putAll(consumerVertexById);
+    }
 
-		Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
-			this.intermediateDataSetId = intermediateDataSetId;
-			return this;
-		}
+    void setProducer(TestingSchedulingExecutionVertex producer) {
+        this.producer = checkNotNull(producer);
+    }
 
-		Builder withResultPartitionState(ResultPartitionState state) {
-			this.resultPartitionState = state;
-			return this;
-		}
+    void setState(ResultPartitionState state) {
+        this.state = state;
+    }
 
-		Builder withResultPartitionType(ResultPartitionType type) {
-			this.resultPartitionType = type;
-			return this;
-		}
+    /** Builder for {@link TestingSchedulingResultPartition}. */
+    public static final class Builder {
+        private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
+        private int partitionNum = 0;
+        private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
+        private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
 
-		TestingSchedulingResultPartition build() {
-			return new TestingSchedulingResultPartition(intermediateDataSetId, resultPartitionType, resultPartitionState);
-		}
-	}
+        Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
+            this.intermediateDataSetId = intermediateDataSetId;
+            return this;
+        }
+
+        Builder withResultPartitionState(ResultPartitionState state) {
+            this.resultPartitionState = state;
+            return this;
+        }
+
+        Builder withResultPartitionType(ResultPartitionType type) {
+            this.resultPartitionType = type;
+            return this;
+        }
+
+        Builder withPartitionNum(int partitionNum) {
+            this.partitionNum = partitionNum;
+            return this;
+        }
+
+        TestingSchedulingResultPartition build() {
+            return new TestingSchedulingResultPartition(
+                    intermediateDataSetId, partitionNum, resultPartitionType, resultPartitionState);
+        }
+    }
 }

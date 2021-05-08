@@ -22,21 +22,18 @@ import org.apache.flink.runtime.iterative.task.IterationHeadTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
 
 /**
- * Broker to hand over {@link SolutionSetUpdateBarrier} from
- * {@link IterationHeadTask} to
- * {@link IterationTailTask}.
+ * Broker to hand over {@link SolutionSetUpdateBarrier} from {@link IterationHeadTask} to {@link
+ * IterationTailTask}.
  */
 public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarrier> {
 
-	private static final SolutionSetUpdateBarrierBroker INSTANCE = new SolutionSetUpdateBarrierBroker();
+    private static final SolutionSetUpdateBarrierBroker INSTANCE =
+            new SolutionSetUpdateBarrierBroker();
 
-	private SolutionSetUpdateBarrierBroker() {
-	}
+    private SolutionSetUpdateBarrierBroker() {}
 
-	/**
-	 * @return singleton instance
-	 */
-	public static Broker<SolutionSetUpdateBarrier> instance() {
-		return INSTANCE;
-	}
+    /** @return singleton instance */
+    public static Broker<SolutionSetUpdateBarrier> instance() {
+        return INSTANCE;
+    }
 }

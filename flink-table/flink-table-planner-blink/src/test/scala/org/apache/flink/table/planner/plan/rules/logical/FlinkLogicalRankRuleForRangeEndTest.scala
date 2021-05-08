@@ -41,13 +41,13 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
         |WHERE rn <= 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testWithoutFilter(): Unit = {
     // can not be converted to Rank
-    util.verifyPlan("SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable")
+    util.verifyRelPlan("SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable")
   }
 
   @Test
@@ -58,7 +58,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
         |WHERE rk <= 2 AND a > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -69,7 +69,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b, c ORDER BY a) rk FROM MyTable) t
         |WHERE rk <= 2 AND rk > -2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -82,7 +82,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
       """.stripMargin
     thrown.expectMessage("Rank end is not specified.")
     thrown.expect(classOf[TableException])
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -93,7 +93,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a, c) rk FROM MyTable) t
         |WHERE rk = 2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -104,7 +104,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
         |WHERE rk < a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -116,7 +116,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
         |WHERE rk > a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -127,7 +127,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
         |WHERE rk < a and b > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -138,7 +138,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (PARTITION BY a ORDER BY c) rk FROM MyTable) t
         |WHERE rk = b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -149,7 +149,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         | SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -162,7 +162,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         |        RANK() OVER (PARTITION BY b ORDER BY a) rk2 FROM MyTable) t
         |WHERE rk1 < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -176,7 +176,7 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         |        RANK() OVER (PARTITION BY c ORDER BY a) rk2 FROM MyTable) t
         |WHERE rk1 < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -190,6 +190,6 @@ class FlinkLogicalRankRuleForRangeEndTest extends TableTestBase {
         |        ROW_NUMBER() OVER (PARTITION BY b ORDER BY a) rn FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

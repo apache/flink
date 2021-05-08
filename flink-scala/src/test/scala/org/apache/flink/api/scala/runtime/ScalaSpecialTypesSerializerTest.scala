@@ -28,7 +28,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
-import org.junit.{Assert, Test}
+import org.junit.{Assert, Ignore, Test}
 
 import scala.collection.{SortedMap, SortedSet}
 import scala.util.{Failure, Success}
@@ -194,6 +194,7 @@ object ScalaSpecialTypesSerializerTestInstance {
     }
 }
 
+@Ignore("Prevents this class from being considered a test class by JUnit.")
 class ScalaSpecialTypesSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],

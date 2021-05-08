@@ -37,212 +37,215 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/**
- * Tests for the {@link StreamingFileSink} with {@link BulkWriter}.
- */
+/** Tests for the {@link StreamingFileSink} with {@link BulkWriter}. */
 public class BulkWriterTest extends TestLogger {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	@Test
-	public void testCustomBulkWriter() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
+    @Test
+    public void testCustomBulkWriter() throws Exception {
+        final File outDir = TEMP_FOLDER.newFolder();
 
-		// we set the max bucket size to small so that we can know when it rolls
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
-						TestUtils.createTestSinkWithBulkEncoder(
-								outDir,
-								1,
-								0,
-								10L,
-								new TestUtils.TupleToStringBucketer(),
-								new TestBulkWriterFactory(),
-								new DefaultBucketFactoryImpl<>())
-		) {
-			testPartFilesWithStringBucketer(testHarness, outDir, ".part-0-0.inprogress", ".part-0-1.inprogress");
-		}
-	}
+        // we set the max bucket size to small so that we can know when it rolls
+        try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+                TestUtils.createTestSinkWithBulkEncoder(
+                        outDir,
+                        1,
+                        0,
+                        10L,
+                        new TestUtils.TupleToStringBucketer(),
+                        new TestBulkWriterFactory(),
+                        new DefaultBucketFactoryImpl<>())) {
+            testPartFilesWithStringBucketer(
+                    testHarness, outDir, ".part-0-0.inprogress", ".part-0-1.inprogress");
+        }
+    }
 
-	@Test
-	public void testCustomBulkWriterWithBucketAssigner() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
+    @Test
+    public void testCustomBulkWriterWithBucketAssigner() throws Exception {
+        final File outDir = TEMP_FOLDER.newFolder();
 
-		// we set the max bucket size to small so that we can know when it rolls
-		try (
-				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
-						TestUtils.createTestSinkWithCustomizedBulkEncoder(
-								outDir,
-								1,
-								0,
-								10L,
-								// use a customized bucketer with Integer bucket ID
-								new TestUtils.TupleToIntegerBucketer(),
-								new TestBulkWriterFactory(),
-								new DefaultBucketFactoryImpl<>())
-		) {
-			testPartFilesWithIntegerBucketer(testHarness, outDir, ".part-0-0.inprogress", ".part-0-1.inprogress", ".part-0-2.inprogress");
-		}
-	}
+        // we set the max bucket size to small so that we can know when it rolls
+        try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+                TestUtils.createTestSinkWithCustomizedBulkEncoder(
+                        outDir,
+                        1,
+                        0,
+                        10L,
+                        // use a customized bucketer with Integer bucket ID
+                        new TestUtils.TupleToIntegerBucketer(),
+                        new TestBulkWriterFactory(),
+                        new DefaultBucketFactoryImpl<>())) {
+            testPartFilesWithIntegerBucketer(
+                    testHarness,
+                    outDir,
+                    ".part-0-0.inprogress",
+                    ".part-0-1.inprogress",
+                    ".part-0-2.inprogress");
+        }
+    }
 
-	@Test
-	public void testCustomBulkWriterWithPartConfig() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
+    @Test
+    public void testCustomBulkWriterWithPartConfig() throws Exception {
+        final File outDir = TEMP_FOLDER.newFolder();
 
-		// we set the max bucket size to small so that we can know when it rolls
-		try (
-			OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
-					TestUtils.createTestSinkWithBulkEncoder(
-							outDir,
-							1,
-							0,
-							10L,
-							new TestUtils.TupleToStringBucketer(),
-							new TestBulkWriterFactory(),
-							new DefaultBucketFactoryImpl<>(),
-							OutputFileConfig.builder().withPartPrefix("prefix").withPartSuffix(".ext").build())
-		) {
-			testPartFilesWithStringBucketer(testHarness, outDir, ".prefix-0-0.ext.inprogress", ".prefix-0-1.ext.inprogress");
-		}
-	}
+        // we set the max bucket size to small so that we can know when it rolls
+        try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness =
+                TestUtils.createTestSinkWithBulkEncoder(
+                        outDir,
+                        1,
+                        0,
+                        10L,
+                        new TestUtils.TupleToStringBucketer(),
+                        new TestBulkWriterFactory(),
+                        new DefaultBucketFactoryImpl<>(),
+                        OutputFileConfig.builder()
+                                .withPartPrefix("prefix")
+                                .withPartSuffix(".ext")
+                                .build())) {
+            testPartFilesWithStringBucketer(
+                    testHarness,
+                    outDir,
+                    ".prefix-0-0.ext.inprogress",
+                    ".prefix-0-1.ext.inprogress");
+        }
+    }
 
-	private void testPartFilesWithStringBucketer(
-			OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness,
-			File outDir,
-			String partFileName1,
-			String partFileName2) throws Exception {
+    private void testPartFilesWithStringBucketer(
+            OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness,
+            File outDir,
+            String partFileName1,
+            String partFileName2)
+            throws Exception {
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		// this creates a new bucket "test1" and part-0-0
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
-		TestUtils.checkLocalFs(outDir, 1, 0);
+        // this creates a new bucket "test1" and part-0-0
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
+        TestUtils.checkLocalFs(outDir, 1, 0);
 
-		// we take a checkpoint so we roll.
-		testHarness.snapshot(1L, 1L);
+        // we take a checkpoint so we roll.
+        testHarness.snapshot(1L, 1L);
 
-		// these will close part-0-0 and open part-0-1
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
+        // these will close part-0-0 and open part-0-1
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
 
-		// we take a checkpoint so we roll again.
-		testHarness.snapshot(2L, 2L);
+        // we take a checkpoint so we roll again.
+        testHarness.snapshot(2L, 2L);
 
-		TestUtils.checkLocalFs(outDir, 2, 0);
+        TestUtils.checkLocalFs(outDir, 2, 0);
 
-		Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
-		int fileCounter = 0;
-		for (Map.Entry<File, String> fileContents : contents.entrySet()) {
-			if (fileContents.getKey().getName().contains(partFileName1)) {
-				fileCounter++;
-				Assert.assertEquals("test1@1\n", fileContents.getValue());
-			} else if (fileContents.getKey().getName().contains(partFileName2)) {
-				fileCounter++;
-				Assert.assertEquals("test1@2\ntest1@3\n", fileContents.getValue());
-			}
-			// check bucket name
-			Assert.assertEquals("test1", fileContents.getKey().getParentFile().getName());
-		}
-		Assert.assertEquals(2L, fileCounter);
+        Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
+        int fileCounter = 0;
+        for (Map.Entry<File, String> fileContents : contents.entrySet()) {
+            if (fileContents.getKey().getName().contains(partFileName1)) {
+                fileCounter++;
+                Assert.assertEquals("test1@1\n", fileContents.getValue());
+            } else if (fileContents.getKey().getName().contains(partFileName2)) {
+                fileCounter++;
+                Assert.assertEquals("test1@2\ntest1@3\n", fileContents.getValue());
+            }
+            // check bucket name
+            Assert.assertEquals("test1", fileContents.getKey().getParentFile().getName());
+        }
+        Assert.assertEquals(2L, fileCounter);
 
-		// we acknowledge the latest checkpoint, so everything should be published.
-		testHarness.notifyOfCompletedCheckpoint(2L);
+        // we acknowledge the latest checkpoint, so everything should be published.
+        testHarness.notifyOfCompletedCheckpoint(2L);
 
-		TestUtils.checkLocalFs(outDir, 0, 2);
-	}
+        TestUtils.checkLocalFs(outDir, 0, 2);
+    }
 
-	private void testPartFilesWithIntegerBucketer(
-			OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness,
-			File outDir,
-			String partFileName1,
-			String partFileName2,
-			String partFileName3) throws Exception {
+    private void testPartFilesWithIntegerBucketer(
+            OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness,
+            File outDir,
+            String partFileName1,
+            String partFileName2,
+            String partFileName3)
+            throws Exception {
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		// this creates a new bucket "test1" and part-0-0
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
-		TestUtils.checkLocalFs(outDir, 1, 0);
+        // this creates a new bucket "test1" and part-0-0
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 1), 1L));
+        TestUtils.checkLocalFs(outDir, 1, 0);
 
-		// we take a checkpoint so we roll.
-		testHarness.snapshot(1L, 1L);
+        // we take a checkpoint so we roll.
+        testHarness.snapshot(1L, 1L);
 
-		// these will close part-0-0 and open part-0-1 and part-0-2
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
-		testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
+        // these will close part-0-0 and open part-0-1 and part-0-2
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 2), 2L));
+        testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 3), 3L));
 
-		// we take a checkpoint so we roll again.
-		testHarness.snapshot(2L, 2L);
+        // we take a checkpoint so we roll again.
+        testHarness.snapshot(2L, 2L);
 
-		TestUtils.checkLocalFs(outDir, 3, 0);
+        TestUtils.checkLocalFs(outDir, 3, 0);
 
-		Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
-		int fileCounter = 0;
-		for (Map.Entry<File, String> fileContents : contents.entrySet()) {
-			if (fileContents.getKey().getName().contains(partFileName1)) {
-				fileCounter++;
-				Assert.assertEquals("test1@1\n", fileContents.getValue());
-				Assert.assertEquals("1", fileContents.getKey().getParentFile().getName());
-			} else if (fileContents.getKey().getName().contains(partFileName2)) {
-				fileCounter++;
-				Assert.assertEquals("test1@2\n", fileContents.getValue());
-				Assert.assertEquals("2", fileContents.getKey().getParentFile().getName());
-			} else if (fileContents.getKey().getName().contains(partFileName3)) {
-				fileCounter++;
-				Assert.assertEquals("test1@3\n", fileContents.getValue());
-				Assert.assertEquals("3", fileContents.getKey().getParentFile().getName());
-			}
-		}
-		Assert.assertEquals(3L, fileCounter);
+        Map<File, String> contents = TestUtils.getFileContentByPath(outDir);
+        int fileCounter = 0;
+        for (Map.Entry<File, String> fileContents : contents.entrySet()) {
+            if (fileContents.getKey().getName().contains(partFileName1)) {
+                fileCounter++;
+                Assert.assertEquals("test1@1\n", fileContents.getValue());
+                Assert.assertEquals("1", fileContents.getKey().getParentFile().getName());
+            } else if (fileContents.getKey().getName().contains(partFileName2)) {
+                fileCounter++;
+                Assert.assertEquals("test1@2\n", fileContents.getValue());
+                Assert.assertEquals("2", fileContents.getKey().getParentFile().getName());
+            } else if (fileContents.getKey().getName().contains(partFileName3)) {
+                fileCounter++;
+                Assert.assertEquals("test1@3\n", fileContents.getValue());
+                Assert.assertEquals("3", fileContents.getKey().getParentFile().getName());
+            }
+        }
+        Assert.assertEquals(3L, fileCounter);
 
-		// we acknowledge the latest checkpoint, so everything should be published.
-		testHarness.notifyOfCompletedCheckpoint(2L);
+        // we acknowledge the latest checkpoint, so everything should be published.
+        testHarness.notifyOfCompletedCheckpoint(2L);
 
-		TestUtils.checkLocalFs(outDir, 0, 3);
-	}
+        TestUtils.checkLocalFs(outDir, 0, 3);
+    }
 
-	/**
-	 * A {@link BulkWriter} used for the tests.
-	 */
-	private static class TestBulkWriter implements BulkWriter<Tuple2<String, Integer>> {
+    /** A {@link BulkWriter} used for the tests. */
+    private static class TestBulkWriter implements BulkWriter<Tuple2<String, Integer>> {
 
-		private static final Charset CHARSET = StandardCharsets.UTF_8;
+        private static final Charset CHARSET = StandardCharsets.UTF_8;
 
-		private final FSDataOutputStream stream;
+        private final FSDataOutputStream stream;
 
-		TestBulkWriter(final FSDataOutputStream stream) {
-			this.stream = Preconditions.checkNotNull(stream);
-		}
+        TestBulkWriter(final FSDataOutputStream stream) {
+            this.stream = Preconditions.checkNotNull(stream);
+        }
 
-		@Override
-		public void addElement(Tuple2<String, Integer> element) throws IOException {
-			stream.write((element.f0 + '@' + element.f1 + '\n').getBytes(CHARSET));
-		}
+        @Override
+        public void addElement(Tuple2<String, Integer> element) throws IOException {
+            stream.write((element.f0 + '@' + element.f1 + '\n').getBytes(CHARSET));
+        }
 
-		@Override
-		public void flush() throws IOException {
-			stream.flush();
-		}
+        @Override
+        public void flush() throws IOException {
+            stream.flush();
+        }
 
-		@Override
-		public void finish() throws IOException {
-			flush();
-		}
-	}
+        @Override
+        public void finish() throws IOException {
+            flush();
+        }
+    }
 
-	/**
-	 * A {@link BulkWriter.Factory} used for the tests.
-	 */
-	public static final class TestBulkWriterFactory implements BulkWriter.Factory<Tuple2<String, Integer>> {
+    /** A {@link BulkWriter.Factory} used for the tests. */
+    public static final class TestBulkWriterFactory
+            implements BulkWriter.Factory<Tuple2<String, Integer>> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public BulkWriter<Tuple2<String, Integer>> create(FSDataOutputStream out) {
-			return new TestBulkWriter(out);
-		}
-	}
+        @Override
+        public BulkWriter<Tuple2<String, Integer>> create(FSDataOutputStream out) {
+            return new TestBulkWriter(out);
+        }
+    }
 }

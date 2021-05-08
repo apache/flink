@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,153 +36,163 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Compressed block channel writer provides a scenario where MemorySegment must be maintained.
- */
+/** Compressed block channel writer provides a scenario where MemorySegment must be maintained. */
 public class CompressedBlockChannelWriter
-		implements BlockChannelWriter<MemorySegment>, BufferRecycler {
+        implements BlockChannelWriter<MemorySegment>, BufferRecycler {
 
-	private final LinkedBlockingQueue<MemorySegment> blockQueue;
-	private final LinkedBlockingQueue<MemorySegment> compressedBuffers = new LinkedBlockingQueue<>();
-	private final BufferFileWriter writer;
-	private final boolean copyCompress;
-	private final BlockCompressor compressor;
+    private final LinkedBlockingQueue<MemorySegment> blockQueue;
+    private final LinkedBlockingQueue<MemorySegment> compressedBuffers =
+            new LinkedBlockingQueue<>();
+    private final BufferFileWriter writer;
+    private final boolean copyCompress;
+    private final BlockCompressor compressor;
 
-	private byte[] buf;
-	private ByteBuffer bufWrapper;
-	private int count;
+    private byte[] buf;
+    private ByteBuffer bufWrapper;
+    private int count;
 
-	public CompressedBlockChannelWriter(
-			IOManager ioManager, ID channel,
-			LinkedBlockingQueue<MemorySegment> blockQueue,
-			BlockCompressionFactory codecFactory, int preferBlockSize, int segmentSize) throws IOException {
-		this.writer = ioManager.createBufferFileWriter(channel);
-		this.blockQueue = blockQueue;
-		copyCompress = preferBlockSize > segmentSize * 2;
-		int blockSize = copyCompress ? preferBlockSize : segmentSize;
-		this.compressor = codecFactory.getCompressor();
+    public CompressedBlockChannelWriter(
+            IOManager ioManager,
+            ID channel,
+            LinkedBlockingQueue<MemorySegment> blockQueue,
+            BlockCompressionFactory codecFactory,
+            int preferBlockSize,
+            int segmentSize)
+            throws IOException {
+        this.writer = ioManager.createBufferFileWriter(channel);
+        this.blockQueue = blockQueue;
+        copyCompress = preferBlockSize > segmentSize * 2;
+        int blockSize = copyCompress ? preferBlockSize : segmentSize;
+        this.compressor = codecFactory.getCompressor();
 
-		if (copyCompress) {
-			this.buf = new byte[blockSize];
-			this.bufWrapper = ByteBuffer.wrap(buf);
-		}
+        if (copyCompress) {
+            this.buf = new byte[blockSize];
+            this.bufWrapper = ByteBuffer.wrap(buf);
+        }
 
-		for (int i = 0; i < 2; i++) {
-			compressedBuffers.add(MemorySegmentFactory.wrap(
-					new byte[compressor.getMaxCompressedSize(blockSize)]));
-		}
-	}
+        for (int i = 0; i < 2; i++) {
+            compressedBuffers.add(
+                    MemorySegmentFactory.wrap(
+                            new byte[compressor.getMaxCompressedSize(blockSize)]));
+        }
+    }
 
-	@Override
-	public void writeBlock(MemorySegment block) throws IOException {
-		if (copyCompress) {
-			int offset = 0;
-			int len = block.size();
+    @Override
+    public void writeBlock(MemorySegment block) throws IOException {
+        if (copyCompress) {
+            int offset = 0;
+            int len = block.size();
 
-			while (len > 0) {
-				int copy = Math.min(len, buf.length - count);
-				if (copy == 0) {
-					flushBuffer();
-				} else {
-					block.get(offset, buf, count, copy);
-					count += copy;
-					offset += copy;
-					len -= copy;
-				}
-			}
-		} else {
-			compressBuffer(block.wrap(0, block.size()), block.size());
-		}
+            while (len > 0) {
+                int copy = Math.min(len, buf.length - count);
+                if (copy == 0) {
+                    flushBuffer();
+                } else {
+                    block.get(offset, buf, count, copy);
+                    count += copy;
+                    offset += copy;
+                    len -= copy;
+                }
+            }
+        } else {
+            block.processAsByteBuffer(
+                    FunctionUtils.uncheckedConsumer(
+                            (buffer) -> compressBuffer(buffer, block.size())));
+        }
 
-		boolean add = blockQueue.add(block);
-		Preconditions.checkState(add); // LinkedBlockingQueue never add fail.
-	}
+        boolean add = blockQueue.add(block);
+        Preconditions.checkState(add); // LinkedBlockingQueue never add fail.
+    }
 
-	private void flushBuffer() throws IOException {
-		compressBuffer(bufWrapper, count);
-		count = 0;
-	}
+    private void flushBuffer() throws IOException {
+        compressBuffer(bufWrapper, count);
+        count = 0;
+    }
 
-	private void compressBuffer(ByteBuffer buffer, int len) throws IOException {
-		MemorySegment compressedBuffer;
-		try {
-			compressedBuffer = compressedBuffers.take();
-		} catch (InterruptedException e) {
-			throw new IOException(e);
-		}
-		int compressedLen = compressor.compress(
-				buffer, 0, len,
-				compressedBuffer.wrap(0, compressedBuffer.size()), 0);
-		NetworkBuffer networkBuffer = new NetworkBuffer(compressedBuffer, this);
-		networkBuffer.setSize(compressedLen);
-		writer.writeBlock(networkBuffer);
-	}
+    private void compressBuffer(ByteBuffer buffer, int len) throws IOException {
+        MemorySegment compressedBuffer;
+        try {
+            compressedBuffer = compressedBuffers.take();
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        }
+        int compressedLen =
+                compressedBuffer.processAsByteBuffer(
+                        (dstBuffer) -> {
+                            return compressor.compress(buffer, 0, len, dstBuffer, 0);
+                        });
 
-	@Override
-	public ID getChannelID() {
-		return writer.getChannelID();
-	}
+        NetworkBuffer networkBuffer = new NetworkBuffer(compressedBuffer, this);
+        networkBuffer.setSize(compressedLen);
+        writer.writeBlock(networkBuffer);
+    }
 
-	@Override
-	public long getSize() throws IOException {
-		return writer.getSize();
-	}
+    @Override
+    public ID getChannelID() {
+        return writer.getChannelID();
+    }
 
-	@Override
-	public boolean isClosed() {
-		return writer.isClosed();
-	}
+    @Override
+    public long getSize() throws IOException {
+        return writer.getSize();
+    }
 
-	@Override
-	public void close() throws IOException {
-		if (!writer.isClosed()) {
-			if (copyCompress) {
-				flushBuffer();
-			}
-			this.writer.close();
-		}
-	}
+    @Override
+    public boolean isClosed() {
+        return writer.isClosed();
+    }
 
-	@Override
-	public void deleteChannel() {
-		writer.deleteChannel();
-	}
+    @Override
+    public void close() throws IOException {
+        if (!writer.isClosed()) {
+            if (copyCompress) {
+                flushBuffer();
+            }
+            this.writer.close();
+        }
+    }
 
-	@Override
-	public void closeAndDelete() throws IOException {
-		writer.closeAndDelete();
-	}
+    @Override
+    public void deleteChannel() {
+        writer.deleteChannel();
+    }
 
-	@Override
-	public FileChannel getNioFileChannel() {
-		return writer.getNioFileChannel();
-	}
+    @Override
+    public void closeAndDelete() throws IOException {
+        writer.closeAndDelete();
+    }
 
-	@Override
-	public void recycle(MemorySegment memorySegment) {
-		compressedBuffers.add(memorySegment);
-	}
+    @Override
+    public FileChannel getNioFileChannel() {
+        return writer.getNioFileChannel();
+    }
 
-	@Override
-	public MemorySegment getNextReturnedBlock() throws IOException {
-		try {
-			while (true) {
-				final MemorySegment next = blockQueue.poll(1000, TimeUnit.MILLISECONDS);
-				if (next != null) {
-					return next;
-				} else {
-					if (writer.isClosed()) {
-						throw new IOException("The writer has been closed.");
-					}
-				}
-			}
-		} catch (InterruptedException e) {
-			throw new IOException("Writer was interrupted while waiting for the next returning segment.");
-		}
-	}
+    @Override
+    public void recycle(MemorySegment memorySegment) {
+        compressedBuffers.add(memorySegment);
+    }
 
-	@Override
-	public LinkedBlockingQueue<MemorySegment> getReturnQueue() {
-		return blockQueue;
-	}
+    @Override
+    public MemorySegment getNextReturnedBlock() throws IOException {
+        try {
+            while (true) {
+                final MemorySegment next = blockQueue.poll(1000, TimeUnit.MILLISECONDS);
+                if (next != null) {
+                    return next;
+                } else {
+                    if (writer.isClosed()) {
+                        throw new IOException("The writer has been closed.");
+                    }
+                }
+            }
+        } catch (InterruptedException e) {
+            throw new IOException(
+                    "Writer was interrupted while waiting for the next returning segment.");
+        }
+    }
+
+    @Override
+    public LinkedBlockingQueue<MemorySegment> getReturnQueue() {
+        return blockQueue;
+    }
 }

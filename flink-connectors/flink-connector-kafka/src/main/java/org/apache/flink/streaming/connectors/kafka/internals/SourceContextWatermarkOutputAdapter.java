@@ -26,20 +26,20 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
  * org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}.
  */
 public class SourceContextWatermarkOutputAdapter<T> implements WatermarkOutput {
-	private final SourceContext<T> sourceContext;
+    private final SourceContext<T> sourceContext;
 
-	public SourceContextWatermarkOutputAdapter(SourceContext<T> sourceContext) {
-		this.sourceContext = sourceContext;
-	}
+    public SourceContextWatermarkOutputAdapter(SourceContext<T> sourceContext) {
+        this.sourceContext = sourceContext;
+    }
 
-	@Override
-	public void emitWatermark(Watermark watermark) {
-		sourceContext.emitWatermark(
-				new org.apache.flink.streaming.api.watermark.Watermark(watermark.getTimestamp()));
-	}
+    @Override
+    public void emitWatermark(Watermark watermark) {
+        sourceContext.emitWatermark(
+                new org.apache.flink.streaming.api.watermark.Watermark(watermark.getTimestamp()));
+    }
 
-	@Override
-	public void markIdle() {
-		sourceContext.markAsTemporarilyIdle();
-	}
+    @Override
+    public void markIdle() {
+        sourceContext.markAsTemporarilyIdle();
+    }
 }

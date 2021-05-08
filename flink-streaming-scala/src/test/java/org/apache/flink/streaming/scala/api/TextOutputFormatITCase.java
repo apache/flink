@@ -32,43 +32,42 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * IT cases for the {@link org.apache.flink.api.java.io.TextOutputFormat}.
- */
+/** IT cases for the {@link org.apache.flink.api.java.io.TextOutputFormat}. */
 public class TextOutputFormatITCase extends AbstractTestBase {
 
-	protected String resultPath;
+    protected String resultPath;
 
-	@Before
-	public void createFile() throws Exception {
-		File resultFile = createAndRegisterTempFile("result");
-		resultPath = resultFile.toURI().toString();
-	}
+    @Before
+    public void createFile() throws Exception {
+        File resultFile = createAndRegisterTempFile("result");
+        resultPath = resultFile.toURI().toString();
+    }
 
-	@Test
-	public void testPath() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
-	}
+    @Test
+    public void testPath() throws Exception {
+        OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
+    }
 
-	@Test
-	public void testPathWriteMode() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
-	}
+    @Test
+    public void testPathWriteMode() throws Exception {
+        OutputFormatTestPrograms.wordCountToText(
+                WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
+    }
 
-	@Test
-	public void failPathWriteMode() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
-		try {
-			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
-			fail("File should exist.");
-		} catch (Exception e) {
-			assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
-		}
-	}
+    @Test
+    public void failPathWriteMode() throws Exception {
+        OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
+        try {
+            OutputFormatTestPrograms.wordCountToText(
+                    WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
+            fail("File should exist.");
+        } catch (Exception e) {
+            assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
+        }
+    }
 
-	@After
-	public void closeFile() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
-	}
-
+    @After
+    public void closeFile() throws Exception {
+        compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+    }
 }

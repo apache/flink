@@ -26,75 +26,73 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Specialized serializer for {@code NullValueArray}.
- */
+/** Specialized serializer for {@code NullValueArray}. */
 public final class NullValueArraySerializer extends TypeSerializerSingleton<NullValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public NullValueArray createInstance() {
-		return new NullValueArray();
-	}
+    @Override
+    public NullValueArray createInstance() {
+        return new NullValueArray();
+    }
 
-	@Override
-	public NullValueArray copy(NullValueArray from) {
-		return copy(from, new NullValueArray());
-	}
+    @Override
+    public NullValueArray copy(NullValueArray from) {
+        return copy(from, new NullValueArray());
+    }
 
-	@Override
-	public NullValueArray copy(NullValueArray from, NullValueArray reuse) {
-		reuse.setValue(from);
-		return reuse;
-	}
+    @Override
+    public NullValueArray copy(NullValueArray from, NullValueArray reuse) {
+        reuse.setValue(from);
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return 4;
-	}
+    @Override
+    public int getLength() {
+        return 4;
+    }
 
-	@Override
-	public void serialize(NullValueArray record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(NullValueArray record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public NullValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new NullValueArray(), source);
-	}
+    @Override
+    public NullValueArray deserialize(DataInputView source) throws IOException {
+        return deserialize(new NullValueArray(), source);
+    }
 
-	@Override
-	public NullValueArray deserialize(NullValueArray reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public NullValueArray deserialize(NullValueArray reuse, DataInputView source)
+            throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.write(source, getLength());
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.write(source, getLength());
+    }
 
-	// -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<NullValueArray> snapshotConfiguration() {
-		return new NullValueArraySerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<NullValueArray> snapshotConfiguration() {
+        return new NullValueArraySerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class NullValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<NullValueArray> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class NullValueArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<NullValueArray> {
 
-		public NullValueArraySerializerSnapshot() {
-			super(NullValueArraySerializer::new);
-		}
-	}
+        public NullValueArraySerializerSnapshot() {
+            super(NullValueArraySerializer::new);
+        }
+    }
 }

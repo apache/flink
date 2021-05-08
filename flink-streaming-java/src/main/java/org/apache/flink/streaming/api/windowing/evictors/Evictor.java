@@ -28,14 +28,14 @@ import java.io.Serializable;
 
 /**
  * An {@code Evictor} can remove elements from a pane before/after the evaluation of WindowFunction
- * and after the window evaluation gets triggered by a
- * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}
+ * and after the window evaluation gets triggered by a {@link
+ * org.apache.flink.streaming.api.windowing.triggers.Trigger}
  *
- * <p>A pane is the bucket of elements that have the same key (assigned by the
- * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
- * be in multiple panes of it was assigned to multiple windows by the
- * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
- * have their own instance of the {@code Evictor}.
+ * <p>A pane is the bucket of elements that have the same key (assigned by the {@link
+ * org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can be in
+ * multiple panes of it was assigned to multiple windows by the {@link
+ * org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all have their
+ * own instance of the {@code Evictor}.
  *
  * @param <T> The type of elements that this {@code Evictor} can evict.
  * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
@@ -43,52 +43,51 @@ import java.io.Serializable;
 @PublicEvolving
 public interface Evictor<T, W extends Window> extends Serializable {
 
-	/**
-	 * Optionally evicts elements. Called before windowing function.
-	 *
-	 * @param elements The elements currently in the pane.
-	 * @param size The current number of elements in the pane.
-	 * @param window The {@link Window}
-	 * @param evictorContext The context for the Evictor
+    /**
+     * Optionally evicts elements. Called before windowing function.
+     *
+     * @param elements The elements currently in the pane.
+     * @param size The current number of elements in the pane.
+     * @param window The {@link Window}
+     * @param evictorContext The context for the Evictor
      */
-	void evictBefore(Iterable<TimestampedValue<T>> elements, int size, W window, EvictorContext evictorContext);
+    void evictBefore(
+            Iterable<TimestampedValue<T>> elements,
+            int size,
+            W window,
+            EvictorContext evictorContext);
 
-	/**
-	 * Optionally evicts elements. Called after windowing function.
-	 *
-	 * @param elements The elements currently in the pane.
-	 * @param size The current number of elements in the pane.
-	 * @param window The {@link Window}
-	 * @param evictorContext The context for the Evictor
-	 */
-	void evictAfter(Iterable<TimestampedValue<T>> elements, int size, W window, EvictorContext evictorContext);
+    /**
+     * Optionally evicts elements. Called after windowing function.
+     *
+     * @param elements The elements currently in the pane.
+     * @param size The current number of elements in the pane.
+     * @param window The {@link Window}
+     * @param evictorContext The context for the Evictor
+     */
+    void evictAfter(
+            Iterable<TimestampedValue<T>> elements,
+            int size,
+            W window,
+            EvictorContext evictorContext);
 
+    /** A context object that is given to {@link Evictor} methods. */
+    interface EvictorContext {
 
-	/**
-	 * A context object that is given to {@link Evictor} methods.
-	 */
-	interface EvictorContext {
+        /** Returns the current processing time. */
+        long getCurrentProcessingTime();
 
-		/**
-		 * Returns the current processing time.
-		 */
-		long getCurrentProcessingTime();
+        /**
+         * Returns the metric group for this {@link Evictor}. This is the same metric group that
+         * would be returned from {@link RuntimeContext#getMetricGroup()} in a user function.
+         *
+         * <p>You must not call methods that create metric objects (such as {@link
+         * MetricGroup#counter(int)} multiple times but instead call once and store the metric
+         * object in a field.
+         */
+        MetricGroup getMetricGroup();
 
-		/**
-		 * Returns the metric group for this {@link Evictor}. This is the same metric
-		 * group that would be returned from {@link RuntimeContext#getMetricGroup()} in a user
-		 * function.
-		 *
-		 * <p>You must not call methods that create metric objects
-		 * (such as {@link MetricGroup#counter(int)} multiple times but instead call once
-		 * and store the metric object in a field.
-		 */
-		MetricGroup getMetricGroup();
-
-		/**
-		 * Returns the current watermark time.
-		 */
-		long getCurrentWatermark();
-	}
+        /** Returns the current watermark time. */
+        long getCurrentWatermark();
+    }
 }
-

@@ -21,39 +21,41 @@ package org.apache.flink.runtime.state;
 import javax.annotation.Nonnull;
 
 /**
- * This class encapsulates the completed configuration for local recovery, i.e. the root
- * directories into which all file-based snapshots can be written and the general mode for the local recover feature.
+ * This class encapsulates the completed configuration for local recovery, i.e. the root directories
+ * into which all file-based snapshots can be written and the general mode for the local recover
+ * feature.
  */
 public class LocalRecoveryConfig {
 
-	/** The local recovery mode. */
-	private final boolean localRecoveryEnabled;
+    /** The local recovery mode. */
+    private final boolean localRecoveryEnabled;
 
-	/** Encapsulates the root directories and the subtask-specific path. */
-	@Nonnull
-	private final LocalRecoveryDirectoryProvider localStateDirectories;
+    /** Encapsulates the root directories and the subtask-specific path. */
+    @Nonnull private final LocalRecoveryDirectoryProvider localStateDirectories;
 
-	public LocalRecoveryConfig(
-		boolean localRecoveryEnabled,
-		@Nonnull LocalRecoveryDirectoryProvider directoryProvider) {
-		this.localRecoveryEnabled = localRecoveryEnabled;
-		this.localStateDirectories = directoryProvider;
-	}
+    public LocalRecoveryConfig(
+            boolean localRecoveryEnabled,
+            @Nonnull LocalRecoveryDirectoryProvider directoryProvider) {
+        this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localStateDirectories = directoryProvider;
+    }
 
-	public boolean isLocalRecoveryEnabled() {
-		return localRecoveryEnabled;
-	}
+    public boolean isLocalRecoveryEnabled() {
+        return localRecoveryEnabled;
+    }
 
-	@Nonnull
-	public LocalRecoveryDirectoryProvider getLocalStateDirectoryProvider() {
-		return localStateDirectories;
-	}
+    @Nonnull
+    public LocalRecoveryDirectoryProvider getLocalStateDirectoryProvider() {
+        return localStateDirectories;
+    }
 
-	@Override
-	public String toString() {
-		return "LocalRecoveryConfig{" +
-			"localRecoveryMode=" + localRecoveryEnabled +
-			", localStateDirectories=" + localStateDirectories +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "LocalRecoveryConfig{"
+                + "localRecoveryMode="
+                + localRecoveryEnabled
+                + ", localStateDirectories="
+                + localStateDirectories
+                + '}';
+    }
 }

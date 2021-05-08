@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
-
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
 
 import java.io.IOException;
 
@@ -30,25 +30,26 @@ import java.io.IOException;
  */
 public class ZooKeeperSharedCount {
 
-	private final SharedCount sharedCount;
+    private final SharedCount sharedCount;
 
-	public ZooKeeperSharedCount(SharedCount sharedCount) {
-		this.sharedCount = Preconditions.checkNotNull(sharedCount);
-	}
+    public ZooKeeperSharedCount(SharedCount sharedCount) {
+        this.sharedCount = Preconditions.checkNotNull(sharedCount);
+    }
 
-	public void start() throws Exception {
-		sharedCount.start();
-	}
+    public void start() throws Exception {
+        sharedCount.start();
+    }
 
-	public void close() throws IOException {
-		sharedCount.close();
-	}
+    public void close() throws IOException {
+        sharedCount.close();
+    }
 
-	public ZooKeeperVersionedValue<Integer> getVersionedValue() {
-		return new ZooKeeperVersionedValue<>(sharedCount.getVersionedValue());
-	}
+    public ZooKeeperVersionedValue<Integer> getVersionedValue() {
+        return new ZooKeeperVersionedValue<>(sharedCount.getVersionedValue());
+    }
 
-	public boolean trySetCount(ZooKeeperVersionedValue<Integer> previous, int newCount) throws Exception {
-		return sharedCount.trySetCount(previous.getVersionedValue(), newCount);
-	}
+    public boolean trySetCount(ZooKeeperVersionedValue<Integer> previous, int newCount)
+            throws Exception {
+        return sharedCount.trySetCount(previous.getVersionedValue(), newCount);
+    }
 }

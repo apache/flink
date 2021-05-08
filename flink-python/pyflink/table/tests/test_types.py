@@ -544,6 +544,9 @@ class TypesTests(PyFlinkTestCase):
                                    "under Windows platform")
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+        last_abbreviation = DataTypes.TIMESTAMP_LTZ()
+        self.assertEqual(lztst, last_abbreviation)
+
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
         self.assertEqual(0, lztst.to_sql_type(ts))
 
@@ -929,7 +932,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 
@@ -945,7 +948,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 

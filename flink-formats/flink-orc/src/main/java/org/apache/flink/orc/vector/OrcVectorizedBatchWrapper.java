@@ -18,18 +18,12 @@
 
 package org.apache.flink.orc.vector;
 
-/**
- * Interface to unify orc reader in hive and orc reader without hive dependents.
- */
+/** Interface to unify orc reader in hive and orc reader without hive dependents. */
 public interface OrcVectorizedBatchWrapper<T> {
 
-	/**
-	 * Get the real batch.
-	 */
-	T getBatch();
+    /** Get the real batch. */
+    T getBatch();
 
-	/**
-	 * @return batch size.
-	 */
-	int size();
+    /** @return batch size. */
+    int size();
 }

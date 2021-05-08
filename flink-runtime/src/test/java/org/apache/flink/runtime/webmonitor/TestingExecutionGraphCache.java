@@ -20,94 +20,100 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.IntSupplier;
 
-/**
- * Testing implementation of {@link ExecutionGraphCache}.
- */
+/** Testing implementation of {@link ExecutionGraphCache}. */
 public class TestingExecutionGraphCache implements ExecutionGraphCache {
-	private final IntSupplier sizeSupplier;
+    private final IntSupplier sizeSupplier;
 
-	private final BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>> getExecutionGraphFunction;
+    private final BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
+            getExecutionGraphFunction;
 
-	private final Runnable cleanupRunnable;
+    private final Runnable cleanupRunnable;
 
-	private final Runnable closeRunnable;
+    private final Runnable closeRunnable;
 
-	private TestingExecutionGraphCache(
-			IntSupplier sizeSupplier,
-			BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>> getExecutionGraphFunction,
-			Runnable cleanupRunnable,
-			Runnable closeRunnable) {
-		this.sizeSupplier = sizeSupplier;
-		this.getExecutionGraphFunction = getExecutionGraphFunction;
-		this.cleanupRunnable = cleanupRunnable;
-		this.closeRunnable = closeRunnable;
-	}
+    private TestingExecutionGraphCache(
+            IntSupplier sizeSupplier,
+            BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
+                    getExecutionGraphFunction,
+            Runnable cleanupRunnable,
+            Runnable closeRunnable) {
+        this.sizeSupplier = sizeSupplier;
+        this.getExecutionGraphFunction = getExecutionGraphFunction;
+        this.cleanupRunnable = cleanupRunnable;
+        this.closeRunnable = closeRunnable;
+    }
 
-	@Override
-	public int size() {
-		return sizeSupplier.getAsInt();
-	}
+    @Override
+    public int size() {
+        return sizeSupplier.getAsInt();
+    }
 
-	@Override
-	public CompletableFuture<AccessExecutionGraph> getExecutionGraph(JobID jobId, RestfulGateway restfulGateway) {
-		return getExecutionGraphFunction.apply(jobId, restfulGateway);
-	}
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(
+            JobID jobId, RestfulGateway restfulGateway) {
+        return getExecutionGraphFunction.apply(jobId, restfulGateway);
+    }
 
-	@Override
-	public void cleanup() {
-		cleanupRunnable.run();
-	}
+    @Override
+    public void cleanup() {
+        cleanupRunnable.run();
+    }
 
-	@Override
-	public void close() {
-		closeRunnable.run();
-	}
+    @Override
+    public void close() {
+        closeRunnable.run();
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for the {@link TestingExecutionGraphCache}.
-	 */
-	public static final class Builder {
+    /** Builder for the {@link TestingExecutionGraphCache}. */
+    public static final class Builder {
 
-		private IntSupplier sizeSupplier = () -> 0;
-		private BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>> getExecutionGraphFunction = (ignoredA, ignoredB) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
-		private Runnable cleanupRunnable = () -> {};
-		private Runnable closeRunnable = () -> {};
+        private IntSupplier sizeSupplier = () -> 0;
+        private BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
+                getExecutionGraphFunction =
+                        (ignoredA, ignoredB) ->
+                                FutureUtils.completedExceptionally(
+                                        new UnsupportedOperationException());
+        private Runnable cleanupRunnable = () -> {};
+        private Runnable closeRunnable = () -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setSizeSupplier(IntSupplier sizeSupplier) {
-			this.sizeSupplier = sizeSupplier;
-			return this;
-		}
+        public Builder setSizeSupplier(IntSupplier sizeSupplier) {
+            this.sizeSupplier = sizeSupplier;
+            return this;
+        }
 
-		public Builder setGetExecutionGraphFunction(BiFunction<JobID, RestfulGateway, CompletableFuture<AccessExecutionGraph>> getExecutionGraphFunction) {
-			this.getExecutionGraphFunction = getExecutionGraphFunction;
-			return this;
-		}
+        public Builder setGetExecutionGraphFunction(
+                BiFunction<JobID, RestfulGateway, CompletableFuture<ExecutionGraphInfo>>
+                        getExecutionGraphFunction) {
+            this.getExecutionGraphFunction = getExecutionGraphFunction;
+            return this;
+        }
 
-		public Builder setCleanupRunnable(Runnable cleanupRunnable) {
-			this.cleanupRunnable = cleanupRunnable;
-			return this;
-		}
+        public Builder setCleanupRunnable(Runnable cleanupRunnable) {
+            this.cleanupRunnable = cleanupRunnable;
+            return this;
+        }
 
-		public Builder setCloseRunnable(Runnable closeRunnable) {
-			this.closeRunnable = closeRunnable;
-			return this;
-		}
+        public Builder setCloseRunnable(Runnable closeRunnable) {
+            this.closeRunnable = closeRunnable;
+            return this;
+        }
 
-		public TestingExecutionGraphCache build() {
-			return new TestingExecutionGraphCache(sizeSupplier, getExecutionGraphFunction, cleanupRunnable, closeRunnable);
-		}
-	}
+        public TestingExecutionGraphCache build() {
+            return new TestingExecutionGraphCache(
+                    sizeSupplier, getExecutionGraphFunction, cleanupRunnable, closeRunnable);
+        }
+    }
 }

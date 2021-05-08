@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.RexProgram
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 

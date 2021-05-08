@@ -15,8 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from py4j.java_gateway import java_import
 
@@ -37,7 +36,7 @@ class Catalog(object):
     def __init__(self, j_catalog):
         self._j_catalog = j_catalog
 
-    def get_default_database(self):
+    def get_default_database(self) -> str:
         """
         Get the name of the default database for this catalog. The default database will be the
         current database for the catalog when user's session doesn't specify a current database.
@@ -49,7 +48,7 @@ class Catalog(object):
         """
         return self._j_catalog.getDefaultDatabase()
 
-    def list_databases(self):
+    def list_databases(self) -> List[str]:
         """
         Get the names of all databases in this catalog.
 
@@ -58,7 +57,7 @@ class Catalog(object):
         """
         return list(self._j_catalog.listDatabases())
 
-    def get_database(self, database_name):
+    def get_database(self, database_name: str) -> 'CatalogDatabase':
         """
         Get a database from this catalog.
 
@@ -69,7 +68,7 @@ class Catalog(object):
         """
         return CatalogDatabase._get(self._j_catalog.getDatabase(database_name))
 
-    def database_exists(self, database_name):
+    def database_exists(self, database_name: str) -> bool:
         """
         Check if a database exists in this catalog.
 
@@ -79,7 +78,7 @@ class Catalog(object):
         """
         return self._j_catalog.databaseExists(database_name)
 
-    def create_database(self, name, database, ignore_if_exists):
+    def create_database(self, name: str, database: 'CatalogDatabase', ignore_if_exists: bool):
         """
         Create a database.
 
@@ -95,7 +94,7 @@ class Catalog(object):
         """
         self._j_catalog.createDatabase(name, database._j_catalog_database, ignore_if_exists)
 
-    def drop_database(self, name, ignore_if_exists):
+    def drop_database(self, name: str, ignore_if_exists: bool):
         """
         Drop a database.
 
@@ -108,7 +107,8 @@ class Catalog(object):
         """
         self._j_catalog.dropDatabase(name, ignore_if_exists)
 
-    def alter_database(self, name, new_database, ignore_if_not_exists):
+    def alter_database(self, name: str, new_database: 'CatalogDatabase',
+                       ignore_if_not_exists: bool):
         """
         Modify an existing database.
 
@@ -123,7 +123,7 @@ class Catalog(object):
         """
         self._j_catalog.alterDatabase(name, new_database._j_catalog_database, ignore_if_not_exists)
 
-    def list_tables(self, database_name):
+    def list_tables(self, database_name: str) -> List[str]:
         """
         Get names of all tables and views under this database. An empty list is returned if none
         exists.
@@ -135,7 +135,7 @@ class Catalog(object):
         """
         return list(self._j_catalog.listTables(database_name))
 
-    def list_views(self, database_name):
+    def list_views(self, database_name: str) -> List[str]:
         """
         Get names of all views under this database. An empty list is returned if none exists.
 
@@ -146,7 +146,7 @@ class Catalog(object):
         """
         return list(self._j_catalog.listViews(database_name))
 
-    def get_table(self, table_path):
+    def get_table(self, table_path: 'ObjectPath') -> 'CatalogBaseTable':
         """
         Get a CatalogTable or CatalogView identified by tablePath.
 
@@ -157,7 +157,7 @@ class Catalog(object):
         """
         return CatalogBaseTable._get(self._j_catalog.getTable(table_path._j_object_path))
 
-    def table_exists(self, table_path):
+    def table_exists(self, table_path: 'ObjectPath') -> bool:
         """
         Check if a table or view exists in this catalog.
 
@@ -167,7 +167,7 @@ class Catalog(object):
         """
         return self._j_catalog.tableExists(table_path._j_object_path)
 
-    def drop_table(self, table_path, ignore_if_not_exists):
+    def drop_table(self, table_path: 'ObjectPath', ignore_if_not_exists: bool):
         """
         Drop a table or view.
 
@@ -180,7 +180,8 @@ class Catalog(object):
         """
         self._j_catalog.dropTable(table_path._j_object_path, ignore_if_not_exists)
 
-    def rename_table(self, table_path, new_table_name, ignore_if_not_exists):
+    def rename_table(self, table_path: 'ObjectPath', new_table_name: str,
+                     ignore_if_not_exists: bool):
         """
         Rename an existing table or view.
 
@@ -194,7 +195,8 @@ class Catalog(object):
         """
         self._j_catalog.renameTable(table_path._j_object_path, new_table_name, ignore_if_not_exists)
 
-    def create_table(self, table_path, table, ignore_if_exists):
+    def create_table(self, table_path: 'ObjectPath', table: 'CatalogBaseTable',
+                     ignore_if_exists: bool):
         """
         Create a new table or view.
 
@@ -211,7 +213,8 @@ class Catalog(object):
         self._j_catalog.createTable(table_path._j_object_path, table._j_catalog_base_table,
                                     ignore_if_exists)
 
-    def alter_table(self, table_path, new_table, ignore_if_not_exists):
+    def alter_table(self, table_path: 'ObjectPath', new_table: 'CatalogBaseTable',
+                    ignore_if_not_exists):
         """
         Modify an existing table or view.
         Note that the new and old CatalogBaseTable must be of the same type. For example,
@@ -229,7 +232,10 @@ class Catalog(object):
         self._j_catalog.alterTable(table_path._j_object_path, new_table._j_catalog_base_table,
                                    ignore_if_not_exists)
 
-    def list_partitions(self, table_path, partition_spec=None):
+    def list_partitions(self,
+                        table_path: 'ObjectPath',
+                        partition_spec: 'CatalogPartitionSpec' = None)\
+            -> List['CatalogPartitionSpec']:
         """
         Get CatalogPartitionSpec of all partitions of the table.
 
@@ -247,7 +253,8 @@ class Catalog(object):
             return [CatalogPartitionSpec(p) for p in self._j_catalog.listPartitions(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec)]
 
-    def get_partition(self, table_path, partition_spec):
+    def get_partition(self, table_path: 'ObjectPath', partition_spec: 'CatalogPartitionSpec') \
+            -> 'CatalogPartition':
         """
         Get a partition of the given table.
         The given partition spec keys and values need to be matched exactly for a result.
@@ -261,7 +268,8 @@ class Catalog(object):
         return CatalogPartition._get(self._j_catalog.getPartition(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
-    def partition_exists(self, table_path, partition_spec):
+    def partition_exists(self, table_path: 'ObjectPath',
+                         partition_spec: 'CatalogPartitionSpec') -> bool:
         """
         Check whether a partition exists or not.
 
@@ -274,7 +282,8 @@ class Catalog(object):
         return self._j_catalog.partitionExists(
             table_path._j_object_path, partition_spec._j_catalog_partition_spec)
 
-    def create_partition(self, table_path, partition_spec, partition, ignore_if_exists):
+    def create_partition(self, table_path: 'ObjectPath', partition_spec: 'CatalogPartitionSpec',
+                         partition: 'CatalogPartition', ignore_if_exists: bool):
         """
         Create a partition.
 
@@ -296,7 +305,8 @@ class Catalog(object):
                                         partition._j_catalog_partition,
                                         ignore_if_exists)
 
-    def drop_partition(self, table_path, partition_spec, ignore_if_not_exists):
+    def drop_partition(self, table_path: 'ObjectPath', partition_spec: 'CatalogPartitionSpec',
+                       ignore_if_not_exists: bool):
         """
         Drop a partition.
 
@@ -313,7 +323,8 @@ class Catalog(object):
                                       partition_spec._j_catalog_partition_spec,
                                       ignore_if_not_exists)
 
-    def alter_partition(self, table_path, partition_spec, new_partition, ignore_if_not_exists):
+    def alter_partition(self, table_path: 'ObjectPath', partition_spec: 'CatalogPartitionSpec',
+                        new_partition: 'CatalogPartition', ignore_if_not_exists: bool):
         """
         Alter a partition.
 
@@ -332,7 +343,7 @@ class Catalog(object):
                                        new_partition._j_catalog_partition,
                                        ignore_if_not_exists)
 
-    def list_functions(self, database_name):
+    def list_functions(self, database_name: str) -> List[str]:
         """
         List the names of all functions in the given database. An empty list is returned if none is
         registered.
@@ -344,7 +355,7 @@ class Catalog(object):
         """
         return list(self._j_catalog.listFunctions(database_name))
 
-    def get_function(self, function_path):
+    def get_function(self, function_path: 'ObjectPath') -> 'CatalogFunction':
         """
         Get the function.
 
@@ -355,7 +366,7 @@ class Catalog(object):
         """
         return CatalogFunction._get(self._j_catalog.getFunction(function_path._j_object_path))
 
-    def function_exists(self, function_path):
+    def function_exists(self, function_path: 'ObjectPath') -> bool:
         """
         Check whether a function exists or not.
 
@@ -365,7 +376,8 @@ class Catalog(object):
         """
         return self._j_catalog.functionExists(function_path._j_object_path)
 
-    def create_function(self, function_path, function, ignore_if_exists):
+    def create_function(self, function_path: 'ObjectPath', function: 'CatalogFunction',
+                        ignore_if_exists: bool):
         """
         Create a function.
 
@@ -383,7 +395,8 @@ class Catalog(object):
                                        function._j_catalog_function,
                                        ignore_if_exists)
 
-    def alter_function(self, function_path, new_function, ignore_if_not_exists):
+    def alter_function(self, function_path: 'ObjectPath', new_function: 'CatalogFunction',
+                       ignore_if_not_exists: bool):
         """
         Modify an existing function.
 
@@ -399,7 +412,7 @@ class Catalog(object):
                                       new_function._j_catalog_function,
                                       ignore_if_not_exists)
 
-    def drop_function(self, function_path, ignore_if_not_exists):
+    def drop_function(self, function_path: 'ObjectPath', ignore_if_not_exists: bool):
         """
         Drop a function.
 
@@ -412,7 +425,7 @@ class Catalog(object):
         """
         self._j_catalog.dropFunction(function_path._j_object_path, ignore_if_not_exists)
 
-    def get_table_statistics(self, table_path):
+    def get_table_statistics(self, table_path: 'ObjectPath') -> 'CatalogTableStatistics':
         """
         Get the statistics of a table.
 
@@ -425,7 +438,7 @@ class Catalog(object):
             j_catalog_table_statistics=self._j_catalog.getTableStatistics(
                 table_path._j_object_path))
 
-    def get_table_column_statistics(self, table_path):
+    def get_table_column_statistics(self, table_path: 'ObjectPath') -> 'CatalogColumnStatistics':
         """
         Get the column statistics of a table.
 
@@ -438,7 +451,10 @@ class Catalog(object):
             j_catalog_column_statistics=self._j_catalog.getTableColumnStatistics(
                 table_path._j_object_path))
 
-    def get_partition_statistics(self, table_path, partition_spec):
+    def get_partition_statistics(self,
+                                 table_path: 'ObjectPath',
+                                 partition_spec: 'CatalogPartitionSpec') \
+            -> 'CatalogTableStatistics':
         """
         Get the statistics of a partition.
 
@@ -452,7 +468,10 @@ class Catalog(object):
             j_catalog_table_statistics=self._j_catalog.getPartitionStatistics(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
-    def get_partition_column_statistics(self, table_path, partition_spec):
+    def get_partition_column_statistics(self,
+                                        table_path: 'ObjectPath',
+                                        partition_spec: 'CatalogPartitionSpec') \
+            -> 'CatalogColumnStatistics':
         """
         Get the column statistics of a partition.
 
@@ -466,7 +485,10 @@ class Catalog(object):
             j_catalog_column_statistics=self._j_catalog.getPartitionColumnStatistics(
                 table_path._j_object_path, partition_spec._j_catalog_partition_spec))
 
-    def alter_table_statistics(self, table_path, table_statistics, ignore_if_not_exists):
+    def alter_table_statistics(self,
+                               table_path: 'ObjectPath',
+                               table_statistics: 'CatalogTableStatistics',
+                               ignore_if_not_exists: bool):
         """
         Update the statistics of a table.
 
@@ -483,7 +505,10 @@ class Catalog(object):
             table_statistics._j_catalog_table_statistics,
             ignore_if_not_exists)
 
-    def alter_table_column_statistics(self, table_path, column_statistics, ignore_if_not_exists):
+    def alter_table_column_statistics(self,
+                                      table_path: 'ObjectPath',
+                                      column_statistics: 'CatalogColumnStatistics',
+                                      ignore_if_not_exists: bool):
         """
         Update the column statistics of a table.
 
@@ -500,8 +525,11 @@ class Catalog(object):
             column_statistics._j_catalog_column_statistics,
             ignore_if_not_exists)
 
-    def alter_partition_statistics(self, table_path, partition_spec, partition_statistics,
-                                   ignore_if_not_exists):
+    def alter_partition_statistics(self,
+                                   table_path: 'ObjectPath',
+                                   partition_spec: 'CatalogPartitionSpec',
+                                   partition_statistics: 'CatalogTableStatistics',
+                                   ignore_if_not_exists: bool):
         """
         Update the statistics of a table partition.
 
@@ -520,8 +548,11 @@ class Catalog(object):
             partition_statistics._j_catalog_table_statistics,
             ignore_if_not_exists)
 
-    def alter_partition_column_statistics(self, table_path, partition_spec, column_statistics,
-                                          ignore_if_not_exists):
+    def alter_partition_column_statistics(self,
+                                          table_path: 'ObjectPath',
+                                          partition_spec: 'CatalogPartitionSpec',
+                                          column_statistics: 'CatalogColumnStatistics',
+                                          ignore_if_not_exists: bool):
         """
         Update the column statistics of a table partition.
 
@@ -570,13 +601,13 @@ class CatalogDatabase(object):
     def _get(j_catalog_database):
         return CatalogDatabase(j_catalog_database)
 
-    def get_properties(self):
+    def get_properties(self) -> Dict[str, str]:
         """
         Get a map of properties associated with the database.
         """
         return dict(self._j_catalog_database.getProperties())
 
-    def get_comment(self):
+    def get_comment(self) -> str:
         """
         Get comment of the database.
 
@@ -584,7 +615,7 @@ class CatalogDatabase(object):
         """
         return self._j_catalog_database.getComment()
 
-    def copy(self):
+    def copy(self) -> 'CatalogDatabase':
         """
         Get a deep copy of the CatalogDatabase instance.
 
@@ -592,7 +623,7 @@ class CatalogDatabase(object):
         """
         return CatalogDatabase(self._j_catalog_database.copy())
 
-    def get_description(self):
+    def get_description(self) -> Optional[str]:
         """
         Get a brief description of the database.
 
@@ -604,7 +635,7 @@ class CatalogDatabase(object):
         else:
             return None
 
-    def get_detailed_description(self):
+    def get_detailed_description(self) -> Optional[str]:
         """
         Get a detailed description of the database.
 
@@ -697,20 +728,7 @@ class CatalogBaseTable(object):
         """
         return dict(self._j_catalog_base_table.getOptions())
 
-    def get_properties(self):
-        """
-        Get the properties of the table.
-
-        :return: Property map of the table/view.
-
-        .. note:: This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options`
-                  instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use CatalogBaseTable#get_options instead.",
-                      DeprecationWarning)
-        return dict(self._j_catalog_base_table.getProperties())
-
-    def get_schema(self):
+    def get_schema(self) -> TableSchema:
         """
         Get the schema of the table.
 
@@ -718,7 +736,7 @@ class CatalogBaseTable(object):
         """
         return TableSchema(j_table_schema=self._j_catalog_base_table.getSchema())
 
-    def get_comment(self):
+    def get_comment(self) -> str:
         """
         Get comment of the table or view.
 
@@ -726,7 +744,7 @@ class CatalogBaseTable(object):
         """
         return self._j_catalog_base_table.getComment()
 
-    def copy(self):
+    def copy(self) -> 'CatalogBaseTable':
         """
         Get a deep copy of the CatalogBaseTable instance.
 
@@ -734,7 +752,7 @@ class CatalogBaseTable(object):
         """
         return CatalogBaseTable(self._j_catalog_base_table.copy())
 
-    def get_description(self):
+    def get_description(self) -> Optional[str]:
         """
         Get a brief description of the table or view.
 
@@ -746,7 +764,7 @@ class CatalogBaseTable(object):
         else:
             return None
 
-    def get_detailed_description(self):
+    def get_detailed_description(self) -> Optional[str]:
         """
         Get a detailed description of the table or view.
 
@@ -789,7 +807,7 @@ class CatalogPartition(object):
     def _get(j_catalog_partition):
         return CatalogPartition(j_catalog_partition)
 
-    def get_properties(self):
+    def get_properties(self) -> Dict[str, str]:
         """
         Get a map of properties associated with the partition.
 
@@ -797,7 +815,7 @@ class CatalogPartition(object):
         """
         return dict(self._j_catalog_partition.getProperties())
 
-    def copy(self):
+    def copy(self) -> 'CatalogPartition':
         """
         Get a deep copy of the CatalogPartition instance.
 
@@ -805,7 +823,7 @@ class CatalogPartition(object):
         """
         return CatalogPartition(self._j_catalog_partition.copy())
 
-    def get_description(self):
+    def get_description(self) -> Optional[str]:
         """
         Get a brief description of the partition object.
 
@@ -817,7 +835,7 @@ class CatalogPartition(object):
         else:
             return None
 
-    def get_detailed_description(self):
+    def get_detailed_description(self) -> Optional[str]:
         """
         Get a detailed description of the partition object.
 
@@ -829,12 +847,11 @@ class CatalogPartition(object):
         else:
             return None
 
-    def get_comment(self):
+    def get_comment(self) -> str:
         """
         Get comment of the partition.
 
         :return: Comment of the partition.
-        :rtype: str
         """
         return self._j_catalog_partition.getComment()
 
@@ -879,7 +896,7 @@ class CatalogFunction(object):
     def _get(j_catalog_function):
         return CatalogFunction(j_catalog_function)
 
-    def get_class_name(self):
+    def get_class_name(self) -> str:
         """
         Get the full name of the class backing the function.
 
@@ -887,7 +904,7 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getClassName()
 
-    def copy(self):
+    def copy(self) -> 'CatalogFunction':
         """
         Create a deep copy of the function.
 
@@ -895,7 +912,7 @@ class CatalogFunction(object):
         """
         return CatalogFunction(self._j_catalog_function.copy())
 
-    def get_description(self):
+    def get_description(self) -> Optional[str]:
         """
         Get a brief description of the function.
 
@@ -907,7 +924,7 @@ class CatalogFunction(object):
         else:
             return None
 
-    def get_detailed_description(self):
+    def get_detailed_description(self) -> Optional[str]:
         """
         Get a detailed description of the function.
 
@@ -919,7 +936,7 @@ class CatalogFunction(object):
         else:
             return None
 
-    def is_generic(self):
+    def is_generic(self) -> bool:
         """
         Whether or not is the function a flink UDF.
 
@@ -962,17 +979,17 @@ class ObjectPath(object):
         return isinstance(other, self.__class__) and self._j_object_path.equals(
             other._j_object_path)
 
-    def get_database_name(self):
+    def get_database_name(self) -> str:
         return self._j_object_path.getDatabaseName()
 
-    def get_object_name(self):
+    def get_object_name(self) -> str:
         return self._j_object_path.getObjectName()
 
-    def get_full_name(self):
+    def get_full_name(self) -> str:
         return self._j_object_path.getFullName()
 
     @staticmethod
-    def from_string(full_name):
+    def from_string(full_name: str) -> 'ObjectPath':
         gateway = get_gateway()
         return ObjectPath(j_object_path=gateway.jvm.ObjectPath.fromString(full_name))
 
@@ -1001,7 +1018,7 @@ class CatalogPartitionSpec(object):
         return isinstance(other, self.__class__) and self._j_catalog_partition_spec.equals(
             other._j_catalog_partition_spec)
 
-    def get_partition_spec(self):
+    def get_partition_spec(self) -> Dict[str, str]:
         """
         Get the partition spec as key-value map.
 
@@ -1029,34 +1046,34 @@ class CatalogTableStatistics(object):
         else:
             self._j_catalog_table_statistics = j_catalog_table_statistics
 
-    def get_row_count(self):
+    def get_row_count(self) -> int:
         """
         The number of rows in the table or partition.
         """
         return self._j_catalog_table_statistics.getRowCount()
 
-    def get_field_count(self):
+    def get_field_count(self) -> int:
         """
         The number of files on disk.
         """
         return self._j_catalog_table_statistics.getFileCount()
 
-    def get_total_size(self):
+    def get_total_size(self) -> int:
         """
         The total size in bytes.
         """
         return self._j_catalog_table_statistics.getTotalSize()
 
-    def get_raw_data_size(self):
+    def get_raw_data_size(self) -> int:
         """
         The raw data size (size when loaded in memory) in bytes.
         """
         return self._j_catalog_table_statistics.getRawDataSize()
 
-    def get_properties(self):
+    def get_properties(self) -> Dict[str, str]:
         return dict(self._j_catalog_table_statistics.getProperties())
 
-    def copy(self):
+    def copy(self) -> 'CatalogTableStatistics':
         """
         Create a deep copy of "this" instance.
         """
@@ -1086,10 +1103,10 @@ class CatalogColumnStatistics(object):
     def get_column_statistics_data(self):
         return self._j_catalog_column_statistics.getColumnStatisticsData()
 
-    def get_properties(self):
+    def get_properties(self) -> Dict[str, str]:
         return dict(self._j_catalog_column_statistics.getProperties())
 
-    def copy(self):
+    def copy(self) -> 'CatalogColumnStatistics':
         return CatalogColumnStatistics(
             j_catalog_column_statistics=self._j_catalog_column_statistics.copy())
 

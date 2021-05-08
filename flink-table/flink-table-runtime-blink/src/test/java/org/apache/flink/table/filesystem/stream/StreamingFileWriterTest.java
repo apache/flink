@@ -45,116 +45,151 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Test for {@link StreamingFileWriter}.
- */
+/** Test for {@link StreamingFileWriter}. */
 public class StreamingFileWriterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private Path path;
+    private Path path;
 
-	@Before
-	public void before() throws IOException {
-		File file = TEMPORARY_FOLDER.newFile();
-		file.delete();
-		path = new Path(file.toURI());
-	}
+    @Before
+    public void before() throws IOException {
+        File file = TEMPORARY_FOLDER.newFile();
+        file.delete();
+        path = new Path(file.toURI());
+    }
 
-	@Test
-	public void testFailover() throws Exception {
-		OperatorSubtaskState state;
-		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
-			harness.setup();
-			harness.initializeEmptyState();
-			harness.open();
-			harness.processElement(row("1"), 0);
-			harness.processElement(row("2"), 0);
-			harness.processElement(row("2"), 0);
-			state = harness.snapshot(1, 1);
-			harness.processElement(row("3"), 0);
-			harness.processElement(row("4"), 0);
-			harness.notifyOfCompletedCheckpoint(1);
-			List<String> partitions = collect(harness);
-			Assert.assertEquals(Arrays.asList("1", "2"), partitions);
-		}
+    @Test
+    public void testFailover() throws Exception {
+        OperatorSubtaskState state;
+        try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+            harness.setup();
+            harness.initializeEmptyState();
+            harness.open();
+            harness.processElement(row("1"), 0);
+            harness.processElement(row("2"), 0);
+            harness.processElement(row("2"), 0);
+            state = harness.snapshot(1, 1);
+            harness.processElement(row("3"), 0);
+            harness.processElement(row("4"), 0);
+            harness.notifyOfCompletedCheckpoint(1);
+            List<String> partitions = collect(harness);
+            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+        }
 
-		// first retry, no partition {1, 2} records
-		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
-			harness.setup();
-			harness.initializeState(state);
-			harness.open();
-			harness.processElement(row("3"), 0);
-			harness.processElement(row("4"), 0);
-			state = harness.snapshot(2, 2);
-			harness.notifyOfCompletedCheckpoint(2);
-			List<String> partitions = collect(harness);
-			Assert.assertEquals(Arrays.asList("1", "2", "3", "4"), partitions);
-		}
+        // first retry, no partition {1, 2} records
+        try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+            harness.setup();
+            harness.initializeState(state);
+            harness.open();
+            harness.processElement(row("3"), 0);
+            harness.processElement(row("4"), 0);
+            state = harness.snapshot(2, 2);
+            harness.notifyOfCompletedCheckpoint(2);
+            List<String> partitions = collect(harness);
+            Assert.assertEquals(Arrays.asList("1", "2", "3", "4"), partitions);
+        }
 
-		// second retry, partition {4} repeat
-		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
-			harness.setup();
-			harness.initializeState(state);
-			harness.open();
-			harness.processElement(row("4"), 0);
-			harness.processElement(row("5"), 0);
-			state = harness.snapshot(3, 3);
-			harness.notifyOfCompletedCheckpoint(3);
-			List<String> partitions = collect(harness);
-			Assert.assertEquals(Arrays.asList("3", "4", "5"), partitions);
-		}
+        // second retry, partition {4} repeat
+        try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+            harness.setup();
+            harness.initializeState(state);
+            harness.open();
+            harness.processElement(row("4"), 0);
+            harness.processElement(row("5"), 0);
+            state = harness.snapshot(3, 3);
+            harness.notifyOfCompletedCheckpoint(3);
+            List<String> partitions = collect(harness);
+            Assert.assertEquals(Arrays.asList("3", "4", "5"), partitions);
+        }
 
-		// third retry, multiple snapshots
-		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
-			harness.setup();
-			harness.initializeState(state);
-			harness.open();
-			harness.processElement(row("6"), 0);
-			harness.processElement(row("7"), 0);
-			harness.snapshot(4, 4);
-			harness.processElement(row("8"), 0);
-			harness.snapshot(5, 5);
-			harness.processElement(row("9"), 0);
-			harness.snapshot(6, 6);
-			harness.notifyOfCompletedCheckpoint(5);
-			List<String> partitions = collect(harness);
-			// should not contains partition {9}
-			Assert.assertEquals(Arrays.asList("4", "5", "6", "7", "8"), partitions);
-		}
-	}
+        // third retry, multiple snapshots
+        try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+            harness.setup();
+            harness.initializeState(state);
+            harness.open();
+            harness.processElement(row("6"), 0);
+            harness.processElement(row("7"), 0);
+            harness.snapshot(4, 4);
+            harness.processElement(row("8"), 0);
+            harness.snapshot(5, 5);
+            harness.processElement(row("9"), 0);
+            harness.snapshot(6, 6);
+            harness.notifyOfCompletedCheckpoint(5);
+            List<String> partitions = collect(harness);
+            // should not contains partition {9}
+            Assert.assertEquals(Arrays.asList("4", "5", "6", "7", "8"), partitions);
+        }
+    }
 
-	private static RowData row(String s) {
-		return GenericRowData.of(StringData.fromString(s));
-	}
+    @Test
+    public void testCommitImmediately() throws Exception {
+        try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
+            harness.setup();
+            harness.initializeEmptyState();
+            harness.open();
 
-	private static List<String> collect(
-			OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness) {
-		List<String> parts = new ArrayList<>();
-		harness.extractOutputValues().forEach(m -> parts.addAll(m.getPartitions()));
-		return parts;
-	}
+            harness.processElement(row("1"), 0);
+            harness.processElement(row("2"), 0);
+            harness.processElement(row("2"), 0);
 
-	private OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> create() throws Exception {
-		StreamingFileWriter<RowData> writer = new StreamingFileWriter<>(1000, StreamingFileSink.forRowFormat(
-				path, (Encoder<RowData>) (element, stream) ->
-						stream.write((element.getString(0) + "\n").getBytes(StandardCharsets.UTF_8)))
-				.withBucketAssigner(new BucketAssigner<RowData, String>() {
-					@Override
-					public String getBucketId(RowData element, Context context) {
-						return element.getString(0).toString();
-					}
+            harness.snapshot(1, 1);
 
-					@Override
-					public SimpleVersionedSerializer<String> getSerializer() {
-						return SimpleVersionedStringSerializer.INSTANCE;
-					}
-				})
-				.withRollingPolicy(OnCheckpointRollingPolicy.build()));
-		OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = new OneInputStreamOperatorTestHarness<>(
-				writer, 1, 1, 0);
-		harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		return harness;
-	}
+            // repeat partition 1
+            harness.processElement(row("1"), 0);
+
+            harness.processElement(row("3"), 0);
+            harness.processElement(row("4"), 0);
+
+            harness.notifyOfCompletedCheckpoint(1);
+            List<String> partitions = collect(harness);
+            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+        }
+    }
+
+    private static RowData row(String s) {
+        return GenericRowData.of(StringData.fromString(s));
+    }
+
+    private static List<String> collect(
+            OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness) {
+        List<String> parts = new ArrayList<>();
+        harness.extractOutputValues().forEach(m -> parts.addAll(m.getPartitions()));
+        return parts;
+    }
+
+    private OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> create()
+            throws Exception {
+        StreamingFileWriter<RowData> writer =
+                new StreamingFileWriter<>(
+                        1000,
+                        StreamingFileSink.forRowFormat(
+                                        path,
+                                        (Encoder<RowData>)
+                                                (element, stream) ->
+                                                        stream.write(
+                                                                (element.getString(0) + "\n")
+                                                                        .getBytes(
+                                                                                StandardCharsets
+                                                                                        .UTF_8)))
+                                .withBucketAssigner(
+                                        new BucketAssigner<RowData, String>() {
+                                            @Override
+                                            public String getBucketId(
+                                                    RowData element, Context context) {
+                                                return element.getString(0).toString();
+                                            }
+
+                                            @Override
+                                            public SimpleVersionedSerializer<String>
+                                                    getSerializer() {
+                                                return SimpleVersionedStringSerializer.INSTANCE;
+                                            }
+                                        })
+                                .withRollingPolicy(OnCheckpointRollingPolicy.build()));
+        OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness =
+                new OneInputStreamOperatorTestHarness<>(writer, 1, 1, 0);
+        harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+        return harness;
+    }
 }

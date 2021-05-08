@@ -82,24 +82,24 @@ fi
 MODE=$1
 LOG=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-$MODE-$HOSTNAME.log
 
-if [[ ($MODE = "local") || ($MODE = "remote") ]]
-then
-    LOG4J_CONFIG=log4j.properties
-    LOGBACK_CONFIG=logback.xml
-elif [[ $1 = "yarn" ]]
+if [[ $MODE = "yarn" ]]
 then
     LOG4J_CONFIG=log4j-session.properties
     LOGBACK_CONFIG=logback-session.xml
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
+else
+    # Set the default log config when MODE is something other than yarn. eg: local, remote or other invalid mode.
+    LOG4J_CONFIG=log4j.properties
+    LOGBACK_CONFIG=logback.xml
 fi
 
 log_setting=("-Dlog.file=$LOG" "-Dlog4j.configuration=file:$FLINK_CONF_DIR/$LOG4J_CONFIG" "-Dlog4j.configurationFile=file:$FLINK_CONF_DIR/$LOG4J_CONFIG" "-Dlogback.configurationFile=file:$FLINK_CONF_DIR/$LOGBACK_CONFIG")
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" "${log_setting[@]}" org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
+    "$JAVA_RUN" -Dscala.color -cp "$FLINK_CLASSPATH" "${log_setting[@]}" org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
 else
-    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" "${log_setting[@]}" org.apache.flink.api.scala.FlinkShell $@
+    "$JAVA_RUN" -Dscala.color -cp "$FLINK_CLASSPATH" "${log_setting[@]}" org.apache.flink.api.scala.FlinkShell $@
 fi
 
 #restore echo

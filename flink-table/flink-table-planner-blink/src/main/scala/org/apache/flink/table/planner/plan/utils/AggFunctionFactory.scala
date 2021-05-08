@@ -20,23 +20,18 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
@@ -46,26 +41,28 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * The class of agg function factory which is used to create AggregateFunction or
-  * DeclarativeAggregateFunction from Calcite AggregateCall
-  *
-  * @param inputType the input rel data type
-  * @param orderKeyIdx the indexes of order key (null when is not over agg)
-  * @param needRetraction true if need retraction
-  */
+ * Factory for creating runtime implementation for internal aggregate functions that are declared
+ * as subclasses of [[SqlAggFunction]] in Calcite but not as [[BridgingSqlAggFunction]]. The factory
+ * returns [[DeclarativeAggregateFunction]] or [[BuiltInAggregateFunction]].
+ *
+ * @param inputRowType the input row type
+ * @param orderKeyIndexes the indexes of order key (null when is not over agg)
+ * @param aggCallNeedRetractions true if need retraction
+ * @param isBounded true if the source is bounded source
+ */
 class AggFunctionFactory(
-    inputType: RelDataType,
-    orderKeyIdx: Array[Int],
-    needRetraction: Array[Boolean]) {
+    inputRowType: RowType,
+    orderKeyIndexes: Array[Int],
+    aggCallNeedRetractions: Array[Boolean],
+    isBounded: Boolean) {
 
   /**
-    * The entry point to create an aggregate function from the given AggregateCall
+    * The entry point to create an aggregate function from the given [[AggregateCall]].
     */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
     val argTypes: Array[LogicalType] = call.getArgList
-      .map(inputType.getFieldList.get(_).getType)
-      .map(FlinkTypeFactory.toLogicalType)
+      .map(inputRowType.getChildren.get(_))
       .toArray
 
     call.getAggregation match {
@@ -99,8 +96,12 @@ class AggFunctionFactory(
       case a: SqlRankFunction if a.getKind == SqlKind.DENSE_RANK =>
         createDenseRankAggFunction(argTypes)
 
-      case _: SqlLeadLagAggFunction =>
-        createLeadLagAggFunction(argTypes, index)
+      case func: SqlLeadLagAggFunction =>
+        if (isBounded) {
+          createBatchLeadLagAggFunction(argTypes, index)
+        } else {
+          createStreamLeadLagAggFunction(func, argTypes, index)
+        }
 
       case _: SqlSingleValueAggFunction =>
         createSingleValueAggFunction(argTypes)
@@ -126,13 +127,12 @@ class AggFunctionFactory(
         // Can not touch the literals, Calcite make them in previous RelNode.
         // In here, all inputs are input refs.
         val constants = new util.ArrayList[AnyRef]()
-        argTypes.foreach(t => constants.add(null))
+        argTypes.foreach(_ => constants.add(null))
         udagg.makeFunction(
           constants.toArray,
           argTypes)
 
-      case bsf: BridgingSqlAggFunction =>
-        bsf.getDefinition.asInstanceOf[UserDefinedFunction]
+      case _: BridgingSqlAggFunction => null // not covered by this factory
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
@@ -165,7 +165,7 @@ class AggFunctionFactory(
   private def createSumAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       argTypes(0).getTypeRoot match {
         case TINYINT =>
           new ByteSumWithRetractAggFunction
@@ -236,7 +236,7 @@ class AggFunctionFactory(
   private def createIncrSumAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       argTypes(0).getTypeRoot match {
         case TINYINT =>
           new ByteIncrSumWithRetractAggFunction
@@ -286,10 +286,11 @@ class AggFunctionFactory(
       index: Int)
     : UserDefinedFunction = {
     val valueType = argTypes(0)
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR |
+             DECIMAL | TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+             TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           new MinWithRetractAggFunction(argTypes(0))
         case t =>
           throw new TableException(s"Min with retract aggregate function does not " +
@@ -320,6 +321,9 @@ class AggFunctionFactory(
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val d = argTypes(0).asInstanceOf[TimestampType]
           new MinAggFunction.TimestampMinAggFunction(d)
+        case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          val ltzType = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+          new MinAggFunction.TimestampLtzMinAggFunction(ltzType)
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new MinAggFunction.DecimalMinAggFunction(d)
@@ -330,7 +334,22 @@ class AggFunctionFactory(
     }
   }
 
-  private def createLeadLagAggFunction(
+  private def createStreamLeadLagAggFunction(
+      func: SqlLeadLagAggFunction,
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (func.getKind == SqlKind.LEAD) {
+      throw new TableException("LEAD Function is not supported in stream mode.")
+    }
+
+    if (aggCallNeedRetractions(index)) {
+      throw new TableException("LAG Function with retraction is not supported in stream mode.")
+    }
+
+    new LagAggFunction(argTypes)
+  }
+
+  private def createBatchLeadLagAggFunction(
       argTypes: Array[LogicalType], index: Int): UserDefinedFunction = {
     argTypes(0).getTypeRoot match {
       case TINYINT =>
@@ -370,10 +389,11 @@ class AggFunctionFactory(
         index: Int)
     : UserDefinedFunction = {
     val valueType = argTypes(0)
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE =>
+             TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+             TIMESTAMP_WITH_LOCAL_TIME_ZONE  =>
           new MaxWithRetractAggFunction(argTypes(0))
         case t =>
           throw new TableException(s"Max with retract aggregate function does not " +
@@ -404,6 +424,9 @@ class AggFunctionFactory(
         case TIMESTAMP_WITHOUT_TIME_ZONE =>
           val d = argTypes(0).asInstanceOf[TimestampType]
           new MaxAggFunction.TimestampMaxAggFunction(d)
+        case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          val ltzType = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+          new MaxAggFunction.TimestampLtzMaxAggFunction(ltzType)
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new MaxAggFunction.DecimalMaxAggFunction(d)
@@ -447,6 +470,9 @@ class AggFunctionFactory(
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val d = argTypes(0).asInstanceOf[TimestampType]
         new TimestampSingleValueAggFunction(d)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val ltzType = argTypes(0).asInstanceOf[LocalZonedTimestampType]
+        new TimestampLtzSingleValueAggFunction(ltzType)
       case DECIMAL =>
         val d = argTypes(0).asInstanceOf[DecimalType]
         new DecimalSingleValueAggFunction(d)
@@ -460,16 +486,12 @@ class AggFunctionFactory(
   }
 
   private def createRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIdx
-      .map(inputType.getFieldList.get(_).getType)
-      .map(FlinkTypeFactory.toLogicalType)
+    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
     new RankAggFunction(argTypes)
   }
 
   private def createDenseRankAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
-    val argTypes = orderKeyIdx
-      .map(inputType.getFieldList.get(_).getType)
-      .map(FlinkTypeFactory.toLogicalType)
+    val argTypes = orderKeyIndexes.map(inputRowType.getChildren.get(_))
     new DenseRankAggFunction(argTypes)
   }
 
@@ -478,7 +500,7 @@ class AggFunctionFactory(
       index: Int)
     : UserDefinedFunction = {
     val valueType = argTypes(0)
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
           new FirstValueWithRetractAggFunction(valueType)
@@ -502,7 +524,7 @@ class AggFunctionFactory(
       index: Int)
     : UserDefinedFunction = {
     val valueType = argTypes(0)
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
         case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
           new LastValueWithRetractAggFunction(valueType)
@@ -524,7 +546,7 @@ class AggFunctionFactory(
   private def createListAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       new ListAggWithRetractAggFunction
     } else {
       new ListAggFunction(1)
@@ -534,7 +556,7 @@ class AggFunctionFactory(
   private def createListAggWsFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
-    if (needRetraction(index)) {
+    if (aggCallNeedRetractions(index)) {
       new ListAggWsWithRetractAggFunction
     } else {
       new ListAggFunction(2)

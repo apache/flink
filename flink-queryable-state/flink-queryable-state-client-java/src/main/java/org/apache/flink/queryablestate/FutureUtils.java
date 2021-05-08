@@ -20,24 +20,22 @@ package org.apache.flink.queryablestate;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Utility class for {@link java.util.concurrent.Future Java Futures}.
- */
+/** Utility class for {@link java.util.concurrent.Future Java Futures}. */
 public class FutureUtils {
 
-	// ------------------------------------------------------------------------
-	//  Future Completed with an exception.
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Future Completed with an exception.
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Returns a {@link CompletableFuture} that has failed with the exception
-	 * provided as argument.
-	 * @param throwable the exception to fail the future with.
-	 * @return The failed future.
-	 */
-	public static <T> CompletableFuture<T> getFailedFuture(Throwable throwable) {
-		CompletableFuture<T> failedAttempt = new CompletableFuture<>();
-		failedAttempt.completeExceptionally(throwable);
-		return failedAttempt;
-	}
+    /**
+     * Returns a {@link CompletableFuture} that has failed with the exception provided as argument.
+     *
+     * @param throwable the exception to fail the future with.
+     * @return The failed future.
+     */
+    public static <T> CompletableFuture<T> getFailedFuture(Throwable throwable) {
+        CompletableFuture<T> failedAttempt = new CompletableFuture<>();
+        failedAttempt.completeExceptionally(throwable);
+        return failedAttempt;
+    }
 }

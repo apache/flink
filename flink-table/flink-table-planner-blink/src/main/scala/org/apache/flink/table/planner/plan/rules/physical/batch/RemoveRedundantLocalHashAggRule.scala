@@ -19,38 +19,37 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashAggregate, BatchExecLocalHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashAggregate, BatchPhysicalLocalHashAggregate}
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 
 /**
-  * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
-  * shuffle is removed. The rule could remove redundant localHashAggregate node.
-  */
+ * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
+ * shuffle is removed. The rule could remove redundant localHashAggregate node.
+ */
 class RemoveRedundantLocalHashAggRule extends RelOptRule(
-  operand(classOf[BatchExecHashAggregate],
-    operand(classOf[BatchExecLocalHashAggregate],
+  operand(classOf[BatchPhysicalHashAggregate],
+    operand(classOf[BatchPhysicalLocalHashAggregate],
       operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
   "RemoveRedundantLocalHashAggRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val globalAgg = call.rels(0).asInstanceOf[BatchExecHashAggregate]
-    val localAgg = call.rels(1).asInstanceOf[BatchExecLocalHashAggregate]
+    val globalAgg: BatchPhysicalHashAggregate = call.rel(0)
+    val localAgg: BatchPhysicalLocalHashAggregate = call.rel(1)
     val inputOfLocalAgg = localAgg.getInput
-    val newGlobalAgg = new BatchExecHashAggregate(
+    val newGlobalAgg = new BatchPhysicalHashAggregate(
       globalAgg.getCluster,
-      call.builder(),
       globalAgg.getTraitSet,
       inputOfLocalAgg,
       globalAgg.getRowType,
       inputOfLocalAgg.getRowType,
       inputOfLocalAgg.getRowType,
-      localAgg.getGrouping,
-      localAgg.getAuxGrouping,
+      localAgg.grouping,
+      localAgg.auxGrouping,
       // Use the localAgg agg calls because the global agg call filters was removed,
-      // see BatchExecHashAggRule for details.
+      // see BatchPhysicalHashAggRule for details.
       localAgg.getAggCallToAggFunction,
       isMerge = false)
     call.transformTo(newGlobalAgg)

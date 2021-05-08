@@ -19,32 +19,73 @@
 package org.apache.flink.connector.hbase2.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.source.AbstractHBaseDynamicTableSource;
+import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.conf.Configuration;
 
-/**
- * HBase table source implementation.
- */
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+/** HBase table source implementation. */
 @Internal
 public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
 
-	public HBaseDynamicTableSource(Configuration conf, String tableName, HBaseTableSchema hbaseSchema,
-			String nullStringLiteral) {
-		super(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    public HBaseDynamicTableSource(
+            Configuration conf,
+            String tableName,
+            HBaseTableSchema hbaseSchema,
+            String nullStringLiteral,
+            HBaseLookupOptions lookupOptions) {
+        super(conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+    }
 
-	@Override
-	public DynamicTableSource copy() {
-		return new HBaseDynamicTableSource(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    @Override
+    public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
+        checkArgument(
+                context.getKeys().length == 1 && context.getKeys()[0].length == 1,
+                "Currently, HBase table can only be lookup by single rowkey.");
+        checkArgument(
+                hbaseSchema.getRowKeyName().isPresent(),
+                "HBase schema must have a row key when used in lookup mode.");
+        checkArgument(
+                hbaseSchema
+                        .convertsToTableSchema()
+                        .getTableColumn(context.getKeys()[0][0])
+                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
+                        .isPresent(),
+                "Currently, HBase table only supports lookup by rowkey field.");
+        if (lookupOptions.getLookupAsync()) {
+            return AsyncTableFunctionProvider.of(
+                    new HBaseRowDataAsyncLookupFunction(
+                            conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+        } else {
+            return TableFunctionProvider.of(
+                    new HBaseRowDataLookupFunction(
+                            conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+        }
+    }
 
-	@Override
-	protected InputFormat<RowData, ?> getInputFormat() {
-		return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
-	}
+    @Override
+    public DynamicTableSource copy() {
+        return new HBaseDynamicTableSource(
+                conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions);
+    }
+
+    @Override
+    protected InputFormat<RowData, ?> getInputFormat() {
+        return new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral);
+    }
+
+    @VisibleForTesting
+    public HBaseLookupOptions getLookupOptions() {
+        return this.lookupOptions;
+    }
 }

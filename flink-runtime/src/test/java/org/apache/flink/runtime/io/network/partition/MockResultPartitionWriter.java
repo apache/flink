@@ -28,89 +28,77 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Dummy behaviours of {@link ResultPartitionWriter} for test purpose.
- */
+/** Dummy behaviours of {@link ResultPartitionWriter} for test purpose. */
 public class MockResultPartitionWriter implements ResultPartitionWriter {
 
-	private final ResultPartitionID partitionId = new ResultPartitionID();
+    private final ResultPartitionID partitionId = new ResultPartitionID();
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public void setup() {}
 
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return partitionId;
-	}
+    @Override
+    public ResultPartitionID getPartitionId() {
+        return partitionId;
+    }
 
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
+    @Override
+    public int getNumberOfSubpartitions() {
+        return 1;
+    }
 
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
-	}
+    @Override
+    public int getNumTargetKeyGroups() {
+        return 1;
+    }
 
-	@Override
-	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-	}
+    @Override
+    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {}
 
-	@Override
-	public void broadcastRecord(ByteBuffer record) throws IOException {
-	}
+    @Override
+    public void broadcastRecord(ByteBuffer record) throws IOException {}
 
-	@Override
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-	}
+    @Override
+    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {}
 
-	@Override
-	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            int index, BufferAvailabilityListener availabilityListener) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void setMetricGroup(TaskIOMetricGroup metrics) {
-	}
+    @Override
+    public void setMetricGroup(TaskIOMetricGroup metrics) {}
 
-	@Override
-	public void flushAll() {
-	}
+    @Override
+    public void flushAll() {}
 
-	@Override
-	public void flush(int subpartitionIndex) {
-	}
+    @Override
+    public void flush(int subpartitionIndex) {}
 
-	@Override
-	public void fail(@Nullable Throwable throwable) {
-	}
+    @Override
+    public void fail(@Nullable Throwable throwable) {}
 
-	@Override
-	public void finish() {
-	}
+    @Override
+    public void finish() {}
 
-	@Override
-	public boolean isFinished() {
-		return false;
-	}
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
 
-	@Override
-	public void release(Throwable cause) {
-	}
+    @Override
+    public void release(Throwable cause) {}
 
-	@Override
-	public boolean isReleased() {
-		return false;
-	}
+    @Override
+    public boolean isReleased() {
+        return false;
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return AVAILABLE;
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return AVAILABLE;
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public void close() {}
 }

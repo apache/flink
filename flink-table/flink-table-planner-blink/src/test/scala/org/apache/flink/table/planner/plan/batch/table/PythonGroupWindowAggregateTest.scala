@@ -39,7 +39,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start,'w.end, func('a, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test(expected = classOf[TableException])
@@ -54,7 +54,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -69,7 +69,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start,'w.end, func('a, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test(expected = classOf[TableException])
@@ -84,7 +84,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, func('a, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -99,6 +99,6 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w)
       .select('w.start,'w.end, func('a, 'c))
 
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 }

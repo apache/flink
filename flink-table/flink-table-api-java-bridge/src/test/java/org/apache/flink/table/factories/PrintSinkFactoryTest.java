@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import org.junit.Assert;
@@ -33,32 +31,25 @@ import java.util.Map;
 
 import static org.apache.flink.table.factories.PrintTableSinkFactory.PRINT_IDENTIFIER;
 import static org.apache.flink.table.factories.PrintTableSinkFactory.STANDARD_ERROR;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 
-/**
- * Tests for {@link PrintTableSinkFactory}.
- */
+/** Tests for {@link PrintTableSinkFactory}. */
 public class PrintSinkFactoryTest {
 
-	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
-		.field("f0", DataTypes.STRING())
-		.field("f1", DataTypes.BIGINT())
-		.field("f2", DataTypes.BIGINT())
-		.build();
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("f0", DataTypes.STRING()),
+                    Column.physical("f1", DataTypes.BIGINT()),
+                    Column.physical("f2", DataTypes.BIGINT()));
 
-	@Test
-	public void testPrint() {
-		Map<String, String> properties = new HashMap<>();
-		properties.put("connector", "print");
-		properties.put(PRINT_IDENTIFIER.key(), "my_print");
-		properties.put(STANDARD_ERROR.key(), "true");
+    @Test
+    public void testPrint() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("connector", "print");
+        properties.put(PRINT_IDENTIFIER.key(), "my_print");
+        properties.put(STANDARD_ERROR.key(), "true");
 
-		DynamicTableSink sink = FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("", "", ""),
-				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
-				new Configuration(),
-				Thread.currentThread().getContextClassLoader(),
-				false);
-		Assert.assertEquals("Print to System.err", sink.asSummaryString());
-	}
+        DynamicTableSink sink = createTableSink(SCHEMA, properties);
+        Assert.assertEquals("Print to System.err", sink.asSummaryString());
+    }
 }

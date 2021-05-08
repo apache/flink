@@ -35,43 +35,50 @@ import java.util.List;
  */
 @Internal
 public class StreamArrowPythonRowTimeBoundedRangeOperator<K>
-	extends AbstractStreamArrowPythonBoundedRangeOperator<K> {
+        extends AbstractStreamArrowPythonBoundedRangeOperator<K> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public StreamArrowPythonRowTimeBoundedRangeOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int inputTimeFieldIndex,
-		long lowerBoundary,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex, lowerBoundary,
-			groupingSet, udafInputOffsets);
-	}
+    public StreamArrowPythonRowTimeBoundedRangeOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int inputTimeFieldIndex,
+            long lowerBoundary,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                outputType,
+                inputTimeFieldIndex,
+                lowerBoundary,
+                groupingSet,
+                udafInputOffsets);
+    }
 
-	@Override
-	public void bufferInput(RowData input) throws Exception {
-		long triggeringTs = input.getLong(inputTimeFieldIndex);
-		Long lastTriggeringTs = lastTriggeringTsState.value();
-		if (lastTriggeringTs == null) {
-			lastTriggeringTs = 0L;
-		}
-		if (triggeringTs > lastTriggeringTs) {
-			List<RowData> data = inputState.get(triggeringTs);
-			if (null != data) {
-				data.add(input);
-				inputState.put(triggeringTs, data);
-			} else {
-				data = new ArrayList<>();
-				data.add(input);
-				inputState.put(triggeringTs, data);
-				// register event time timer
-				timerService.registerEventTimeTimer(triggeringTs);
-			}
-			registerCleanupTimer(triggeringTs, TimeDomain.EVENT_TIME);
-		}
-	}
+    @Override
+    public void bufferInput(RowData input) throws Exception {
+        long triggeringTs = input.getLong(inputTimeFieldIndex);
+        Long lastTriggeringTs = lastTriggeringTsState.value();
+        if (lastTriggeringTs == null) {
+            lastTriggeringTs = 0L;
+        }
+        if (triggeringTs > lastTriggeringTs) {
+            List<RowData> data = inputState.get(triggeringTs);
+            if (null != data) {
+                data.add(input);
+                inputState.put(triggeringTs, data);
+            } else {
+                data = new ArrayList<>();
+                data.add(input);
+                inputState.put(triggeringTs, data);
+                // register event time timer
+                timerService.registerEventTimeTimer(triggeringTs);
+            }
+            registerCleanupTimer(triggeringTs, TimeDomain.EVENT_TIME);
+        }
+    }
 }

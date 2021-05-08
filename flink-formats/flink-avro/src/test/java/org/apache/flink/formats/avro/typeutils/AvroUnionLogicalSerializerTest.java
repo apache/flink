@@ -25,35 +25,33 @@ import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import java.time.Instant;
 import java.util.Random;
 
-/**
- * Tests for the {@link AvroSerializer} that test specific avro types.
- */
+/** Tests for the {@link AvroSerializer} that test specific avro types. */
 public class AvroUnionLogicalSerializerTest extends SerializerTestBase<UnionLogicalType> {
 
-	@Override
-	protected TypeSerializer<UnionLogicalType> createSerializer() {
-		return new AvroSerializer<>(UnionLogicalType.class);
-	}
+    @Override
+    protected TypeSerializer<UnionLogicalType> createSerializer() {
+        return new AvroSerializer<>(UnionLogicalType.class);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<UnionLogicalType> getTypeClass() {
-		return UnionLogicalType.class;
-	}
+    @Override
+    protected Class<UnionLogicalType> getTypeClass() {
+        return UnionLogicalType.class;
+    }
 
-	@Override
-	protected UnionLogicalType[] getTestData() {
-		final Random rnd = new Random();
-		final UnionLogicalType[] data = new UnionLogicalType[20];
+    @Override
+    protected UnionLogicalType[] getTestData() {
+        final Random rnd = new Random();
+        final UnionLogicalType[] data = new UnionLogicalType[20];
 
-		for (int i = 0; i < data.length; i++) {
-			data[i] = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
-		}
+        for (int i = 0; i < data.length; i++) {
+            data[i] = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
+        }
 
-		return data;
-	}
+        return data;
+    }
 }

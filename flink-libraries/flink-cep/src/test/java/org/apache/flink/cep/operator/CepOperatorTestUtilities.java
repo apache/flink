@@ -32,72 +32,67 @@ import org.apache.flink.util.OutputTag;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Utility methods for creating test {@link CepOperator}.
- */
+/** Utility methods for creating test {@link CepOperator}. */
 public class CepOperatorTestUtilities {
 
-	private static class TestKeySelector implements KeySelector<Event, Integer> {
+    private static class TestKeySelector implements KeySelector<Event, Integer> {
 
-		private static final long serialVersionUID = -4873366487571254798L;
+        private static final long serialVersionUID = -4873366487571254798L;
 
-		@Override
-		public Integer getKey(Event value) throws Exception {
-			return value.getId();
-		}
-	}
+        @Override
+        public Integer getKey(Event value) throws Exception {
+            return value.getId();
+        }
+    }
 
-	public static <T> OneInputStreamOperatorTestHarness<Event, T> getCepTestHarness(
-		CepOperator<Event, Integer, T> cepOperator) throws Exception {
-		KeySelector<Event, Integer> keySelector = new TestKeySelector();
+    public static <T> OneInputStreamOperatorTestHarness<Event, T> getCepTestHarness(
+            CepOperator<Event, Integer, T> cepOperator) throws Exception {
+        KeySelector<Event, Integer> keySelector = new TestKeySelector();
 
-		return new KeyedOneInputStreamOperatorTestHarness<>(
-			cepOperator,
-			keySelector,
-			BasicTypeInfo.INT_TYPE_INFO);
-	}
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                cepOperator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
+    }
 
-	public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory) {
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+            boolean isProcessingTime, NFACompiler.NFAFactory<Event> nfaFactory) {
 
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, null);
-	}
+        return getKeyedCepOpearator(isProcessingTime, nfaFactory, null);
+    }
 
-	public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-			boolean isProcessingTime,
-			NFACompiler.NFAFactory<Event> nfaFactory,
-			EventComparator<Event> comparator) {
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+            boolean isProcessingTime,
+            NFACompiler.NFAFactory<Event> nfaFactory,
+            EventComparator<Event> comparator) {
 
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, null);
-	}
+        return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, null);
+    }
 
-	public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
-			boolean isProcessingTime,
-			NFACompiler.NFAFactory<Event> nfaFactory,
-			EventComparator<Event> comparator,
-			OutputTag<Event> outputTag) {
+    public static <K> CepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+            boolean isProcessingTime,
+            NFACompiler.NFAFactory<Event> nfaFactory,
+            EventComparator<Event> comparator,
+            OutputTag<Event> outputTag) {
 
-		return new CepOperator<>(
-			Event.createTypeSerializer(),
-			isProcessingTime,
-			nfaFactory,
-			comparator,
-			null,
-			new PatternProcessFunction<Event, Map<String, List<Event>>>() {
-				private static final long serialVersionUID = -7143807777582726991L;
+        return new CepOperator<>(
+                Event.createTypeSerializer(),
+                isProcessingTime,
+                nfaFactory,
+                comparator,
+                null,
+                new PatternProcessFunction<Event, Map<String, List<Event>>>() {
+                    private static final long serialVersionUID = -7143807777582726991L;
 
-				@Override
-				public void processMatch(
-						Map<String, List<Event>> match,
-						Context ctx,
-						Collector<Map<String, List<Event>>> out) throws Exception {
-					out.collect(match);
-				}
-			},
-			outputTag);
-	}
+                    @Override
+                    public void processMatch(
+                            Map<String, List<Event>> match,
+                            Context ctx,
+                            Collector<Map<String, List<Event>>> out)
+                            throws Exception {
+                        out.collect(match);
+                    }
+                },
+                outputTag);
+    }
 
-	private CepOperatorTestUtilities() {
-	}
+    private CepOperatorTestUtilities() {}
 }

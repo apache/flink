@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
@@ -92,11 +93,22 @@ abstract class Rank(
     if (!outputRankNumber) {
       return input.getRowType
     }
+
     // output row type = input row type + rank number type
     val typeFactory = cluster.getRexBuilder.getTypeFactory
     val typeBuilder = typeFactory.builder()
     input.getRowType.getFieldList.foreach(typeBuilder.add)
-    typeBuilder.add(rankNumberType)
+
+    // this is to avoid rank number name be the same with some input column name
+    val newRankNumberName =
+      RowTypeUtils.getUniqueName(rankNumberType.getName, input.getRowType.getFieldNames)
+    if (newRankNumberName == rankNumberType.getName) {
+      typeBuilder.add(rankNumberType)
+    } else {
+      typeBuilder.add(new RelDataTypeFieldImpl(
+        newRankNumberName, rankNumberType.getIndex, rankNumberType.getType))
+    }
+
     typeBuilder.build()
   }
 

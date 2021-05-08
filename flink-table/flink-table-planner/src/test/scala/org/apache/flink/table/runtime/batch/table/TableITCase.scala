@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
@@ -44,11 +45,10 @@ class TableITCase {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("a", DataTypes.INT())
-        .field("c", DataTypes.STRING())
-        .build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("a", DataTypes.INT()),
+        Column.physical("c", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Hello"),
       Row.of(Integer.valueOf(3), "Hello world"))

@@ -28,48 +28,45 @@ import javax.annotation.Nullable;
 
 import java.util.NoSuchElementException;
 
-/**
- * A {@link CloseableIterator} for insert operation result.
- */
+/** A {@link CloseableIterator} for insert operation result. */
 @Internal
 class InsertResultIterator implements CloseableIterator<Row> {
-	private final JobClient jobClient;
-	private final Row affectedRowCountsRow;
-	private final ClassLoader classLoader;
-	@Nullable
-	private Boolean hasNext = null;
+    private final JobClient jobClient;
+    private final Row affectedRowCountsRow;
+    private final ClassLoader classLoader;
+    @Nullable private Boolean hasNext = null;
 
-	InsertResultIterator(JobClient jobClient, Row affectedRowCountsRow, ClassLoader classLoader) {
-		this.jobClient = jobClient;
-		this.affectedRowCountsRow = affectedRowCountsRow;
-		this.classLoader = classLoader;
-	}
+    InsertResultIterator(JobClient jobClient, Row affectedRowCountsRow, ClassLoader classLoader) {
+        this.jobClient = jobClient;
+        this.affectedRowCountsRow = affectedRowCountsRow;
+        this.classLoader = classLoader;
+    }
 
-	@Override
-	public void close() throws Exception {
-		jobClient.cancel();
-	}
+    @Override
+    public void close() throws Exception {
+        jobClient.cancel();
+    }
 
-	@Override
-	public boolean hasNext() {
-		if (hasNext == null) {
-			try {
-				jobClient.getJobExecutionResult().get();
-			} catch (Exception e) {
-				throw new TableException("Failed to wait job finish", e);
-			}
-			hasNext = true;
-		}
-		return hasNext;
-	}
+    @Override
+    public boolean hasNext() {
+        if (hasNext == null) {
+            try {
+                jobClient.getJobExecutionResult().get();
+            } catch (Exception e) {
+                throw new TableException("Failed to wait job finish", e);
+            }
+            hasNext = true;
+        }
+        return hasNext;
+    }
 
-	@Override
-	public Row next() {
-		if (hasNext()) {
-			hasNext = false;
-			return affectedRowCountsRow;
-		} else {
-			throw new NoSuchElementException();
-		}
-	}
+    @Override
+    public Row next() {
+        if (hasNext()) {
+            hasNext = false;
+            return affectedRowCountsRow;
+        } else {
+            throw new NoSuchElementException();
+        }
+    }
 }

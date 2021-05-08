@@ -35,43 +35,42 @@ import org.apache.calcite.util.Optionality;
 import java.util.List;
 
 /**
- * <code>FIRST_VALUE</code> and <code>LAST_VALUE</code> aggregate functions
- * return the first or the last value in a list of values that are input to the
- * function.
+ * <code>FIRST_VALUE</code> and <code>LAST_VALUE</code> aggregate functions return the first or the
+ * last value in a list of values that are input to the function.
  *
- * <p>NOTE: The difference between this and {@link org.apache.calcite.sql.fun.SqlFirstLastValueAggFunction}
- * is that this can be used without over clause.
+ * <p>NOTE: The difference between this and {@link
+ * org.apache.calcite.sql.fun.SqlFirstLastValueAggFunction} is that this can be used without over
+ * clause.
  */
 public class SqlFirstLastValueAggFunction extends SqlAggFunction {
 
-	public SqlFirstLastValueAggFunction(SqlKind kind) {
-		super(
-				kind.name(),
-				null,
-				kind,
-				ReturnTypes.ARG0_NULLABLE_IF_EMPTY,
-				null,
-				OperandTypes.ANY,
-				SqlFunctionCategory.NUMERIC,
-				false,
-				false,
-				Optionality.FORBIDDEN);
-		Preconditions.checkArgument(kind == SqlKind.FIRST_VALUE
-				|| kind == SqlKind.LAST_VALUE);
-	}
+    public SqlFirstLastValueAggFunction(SqlKind kind) {
+        super(
+                kind.name(),
+                null,
+                kind,
+                ReturnTypes.ARG0_NULLABLE_IF_EMPTY,
+                null,
+                OperandTypes.ANY,
+                SqlFunctionCategory.NUMERIC,
+                false,
+                false,
+                Optionality.FORBIDDEN);
+        Preconditions.checkArgument(kind == SqlKind.FIRST_VALUE || kind == SqlKind.LAST_VALUE);
+    }
 
-	//~ Methods ----------------------------------------------------------------
+    // ~ Methods ----------------------------------------------------------------
 
-	@SuppressWarnings("deprecation")
-	public List<RelDataType> getParameterTypes(RelDataTypeFactory typeFactory) {
-		return ImmutableList.of(
-				typeFactory.createTypeWithNullability(
-						typeFactory.createSqlType(SqlTypeName.ANY), true));
-	}
+    @SuppressWarnings("deprecation")
+    public List<RelDataType> getParameterTypes(RelDataTypeFactory typeFactory) {
+        return ImmutableList.of(
+                typeFactory.createTypeWithNullability(
+                        typeFactory.createSqlType(SqlTypeName.ANY), true));
+    }
 
-	@SuppressWarnings("deprecation")
-	public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
-		return typeFactory.createTypeWithNullability(
-				typeFactory.createSqlType(SqlTypeName.ANY), true);
-	}
+    @SuppressWarnings("deprecation")
+    public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
+        return typeFactory.createTypeWithNullability(
+                typeFactory.createSqlType(SqlTypeName.ANY), true);
+    }
 }

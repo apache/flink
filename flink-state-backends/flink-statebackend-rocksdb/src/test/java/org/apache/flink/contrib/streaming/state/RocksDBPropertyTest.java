@@ -24,26 +24,24 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
-
-/**
- * Validate RocksDB properties.
- */
+/** Validate RocksDB properties. */
 public class RocksDBPropertyTest {
 
-	@Rule
-	public RocksDBResource rocksDBResource = new RocksDBResource();
+    @Rule public RocksDBResource rocksDBResource = new RocksDBResource();
 
-	@Test
-	public void testRocksDBPropertiesValid() throws RocksDBException {
-		RocksDB db = rocksDBResource.getRocksDB();
-		ColumnFamilyHandle handle = rocksDBResource.getDefaultColumnFamily();
+    @Test
+    public void testRocksDBPropertiesValid() throws RocksDBException {
+        RocksDB db = rocksDBResource.getRocksDB();
+        ColumnFamilyHandle handle = rocksDBResource.getDefaultColumnFamily();
 
-		for (RocksDBProperty property : RocksDBProperty.values()) {
-			try {
-				db.getLongProperty(handle, property.getRocksDBProperty());
-			} catch (RocksDBException e) {
-				throw new AssertionError(String.format("Invalid RocksDB property %s", property.getRocksDBProperty()), e);
-			}
-		}
-	}
+        for (RocksDBProperty property : RocksDBProperty.values()) {
+            try {
+                db.getLongProperty(handle, property.getRocksDBProperty());
+            } catch (RocksDBException e) {
+                throw new AssertionError(
+                        String.format("Invalid RocksDB property %s", property.getRocksDBProperty()),
+                        e);
+            }
+        }
+    }
 }

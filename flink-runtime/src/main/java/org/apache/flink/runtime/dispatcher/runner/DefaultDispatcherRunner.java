@@ -33,165 +33,184 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Runner for the {@link org.apache.flink.runtime.dispatcher.Dispatcher} which is responsible for the
- * leader election.
+ * Runner for the {@link org.apache.flink.runtime.dispatcher.Dispatcher} which is responsible for
+ * the leader election.
  */
 public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderContender {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunner.class);
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private final LeaderElectionService leaderElectionService;
+    private final LeaderElectionService leaderElectionService;
 
-	private final FatalErrorHandler fatalErrorHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-	private final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory;
+    private final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory;
 
-	private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+    private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private boolean running;
+    private boolean running;
 
-	private DispatcherLeaderProcess dispatcherLeaderProcess;
+    private DispatcherLeaderProcess dispatcherLeaderProcess;
 
-	private CompletableFuture<Void> previousDispatcherLeaderProcessTerminationFuture;
+    private CompletableFuture<Void> previousDispatcherLeaderProcessTerminationFuture;
 
-	private DefaultDispatcherRunner(
-			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler,
-			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) {
-		this.leaderElectionService = leaderElectionService;
-		this.fatalErrorHandler = fatalErrorHandler;
-		this.dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactory;
-		this.terminationFuture = new CompletableFuture<>();
-		this.shutDownFuture = new CompletableFuture<>();
+    private DefaultDispatcherRunner(
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler,
+            DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) {
+        this.leaderElectionService = leaderElectionService;
+        this.fatalErrorHandler = fatalErrorHandler;
+        this.dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactory;
+        this.terminationFuture = new CompletableFuture<>();
+        this.shutDownFuture = new CompletableFuture<>();
 
-		this.running = true;
-		this.dispatcherLeaderProcess = StoppedDispatcherLeaderProcess.INSTANCE;
-		this.previousDispatcherLeaderProcessTerminationFuture = CompletableFuture.completedFuture(null);
-	}
+        this.running = true;
+        this.dispatcherLeaderProcess = StoppedDispatcherLeaderProcess.INSTANCE;
+        this.previousDispatcherLeaderProcessTerminationFuture =
+                CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
-		return shutDownFuture;
-	}
+    @Override
+    public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+        return shutDownFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		synchronized (lock) {
-			if (!running) {
-				return terminationFuture;
-			} else {
-				running = false;
-			}
-		}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        synchronized (lock) {
+            if (!running) {
+                return terminationFuture;
+            } else {
+                running = false;
+            }
+        }
 
-		stopDispatcherLeaderProcess();
+        stopDispatcherLeaderProcess();
 
-		FutureUtils.forward(
-			previousDispatcherLeaderProcessTerminationFuture,
-			terminationFuture);
+        FutureUtils.forward(previousDispatcherLeaderProcessTerminationFuture, terminationFuture);
 
-		return terminationFuture;
-	}
+        return terminationFuture;
+    }
 
-	// ---------------------------------------------------------------
-	// Leader election
-	// ---------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // Leader election
+    // ---------------------------------------------------------------
 
-	@Override
-	public void grantLeadership(UUID leaderSessionID) {
-		runActionIfRunning(() -> startNewDispatcherLeaderProcess(leaderSessionID));
-	}
+    @Override
+    public void grantLeadership(UUID leaderSessionID) {
+        runActionIfRunning(() -> startNewDispatcherLeaderProcess(leaderSessionID));
+    }
 
-	private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
-		stopDispatcherLeaderProcess();
+    private void startNewDispatcherLeaderProcess(UUID leaderSessionID) {
+        stopDispatcherLeaderProcess();
 
-		dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
+        dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
 
-		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;
-		FutureUtils.assertNoException(
-			previousDispatcherLeaderProcessTerminationFuture.thenRun(newDispatcherLeaderProcess::start));
-	}
+        final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcess;
+        FutureUtils.assertNoException(
+                previousDispatcherLeaderProcessTerminationFuture.thenRun(
+                        newDispatcherLeaderProcess::start));
+    }
 
-	private void stopDispatcherLeaderProcess() {
-		final CompletableFuture<Void> terminationFuture = dispatcherLeaderProcess.closeAsync();
-		previousDispatcherLeaderProcessTerminationFuture = FutureUtils.completeAll(
-			Arrays.asList(
-				previousDispatcherLeaderProcessTerminationFuture,
-				terminationFuture));
-	}
+    private void stopDispatcherLeaderProcess() {
+        final CompletableFuture<Void> terminationFuture = dispatcherLeaderProcess.closeAsync();
+        previousDispatcherLeaderProcessTerminationFuture =
+                FutureUtils.completeAll(
+                        Arrays.asList(
+                                previousDispatcherLeaderProcessTerminationFuture,
+                                terminationFuture));
+    }
 
-	private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {
-		LOG.debug("Create new {} with leader session id {}.", DispatcherLeaderProcess.class.getSimpleName(), leaderSessionID);
+    private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {
+        LOG.debug(
+                "Create new {} with leader session id {}.",
+                DispatcherLeaderProcess.class.getSimpleName(),
+                leaderSessionID);
 
-		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcessFactory.create(leaderSessionID);
+        final DispatcherLeaderProcess newDispatcherLeaderProcess =
+                dispatcherLeaderProcessFactory.create(leaderSessionID);
 
-		forwardShutDownFuture(newDispatcherLeaderProcess);
-		forwardConfirmLeaderSessionFuture(leaderSessionID, newDispatcherLeaderProcess);
+        forwardShutDownFuture(newDispatcherLeaderProcess);
+        forwardConfirmLeaderSessionFuture(leaderSessionID, newDispatcherLeaderProcess);
 
-		return newDispatcherLeaderProcess;
-	}
+        return newDispatcherLeaderProcess;
+    }
 
-	private void forwardShutDownFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
-		newDispatcherLeaderProcess.getShutDownFuture().whenComplete(
-			(applicationStatus, throwable) -> {
-				synchronized (lock) {
-					// ignore if no longer running or if leader processes is no longer valid
-					if (running && this.dispatcherLeaderProcess == newDispatcherLeaderProcess) {
-						if (throwable != null) {
-							shutDownFuture.completeExceptionally(throwable);
-						} else {
-							shutDownFuture.complete(applicationStatus);
-						}
-					}
-				}
-			});
-	}
+    private void forwardShutDownFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
+        newDispatcherLeaderProcess
+                .getShutDownFuture()
+                .whenComplete(
+                        (applicationStatus, throwable) -> {
+                            synchronized (lock) {
+                                // ignore if no longer running or if leader processes is no longer
+                                // valid
+                                if (running
+                                        && this.dispatcherLeaderProcess
+                                                == newDispatcherLeaderProcess) {
+                                    if (throwable != null) {
+                                        shutDownFuture.completeExceptionally(throwable);
+                                    } else {
+                                        shutDownFuture.complete(applicationStatus);
+                                    }
+                                }
+                            }
+                        });
+    }
 
-	private void forwardConfirmLeaderSessionFuture(UUID leaderSessionID, DispatcherLeaderProcess newDispatcherLeaderProcess) {
-		FutureUtils.assertNoException(
-			newDispatcherLeaderProcess.getLeaderAddressFuture().thenAccept(
-				leaderAddress -> {
-					if (leaderElectionService.hasLeadership(leaderSessionID)) {
-						leaderElectionService.confirmLeadership(leaderSessionID, leaderAddress);
-					}
-				}));
-	}
+    private void forwardConfirmLeaderSessionFuture(
+            UUID leaderSessionID, DispatcherLeaderProcess newDispatcherLeaderProcess) {
+        FutureUtils.assertNoException(
+                newDispatcherLeaderProcess
+                        .getLeaderAddressFuture()
+                        .thenAccept(
+                                leaderAddress -> {
+                                    if (leaderElectionService.hasLeadership(leaderSessionID)) {
+                                        leaderElectionService.confirmLeadership(
+                                                leaderSessionID, leaderAddress);
+                                    }
+                                }));
+    }
 
-	@Override
-	public void revokeLeadership() {
-		runActionIfRunning(this::stopDispatcherLeaderProcess);
-	}
+    @Override
+    public void revokeLeadership() {
+        runActionIfRunning(this::stopDispatcherLeaderProcess);
+    }
 
-	private void runActionIfRunning(Runnable runnable) {
-		synchronized (lock) {
-			if (running) {
-				runnable.run();
-			} else {
-				LOG.debug("Ignoring action because {} has already been stopped.", getClass().getSimpleName());
-			}
-		}
-	}
+    private void runActionIfRunning(Runnable runnable) {
+        synchronized (lock) {
+            if (running) {
+                runnable.run();
+            } else {
+                LOG.debug(
+                        "Ignoring action because {} has already been stopped.",
+                        getClass().getSimpleName());
+            }
+        }
+    }
 
-	@Override
-	public void handleError(Exception exception) {
-		fatalErrorHandler.onFatalError(
-			new FlinkException(
-				String.format("Exception during leader election of %s occurred.", getClass().getSimpleName()),
-				exception));
-	}
+    @Override
+    public void handleError(Exception exception) {
+        fatalErrorHandler.onFatalError(
+                new FlinkException(
+                        String.format(
+                                "Exception during leader election of %s occurred.",
+                                getClass().getSimpleName()),
+                        exception));
+    }
 
-	public static DispatcherRunner create(
-			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler,
-			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {
-		final DefaultDispatcherRunner dispatcherRunner = new DefaultDispatcherRunner(
-			leaderElectionService,
-			fatalErrorHandler,
-			dispatcherLeaderProcessFactory);
-		return DispatcherRunnerLeaderElectionLifecycleManager.createFor(dispatcherRunner, leaderElectionService);
-	}
+    public static DispatcherRunner create(
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler,
+            DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory)
+            throws Exception {
+        final DefaultDispatcherRunner dispatcherRunner =
+                new DefaultDispatcherRunner(
+                        leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+        return DispatcherRunnerLeaderElectionLifecycleManager.createFor(
+                dispatcherRunner, leaderElectionService);
+    }
 }

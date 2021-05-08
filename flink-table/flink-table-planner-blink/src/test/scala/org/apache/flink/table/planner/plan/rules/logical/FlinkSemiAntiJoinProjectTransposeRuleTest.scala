@@ -63,7 +63,7 @@ class FlinkSemiAntiJoinProjectTransposeRuleTest extends TableTestBase {
         |    (SELECT a, b, d, e, f FROM x, y WHERE x.c = y.f) xy
         |WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -74,7 +74,7 @@ class FlinkSemiAntiJoinProjectTransposeRuleTest extends TableTestBase {
         |    (SELECT a * 2 as a, b, d + 1 as d, e, f FROM x, y WHERE x.c = y.f) xy
         |WHERE xy.e > 100 AND xy.d IN (SELECT z.i FROM z WHERE z.j < 50)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

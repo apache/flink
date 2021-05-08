@@ -28,35 +28,30 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link ResultPartitionWriter} that collects output on the List.
- */
+/** {@link ResultPartitionWriter} that collects output on the List. */
 public class RecordCollectingResultPartitionWriter extends AbstractCollectingResultPartitionWriter {
-	private final List<Record> output;
+    private final List<Record> output;
 
-	private final Record record = new Record();
-	private final RecordDeserializer<Record> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
-		new String[]{System.getProperty("java.io.tmpdir")});
+    private final Record record = new Record();
+    private final RecordDeserializer<Record> deserializer =
+            new SpillingAdaptiveSpanningRecordDeserializer<>(
+                    new String[] {System.getProperty("java.io.tmpdir")});
 
-	public RecordCollectingResultPartitionWriter(List<Record> output) {
-		this.output = checkNotNull(output);
-	}
+    public RecordCollectingResultPartitionWriter(List<Record> output) {
+        this.output = checkNotNull(output);
+    }
 
-	@Override
-	protected void deserializeBuffer(Buffer buffer) throws IOException {
-		deserializer.setNextBuffer(buffer);
+    @Override
+    protected void deserializeBuffer(Buffer buffer) throws IOException {
+        deserializer.setNextBuffer(buffer);
 
-		while (deserializer.hasUnfinishedData()) {
-			RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(record);
+        RecordDeserializer.DeserializationResult result;
+        do {
+            result = deserializer.getNextRecord(record);
 
-			if (result.isFullRecord()) {
-				output.add(record.createCopy());
-			}
-
-			if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-				|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-				break;
-			}
-		}
-	}
+            if (result.isFullRecord()) {
+                output.add(record.createCopy());
+            }
+        } while (!result.isBufferConsumed());
+    }
 }

@@ -41,108 +41,108 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNul
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
-/**
- * built-in rank like aggregate function, e.g. rank, dense_rank
- */
+/** built-in rank like aggregate function, e.g. rank, dense_rank */
 public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFunction {
-	protected UnresolvedReferenceExpression sequence = unresolvedRef("sequence");
-	protected UnresolvedReferenceExpression[] lastValues;
-	protected LogicalType[] orderKeyTypes;
+    protected UnresolvedReferenceExpression sequence = unresolvedRef("sequence");
+    protected UnresolvedReferenceExpression[] lastValues;
+    protected LogicalType[] orderKeyTypes;
 
-	public RankLikeAggFunctionBase(LogicalType[] orderKeyTypes) {
-		this.orderKeyTypes = orderKeyTypes;
-		lastValues = new UnresolvedReferenceExpression[orderKeyTypes.length];
-		for (int i = 0; i < orderKeyTypes.length; ++i) {
-			lastValues[i] = unresolvedRef("lastValue_" + i);
-		}
-	}
+    public RankLikeAggFunctionBase(LogicalType[] orderKeyTypes) {
+        this.orderKeyTypes = orderKeyTypes;
+        lastValues = new UnresolvedReferenceExpression[orderKeyTypes.length];
+        for (int i = 0; i < orderKeyTypes.length; ++i) {
+            lastValues[i] = unresolvedRef("lastValue_" + i);
+        }
+    }
 
-	@Override
-	public int operandCount() {
-		return orderKeyTypes.length;
-	}
+    @Override
+    public int operandCount() {
+        return orderKeyTypes.length;
+    }
 
-	@Override
-	public DataType getResultType() {
-		return DataTypes.BIGINT();
-	}
+    @Override
+    public DataType getResultType() {
+        return DataTypes.BIGINT();
+    }
 
-	@Override
-	public Expression[] retractExpressions() {
-		throw new TableException("This function does not support retraction.");
-	}
+    @Override
+    public Expression[] retractExpressions() {
+        throw new TableException("This function does not support retraction.");
+    }
 
-	@Override
-	public Expression[] mergeExpressions() {
-		throw new TableException("This function does not support merge.");
-	}
+    @Override
+    public Expression[] mergeExpressions() {
+        throw new TableException("This function does not support merge.");
+    }
 
-	@Override
-	public Expression getValueExpression() {
-		return sequence;
-	}
+    @Override
+    public Expression getValueExpression() {
+        return sequence;
+    }
 
-	protected Expression orderKeyEqualsExpression() {
-		Expression[] orderKeyEquals = new Expression[orderKeyTypes.length];
-		for (int i = 0; i < orderKeyTypes.length; ++i) {
-			// pseudo code:
-			// if (lastValue_i is null) {
-			//   if (operand(i) is null) true else false
-			// } else {
-			//   lastValue_i equalTo orderKey(i)
-			// }
-			Expression lasValue = lastValues[i];
-			orderKeyEquals[i] = ifThenElse(isNull(lasValue),
-					ifThenElse(isNull(operand(i)), literal(true), literal(false)),
-					equalTo(lasValue, operand(i)));
-		}
-		Optional<Expression> ret = Arrays.stream(orderKeyEquals).reduce(ExpressionBuilder::and);
-		return ret.orElseGet(() -> literal(true));
-	}
+    protected Expression orderKeyEqualsExpression() {
+        Expression[] orderKeyEquals = new Expression[orderKeyTypes.length];
+        for (int i = 0; i < orderKeyTypes.length; ++i) {
+            // pseudo code:
+            // if (lastValue_i is null) {
+            //   if (operand(i) is null) true else false
+            // } else {
+            //   lastValue_i equalTo orderKey(i)
+            // }
+            Expression lasValue = lastValues[i];
+            orderKeyEquals[i] =
+                    ifThenElse(
+                            isNull(lasValue),
+                            ifThenElse(isNull(operand(i)), literal(true), literal(false)),
+                            equalTo(lasValue, operand(i)));
+        }
+        Optional<Expression> ret = Arrays.stream(orderKeyEquals).reduce(ExpressionBuilder::and);
+        return ret.orElseGet(() -> literal(true));
+    }
 
-	protected Expression generateInitLiteral(LogicalType orderType) {
-		Object value;
-		switch (orderType.getTypeRoot()) {
-			case BOOLEAN:
-				value = false;
-				break;
-			case TINYINT:
-				value = (byte) 0;
-				break;
-			case SMALLINT:
-				value = (short) 0;
-				break;
-			case INTEGER:
-				value = 0;
-				break;
-			case BIGINT:
-				value = 0L;
-				break;
-			case FLOAT:
-				value = 0.0f;
-				break;
-			case DOUBLE:
-				value = 0.0d;
-				break;
-			case DECIMAL:
-				value = BigDecimal.ZERO;
-				break;
-			case CHAR:
-			case VARCHAR:
-				value = "";
-				break;
-			case DATE:
-				value = LocalDateSerializer.INSTANCE.createInstance();
-				break;
-			case TIME_WITHOUT_TIME_ZONE:
-				value = LocalTimeSerializer.INSTANCE.createInstance();
-				break;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				value = LocalDateTimeSerializer.INSTANCE.createInstance();
-				break;
-			default:
-				throw new TableException("Unsupported type: " + orderType);
-		}
-		return valueLiteral(value, fromLogicalTypeToDataType(orderType).notNull());
-	}
+    protected Expression generateInitLiteral(LogicalType orderType) {
+        Object value;
+        switch (orderType.getTypeRoot()) {
+            case BOOLEAN:
+                value = false;
+                break;
+            case TINYINT:
+                value = (byte) 0;
+                break;
+            case SMALLINT:
+                value = (short) 0;
+                break;
+            case INTEGER:
+                value = 0;
+                break;
+            case BIGINT:
+                value = 0L;
+                break;
+            case FLOAT:
+                value = 0.0f;
+                break;
+            case DOUBLE:
+                value = 0.0d;
+                break;
+            case DECIMAL:
+                value = BigDecimal.ZERO;
+                break;
+            case CHAR:
+            case VARCHAR:
+                value = "";
+                break;
+            case DATE:
+                value = LocalDateSerializer.INSTANCE.createInstance();
+                break;
+            case TIME_WITHOUT_TIME_ZONE:
+                value = LocalTimeSerializer.INSTANCE.createInstance();
+                break;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                value = LocalDateTimeSerializer.INSTANCE.createInstance();
+                break;
+            default:
+                throw new TableException("Unsupported type: " + orderType);
+        }
+        return valueLiteral(value, fromLogicalTypeToDataType(orderType).notNull());
+    }
 }

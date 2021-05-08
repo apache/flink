@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
@@ -178,7 +179,7 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
         assertNull(mq.getPopulationSize(rank, ImmutableBitSet.of(6)))
         assertEquals(50.0, mq.getPopulationSize(rank, ImmutableBitSet.of(0, 2)))
         rank match {
-          case r: BatchExecRank =>
+          case r: BatchPhysicalRank =>
             // local batch rank does not output rank func
             // TODO re-check this
             if (r.isGlobal) {
@@ -362,6 +363,21 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
   def testGetPopulationSizeOnDefault(): Unit = {
     assertNull(mq.getPopulationSize(testRel, ImmutableBitSet.of()))
     assertNull(mq.getPopulationSize(testRel, ImmutableBitSet.of(1)))
+  }
 
+  @Test
+  def testGetPopulationSizeOnLargeDomainSize(): Unit = {
+    relBuilder.clear()
+    val rel = relBuilder
+      .scan("MyTable1")
+      .project(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(SqlStdOperatorTable.SUBSTRING, relBuilder.field(3), relBuilder.literal(10)))
+      .build()
+    assertEquals(
+      7.999999964933156E8,
+      mq.getPopulationSize(rel, ImmutableBitSet.of(0, 1, 2)),
+      1e-2)
   }
 }

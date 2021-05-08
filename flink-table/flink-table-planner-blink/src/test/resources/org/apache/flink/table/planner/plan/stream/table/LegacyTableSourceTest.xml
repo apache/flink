@@ -17,13 +17,13 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testNestedProject">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.*, nested.*, name.*)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]], fields=[id, deepNested, nested])
@@ -31,16 +31,16 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeTableSourceOverWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[>($2, 100)])
 +- LogicalProject(id=[$0], name=[$3], valSum=[AS(SUM($2) OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'valSum')])
    +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, w0$o0 AS valSum], where=[>(w0$o0, 100)])
+Calc(select=[id, name, w0$o0 AS valSum], where=[(w0$o0 > 100)])
 +- OverAggregate(partitionBy=[id], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[id, proctime, val, name, SUM(val) AS w0$o0])
    +- Exchange(distribution=[hash[id]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, proctime, val, name])
@@ -48,13 +48,13 @@ Calc(select=[id, name, w0$o0 AS valSum], where=[>(w0$o0, 100)])
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeTableSourceSimple">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(proctime=[$1], id=[$0], name=[$3], val=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, proctime, val, name])
@@ -62,13 +62,13 @@ Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, val])
     </Resource>
   </TestCase>
   <TestCase name="testProjectOnlyProctime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(ptime=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
@@ -76,13 +76,13 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime])
     </Resource>
   </TestCase>
   <TestCase name="testProjectOnlyRowtime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rtime=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rtime])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
@@ -90,13 +90,13 @@ Calc(select=[rtime])
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithMapping">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$4], rtime=[$1], val=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: p-rtime, p-id, p-name, p-val)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, rtime, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: p-rtime, p-id, p-name, p-val)]]], fields=[id, rtime, val, ptime, name])
@@ -104,7 +104,7 @@ Calc(select=[name, rtime, val])
     </Resource>
   </TestCase>
   <TestCase name="testRowTimeTableSourceGroupWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
 +- LogicalWindowAggregate(group=[{3}], EXPR$1=[AVG($2)], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0])
@@ -112,24 +112,24 @@ LogicalProject(name=[$0], EXPR$0=[$2], EXPR$1=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, EXPR$0, EXPR$1])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[EXPR$0], select=[name, AVG(val) AS EXPR$1, end('w) AS EXPR$0])
    +- Exchange(distribution=[hash[name]])
-      +- Calc(select=[id, rowtime, val, name], where=[>(val, 100)])
+      +- Calc(select=[id, rowtime, val, name], where=[(val > 100)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithoutProctime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$4], val=[$2], rtime=[$1], id=[$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, val, rtime, id])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
@@ -137,13 +137,13 @@ Calc(select=[name, val, rtime, id])
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithRowtimeProctime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(name=[$4], val=[$2], id=[$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[name, val, id])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
@@ -151,13 +151,13 @@ Calc(select=[name, val, id])
     </Resource>
   </TestCase>
   <TestCase name="testTableSourceWithTimestampRowTimeField">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
@@ -165,13 +165,13 @@ Calc(select=[rowtime, id, name, val])
     </Resource>
   </TestCase>
   <TestCase name="testProjectWithoutRowtime">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(ptime=[$3], name=[$4], val=[$2], id=[$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
@@ -179,13 +179,13 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
     </Resource>
   </TestCase>
   <TestCase name="testTableSourceWithLongRowTimeField">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, rowTimeT]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])

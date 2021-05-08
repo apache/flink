@@ -25,23 +25,22 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
-/**
- * A simple task that emits int value until the result partition is unavailable for output.
- */
+/** A simple task that emits int value until the result partition is unavailable for output. */
 public class OutputBlockedInvokable extends AbstractInvokable {
 
-	public OutputBlockedInvokable(Environment environment) {
-		super(environment);
-	}
+    public OutputBlockedInvokable(Environment environment) {
+        super(environment);
+    }
 
-	@Override
-	public void invoke() throws Exception {
-		final IntValue value = new IntValue(1234);
-		final ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
-		final RecordWriter<IntValue> writer = new RecordWriterBuilder<IntValue>().build(resultPartitionWriter);
+    @Override
+    public void invoke() throws Exception {
+        final IntValue value = new IntValue(1234);
+        final ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
+        final RecordWriter<IntValue> writer =
+                new RecordWriterBuilder<IntValue>().build(resultPartitionWriter);
 
-		while (true) {
-			writer.emit(value);
-		}
-	}
+        while (true) {
+            writer.emit(value);
+        }
+    }
 }

@@ -19,15 +19,16 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogDescriptor;
-import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,134 +41,235 @@ import java.io.PrintStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
-/**
- * Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}.
- */
+/** Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}. */
 public class HiveCatalogFactoryTest extends TestLogger {
 
-	private static final URL CONF_DIR = Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
+    private static final URL CONF_DIR =
+            Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	@Test
-	public void testCreateHiveCatalog() {
-		final String catalogName = "mycatalog";
+    @Test
+    public void testCreateHiveCatalog() {
+        final String catalogName = "mycatalog";
 
-		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
+        final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
 
-		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
-		final Map<String, String> properties = catalogDescriptor.toProperties();
+        final Catalog actualCatalog =
+                FactoryUtil.createCatalog(
+                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
-		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
-			.createCatalog(catalogName, properties);
+        assertEquals(
+                "dummy-hms",
+                ((HiveCatalog) actualCatalog)
+                        .getHiveConf()
+                        .getVar(HiveConf.ConfVars.METASTOREURIS));
+        checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+    }
 
-		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
-	}
+    @Test
+    public void testCreateHiveCatalogWithHadoopConfDir() throws IOException {
+        final String catalogName = "mycatalog";
 
-	@Test
-	public void testCreateHiveCatalogWithHadoopConfDir() throws IOException {
-		final String catalogName = "mycatalog";
+        final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
+        final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
+        final String mapredKey = "mapred.site.config.key";
+        final String mapredVal = "mapred.site.config.val";
+        writeProperty(mapredSiteFile, mapredKey, mapredVal);
 
-		final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
-		final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
-		final String mapredKey = "mapred.site.config.key";
-		final String mapredVal = "mapred.site.config.val";
-		writeProperty(mapredSiteFile, mapredKey, mapredVal);
+        final HiveCatalog expectedCatalog =
+                HiveTestUtils.createHiveCatalog(
+                        catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
 
-		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+        options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
-		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+        final Catalog actualCatalog =
+                FactoryUtil.createCatalog(
+                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
 
-		final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
-		properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
+        checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+        assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
+    }
 
-		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
-			.createCatalog(catalogName, properties);
+    @Test
+    public void testCreateHiveCatalogWithIllegalHadoopConfDir() throws IOException {
+        final String catalogName = "mycatalog";
 
-		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
-		assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
-	}
+        final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
 
-	@Test
-	public void testLoadHadoopConfigFromEnv() throws IOException {
-		Map<String, String> customProps = new HashMap<>();
-		String k1 = "what is connector?";
-		String v1 = "Hive";
-		final String catalogName = "HiveCatalog";
+        try {
+            final Map<String, String> options = new HashMap<>();
+            options.put(
+                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+            options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
+            options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
-		// set HADOOP_CONF_DIR env
-		final File hadoopConfDir = tempFolder.newFolder();
-		final File hdfsSiteFile = new File(hadoopConfDir, "hdfs-site.xml");
-		writeProperty(hdfsSiteFile, k1, v1);
-		customProps.put(k1, v1);
+            final Catalog actualCatalog =
+                    FactoryUtil.createCatalog(
+                            catalogName,
+                            options,
+                            null,
+                            Thread.currentThread().getContextClassLoader());
+            Assert.fail();
+        } catch (ValidationException e) {
+        }
+    }
 
-		// add mapred-site file
-		final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
-		k1 = "mapred.site.config.key";
-		v1 = "mapred.site.config.val";
-		writeProperty(mapredSiteFile, k1, v1);
-		customProps.put(k1, v1);
+    @Test
+    public void testLoadHadoopConfigFromEnv() throws IOException {
+        Map<String, String> customProps = new HashMap<>();
+        String k1 = "what is connector?";
+        String v1 = "Hive";
+        final String catalogName = "HiveCatalog";
 
-		final Map<String, String> originalEnv = System.getenv();
-		final Map<String, String> newEnv = new HashMap<>(originalEnv);
-		newEnv.put("HADOOP_CONF_DIR", hadoopConfDir.getAbsolutePath());
-		newEnv.remove("HADOOP_HOME");
-		CommonTestUtils.setEnv(newEnv);
+        // set HADOOP_CONF_DIR env
+        final File hadoopConfDir = tempFolder.newFolder();
+        final File hdfsSiteFile = new File(hadoopConfDir, "hdfs-site.xml");
+        writeProperty(hdfsSiteFile, k1, v1);
+        customProps.put(k1, v1);
 
-		// create HiveCatalog use the Hadoop Configuration
-		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
-		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
-		final Map<String, String> properties = catalogDescriptor.toProperties();
-		final HiveConf hiveConf;
-		try {
-			final HiveCatalog hiveCatalog = (HiveCatalog) TableFactoryService.find(CatalogFactory.class, properties)
-					.createCatalog(catalogName, properties);
-			hiveConf = hiveCatalog.getHiveConf();
-		} finally {
-			// set the Env back
-			CommonTestUtils.setEnv(originalEnv);
-		}
-		// validate the result
-		for (String key : customProps.keySet()) {
-			assertEquals(customProps.get(key), hiveConf.get(key, null));
-		}
-	}
+        // add mapred-site file
+        final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
+        k1 = "mapred.site.config.key";
+        v1 = "mapred.site.config.val";
+        writeProperty(mapredSiteFile, k1, v1);
+        customProps.put(k1, v1);
 
-	@Test
-	public void testDisallowEmbedded() {
-		expectedException.expect(IllegalArgumentException.class);
-		final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
+        final Map<String, String> originalEnv = System.getenv();
+        final Map<String, String> newEnv = new HashMap<>(originalEnv);
+        newEnv.put("HADOOP_CONF_DIR", hadoopConfDir.getAbsolutePath());
+        newEnv.remove("HADOOP_HOME");
+        CommonTestUtils.setEnv(newEnv);
 
-		TableFactoryService.find(CatalogFactory.class, properties).createCatalog("my_catalog", properties);
-	}
+        // create HiveCatalog use the Hadoop Configuration
+        final HiveConf hiveConf;
+        try {
+            final Map<String, String> options = new HashMap<>();
+            options.put(
+                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+            options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
-	private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {
-		// Only assert a few selected properties for now
-		assertEquals(c1.getName(), c2.getName());
-		assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-	}
+            final HiveCatalog hiveCatalog =
+                    (HiveCatalog)
+                            FactoryUtil.createCatalog(
+                                    catalogName,
+                                    options,
+                                    null,
+                                    Thread.currentThread().getContextClassLoader());
 
-	private static void writeProperty(File file, String key, String value) throws IOException {
-		try (PrintStream out = new PrintStream(new FileOutputStream(file))) {
-			out.println("<?xml version=\"1.0\"?>");
-			out.println("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
-			out.println("<configuration>");
-			out.println("\t<property>");
-			out.println("\t\t<name>" + key + "</name>");
-			out.println("\t\t<value>" + value + "</value>");
-			out.println("\t</property>");
-			out.println("</configuration>");
-		}
-	}
+            hiveConf = hiveCatalog.getHiveConf();
+        } finally {
+            // set the Env back
+            CommonTestUtils.setEnv(originalEnv);
+        }
+        // validate the result
+        for (String key : customProps.keySet()) {
+            assertEquals(customProps.get(key), hiveConf.get(key, null));
+        }
+    }
+
+    @Test
+    public void testDisallowEmbedded() {
+        expectedException.expect(ValidationException.class);
+
+        final Map<String, String> options = new HashMap<>();
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+
+        FactoryUtil.createCatalog(
+                "my_catalog", options, null, Thread.currentThread().getContextClassLoader());
+    }
+
+    @Test
+    public void testCreateMultipleHiveCatalog() throws Exception {
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props1.put(
+                HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
+                Thread.currentThread()
+                        .getContextClassLoader()
+                        .getResource("test-multi-hive-conf1")
+                        .getPath());
+
+        final Map<String, String> props2 = new HashMap<>();
+        props2.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props2.put(
+                HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
+                Thread.currentThread()
+                        .getContextClassLoader()
+                        .getResource("test-multi-hive-conf2")
+                        .getPath());
+
+        Callable<Catalog> callable1 =
+                () ->
+                        FactoryUtil.createCatalog(
+                                "cat1",
+                                props1,
+                                null,
+                                Thread.currentThread().getContextClassLoader());
+
+        Callable<Catalog> callable2 =
+                () ->
+                        FactoryUtil.createCatalog(
+                                "cat2",
+                                props2,
+                                null,
+                                Thread.currentThread().getContextClassLoader());
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        Future<Catalog> future1 = executorService.submit(callable1);
+        Future<Catalog> future2 = executorService.submit(callable2);
+        executorService.shutdown();
+
+        HiveCatalog catalog1 = (HiveCatalog) future1.get();
+        HiveCatalog catalog2 = (HiveCatalog) future2.get();
+
+        // verify we read our own props
+        assertEquals("val1", catalog1.getHiveConf().get("key"));
+        assertNotNull(catalog1.getHiveConf().get("conf1", null));
+        // verify we don't read props from other conf
+        assertNull(catalog1.getHiveConf().get("conf2", null));
+
+        // verify we read our own props
+        assertEquals("val2", catalog2.getHiveConf().get("key"));
+        assertNotNull(catalog2.getHiveConf().get("conf2", null));
+        // verify we don't read props from other conf
+        assertNull(catalog2.getHiveConf().get("conf1", null));
+    }
+
+    private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {
+        // Only assert a few selected properties for now
+        assertEquals(c1.getName(), c2.getName());
+        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
+    }
+
+    private static void writeProperty(File file, String key, String value) throws IOException {
+        try (PrintStream out = new PrintStream(new FileOutputStream(file))) {
+            out.println("<?xml version=\"1.0\"?>");
+            out.println("<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>");
+            out.println("<configuration>");
+            out.println("\t<property>");
+            out.println("\t\t<name>" + key + "</name>");
+            out.println("\t\t<value>" + value + "</value>");
+            out.println("\t</property>");
+            out.println("</configuration>");
+        }
+    }
 }

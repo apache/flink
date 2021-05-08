@@ -44,68 +44,95 @@ import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Implementation of {@link MesosResourceManagerActorFactory}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class MesosResourceManagerActorFactoryImpl implements MesosResourceManagerActorFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerActorFactoryImpl.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(MesosResourceManagerActorFactoryImpl.class);
 
-	private final ActorSystem actorSystem;
+    private final ActorSystem actorSystem;
 
-	public MesosResourceManagerActorFactoryImpl(ActorSystem actorSystem) {
-		this.actorSystem = Preconditions.checkNotNull(actorSystem);
-	}
+    public MesosResourceManagerActorFactoryImpl(ActorSystem actorSystem) {
+        this.actorSystem = Preconditions.checkNotNull(actorSystem);
+    }
 
-	@Override
-	public ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self) {
-		return actorSystem.actorOf(
-				Props.create(MesosResourceManagerDriver.AkkaAdapter.class, self),
-				"MesosResourceManagerDriver");
-	}
+    @Override
+    public ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self) {
+        return actorSystem.actorOf(
+                Props.create(MesosResourceManagerDriver.AkkaAdapter.class, self),
+                "MesosResourceManagerDriver");
+    }
 
-	@Override
-	public ActorRef createConnectionMonitor(Configuration flinkConfig) {
-		return actorSystem.actorOf(
-				ConnectionMonitor.createActorProps(ConnectionMonitor.class, flinkConfig),
-				"connectionMonitor");
-	}
+    @Override
+    public ActorRef createConnectionMonitor(Configuration flinkConfig) {
+        return actorSystem.actorOf(
+                ConnectionMonitor.createActorProps(ConnectionMonitor.class, flinkConfig),
+                "connectionMonitor");
+    }
 
-	@Override
-	public ActorRef createTaskMonitor(
-			Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver) {
-		return actorSystem.actorOf(
-				Tasks.createActorProps(Tasks.class, resourceManagerActor, flinkConfig, schedulerDriver, TaskMonitor.class),
-				"tasks");
-	}
+    @Override
+    public ActorRef createTaskMonitor(
+            Configuration flinkConfig,
+            ActorRef resourceManagerActor,
+            SchedulerDriver schedulerDriver) {
+        return actorSystem.actorOf(
+                Tasks.createActorProps(
+                        Tasks.class,
+                        resourceManagerActor,
+                        flinkConfig,
+                        schedulerDriver,
+                        TaskMonitor.class),
+                "tasks");
+    }
 
-	@Override
-	public ActorRef createLaunchCoordinator(
-			Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver, TaskSchedulerBuilder optimizer) {
-		return actorSystem.actorOf(
-				LaunchCoordinator.createActorProps(LaunchCoordinator.class, resourceManagerActor, flinkConfig, schedulerDriver, optimizer),
-				"launchCoordinator");
-	}
+    @Override
+    public ActorRef createLaunchCoordinator(
+            Configuration flinkConfig,
+            ActorRef resourceManagerActor,
+            SchedulerDriver schedulerDriver,
+            TaskSchedulerBuilder optimizer) {
+        return actorSystem.actorOf(
+                LaunchCoordinator.createActorProps(
+                        LaunchCoordinator.class,
+                        resourceManagerActor,
+                        flinkConfig,
+                        schedulerDriver,
+                        optimizer),
+                "launchCoordinator");
+    }
 
-	@Override
-	public ActorRef createReconciliationCoordinator(Configuration flinkConfig, SchedulerDriver schedulerDriver) {
-		return actorSystem.actorOf(
-				ReconciliationCoordinator.createActorProps(ReconciliationCoordinator.class, flinkConfig, schedulerDriver),
-				"reconciliationCoordinator");
-	}
+    @Override
+    public ActorRef createReconciliationCoordinator(
+            Configuration flinkConfig, SchedulerDriver schedulerDriver) {
+        return actorSystem.actorOf(
+                ReconciliationCoordinator.createActorProps(
+                        ReconciliationCoordinator.class, flinkConfig, schedulerDriver),
+                "reconciliationCoordinator");
+    }
 
-	@Override
-	public CompletableFuture<Boolean> stopActor(@Nullable final ActorRef actorRef, FiniteDuration timeout) {
-		if (actorRef == null) {
-			return CompletableFuture.completedFuture(true);
-		}
+    @Override
+    public CompletableFuture<Boolean> stopActor(
+            @Nullable final ActorRef actorRef, FiniteDuration timeout) {
+        if (actorRef == null) {
+            return CompletableFuture.completedFuture(true);
+        }
 
-		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
-				.exceptionally((Throwable throwable) -> {
-					// The actor did not stop gracefully in time, try to directly stop it
-					actorSystem.stop(actorRef);
+        return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
+                .exceptionally(
+                        (Throwable throwable) -> {
+                            // The actor did not stop gracefully in time, try to directly stop it
+                            actorSystem.stop(actorRef);
 
-					LOG.warn("Could not stop actor {} gracefully.", actorRef.path(), throwable);
+                            LOG.warn(
+                                    "Could not stop actor {} gracefully.",
+                                    actorRef.path(),
+                                    throwable);
 
-					return false;
-				});
-	}
+                            return false;
+                        });
+    }
 }

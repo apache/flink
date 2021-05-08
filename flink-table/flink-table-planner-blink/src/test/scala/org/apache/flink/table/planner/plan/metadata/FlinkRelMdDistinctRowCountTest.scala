@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalRank
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
-import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
@@ -75,14 +74,14 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
   def testGetDistinctRowCountOnValues(): Unit = {
     assertEquals(1.0, mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(), null))
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+      assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
         mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(idx), null))
     }
-    assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+    assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
       mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(0, 1), null))
 
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(Double.NaN, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
+      assertEquals(1.0, mq.getDistinctRowCount(emptyValues, ImmutableBitSet.of(idx), null))
     }
   }
 
@@ -307,7 +306,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
         assertEquals(2.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(5), null))
         assertEquals(null, mq.getDistinctRowCount(rank, ImmutableBitSet.of(6), null))
         rank match {
-          case r: BatchExecRank if !r.isGlobal => // local rank does not output rank func
+          case r: BatchPhysicalRank if !r.isGlobal => // local rank does not output rank func
           case _ =>
             assertEquals(5.0, mq.getDistinctRowCount(rank, ImmutableBitSet.of(7), null))
         }
@@ -660,4 +659,19 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(null, mq.getDistinctRowCount(testRel, ImmutableBitSet.of(0), null))
   }
 
+  @Test
+  def testGetDistinctRowCountOnLargeDomainSize(): Unit = {
+    relBuilder.clear()
+    val rel = relBuilder
+      .scan("MyTable1")
+      .project(
+        relBuilder.field(0),
+        relBuilder.field(1),
+        relBuilder.call(SUBSTRING, relBuilder.field(3), relBuilder.literal(10)))
+      .build()
+    assertEquals(
+      7.999999964933156E8,
+      mq.getDistinctRowCount(rel, ImmutableBitSet.of(0, 1, 2), null),
+      1e-2)
+  }
 }

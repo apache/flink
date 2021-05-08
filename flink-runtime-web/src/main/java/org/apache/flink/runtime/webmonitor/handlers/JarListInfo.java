@@ -30,147 +30,140 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Response type of the {@link JarListHandler}.
- */
+/** Response type of the {@link JarListHandler}. */
 public class JarListInfo implements ResponseBody {
-	public static final String JAR_LIST_FIELD_ADDRESS = "address";
-	public static final String JAR_LIST_FIELD_FILES = "files";
+    public static final String JAR_LIST_FIELD_ADDRESS = "address";
+    public static final String JAR_LIST_FIELD_FILES = "files";
 
-	@JsonProperty(JAR_LIST_FIELD_ADDRESS)
-	private String address;
+    @JsonProperty(JAR_LIST_FIELD_ADDRESS)
+    private String address;
 
-	@JsonProperty(JAR_LIST_FIELD_FILES)
-	public List<JarFileInfo> jarFileList;
+    @JsonProperty(JAR_LIST_FIELD_FILES)
+    public List<JarFileInfo> jarFileList;
 
-	@JsonCreator
-	public JarListInfo(
-			@JsonProperty(JAR_LIST_FIELD_ADDRESS) String address,
-			@JsonProperty(JAR_LIST_FIELD_FILES) List<JarFileInfo> jarFileList) {
-		this.address = checkNotNull(address);
-		this.jarFileList = checkNotNull(jarFileList);
-	}
+    @JsonCreator
+    public JarListInfo(
+            @JsonProperty(JAR_LIST_FIELD_ADDRESS) String address,
+            @JsonProperty(JAR_LIST_FIELD_FILES) List<JarFileInfo> jarFileList) {
+        this.address = checkNotNull(address);
+        this.jarFileList = checkNotNull(jarFileList);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(address, jarFileList);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(address, jarFileList);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (null == o || this.getClass() != o.getClass()) {
-			return false;
-		}
+        if (null == o || this.getClass() != o.getClass()) {
+            return false;
+        }
 
-		JarListInfo that = (JarListInfo) o;
-		return Objects.equals(address, that.address) &&
-			Objects.equals(jarFileList, that.jarFileList);
-	}
+        JarListInfo that = (JarListInfo) o;
+        return Objects.equals(address, that.address)
+                && Objects.equals(jarFileList, that.jarFileList);
+    }
 
-	//---------------------------------------------------------------------------------
-	// Static helper classes
-	//---------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------
+    // Static helper classes
+    // ---------------------------------------------------------------------------------
 
-	/**
-	 * Nested class to encapsulate the jar file info.
-	 */
-	public static class JarFileInfo {
-		public static final String JAR_FILE_FIELD_ID = "id";
-		public static final String JAR_FILE_FIELD_NAME = "name";
-		public static final String JAR_FILE_FIELD_UPLOADED = "uploaded";
-		public static final String JAR_FILE_FIELD_ENTRY = "entry";
+    /** Nested class to encapsulate the jar file info. */
+    public static class JarFileInfo {
+        public static final String JAR_FILE_FIELD_ID = "id";
+        public static final String JAR_FILE_FIELD_NAME = "name";
+        public static final String JAR_FILE_FIELD_UPLOADED = "uploaded";
+        public static final String JAR_FILE_FIELD_ENTRY = "entry";
 
-		@JsonProperty(JAR_FILE_FIELD_ID)
-		public String id;
+        @JsonProperty(JAR_FILE_FIELD_ID)
+        public String id;
 
-		@JsonProperty(JAR_FILE_FIELD_NAME)
-		public String name;
+        @JsonProperty(JAR_FILE_FIELD_NAME)
+        public String name;
 
-		@JsonProperty(JAR_FILE_FIELD_UPLOADED)
-		private long uploaded;
+        @JsonProperty(JAR_FILE_FIELD_UPLOADED)
+        private long uploaded;
 
-		@JsonProperty(JAR_FILE_FIELD_ENTRY)
-		private List<JarEntryInfo> jarEntryList;
+        @JsonProperty(JAR_FILE_FIELD_ENTRY)
+        private List<JarEntryInfo> jarEntryList;
 
-		@JsonCreator
-		public JarFileInfo(
-				@JsonProperty(JAR_FILE_FIELD_ID) String id,
-				@JsonProperty(JAR_FILE_FIELD_NAME) String name,
-				@JsonProperty(JAR_FILE_FIELD_UPLOADED) long uploaded,
-				@JsonProperty(JAR_FILE_FIELD_ENTRY) List<JarEntryInfo> jarEntryList) {
-			this.id = checkNotNull(id);
-			this.name = checkNotNull(name);
-			this.uploaded = uploaded;
-			this.jarEntryList = checkNotNull(jarEntryList);
-		}
+        @JsonCreator
+        public JarFileInfo(
+                @JsonProperty(JAR_FILE_FIELD_ID) String id,
+                @JsonProperty(JAR_FILE_FIELD_NAME) String name,
+                @JsonProperty(JAR_FILE_FIELD_UPLOADED) long uploaded,
+                @JsonProperty(JAR_FILE_FIELD_ENTRY) List<JarEntryInfo> jarEntryList) {
+            this.id = checkNotNull(id);
+            this.name = checkNotNull(name);
+            this.uploaded = uploaded;
+            this.jarEntryList = checkNotNull(jarEntryList);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(id, name, uploaded, jarEntryList);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, name, uploaded, jarEntryList);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
 
-			if (null == o || this.getClass() != o.getClass()) {
-				return false;
-			}
+            if (null == o || this.getClass() != o.getClass()) {
+                return false;
+            }
 
-			JarFileInfo that = (JarFileInfo) o;
-			return Objects.equals(id, that.id) &&
-				Objects.equals(name, that.name) &&
-				uploaded == that.uploaded &&
-				Objects.equals(jarEntryList, that.jarEntryList);
-		}
-	}
+            JarFileInfo that = (JarFileInfo) o;
+            return Objects.equals(id, that.id)
+                    && Objects.equals(name, that.name)
+                    && uploaded == that.uploaded
+                    && Objects.equals(jarEntryList, that.jarEntryList);
+        }
+    }
 
-	/**
-	 * Nested class to encapsulate the jar entry info.
-	 */
-	public static class JarEntryInfo {
-		public static final String JAR_ENTRY_FIELD_NAME = "name";
-		public static final String JAR_ENTRY_FIELD_DESC = "description";
+    /** Nested class to encapsulate the jar entry info. */
+    public static class JarEntryInfo {
+        public static final String JAR_ENTRY_FIELD_NAME = "name";
+        public static final String JAR_ENTRY_FIELD_DESC = "description";
 
-		@JsonProperty(JAR_ENTRY_FIELD_NAME)
-		private String name;
+        @JsonProperty(JAR_ENTRY_FIELD_NAME)
+        private String name;
 
-		@JsonProperty(JAR_ENTRY_FIELD_DESC)
-		@Nullable
-		private String description;
+        @JsonProperty(JAR_ENTRY_FIELD_DESC)
+        @Nullable
+        private String description;
 
-		@JsonCreator
-		public JarEntryInfo(
-				@JsonProperty(JAR_ENTRY_FIELD_NAME) String name,
-				@JsonProperty(JAR_ENTRY_FIELD_DESC) @Nullable String description) {
-			this.name = checkNotNull(name);
-			this.description = description;
-		}
+        @JsonCreator
+        public JarEntryInfo(
+                @JsonProperty(JAR_ENTRY_FIELD_NAME) String name,
+                @JsonProperty(JAR_ENTRY_FIELD_DESC) @Nullable String description) {
+            this.name = checkNotNull(name);
+            this.description = description;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(name, description);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, description);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
 
-			if (null == o || this.getClass() != o.getClass()) {
-				return false;
-			}
+            if (null == o || this.getClass() != o.getClass()) {
+                return false;
+            }
 
-			JarEntryInfo that = (JarEntryInfo) o;
-			return Objects.equals(name, that.name) &&
-				Objects.equals(description, that.description);
-		}
-	}
+            JarEntryInfo that = (JarEntryInfo) o;
+            return Objects.equals(name, that.name) && Objects.equals(description, that.description);
+        }
+    }
 }

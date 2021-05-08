@@ -24,55 +24,62 @@ import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests (un)marshalling of {@link TaskCheckpointStatisticsWithSubtaskDetails}.
- */
-public class TaskCheckpointStatisticsWithSubtaskDetailsTest extends RestResponseMarshallingTestBase<TaskCheckpointStatisticsWithSubtaskDetails> {
+/** Tests (un)marshalling of {@link TaskCheckpointStatisticsWithSubtaskDetails}. */
+public class TaskCheckpointStatisticsWithSubtaskDetailsTest
+        extends RestResponseMarshallingTestBase<TaskCheckpointStatisticsWithSubtaskDetails> {
 
-	@Override
-	protected Class<TaskCheckpointStatisticsWithSubtaskDetails> getTestResponseClass() {
-		return TaskCheckpointStatisticsWithSubtaskDetails.class;
-	}
+    @Override
+    protected Class<TaskCheckpointStatisticsWithSubtaskDetails> getTestResponseClass() {
+        return TaskCheckpointStatisticsWithSubtaskDetails.class;
+    }
 
-	@Override
-	protected TaskCheckpointStatisticsWithSubtaskDetails getTestResponseInstance() throws Exception {
-		final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary = new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
-			new MinMaxAvgStatistics(1L, 2L, 3L),
-			new MinMaxAvgStatistics(1L, 2L, 3L),
-			new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
-				new MinMaxAvgStatistics(1L, 2L, 3L),
-				new MinMaxAvgStatistics(1L, 2L, 3L)),
-			new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-				new MinMaxAvgStatistics(1L, 2L, 3L),
-				new MinMaxAvgStatistics(1L, 2L, 3L),
-				new MinMaxAvgStatistics(1L, 2L, 3L),
-				new MinMaxAvgStatistics(1L, 2L, 3L)),
-			new MinMaxAvgStatistics(1L, 2L, 3L));
+    @Override
+    protected TaskCheckpointStatisticsWithSubtaskDetails getTestResponseInstance()
+            throws Exception {
+        final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary =
+                new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
+                        new MinMaxAvgStatistics(1L, 2L, 3L),
+                        new MinMaxAvgStatistics(1L, 2L, 3L),
+                        new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
+                                new MinMaxAvgStatistics(1L, 2L, 3L),
+                                new MinMaxAvgStatistics(1L, 2L, 3L)),
+                        new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
+                                new MinMaxAvgStatistics(1L, 2L, 3L),
+                                new MinMaxAvgStatistics(1L, 2L, 3L),
+                                new MinMaxAvgStatistics(1L, 2L, 3L),
+                                new MinMaxAvgStatistics(1L, 2L, 3L)),
+                        new MinMaxAvgStatistics(1L, 2L, 3L));
 
-		List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics = new ArrayList<>(2);
+        List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics = new ArrayList<>(2);
 
-		subtaskCheckpointStatistics.add(new SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics(0));
-		subtaskCheckpointStatistics.add(new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics(
-			1,
-			4L,
-			13L,
-			1337L,
-			new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointDuration(1L, 2L),
-			new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(2L, 4L, 5L, 3L),
-			42L));
+        subtaskCheckpointStatistics.add(
+                new SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics(0));
+        subtaskCheckpointStatistics.add(
+                new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics(
+                        1,
+                        4L,
+                        13L,
+                        1337L,
+                        new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
+                                .CheckpointDuration(1L, 2L),
+                        new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
+                                .CheckpointAlignment(2L, 4L, 5L, 3L),
+                        42L,
+                        true,
+                        false));
 
-		return new TaskCheckpointStatisticsWithSubtaskDetails(
-			4L,
-			CheckpointStatsStatus.COMPLETED,
-			4L,
-			1337L,
-			1L,
-			2L,
-			10,
-			11,
-			8,
-			9,
-			summary,
-			subtaskCheckpointStatistics);
-	}
+        return new TaskCheckpointStatisticsWithSubtaskDetails(
+                4L,
+                CheckpointStatsStatus.COMPLETED,
+                4L,
+                1337L,
+                1L,
+                2L,
+                10,
+                11,
+                8,
+                9,
+                summary,
+                subtaskCheckpointStatistics);
+    }
 }

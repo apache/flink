@@ -18,6 +18,8 @@
 
 from enum import Enum
 
+from typing import List
+
 __all__ = ['Row', 'RowKind']
 
 
@@ -135,6 +137,15 @@ class Row(object):
 
     def set_row_kind(self, row_kind: RowKind):
         self._row_kind = row_kind
+
+    def set_field_names(self, field_names: List):
+        self._fields = field_names
+
+    def _is_retract_msg(self):
+        return self._row_kind == RowKind.UPDATE_BEFORE or self._row_kind == RowKind.DELETE
+
+    def _is_accumulate_msg(self):
+        return self._row_kind == RowKind.UPDATE_AFTER or self._row_kind == RowKind.INSERT
 
     def __contains__(self, item):
         return item in self._values

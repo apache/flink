@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -79,6 +79,13 @@ under the License.
 			<artifactId>commons-compress</artifactId>
 			<!-- managed version -->
 		</dependency>
+		<dependency>
+			<groupId>com.github.luben</groupId>
+			<artifactId>zstd-jni</artifactId>
+			<version>1.4.9-1</version>
+			<scope>test</scope>
+		</dependency>
+
 
 		<!-- Ratelimiting dependencies -->
 		<dependency>
@@ -193,6 +200,9 @@ under the License.
 							<!-- it was decided to remove the fold opperations in 1.12 -->
 							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
 							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
+
+							<!-- added method to interface in 1.13 -->
+							<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

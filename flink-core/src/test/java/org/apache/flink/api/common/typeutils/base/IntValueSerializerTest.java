@@ -18,39 +18,43 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.IntValue;
 
-/**
- * A test for the {@link IntValueSerializer}.
- */
+import java.util.Random;
+
+/** A test for the {@link IntValueSerializer}. */
 public class IntValueSerializerTest extends SerializerTestBase<IntValue> {
-	
-	@Override
-	protected TypeSerializer<IntValue> createSerializer() {
-		return new IntValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 4;
-	}
-	
-	@Override
-	protected Class<IntValue> getTypeClass() {
-		return IntValue.class;
-	}
-	
-	@Override
-	protected IntValue[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		int rndInt = rnd.nextInt();
-		
-		return new IntValue[] {new IntValue(0), new IntValue(1), new IntValue(-1),
-							new IntValue(Integer.MAX_VALUE), new IntValue(Integer.MIN_VALUE),
-							new IntValue(rndInt), new IntValue(-rndInt)};
-	}
-}	
+
+    @Override
+    protected TypeSerializer<IntValue> createSerializer() {
+        return new IntValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 4;
+    }
+
+    @Override
+    protected Class<IntValue> getTypeClass() {
+        return IntValue.class;
+    }
+
+    @Override
+    protected IntValue[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        int rndInt = rnd.nextInt();
+
+        return new IntValue[] {
+            new IntValue(0),
+            new IntValue(1),
+            new IntValue(-1),
+            new IntValue(Integer.MAX_VALUE),
+            new IntValue(Integer.MIN_VALUE),
+            new IntValue(rndInt),
+            new IntValue(-rndInt)
+        };
+    }
+}

@@ -33,19 +33,19 @@ import java.util.LinkedHashMap;
 @Internal
 public interface PartitionComputer<T> extends Serializable {
 
-	/**
-	 * Compute partition values from record.
-	 *
-	 * @param in input record.
-	 * @return partition values.
-	 */
-	LinkedHashMap<String, String> generatePartValues(T in) throws Exception;
+    /**
+     * Compute partition values from record.
+     *
+     * @param in input record.
+     * @return partition values.
+     */
+    LinkedHashMap<String, String> generatePartValues(T in) throws Exception;
 
-	/**
-	 * Project non-partition columns for output writer.
-	 *
-	 * @param in input record.
-	 * @return projected record.
-	 */
-	T projectColumnsToWrite(T in) throws Exception;
+    /**
+     * Project non-partition columns for output writer.
+     *
+     * @param in input record.
+     * @return projected record.
+     */
+    T projectColumnsToWrite(T in) throws Exception;
 }

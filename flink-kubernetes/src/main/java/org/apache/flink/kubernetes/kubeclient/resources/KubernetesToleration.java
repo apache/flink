@@ -25,41 +25,40 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-/**
- * Represent Toleration resource in kubernetes.
- */
+/** Represent Toleration resource in kubernetes. */
 public class KubernetesToleration extends KubernetesResource<Toleration> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KubernetesToleration.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KubernetesToleration.class);
 
-	private KubernetesToleration(Toleration toleration) {
-		super(toleration);
-	}
+    private KubernetesToleration(Toleration toleration) {
+        super(toleration);
+    }
 
-	public static KubernetesToleration fromMap(Map<String, String> stringMap) {
-		final TolerationBuilder tolerationBuilder = new TolerationBuilder();
-		stringMap.forEach((k, v) -> {
-			switch (k.toLowerCase()) {
-				case "effect":
-					tolerationBuilder.withEffect(v);
-					break;
-				case "key":
-					tolerationBuilder.withKey(v);
-					break;
-				case "operator":
-					tolerationBuilder.withOperator(v);
-					break;
-				case "tolerationseconds":
-					tolerationBuilder.withTolerationSeconds(Long.valueOf(v));
-					break;
-				case "value":
-					tolerationBuilder.withValue(v);
-					break;
-				default:
-					LOG.warn("Unrecognized key({}) of toleration, will ignore.", k);
-					break;
-			}
-		});
-		return new KubernetesToleration(tolerationBuilder.build());
-	}
+    public static KubernetesToleration fromMap(Map<String, String> stringMap) {
+        final TolerationBuilder tolerationBuilder = new TolerationBuilder();
+        stringMap.forEach(
+                (k, v) -> {
+                    switch (k.toLowerCase()) {
+                        case "effect":
+                            tolerationBuilder.withEffect(v);
+                            break;
+                        case "key":
+                            tolerationBuilder.withKey(v);
+                            break;
+                        case "operator":
+                            tolerationBuilder.withOperator(v);
+                            break;
+                        case "tolerationseconds":
+                            tolerationBuilder.withTolerationSeconds(Long.valueOf(v));
+                            break;
+                        case "value":
+                            tolerationBuilder.withValue(v);
+                            break;
+                        default:
+                            LOG.warn("Unrecognized key({}) of toleration, will ignore.", k);
+                            break;
+                    }
+                });
+        return new KubernetesToleration(tolerationBuilder.build());
+    }
 }

@@ -28,47 +28,44 @@ import org.apache.parquet.hadoop.api.WriteSupport;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.proto.ProtoWriteSupport;
 
-/**
- * Convenience builder for creating {@link ParquetWriterFactory} instances for Protobuf classes.
- */
+/** Convenience builder for creating {@link ParquetWriterFactory} instances for Protobuf classes. */
 public class ParquetProtoWriters {
 
-	/**
-	 * Creates a {@link ParquetWriterFactory} for the given type. The type should represent a Protobuf message.
-	 *
-	 * @param type The class of the type to write.
-	 */
-	public static <T extends Message> ParquetWriterFactory<T> forType(Class<T> type) {
-		ParquetBuilder<T> builder = (out) -> new ParquetProtoWriterBuilder<>(out, type).build();
-		return new ParquetWriterFactory<>(builder);
-	}
+    /**
+     * Creates a {@link ParquetWriterFactory} for the given type. The type should represent a
+     * Protobuf message.
+     *
+     * @param type The class of the type to write.
+     */
+    public static <T extends Message> ParquetWriterFactory<T> forType(Class<T> type) {
+        ParquetBuilder<T> builder = (out) -> new ParquetProtoWriterBuilder<>(out, type).build();
+        return new ParquetWriterFactory<>(builder);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * The builder for Protobuf {@link ParquetWriter}.
-	 */
-	private static class ParquetProtoWriterBuilder<T extends Message>
-		extends ParquetWriter.Builder<T, ParquetProtoWriterBuilder<T>> {
+    /** The builder for Protobuf {@link ParquetWriter}. */
+    private static class ParquetProtoWriterBuilder<T extends Message>
+            extends ParquetWriter.Builder<T, ParquetProtoWriterBuilder<T>> {
 
-		private final Class<T> clazz;
+        private final Class<T> clazz;
 
-		protected ParquetProtoWriterBuilder(OutputFile outputFile, Class<T> clazz) {
-			super(outputFile);
-			this.clazz = clazz;
-		}
+        protected ParquetProtoWriterBuilder(OutputFile outputFile, Class<T> clazz) {
+            super(outputFile);
+            this.clazz = clazz;
+        }
 
-		@Override
-		protected ParquetProtoWriterBuilder<T> self() {
-			return this;
-		}
+        @Override
+        protected ParquetProtoWriterBuilder<T> self() {
+            return this;
+        }
 
-		@Override
-		protected WriteSupport<T> getWriteSupport(Configuration conf) {
-			return new ProtoWriteSupport<>(clazz);
-		}
-	}
+        @Override
+        protected WriteSupport<T> getWriteSupport(Configuration conf) {
+            return new ProtoWriteSupport<>(clazz);
+        }
+    }
 
-	/** Class is not meant to be instantiated. */
-	private ParquetProtoWriters() {}
+    /** Class is not meant to be instantiated. */
+    private ParquetProtoWriters() {}
 }

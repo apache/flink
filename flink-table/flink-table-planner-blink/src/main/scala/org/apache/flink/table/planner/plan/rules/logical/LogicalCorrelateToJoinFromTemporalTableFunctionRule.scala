@@ -23,27 +23,27 @@ import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLegacyTemporalJoin
-import org.apache.flink.table.planner.plan.utils.LegacyTemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
-import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
+
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptSchema}
 import org.apache.calcite.rel.{BiRel, RelNode, SingleRel}
 import org.apache.calcite.rel.core.{JoinRelType, TableFunctionScan}
-import org.apache.calcite.rel.logical.LogicalCorrelate
+import org.apache.calcite.rel.logical.{LogicalCorrelate}
 import org.apache.calcite.rex._
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 /**
   * The initial temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) is
   * a correlate. Rewrite it into a Join with a special temporal join condition wraps time
   * attribute and primary key information. The join will be translated into
-  * [[StreamExecLegacyTemporalJoin]] in physical.
+  * [[StreamExecTemporalJoin]] in physical.
   */
 class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   extends RelOptRule(
@@ -55,8 +55,9 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
       case f : FieldReferenceExpression
-        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-        f.getName
+        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) ||
+          hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+      => f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }
@@ -119,12 +120,12 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
 
         val condition =
           if (isProctimeReference(rightTemporalTableFunction)) {
-            makeProcTimeTemporalJoinConditionCall(
+            makeProcTimeTemporalFunctionJoinConCall(
               rexBuilder,
               leftTimeAttribute,
               rightPrimaryKeyExpression)
           } else {
-            makeRowTimeTemporalJoinConditionCall(
+            makeRowTimeTemporalFunctionJoinConCall(
               rexBuilder,
               leftTimeAttribute,
               rightTimeIndicatorExpression,

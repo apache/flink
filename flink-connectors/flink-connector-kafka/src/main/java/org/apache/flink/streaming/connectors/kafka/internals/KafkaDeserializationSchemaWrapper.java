@@ -28,41 +28,43 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 /**
  * A simple wrapper for using the DeserializationSchema with the KafkaDeserializationSchema
  * interface.
+ *
  * @param <T> The type created by the deserialization schema.
  */
 @Internal
 public class KafkaDeserializationSchemaWrapper<T> implements KafkaDeserializationSchema<T> {
 
-	private static final long serialVersionUID = 2651665280744549932L;
+    private static final long serialVersionUID = 2651665280744549932L;
 
-	private final DeserializationSchema<T> deserializationSchema;
+    private final DeserializationSchema<T> deserializationSchema;
 
-	public KafkaDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
-		this.deserializationSchema = deserializationSchema;
-	}
+    public KafkaDeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
+        this.deserializationSchema = deserializationSchema;
+    }
 
-	@Override
-	public void open(DeserializationSchema.InitializationContext context) throws Exception {
-		this.deserializationSchema.open(context);
-	}
+    @Override
+    public void open(DeserializationSchema.InitializationContext context) throws Exception {
+        this.deserializationSchema.open(context);
+    }
 
-	@Override
-	public T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
-		throw new UnsupportedOperationException("Should never be called");
-	}
+    @Override
+    public T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+        throw new UnsupportedOperationException("Should never be called");
+    }
 
-	@Override
-	public void deserialize(ConsumerRecord<byte[], byte[]> message, Collector<T> out) throws Exception {
-		deserializationSchema.deserialize(message.value(), out);
-	}
+    @Override
+    public void deserialize(ConsumerRecord<byte[], byte[]> message, Collector<T> out)
+            throws Exception {
+        deserializationSchema.deserialize(message.value(), out);
+    }
 
-	@Override
-	public boolean isEndOfStream(T nextElement) {
-		return deserializationSchema.isEndOfStream(nextElement);
-	}
+    @Override
+    public boolean isEndOfStream(T nextElement) {
+        return deserializationSchema.isEndOfStream(nextElement);
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return deserializationSchema.getProducedType();
-	}
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return deserializationSchema.getProducedType();
+    }
 }

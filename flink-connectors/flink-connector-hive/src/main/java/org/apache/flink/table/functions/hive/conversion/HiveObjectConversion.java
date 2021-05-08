@@ -24,12 +24,11 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
-/**
- * Interface to convert Flink object to Hive object.
- */
+/** Interface to convert Flink object to Hive object. */
 @FunctionalInterface
 @Internal
 public interface HiveObjectConversion extends Serializable {
 
-	@Nullable Object toHiveObject(@Nullable Object o);
+    @Nullable
+    Object toHiveObject(@Nullable Object o);
 }

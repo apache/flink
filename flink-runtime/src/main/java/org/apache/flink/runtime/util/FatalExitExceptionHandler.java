@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.runtime.security.FlinkSecurityManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,18 +31,21 @@ import org.slf4j.LoggerFactory;
  */
 public final class FatalExitExceptionHandler implements Thread.UncaughtExceptionHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
 
-	public static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler();
+    public static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler();
+    public static final int EXIT_CODE = -17;
 
-	@Override
-	@SuppressWarnings("finally")
-	public void uncaughtException(Thread t, Throwable e) {
-		try {
-			LOG.error("FATAL: Thread '{}' produced an uncaught exception. Stopping the process...", t.getName(), e);
-		}
-		finally {
-			System.exit(-17);
-		}
-	}
+    @Override
+    @SuppressWarnings("finally")
+    public void uncaughtException(Thread t, Throwable e) {
+        try {
+            LOG.error(
+                    "FATAL: Thread '{}' produced an uncaught exception. Stopping the process...",
+                    t.getName(),
+                    e);
+        } finally {
+            FlinkSecurityManager.forceProcessExit(EXIT_CODE);
+        }
+    }
 }

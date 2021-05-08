@@ -25,15 +25,19 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.{Ignore, Rule, Test}
 
 import scala.collection.mutable
 
 class CalcITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build
@@ -73,7 +77,8 @@ class CalcITCase extends AbstractTestBase {
   @Test
   def testSelectStar(): Unit = {
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmallNestedTupleDataStream(env).toTable(tEnv).select('*)
+    val ds = StreamTestData.getSmallNestedTupleDataStream(env)
+      .toTable(tEnv, $("_1"), $("_2")).select('*)
 
     val results = ds.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])

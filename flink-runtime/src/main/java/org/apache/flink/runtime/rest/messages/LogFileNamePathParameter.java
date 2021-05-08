@@ -26,24 +26,24 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHan
  */
 public class LogFileNamePathParameter extends MessagePathParameter<String> {
 
-	public static final String KEY = "filename";
+    public static final String KEY = "filename";
 
-	public LogFileNamePathParameter() {
-		super(KEY);
-	}
+    public LogFileNamePathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected String convertFromString(String value) {
-		return value;
-	}
+    @Override
+    protected String convertFromString(String value) {
+        return value;
+    }
 
-	@Override
-	protected String convertToString(String value) {
-		return value;
-	}
+    @Override
+    protected String convertToString(String value) {
+        return value;
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that identifies the file name from which to read.";
-	}
+    @Override
+    public String getDescription() {
+        return "String value that identifies the file name from which to read.";
+    }
 }

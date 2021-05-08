@@ -25,35 +25,34 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-/**
- * Base class for row-time over window test.
- **/
+/** Base class for row-time over window test. */
 public class RowTimeOverWindowTestBase {
-	protected static GeneratedAggsHandleFunction aggsHandleFunction =
-		new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
-			@Override
-			public AggsHandleFunction newInstance(ClassLoader classLoader) {
-				return new SumAggsHandleFunction(1);
-			}
-		};
+    protected static GeneratedAggsHandleFunction aggsHandleFunction =
+            new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
+                @Override
+                public AggsHandleFunction newInstance(ClassLoader classLoader) {
+                    return new SumAggsHandleFunction(1);
+                }
+            };
 
-	protected LogicalType[] inputFieldTypes = new LogicalType[]{
-		new VarCharType(VarCharType.MAX_LENGTH),
-		new BigIntType(),
-		new BigIntType()
-	};
-	protected LogicalType[] accTypes = new LogicalType[]{new BigIntType()};
+    protected LogicalType[] inputFieldTypes =
+            new LogicalType[] {
+                new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new BigIntType()
+            };
+    protected LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
 
-	protected BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[]{0}, inputFieldTypes);
-	protected TypeInformation<RowData> keyType = keySelector.getProducedType();
+    protected RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputFieldTypes);
+    protected TypeInformation<RowData> keyType = keySelector.getProducedType();
 
-	protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
-	}
+    protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
+        return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
+    }
 }

@@ -25,7 +25,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.utils.OperatorLatch;
 import org.apache.flink.state.api.utils.SavepointTestBase;
+import org.apache.flink.state.api.utils.WaitingFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -41,129 +43,136 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * IT case for reading state.
- */
-public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend> extends SavepointTestBase {
-	private static final String uid = "stateful-operator";
+/** IT case for reading state. */
+public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
+        extends SavepointTestBase {
+    private static final String uid = "stateful-operator";
 
-	private static ValueStateDescriptor<Integer> valueState = new ValueStateDescriptor<>("value", Types.INT);
+    private static ValueStateDescriptor<Integer> valueState =
+            new ValueStateDescriptor<>("value", Types.INT);
 
-	private static final List<Pojo> elements = Arrays.asList(
-		Pojo.of(1, 1),
-		Pojo.of(2, 2),
-		Pojo.of(3, 3));
+    private static final List<Pojo> elements =
+            Arrays.asList(Pojo.of(1, 1), Pojo.of(2, 2), Pojo.of(3, 3));
 
-	protected abstract B getStateBackend();
+    protected abstract B getStateBackend();
 
-	@Test
-	public void testUserKeyedStateReader() throws Exception {
-		String savepointPath = takeSavepoint(elements, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+    @Test
+    public void testUserKeyedStateReader() throws Exception {
+        String savepointPath =
+                takeSavepoint(
+                        new KeyedStatefulOperator(),
+                        process -> {
+                            StreamExecutionEnvironment env =
+                                    StreamExecutionEnvironment.getExecutionEnvironment();
+                            env.setStateBackend(getStateBackend());
+                            env.setParallelism(4);
 
-			env
-				.addSource(source)
-				.rebalance()
-				.keyBy(id -> id.key)
-				.process(new KeyedStatefulOperator())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+                            env.addSource(createSource(elements))
+                                    .rebalance()
+                                    .keyBy(id -> id.key)
+                                    .process(process)
+                                    .uid(uid)
+                                    .addSink(new DiscardingSink<>());
 
-			return env;
-		});
+                            return env;
+                        });
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		List<Pojo> results = savepoint
-			.readKeyedState(uid, new Reader())
-			.collect();
+        List<Pojo> results = savepoint.readKeyedState(uid, new Reader()).collect();
 
-		Set<Pojo> expected = new HashSet<>(elements);
+        Set<Pojo> expected = new HashSet<>(elements);
 
-		Assert.assertEquals("Unexpected results from keyed state", expected, new HashSet<>(results));
-	}
+        Assert.assertEquals(
+                "Unexpected results from keyed state", expected, new HashSet<>(results));
+    }
 
-	private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
+    private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void>
+            implements WaitingFunction {
+        private final OperatorLatch startLatch = new OperatorLatch();
+        private transient ValueState<Integer> state;
 
-		private transient ValueState<Integer> state;
+        @Override
+        public void open(Configuration parameters) {
+            state = getRuntimeContext().getState(valueState);
+        }
 
-		@Override
-		public void open(Configuration parameters) {
-			state = getRuntimeContext().getState(valueState);
-		}
+        @Override
+        public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
+            startLatch.trigger();
 
-		@Override
-		public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
-			state.update(value.state);
+            state.update(value.state);
 
-			value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
-			value.processingTimeTimer.forEach(timer -> ctx.timerService().registerProcessingTimeTimer(timer));
-		}
-	}
+            value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
+            value.processingTimeTimer.forEach(
+                    timer -> ctx.timerService().registerProcessingTimeTimer(timer));
+        }
 
-	private static class Reader extends KeyedStateReaderFunction<Integer, Pojo> {
+        @Override
+        public void await() throws RuntimeException {
+            startLatch.await();
+        }
+    }
 
-		private transient ValueState<Integer> state;
+    private static class Reader extends KeyedStateReaderFunction<Integer, Pojo> {
 
-		@Override
-		public void open(Configuration parameters) {
-			state = getRuntimeContext().getState(valueState);
-		}
+        private transient ValueState<Integer> state;
 
-		@Override
-		public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
-			Pojo pojo = new Pojo();
-			pojo.key = key;
-			pojo.state = state.value();
-			pojo.eventTimeTimer = ctx.registeredEventTimeTimers();
-			pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
+        @Override
+        public void open(Configuration parameters) {
+            state = getRuntimeContext().getState(valueState);
+        }
 
-			out.collect(pojo);
-		}
-	}
+        @Override
+        public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
+            Pojo pojo = new Pojo();
+            pojo.key = key;
+            pojo.state = state.value();
+            pojo.eventTimeTimer = ctx.registeredEventTimeTimers();
+            pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
 
-	/**
-	 * A simple pojo type.
-	 */
-	public static class Pojo {
-		public static Pojo of(Integer key, Integer state) {
-			Pojo wrapper = new Pojo();
-			wrapper.key = key;
-			wrapper.state = state;
-			wrapper.eventTimeTimer = Collections.singleton(Long.MAX_VALUE - 1);
-			wrapper.processingTimeTimer = Collections.singleton(Long.MAX_VALUE - 2);
+            out.collect(pojo);
+        }
+    }
 
-			return wrapper;
-		}
+    /** A simple pojo type. */
+    public static class Pojo {
+        public static Pojo of(Integer key, Integer state) {
+            Pojo wrapper = new Pojo();
+            wrapper.key = key;
+            wrapper.state = state;
+            wrapper.eventTimeTimer = Collections.singleton(Long.MAX_VALUE - 1);
+            wrapper.processingTimeTimer = Collections.singleton(Long.MAX_VALUE - 2);
 
-		Integer key;
+            return wrapper;
+        }
 
-		Integer state;
+        Integer key;
 
-		Set<Long> eventTimeTimer;
+        Integer state;
 
-		Set<Long> processingTimeTimer;
+        Set<Long> eventTimeTimer;
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			} else if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			Pojo pojo = (Pojo) o;
-			return Objects.equals(key, pojo.key) &&
-				Objects.equals(state, pojo.state) &&
-				Objects.equals(eventTimeTimer, pojo.eventTimeTimer) &&
-				Objects.equals(processingTimeTimer, pojo.processingTimeTimer);
-		}
+        Set<Long> processingTimeTimer;
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(key, state, eventTimeTimer, processingTimeTimer);
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            } else if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Pojo pojo = (Pojo) o;
+            return Objects.equals(key, pojo.key)
+                    && Objects.equals(state, pojo.state)
+                    && Objects.equals(eventTimeTimer, pojo.eventTimeTimer)
+                    && Objects.equals(processingTimeTimer, pojo.processingTimeTimer);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(key, state, eventTimeTimer, processingTimeTimer);
+        }
+    }
 }

@@ -57,194 +57,200 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Simple integration test case for writing bulk encoded files with the
- * {@link StreamingFileSink} with Parquet.
+ * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
+ * with Parquet.
  */
 @SuppressWarnings("serial")
 public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
 
-	@Rule
-	public final Timeout timeoutPerTest = Timeout.seconds(20);
+    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
-	@Test
-	public void testWriteParquetAvroSpecific() throws Exception {
+    @Test
+    public void testWriteParquetAvroSpecific() throws Exception {
 
-		final File folder = TEMPORARY_FOLDER.newFolder();
+        final File folder = TEMPORARY_FOLDER.newFolder();
 
-		final List<Address> data = Arrays.asList(
-				new Address(1, "a", "b", "c", "12345"),
-				new Address(2, "p", "q", "r", "12345"),
-				new Address(3, "x", "y", "z", "12345")
-		);
+        final List<Address> data =
+                Arrays.asList(
+                        new Address(1, "a", "b", "c", "12345"),
+                        new Address(2, "p", "q", "r", "12345"),
+                        new Address(3, "x", "y", "z", "12345"));
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.enableCheckpointing(100);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
-		DataStream<Address> stream = env.addSource(
-				new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+        DataStream<Address> stream =
+                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
 
-		stream.addSink(
-				StreamingFileSink.forBulkFormat(
-						Path.fromLocalFile(folder),
-						ParquetAvroWriters.forSpecificRecord(Address.class))
-				.build());
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forSpecificRecord(Address.class))
+                        .build());
 
-		env.execute();
+        env.execute();
 
-		validateResults(folder, SpecificData.get(), data);
-	}
+        validateResults(folder, SpecificData.get(), data);
+    }
 
-	@Test
-	public void testWriteParquetAvroGeneric() throws Exception {
+    @Test
+    public void testWriteParquetAvroGeneric() throws Exception {
 
-		final File folder = TEMPORARY_FOLDER.newFolder();
+        final File folder = TEMPORARY_FOLDER.newFolder();
 
-		final Schema schema = Address.getClassSchema();
+        final Schema schema = Address.getClassSchema();
 
-		final Collection<GenericRecord> data = new GenericTestDataCollection();
+        final Collection<GenericRecord> data = new GenericTestDataCollection();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.enableCheckpointing(100);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
-		DataStream<GenericRecord> stream = env.addSource(
-				new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+        DataStream<GenericRecord> stream =
+                env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
 
-		stream.addSink(
-				StreamingFileSink.forBulkFormat(
-						Path.fromLocalFile(folder),
-						ParquetAvroWriters.forGenericRecord(schema))
-						.build());
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forGenericRecord(schema))
+                        .build());
 
-		env.execute();
+        env.execute();
 
-		List<Address> expected = Arrays.asList(
-				new Address(1, "a", "b", "c", "12345"),
-				new Address(2, "x", "y", "z", "98765"));
+        List<Address> expected =
+                Arrays.asList(
+                        new Address(1, "a", "b", "c", "12345"),
+                        new Address(2, "x", "y", "z", "98765"));
 
-		validateResults(folder, SpecificData.get(), expected);
-	}
+        validateResults(folder, SpecificData.get(), expected);
+    }
 
-	@Test
-	public void testWriteParquetAvroReflect() throws Exception {
+    @Test
+    public void testWriteParquetAvroReflect() throws Exception {
 
-		final File folder = TEMPORARY_FOLDER.newFolder();
+        final File folder = TEMPORARY_FOLDER.newFolder();
 
-		final List<Datum> data = Arrays.asList(
-				new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
+        final List<Datum> data =
+                Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		env.enableCheckpointing(100);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
-		DataStream<Datum> stream = env.addSource(
-				new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+        DataStream<Datum> stream =
+                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
 
-		stream.addSink(
-				StreamingFileSink.forBulkFormat(
-						Path.fromLocalFile(folder),
-						ParquetAvroWriters.forReflectRecord(Datum.class))
-						.build());
+        stream.addSink(
+                StreamingFileSink.forBulkFormat(
+                                Path.fromLocalFile(folder),
+                                ParquetAvroWriters.forReflectRecord(Datum.class))
+                        .build());
 
-		env.execute();
+        env.execute();
 
-		validateResults(folder, ReflectData.get(), data);
-	}
+        validateResults(folder, ReflectData.get(), data);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static <T> void validateResults(File folder, GenericData dataModel, List<T> expected) throws Exception {
-		File[] buckets = folder.listFiles();
-		assertNotNull(buckets);
-		assertEquals(1, buckets.length);
+    private static <T> void validateResults(File folder, GenericData dataModel, List<T> expected)
+            throws Exception {
+        File[] buckets = folder.listFiles();
+        assertNotNull(buckets);
+        assertEquals(1, buckets.length);
 
-		File[] partFiles = buckets[0].listFiles();
-		assertNotNull(partFiles);
-		assertEquals(2, partFiles.length);
+        File[] partFiles = buckets[0].listFiles();
+        assertNotNull(partFiles);
+        assertEquals(2, partFiles.length);
 
-		for (File partFile : partFiles) {
-			assertTrue(partFile.length() > 0);
+        for (File partFile : partFiles) {
+            assertTrue(partFile.length() > 0);
 
-			final List<T> fileContent = readParquetFile(partFile, dataModel);
-			assertEquals(expected, fileContent);
-		}
-	}
+            final List<T> fileContent = readParquetFile(partFile, dataModel);
+            assertEquals(expected, fileContent);
+        }
+    }
 
-	private static <T> List<T> readParquetFile(File file, GenericData dataModel) throws IOException {
-		InputFile inFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
+    private static <T> List<T> readParquetFile(File file, GenericData dataModel)
+            throws IOException {
+        InputFile inFile =
+                HadoopInputFile.fromPath(
+                        new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
 
-		ArrayList<T> results = new ArrayList<>();
-		try (ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
-			T next;
-			while ((next = reader.read()) != null) {
-				results.add(next);
-			}
-		}
+        ArrayList<T> results = new ArrayList<>();
+        try (ParquetReader<T> reader =
+                AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
+            T next;
+            while ((next = reader.read()) != null) {
+                results.add(next);
+            }
+        }
 
-		return results;
-	}
+        return results;
+    }
 
-	private static class GenericTestDataCollection extends AbstractCollection<GenericRecord> implements Serializable {
+    private static class GenericTestDataCollection extends AbstractCollection<GenericRecord>
+            implements Serializable {
 
-		@Override
-		public Iterator<GenericRecord> iterator() {
-			final GenericRecord rec1 = new GenericData.Record(Address.getClassSchema());
-			rec1.put(0, 1);
-			rec1.put(1, "a");
-			rec1.put(2, "b");
-			rec1.put(3, "c");
-			rec1.put(4, "12345");
+        @Override
+        public Iterator<GenericRecord> iterator() {
+            final GenericRecord rec1 = new GenericData.Record(Address.getClassSchema());
+            rec1.put(0, 1);
+            rec1.put(1, "a");
+            rec1.put(2, "b");
+            rec1.put(3, "c");
+            rec1.put(4, "12345");
 
-			final GenericRecord rec2 = new GenericData.Record(Address.getClassSchema());
-			rec2.put(0, 2);
-			rec2.put(1, "x");
-			rec2.put(2, "y");
-			rec2.put(3, "z");
-			rec2.put(4, "98765");
+            final GenericRecord rec2 = new GenericData.Record(Address.getClassSchema());
+            rec2.put(0, 2);
+            rec2.put(1, "x");
+            rec2.put(2, "y");
+            rec2.put(3, "z");
+            rec2.put(4, "98765");
 
-			return Arrays.asList(rec1, rec2).iterator();
-		}
+            return Arrays.asList(rec1, rec2).iterator();
+        }
 
-		@Override
-		public int size() {
-			return 2;
-		}
-	}
+        @Override
+        public int size() {
+            return 2;
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** Test datum. */
-	public static class Datum implements Serializable {
+    /** Test datum. */
+    public static class Datum implements Serializable {
 
-		public String a;
-		public int b;
+        public String a;
+        public int b;
 
-		public Datum() {}
+        public Datum() {}
 
-		public Datum(String a, int b) {
-			this.a = a;
-			this.b = b;
-		}
+        public Datum(String a, int b) {
+            this.a = a;
+            this.b = b;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
-			Datum datum = (Datum) o;
-			return b == datum.b && (a != null ? a.equals(datum.a) : datum.a == null);
-		}
+            Datum datum = (Datum) o;
+            return b == datum.b && (a != null ? a.equals(datum.a) : datum.a == null);
+        }
 
-		@Override
-		public int hashCode() {
-			int result = a != null ? a.hashCode() : 0;
-			result = 31 * result + b;
-			return result;
-		}
-	}
+        @Override
+        public int hashCode() {
+            int result = a != null ? a.hashCode() : 0;
+            result = 31 * result + b;
+            return result;
+        }
+    }
 }

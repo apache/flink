@@ -19,15 +19,13 @@
 
 package org.apache.flink.table.client.gateway.utils;
 
-/**
- * Dummy table source factory.
- */
+/** Dummy table source factory. */
 public class DummyTableSourceFactory extends TestTableSourceFactoryBase {
 
-	public static final String CONNECTOR_TYPE_VALUE = "dummy-source";
-	public static final String TEST_PROPERTY = "test-property";
+    public static final String CONNECTOR_TYPE_VALUE = "dummy-source";
+    public static final String TEST_PROPERTY = "test-property";
 
-	public DummyTableSourceFactory() {
-		super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
-	}
+    public DummyTableSourceFactory() {
+        super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+    }
 }

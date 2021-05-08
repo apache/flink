@@ -38,65 +38,58 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-/**
- * Tests the behavior of {@link OrcBulkWriterFactory}.
- */
-public class OrcBulkWriterFactoryTest  {
+/** Tests the behavior of {@link OrcBulkWriterFactory}. */
+public class OrcBulkWriterFactoryTest {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testNotOverrideInMemoryManager() throws IOException {
-		TestMemoryManager memoryManager = new TestMemoryManager();
-		OrcBulkWriterFactory<Record> factory = new TestOrcBulkWriterFactory<>(
-			new RecordVectorizer("struct<_col0:string,_col1:int>"),
-			memoryManager);
-		factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
-		factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
+    @Test
+    public void testNotOverrideInMemoryManager() throws IOException {
+        TestMemoryManager memoryManager = new TestMemoryManager();
+        OrcBulkWriterFactory<Record> factory =
+                new TestOrcBulkWriterFactory<>(
+                        new RecordVectorizer("struct<_col0:string,_col1:int>"), memoryManager);
+        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
+        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
 
-		List<Path> addedWriterPath = memoryManager.getAddedWriterPath();
-		assertEquals(2, addedWriterPath.size());
-		assertNotEquals(addedWriterPath.get(0), addedWriterPath.get(1));
-	}
+        List<Path> addedWriterPath = memoryManager.getAddedWriterPath();
+        assertEquals(2, addedWriterPath.size());
+        assertNotEquals(addedWriterPath.get(0), addedWriterPath.get(1));
+    }
 
-	private static class TestOrcBulkWriterFactory<T> extends OrcBulkWriterFactory<T> {
+    private static class TestOrcBulkWriterFactory<T> extends OrcBulkWriterFactory<T> {
 
-		private final MemoryManager memoryManager;
+        private final MemoryManager memoryManager;
 
-		public TestOrcBulkWriterFactory(Vectorizer<T> vectorizer, MemoryManager memoryManager) {
-			super(vectorizer);
-			this.memoryManager = checkNotNull(memoryManager);
-		}
+        public TestOrcBulkWriterFactory(Vectorizer<T> vectorizer, MemoryManager memoryManager) {
+            super(vectorizer);
+            this.memoryManager = checkNotNull(memoryManager);
+        }
 
-		@Override
-		protected OrcFile.WriterOptions getWriterOptions() {
-			OrcFile.WriterOptions options = super.getWriterOptions();
-			options.memory(memoryManager);
-			return options;
-		}
-	}
+        @Override
+        protected OrcFile.WriterOptions getWriterOptions() {
+            OrcFile.WriterOptions options = super.getWriterOptions();
+            options.memory(memoryManager);
+            return options;
+        }
+    }
 
-	private static class TestMemoryManager implements MemoryManager {
-		private final List<Path> addedWriterPath = new ArrayList<>();
+    private static class TestMemoryManager implements MemoryManager {
+        private final List<Path> addedWriterPath = new ArrayList<>();
 
-		@Override
-		public void addWriter(Path path, long requestedAllocation, Callback callback) {
-			addedWriterPath.add(path);
-		}
+        @Override
+        public void addWriter(Path path, long requestedAllocation, Callback callback) {
+            addedWriterPath.add(path);
+        }
 
-		public List<Path> getAddedWriterPath() {
-			return addedWriterPath;
-		}
+        public List<Path> getAddedWriterPath() {
+            return addedWriterPath;
+        }
 
-		@Override
-		public void removeWriter(Path path) {
+        @Override
+        public void removeWriter(Path path) {}
 
-		}
-
-		@Override
-		public void addedRow(int rows) {
-
-		}
-	}
+        @Override
+        public void addedRow(int rows) {}
+    }
 }

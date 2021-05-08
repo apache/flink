@@ -32,42 +32,40 @@ import java.util.Random;
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.junit.Assert.assertArrayEquals;
 
-/**
- * Tests for {@link AvroDeserializationSchema}.
- */
+/** Tests for {@link AvroDeserializationSchema}. */
 public class AvroSerializationSchemaTest {
 
-	private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
+    private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
-	@Test
-	public void testGenericRecord() throws Exception {
-		SerializationSchema<GenericRecord> serializationSchema =
-			AvroSerializationSchema.forGeneric(
-				address.getSchema()
-			);
+    @Test
+    public void testGenericRecord() throws Exception {
+        SerializationSchema<GenericRecord> serializationSchema =
+                AvroSerializationSchema.forGeneric(address.getSchema());
 
-		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		byte[] dataSerialized = serializationSchema.serialize(address);
-		assertArrayEquals(encodedAddress, dataSerialized);
-	}
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        byte[] dataSerialized = serializationSchema.serialize(address);
+        assertArrayEquals(encodedAddress, dataSerialized);
+    }
 
-	@Test
-	public void testSpecificRecord() throws Exception {
-		SerializationSchema<Address> serializer = AvroSerializationSchema.forSpecific(Address.class);
+    @Test
+    public void testSpecificRecord() throws Exception {
+        SerializationSchema<Address> serializer =
+                AvroSerializationSchema.forSpecific(Address.class);
 
-		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		byte[] serializedAddress = serializer.serialize(address);
-		assertArrayEquals(encodedAddress, serializedAddress);
-	}
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        byte[] serializedAddress = serializer.serialize(address);
+        assertArrayEquals(encodedAddress, serializedAddress);
+    }
 
-	@Test
-	public void testSpecificRecordWithUnionLogicalType() throws Exception {
-		Random rnd = new Random();
-		UnionLogicalType data = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
-		AvroSerializationSchema<UnionLogicalType> serializer = AvroSerializationSchema.forSpecific(UnionLogicalType.class);
+    @Test
+    public void testSpecificRecordWithUnionLogicalType() throws Exception {
+        Random rnd = new Random();
+        UnionLogicalType data = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
+        AvroSerializationSchema<UnionLogicalType> serializer =
+                AvroSerializationSchema.forSpecific(UnionLogicalType.class);
 
-		byte[] encodedData = writeRecord(data);
-		byte[] serializedData = serializer.serialize(data);
-		assertArrayEquals(encodedData, serializedData);
-	}
+        byte[] encodedData = writeRecord(data);
+        byte[] serializedData = serializer.serialize(data);
+        assertArrayEquals(encodedData, serializedData);
+    }
 }

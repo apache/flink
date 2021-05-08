@@ -38,13 +38,12 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 @SuppressWarnings("unused")
 public class ExecutionPlanJSONGenerator implements ExecutionPlanUtil.ExecutionPlanJSONGenerator {
 
-	@Override
-	public String getExecutionPlan(Plan plan) {
-		Optimizer opt = new Optimizer(
-				new DataStatistics(),
-				new DefaultCostEstimator(),
-				new Configuration());
-		OptimizedPlan optPlan = opt.compile(plan);
-		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
-	}
+    @Override
+    public String getExecutionPlan(Plan plan) {
+        Optimizer opt =
+                new Optimizer(
+                        new DataStatistics(), new DefaultCostEstimator(), new Configuration());
+        OptimizedPlan optPlan = opt.compile(plan);
+        return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
+    }
 }

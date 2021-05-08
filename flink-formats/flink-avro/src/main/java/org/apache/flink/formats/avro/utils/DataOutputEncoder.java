@@ -25,154 +25,151 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * An {@link Encoder} that writes data to a {@link DataOutput}.
- */
+/** An {@link Encoder} that writes data to a {@link DataOutput}. */
 public final class DataOutputEncoder extends Encoder {
 
-	private DataOutput out;
+    private DataOutput out;
 
-	public void setOut(DataOutput out) {
-		this.out = out;
-	}
+    public void setOut(DataOutput out) {
+        this.out = out;
+    }
 
-	@Override
-	public void flush() throws IOException {}
+    @Override
+    public void flush() throws IOException {}
 
-	// --------------------------------------------------------------------------------------------
-	// primitives
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // primitives
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void writeNull() {}
+    @Override
+    public void writeNull() {}
 
-	@Override
-	public void writeBoolean(boolean b) throws IOException {
-		out.writeBoolean(b);
-	}
+    @Override
+    public void writeBoolean(boolean b) throws IOException {
+        out.writeBoolean(b);
+    }
 
-	@Override
-	public void writeInt(int n) throws IOException {
-		out.writeInt(n);
-	}
+    @Override
+    public void writeInt(int n) throws IOException {
+        out.writeInt(n);
+    }
 
-	@Override
-	public void writeLong(long n) throws IOException {
-		out.writeLong(n);
-	}
+    @Override
+    public void writeLong(long n) throws IOException {
+        out.writeLong(n);
+    }
 
-	@Override
-	public void writeFloat(float f) throws IOException {
-		out.writeFloat(f);
-	}
+    @Override
+    public void writeFloat(float f) throws IOException {
+        out.writeFloat(f);
+    }
 
-	@Override
-	public void writeDouble(double d) throws IOException {
-		out.writeDouble(d);
-	}
+    @Override
+    public void writeDouble(double d) throws IOException {
+        out.writeDouble(d);
+    }
 
-	@Override
-	public void writeEnum(int e) throws IOException {
-		out.writeInt(e);
-	}
+    @Override
+    public void writeEnum(int e) throws IOException {
+        out.writeInt(e);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// bytes
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // bytes
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void writeFixed(byte[] bytes, int start, int len) throws IOException {
-		out.write(bytes, start, len);
-	}
+    @Override
+    public void writeFixed(byte[] bytes, int start, int len) throws IOException {
+        out.write(bytes, start, len);
+    }
 
-	@Override
-	public void writeBytes(byte[] bytes, int start, int len) throws IOException {
-		out.writeInt(len);
-		if (len > 0) {
-			out.write(bytes, start, len);
-		}
-	}
+    @Override
+    public void writeBytes(byte[] bytes, int start, int len) throws IOException {
+        out.writeInt(len);
+        if (len > 0) {
+            out.write(bytes, start, len);
+        }
+    }
 
-	@Override
-	public void writeBytes(ByteBuffer bytes) throws IOException {
-		int num = bytes.remaining();
-		out.writeInt(num);
+    @Override
+    public void writeBytes(ByteBuffer bytes) throws IOException {
+        int num = bytes.remaining();
+        out.writeInt(num);
 
-		if (num > 0) {
-			writeFixed(bytes);
-		}
-	}
+        if (num > 0) {
+            writeFixed(bytes);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// strings
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // strings
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void writeString(String str) throws IOException {
-		byte[] bytes = Utf8.getBytesFor(str);
-		writeBytes(bytes, 0, bytes.length);
-	}
+    @Override
+    public void writeString(String str) throws IOException {
+        byte[] bytes = Utf8.getBytesFor(str);
+        writeBytes(bytes, 0, bytes.length);
+    }
 
-	@Override
-	public void writeString(Utf8 utf8) throws IOException {
-		writeBytes(utf8.getBytes(), 0, utf8.getByteLength());
+    @Override
+    public void writeString(Utf8 utf8) throws IOException {
+        writeBytes(utf8.getBytes(), 0, utf8.getByteLength());
+    }
 
-	}
+    // --------------------------------------------------------------------------------------------
+    // collection types
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	// collection types
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public void writeArrayStart() {}
 
-	@Override
-	public void writeArrayStart() {}
+    @Override
+    public void setItemCount(long itemCount) throws IOException {
+        if (itemCount > 0) {
+            writeVarLongCount(out, itemCount);
+        }
+    }
 
-	@Override
-	public void setItemCount(long itemCount) throws IOException {
-		if (itemCount > 0) {
-			writeVarLongCount(out, itemCount);
-		}
-	}
+    @Override
+    public void startItem() {}
 
-	@Override
-	public void startItem() {}
+    @Override
+    public void writeArrayEnd() throws IOException {
+        // write a single byte 0, shortcut for a var-length long of 0
+        out.write(0);
+    }
 
-	@Override
-	public void writeArrayEnd() throws IOException {
-		// write a single byte 0, shortcut for a var-length long of 0
-		out.write(0);
-	}
+    @Override
+    public void writeMapStart() {}
 
-	@Override
-	public void writeMapStart() {}
+    @Override
+    public void writeMapEnd() throws IOException {
+        // write a single byte 0, shortcut for a var-length long of 0
+        out.write(0);
+    }
 
-	@Override
-	public void writeMapEnd() throws IOException {
-		// write a single byte 0, shortcut for a var-length long of 0
-		out.write(0);
-	}
+    // --------------------------------------------------------------------------------------------
+    // union
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	// union
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public void writeIndex(int unionIndex) throws IOException {
+        out.writeInt(unionIndex);
+    }
 
-	@Override
-	public void writeIndex(int unionIndex) throws IOException {
-		out.writeInt(unionIndex);
-	}
+    // --------------------------------------------------------------------------------------------
+    // utils
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	// utils
-	// --------------------------------------------------------------------------------------------
+    public static void writeVarLongCount(DataOutput out, long val) throws IOException {
+        if (val < 0) {
+            throw new IOException("Illegal count (must be non-negative): " + val);
+        }
 
-	public static void writeVarLongCount(DataOutput out, long val) throws IOException {
-		if (val < 0) {
-			throw new IOException("Illegal count (must be non-negative): " + val);
-		}
-
-		while ((val & ~0x7FL) != 0) {
-			out.write(((int) val) | 0x80);
-			val >>>= 7;
-		}
-		out.write((int) val);
-	}
+        while ((val & ~0x7FL) != 0) {
+            out.write(((int) val) | 0x80);
+            val >>>= 7;
+        }
+        out.write((int) val);
+    }
 }

@@ -20,107 +20,110 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.streaming.util.graph.StreamGraphUtils;
 
 import java.util.Collection;
 
+import static org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils.validateUseCaseWeightsNotConflict;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A base class for all {@link TransformationTranslator TransformationTranslators} who translate
- * {@link Transformation Transformations} that have a single operator in their runtime implementation.
- * These include most of the currently supported operations.
+ * {@link Transformation Transformations} that have a single operator in their runtime
+ * implementation. These include most of the currently supported operations.
  *
  * @param <OUT> The type of the output elements of the transformation being translated.
  * @param <T> The type of transformation being translated.
  */
 @Internal
 public abstract class SimpleTransformationTranslator<OUT, T extends Transformation<OUT>>
-		implements TransformationTranslator<OUT, T> {
+        implements TransformationTranslator<OUT, T> {
 
-	@Override
-	public Collection<Integer> translateForBatch(final T transformation, final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    @Override
+    public final Collection<Integer> translateForBatch(
+            final T transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		final Collection<Integer> transformedIds =
-				translateForBatchInternal(transformation, context);
-		configure(transformation, context);
+        final Collection<Integer> transformedIds =
+                translateForBatchInternal(transformation, context);
+        configure(transformation, context);
 
-		return transformedIds;
-	}
+        return transformedIds;
+    }
 
-	@Override
-	public Collection<Integer> translateForStreaming(final T transformation, final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    @Override
+    public final Collection<Integer> translateForStreaming(
+            final T transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		final Collection<Integer> transformedIds =
-				translateForStreamingInternal(transformation, context);
-		configure(transformation, context);
+        final Collection<Integer> transformedIds =
+                translateForStreamingInternal(transformation, context);
+        configure(transformation, context);
 
-		return transformedIds;
-	}
+        return transformedIds;
+    }
 
-	/**
-	 * Translates a given {@link Transformation} to its runtime implementation for BATCH-style execution.
-	 *
-	 * @param transformation The transformation to be translated.
-	 * @param context The translation context.
-	 * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph corresponding
-	 * to this transformation. These will be the nodes that a potential following transformation will need to
-	 * connect to.
-	 */
-	protected abstract Collection<Integer> translateForBatchInternal(final T transformation, final Context context);
+    /**
+     * Translates a given {@link Transformation} to its runtime implementation for BATCH-style
+     * execution.
+     *
+     * @param transformation The transformation to be translated.
+     * @param context The translation context.
+     * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph
+     *     corresponding to this transformation. These will be the nodes that a potential following
+     *     transformation will need to connect to.
+     */
+    protected abstract Collection<Integer> translateForBatchInternal(
+            final T transformation, final Context context);
 
-	/**
-	 * Translates a given {@link Transformation} to its runtime implementation for STREAMING-style execution.
-	 *
-	 * @param transformation The transformation to be translated.
-	 * @param context The translation context.
-	 * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph corresponding
-	 * to this transformation. These will be the nodes that a potential following transformation will need to
-	 * connect to.
-	 */
-	protected abstract Collection<Integer> translateForStreamingInternal(final T transformation, final Context context);
+    /**
+     * Translates a given {@link Transformation} to its runtime implementation for STREAMING-style
+     * execution.
+     *
+     * @param transformation The transformation to be translated.
+     * @param context The translation context.
+     * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph
+     *     corresponding to this transformation. These will be the nodes that a potential following
+     *     transformation will need to connect to.
+     */
+    protected abstract Collection<Integer> translateForStreamingInternal(
+            final T transformation, final Context context);
 
-	private void configure(final T transformation, final Context context) {
-		final StreamGraph streamGraph = context.getStreamGraph();
-		final int transformationId = transformation.getId();
+    private void configure(final T transformation, final Context context) {
+        final StreamGraph streamGraph = context.getStreamGraph();
+        final int transformationId = transformation.getId();
 
-		if (transformation.getBufferTimeout() >= 0) {
-			streamGraph.setBufferTimeout(transformationId, transformation.getBufferTimeout());
-		} else {
-			streamGraph.setBufferTimeout(transformationId, context.getDefaultBufferTimeout());
-		}
+        StreamGraphUtils.configureBufferTimeout(
+                streamGraph, transformationId, transformation, context.getDefaultBufferTimeout());
 
-		if (transformation.getUid() != null) {
-			streamGraph.setTransformationUID(transformationId, transformation.getUid());
-		}
-		if (transformation.getUserProvidedNodeHash() != null) {
-			streamGraph.setTransformationUserHash(transformationId, transformation.getUserProvidedNodeHash());
-		}
+        if (transformation.getUid() != null) {
+            streamGraph.setTransformationUID(transformationId, transformation.getUid());
+        }
+        if (transformation.getUserProvidedNodeHash() != null) {
+            streamGraph.setTransformationUserHash(
+                    transformationId, transformation.getUserProvidedNodeHash());
+        }
 
-		if (!streamGraph.getExecutionConfig().hasAutoGeneratedUIDsEnabled()) {
-			if (transformation instanceof PhysicalTransformation
-					&& transformation.getUserProvidedNodeHash() == null
-					&& transformation.getUid() == null) {
-				throw new IllegalStateException("Auto generated UIDs have been disabled " +
-						"but no UID or hash has been assigned to operator " + transformation.getName());
-			}
-		}
+        StreamGraphUtils.validateTransformationUid(streamGraph, transformation);
 
-		if (transformation.getMinResources() != null && transformation.getPreferredResources() != null) {
-			streamGraph.setResources(transformationId, transformation.getMinResources(), transformation.getPreferredResources());
-		}
+        if (transformation.getMinResources() != null
+                && transformation.getPreferredResources() != null) {
+            streamGraph.setResources(
+                    transformationId,
+                    transformation.getMinResources(),
+                    transformation.getPreferredResources());
+        }
 
-		final StreamNode streamNode = streamGraph.getStreamNode(transformationId);
-		if (streamNode != null
-				&& streamNode.getManagedMemoryOperatorScopeUseCaseWeights().isEmpty()
-				&& streamNode.getManagedMemorySlotScopeUseCases().isEmpty()) {
-			streamNode.setManagedMemoryUseCaseWeights(
-					transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
-					transformation.getManagedMemorySlotScopeUseCases());
-		}
-	}
+        final StreamNode streamNode = streamGraph.getStreamNode(transformationId);
+        if (streamNode != null) {
+            validateUseCaseWeightsNotConflict(
+                    streamNode.getManagedMemoryOperatorScopeUseCaseWeights(),
+                    transformation.getManagedMemoryOperatorScopeUseCaseWeights());
+            streamNode.setManagedMemoryUseCaseWeights(
+                    transformation.getManagedMemoryOperatorScopeUseCaseWeights(),
+                    transformation.getManagedMemorySlotScopeUseCases());
+        }
+    }
 }

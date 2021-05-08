@@ -18,107 +18,42 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.util.ArrayList;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.AbstractID;
+
 import java.util.List;
 
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Preconditions;
-
 /**
- * A Co-location group is a group of JobVertices, where the <i>i-th</i> subtask of one vertex
- * has to be executed on the same TaskManager as the <i>i-th</i> subtask of all
- * other JobVertices in the same group.
- * 
- * <p>The co-location group is used for example to make sure that the i-th subtasks for iteration
- * head and iteration tail are scheduled to the same TaskManager.</p>
+ * {@code CoLocationGroup} refers to a list of {@link JobVertex} instances, where the <i>i-th</i>
+ * subtask of one vertex has to be executed on the same {@code TaskManager} as the <i>i-th</i>
+ * subtask of all other {@code JobVertex} instances in the same group.
+ *
+ * <p>The co-location group is used to make sure that the i-th subtasks for iteration head and
+ * iteration tail are scheduled on the same TaskManager.
  */
-public class CoLocationGroup implements java.io.Serializable {
-	
-	private static final long serialVersionUID = -2605819490401895297L;
+public interface CoLocationGroup {
 
+    /**
+     * Returns the unique identifier describing this co-location constraint as a group.
+     *
+     * @return The group's identifier.
+     */
+    AbstractID getId();
 
-	/** The ID that describes the slot co-location-constraint as a group */ 
-	private final AbstractID id = new AbstractID();
-	
-	/** The vertices participating in the co-location group */
-	private final List<JobVertex> vertices = new ArrayList<JobVertex>();
-	
-	/** The constraints, which hold the shared slots for the co-located operators */
-	private transient ArrayList<CoLocationConstraint> constraints;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public CoLocationGroup() {}
-	
-	public CoLocationGroup(JobVertex... vertices) {
-		for (JobVertex v : vertices) {
-			this.vertices.add(v);
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public void addVertex(JobVertex vertex) {
-		Preconditions.checkNotNull(vertex);
-		this.vertices.add(vertex);
-	}
+    /**
+     * Returns the IDs of the {@link JobVertex} instances participating in this group.
+     *
+     * @return The group's members represented by their {@link JobVertexID}s.
+     */
+    List<JobVertexID> getVertexIds();
 
-	public List<JobVertex> getVertices() {
-		return vertices;
-	}
-	
-	public void mergeInto(CoLocationGroup other) {
-		Preconditions.checkNotNull(other);
-		
-		for (JobVertex v : this.vertices) {
-			v.updateCoLocationGroup(other);
-		}
-		
-		// move vertex membership
-		other.vertices.addAll(this.vertices);
-		this.vertices.clear();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public CoLocationConstraint getLocationConstraint(int subtask) {
-		ensureConstraints(subtask + 1);
-		return constraints.get(subtask);
-	}
-	
-	private void ensureConstraints(int num) {
-		if (constraints == null) {
-			constraints = new ArrayList<CoLocationConstraint>(num);
-		} else {
-			constraints.ensureCapacity(num);
-		}
-		
-		if (num > constraints.size()) {
-			constraints.ensureCapacity(num);
-			for (int i = constraints.size(); i < num; i++) {
-				constraints.add(new CoLocationConstraint(this));
-			}
-		}
-	}
-
-	/**
-	 * Gets the ID that identifies this co-location group.
-	 * 
-	 * @return The ID that identifies this co-location group.
-	 */
-	public AbstractID getId() {
-		return id;
-	}
-
-	/**
-	 * Resets this co-location group, meaning that future calls to {@link #getLocationConstraint(int)}
-	 * will give out new CoLocationConstraints.
-	 * 
-	 * <p>This method can only be called when no tasks from any of the CoLocationConstraints are
-	 * executed any more.</p>
-	 */
-	public void resetConstraints() {
-		this.constraints.clear();
-	}
+    /**
+     * Returns the {@link CoLocationConstraint} for a specific {@code subTaskIndex}.
+     *
+     * @param subTaskIndex The index of the subtasks for which a {@code CoLocationConstraint} shall
+     *     be returned.
+     * @return The corresponding {@code CoLocationConstraint} instance.
+     */
+    CoLocationConstraint getLocationConstraint(final int subTaskIndex);
 }

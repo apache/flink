@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -31,11 +32,13 @@ import java.util.List;
 @Experimental
 public interface Committer<CommT> extends AutoCloseable {
 
-	/**
-	 * Commit the given list of {@link CommT}.
-	 * @param committables A list of information needed to commit data staged by the sink.
-	 * @return A list of {@link CommT} needed to re-commit, which is needed in case we implement a "commit-with-retry" pattern.
-	 * @throws Exception if the commit operation fail and do not want to retry any more.
-	 */
-	List<CommT> commit(List<CommT> committables) throws Exception;
+    /**
+     * Commit the given list of {@link CommT}.
+     *
+     * @param committables A list of information needed to commit data staged by the sink.
+     * @return A list of {@link CommT} needed to re-commit, which is needed in case we implement a
+     *     "commit-with-retry" pattern.
+     * @throws IOException if the commit operation fail and do not want to retry any more.
+     */
+    List<CommT> commit(List<CommT> committables) throws IOException;
 }

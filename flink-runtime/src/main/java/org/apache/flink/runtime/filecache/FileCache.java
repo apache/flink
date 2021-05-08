@@ -53,306 +53,318 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The FileCache is used to access registered cache files when a task is deployed.
  *
- * <p>Files and zipped directories are retrieved from the {@link PermanentBlobService}. The life-cycle of these files
- * is managed by the blob-service.
+ * <p>Files and zipped directories are retrieved from the {@link PermanentBlobService}. The
+ * life-cycle of these files is managed by the blob-service.
  *
- * <p>Retrieved directories will be expanded in "{@code <system-tmp-dir>/tmp_<jobID>/}"
- * and deleted when the task is unregistered after a 5 second delay, unless a new task requests the file in the meantime.
+ * <p>Retrieved directories will be expanded in "{@code <system-tmp-dir>/tmp_<jobID>/}" and deleted
+ * when the task is unregistered after a 5 second delay, unless a new task requests the file in the
+ * meantime.
  */
 public class FileCache {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileCache.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileCache.class);
 
-	/** cache-wide lock to ensure consistency. copies are not done under this lock. */
-	private final Object lock = new Object();
+    /** cache-wide lock to ensure consistency. copies are not done under this lock. */
+    private final Object lock = new Object();
 
-	private final Map<JobID, Map<String, Future<Path>>> entries;
+    private final Map<JobID, Map<String, Future<Path>>> entries;
 
-	private final Map<JobID, Set<ExecutionAttemptID>> jobRefHolders;
+    private final Map<JobID, Set<ExecutionAttemptID>> jobRefHolders;
 
-	private final ScheduledExecutorService executorService;
+    private final ScheduledExecutorService executorService;
 
-	private final File[] storageDirectories;
+    private final File[] storageDirectories;
 
-	private final Thread shutdownHook;
+    private final Thread shutdownHook;
 
-	private int nextDirectory;
+    private int nextDirectory;
 
-	private final PermanentBlobService blobService;
+    private final PermanentBlobService blobService;
 
-	private final long cleanupInterval; //in milliseconds
+    private final long cleanupInterval; // in milliseconds
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public FileCache(String[] tempDirectories, PermanentBlobService blobService) throws IOException {
-		this (tempDirectories, blobService, Executors.newScheduledThreadPool(10,
-			new ExecutorThreadFactory("flink-file-cache")), 5000);
-	}
+    public FileCache(String[] tempDirectories, PermanentBlobService blobService)
+            throws IOException {
+        this(
+                tempDirectories,
+                blobService,
+                Executors.newScheduledThreadPool(10, new ExecutorThreadFactory("flink-file-cache")),
+                5000);
+    }
 
-	@VisibleForTesting
-	FileCache(String[] tempDirectories, PermanentBlobService blobService,
-		ScheduledExecutorService executorService, long cleanupInterval) throws IOException {
+    @VisibleForTesting
+    FileCache(
+            String[] tempDirectories,
+            PermanentBlobService blobService,
+            ScheduledExecutorService executorService,
+            long cleanupInterval)
+            throws IOException {
 
-		Preconditions.checkNotNull(tempDirectories);
-		this.cleanupInterval = cleanupInterval;
+        Preconditions.checkNotNull(tempDirectories);
+        this.cleanupInterval = cleanupInterval;
 
-		storageDirectories = new File[tempDirectories.length];
+        storageDirectories = new File[tempDirectories.length];
 
-		for (int i = 0; i < tempDirectories.length; i++) {
-			String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
-			storageDirectories[i] = new File(tempDirectories[i], cacheDirName);
-			String path = storageDirectories[i].getAbsolutePath();
+        for (int i = 0; i < tempDirectories.length; i++) {
+            String cacheDirName = "flink-dist-cache-" + UUID.randomUUID().toString();
+            storageDirectories[i] = new File(tempDirectories[i], cacheDirName);
+            String path = storageDirectories[i].getAbsolutePath();
 
-			if (storageDirectories[i].mkdirs()) {
-				LOG.info("User file cache uses directory " + path);
-			} else {
-				LOG.error("User file cache cannot create directory " + path);
-				// delete all other directories we created so far
-				for (int k = 0; k < i; k++) {
-					if (!storageDirectories[k].delete()) {
-						LOG.warn("User file cache cannot remove prior directory " +
-								storageDirectories[k].getAbsolutePath());
-					}
-				}
-				throw new IOException("File cache cannot create temp storage directory: " + path);
-			}
-		}
+            if (storageDirectories[i].mkdirs()) {
+                LOG.info("User file cache uses directory " + path);
+            } else {
+                LOG.error("User file cache cannot create directory " + path);
+                // delete all other directories we created so far
+                for (int k = 0; k < i; k++) {
+                    if (!storageDirectories[k].delete()) {
+                        LOG.warn(
+                                "User file cache cannot remove prior directory "
+                                        + storageDirectories[k].getAbsolutePath());
+                    }
+                }
+                throw new IOException("File cache cannot create temp storage directory: " + path);
+            }
+        }
 
-		this.shutdownHook = createShutdownHook(this, LOG);
+        this.shutdownHook = createShutdownHook(this, LOG);
 
-		this.entries = new HashMap<>();
-		this.jobRefHolders = new HashMap<>();
-		this.executorService = executorService;
-		this.blobService = blobService;
-	}
+        this.entries = new HashMap<>();
+        this.jobRefHolders = new HashMap<>();
+        this.executorService = executorService;
+        this.blobService = blobService;
+    }
 
-	/**
-	 * Shuts down the file cache by cancelling all.
-	 */
-	public void shutdown() {
-		synchronized (lock) {
-			// first shutdown the thread pool
-			ScheduledExecutorService es = this.executorService;
-			if (es != null) {
-				es.shutdown();
-				try {
-					es.awaitTermination(cleanupInterval, TimeUnit.MILLISECONDS);
-				}
-				catch (InterruptedException e) {
-					// may happen
-				}
-			}
+    /** Shuts down the file cache by cancelling all. */
+    public void shutdown() {
+        synchronized (lock) {
+            // first shutdown the thread pool
+            ScheduledExecutorService es = this.executorService;
+            if (es != null) {
+                es.shutdown();
+                try {
+                    es.awaitTermination(cleanupInterval, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    // may happen
+                }
+            }
 
-			entries.clear();
-			jobRefHolders.clear();
+            entries.clear();
+            jobRefHolders.clear();
 
-			// clean up the all storage directories
-			for (File dir : storageDirectories) {
-				try {
-					FileUtils.deleteDirectory(dir);
-					LOG.info("removed file cache directory {}", dir.getAbsolutePath());
-				}
-				catch (IOException e) {
-					LOG.error("File cache could not properly clean up storage directory: {}", dir.getAbsolutePath(), e);
-				}
-			}
+            // clean up the all storage directories
+            for (File dir : storageDirectories) {
+                try {
+                    FileUtils.deleteDirectory(dir);
+                    LOG.info("removed file cache directory {}", dir.getAbsolutePath());
+                } catch (IOException e) {
+                    LOG.error(
+                            "File cache could not properly clean up storage directory: {}",
+                            dir.getAbsolutePath(),
+                            e);
+                }
+            }
 
-			// Remove shutdown hook to prevent resource leaks
-			ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
-		}
-	}
+            // Remove shutdown hook to prevent resource leaks
+            ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * If the file doesn't exists locally, retrieve the file from the blob-service.
-	 *
-	 * @param entry The cache entry descriptor (path, executable flag)
-	 * @param jobID The ID of the job for which the file is copied.
-	 * @return The handle to the task that copies the file.
-	 */
-	public Future<Path> createTmpFile(String name, DistributedCacheEntry entry, JobID jobID, ExecutionAttemptID executionId) throws Exception {
-		synchronized (lock) {
-			Map<String, Future<Path>> jobEntries = entries.computeIfAbsent(jobID, k -> new HashMap<>());
+    /**
+     * If the file doesn't exists locally, retrieve the file from the blob-service.
+     *
+     * @param entry The cache entry descriptor (path, executable flag)
+     * @param jobID The ID of the job for which the file is copied.
+     * @return The handle to the task that copies the file.
+     */
+    public Future<Path> createTmpFile(
+            String name, DistributedCacheEntry entry, JobID jobID, ExecutionAttemptID executionId)
+            throws Exception {
+        synchronized (lock) {
+            Map<String, Future<Path>> jobEntries =
+                    entries.computeIfAbsent(jobID, k -> new HashMap<>());
 
-			// register reference holder
-			final Set<ExecutionAttemptID> refHolders = jobRefHolders.computeIfAbsent(jobID, id -> new HashSet<>());
-			refHolders.add(executionId);
+            // register reference holder
+            final Set<ExecutionAttemptID> refHolders =
+                    jobRefHolders.computeIfAbsent(jobID, id -> new HashSet<>());
+            refHolders.add(executionId);
 
-			Future<Path> fileEntry = jobEntries.get(name);
-			if (fileEntry != null) {
-				// file is already in the cache. return a future that
-				// immediately returns the file
-				return fileEntry;
-			} else {
-				// need to copy the file
+            Future<Path> fileEntry = jobEntries.get(name);
+            if (fileEntry != null) {
+                // file is already in the cache. return a future that
+                // immediately returns the file
+                return fileEntry;
+            } else {
+                // need to copy the file
 
-				// create the target path
-				File tempDirToUse = new File(storageDirectories[nextDirectory++], jobID.toString());
-				if (nextDirectory >= storageDirectories.length) {
-					nextDirectory = 0;
-				}
+                // create the target path
+                File tempDirToUse = new File(storageDirectories[nextDirectory++], jobID.toString());
+                if (nextDirectory >= storageDirectories.length) {
+                    nextDirectory = 0;
+                }
 
-				// kick off the copying
-				Callable<Path> cp;
-				if (entry.blobKey != null) {
-					cp = new CopyFromBlobProcess(entry, jobID, blobService, new Path(tempDirToUse.getAbsolutePath()));
-				} else {
-					cp = new CopyFromDFSProcess(entry, new Path(tempDirToUse.getAbsolutePath()));
-				}
-				FutureTask<Path> copyTask = new FutureTask<>(cp);
-				executorService.submit(copyTask);
+                // kick off the copying
+                Callable<Path> cp;
+                if (entry.blobKey != null) {
+                    cp =
+                            new CopyFromBlobProcess(
+                                    entry,
+                                    jobID,
+                                    blobService,
+                                    new Path(tempDirToUse.getAbsolutePath()));
+                } else {
+                    cp = new CopyFromDFSProcess(entry, new Path(tempDirToUse.getAbsolutePath()));
+                }
+                FutureTask<Path> copyTask = new FutureTask<>(cp);
+                executorService.submit(copyTask);
 
-				// store our entry
-				jobEntries.put(name, copyTask);
+                // store our entry
+                jobEntries.put(name, copyTask);
 
-				return copyTask;
-			}
-		}
-	}
+                return copyTask;
+            }
+        }
+    }
 
-	private static Thread createShutdownHook(final FileCache cache, final Logger logger) {
+    private static Thread createShutdownHook(final FileCache cache, final Logger logger) {
 
-		return ShutdownHookUtil.addShutdownHook(
-			cache::shutdown,
-			FileCache.class.getSimpleName(),
-			logger
-		);
-	}
+        return ShutdownHookUtil.addShutdownHook(
+                cache::shutdown, FileCache.class.getSimpleName(), logger);
+    }
 
-	public void releaseJob(JobID jobId, ExecutionAttemptID executionId) {
-		checkNotNull(jobId);
+    public void releaseJob(JobID jobId, ExecutionAttemptID executionId) {
+        checkNotNull(jobId);
 
-		synchronized (lock) {
-			Set<ExecutionAttemptID> jobRefCounter = jobRefHolders.get(jobId);
+        synchronized (lock) {
+            Set<ExecutionAttemptID> jobRefCounter = jobRefHolders.get(jobId);
 
-			if (jobRefCounter == null || jobRefCounter.isEmpty()) {
-				return;
-			}
+            if (jobRefCounter == null || jobRefCounter.isEmpty()) {
+                return;
+            }
 
-			jobRefCounter.remove(executionId);
-			if (jobRefCounter.isEmpty()) {
-				executorService.schedule(new DeleteProcess(jobId), cleanupInterval, TimeUnit.MILLISECONDS);
-			}
-		}
-	}
+            jobRefCounter.remove(executionId);
+            if (jobRefCounter.isEmpty()) {
+                executorService.schedule(
+                        new DeleteProcess(jobId), cleanupInterval, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  background processes
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  background processes
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Asynchronous file copy process from blob server.
-	 */
-	private static class CopyFromBlobProcess implements Callable<Path> {
+    /** Asynchronous file copy process from blob server. */
+    private static class CopyFromBlobProcess implements Callable<Path> {
 
-		private final PermanentBlobKey blobKey;
-		private final Path target;
-		private final boolean isDirectory;
-		private final boolean isExecutable;
-		private final JobID jobID;
-		private final PermanentBlobService blobService;
+        private final PermanentBlobKey blobKey;
+        private final Path target;
+        private final boolean isDirectory;
+        private final boolean isExecutable;
+        private final JobID jobID;
+        private final PermanentBlobService blobService;
 
-		CopyFromBlobProcess(DistributedCacheEntry e, JobID jobID, PermanentBlobService blobService, Path target) throws Exception {
-				this.isExecutable = e.isExecutable;
-				this.isDirectory = e.isZipped;
-				this.jobID = jobID;
-				this.blobService = blobService;
-				this.blobKey = InstantiationUtil.deserializeObject(e.blobKey, Thread.currentThread().getContextClassLoader());
-				this.target = target;
-		}
+        CopyFromBlobProcess(
+                DistributedCacheEntry e, JobID jobID, PermanentBlobService blobService, Path target)
+                throws Exception {
+            this.isExecutable = e.isExecutable;
+            this.isDirectory = e.isZipped;
+            this.jobID = jobID;
+            this.blobService = blobService;
+            this.blobKey =
+                    InstantiationUtil.deserializeObject(
+                            e.blobKey, Thread.currentThread().getContextClassLoader());
+            this.target = target;
+        }
 
-		@Override
-		public Path call() throws IOException {
-			final File file = blobService.getFile(jobID, blobKey);
+        @Override
+        public Path call() throws IOException {
+            final File file = blobService.getFile(jobID, blobKey);
 
-			if (isDirectory) {
-				Path directory = FileUtils.expandDirectory(new Path(file.getAbsolutePath()), target);
-				return directory;
-			} else {
-				//noinspection ResultOfMethodCallIgnored
-				file.setExecutable(isExecutable);
-				return Path.fromLocalFile(file);
-			}
+            if (isDirectory) {
+                Path directory =
+                        FileUtils.expandDirectory(new Path(file.getAbsolutePath()), target);
+                return directory;
+            } else {
+                //noinspection ResultOfMethodCallIgnored
+                file.setExecutable(isExecutable);
+                return Path.fromLocalFile(file);
+            }
+        }
+    }
 
-		}
-	}
+    /** Asynchronous file copy process. */
+    private static class CopyFromDFSProcess implements Callable<Path> {
 
-	/**
-	 * Asynchronous file copy process.
-	 */
-	private static class CopyFromDFSProcess implements Callable<Path> {
+        private final Path filePath;
+        private final Path cachedPath;
+        private final boolean executable;
+        private final boolean isZipped;
 
-		private final Path filePath;
-		private final Path cachedPath;
-		private final boolean executable;
-		private final boolean isZipped;
+        public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
+            this.filePath = new Path(e.filePath);
+            this.executable = e.isExecutable;
+            this.isZipped = e.isZipped;
 
-		public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
-			this.filePath = new Path(e.filePath);
-			this.executable = e.isExecutable;
-			this.isZipped = e.isZipped;
+            String sourceFile = e.filePath;
+            int posOfSep = sourceFile.lastIndexOf("/");
+            if (posOfSep > 0) {
+                sourceFile = sourceFile.substring(posOfSep + 1);
+            }
 
-			String sourceFile = e.filePath;
-			int posOfSep = sourceFile.lastIndexOf("/");
-			if (posOfSep > 0) {
-				sourceFile = sourceFile.substring(posOfSep + 1);
-			}
+            this.cachedPath = new Path(cachedPath, sourceFile);
+        }
 
-			this.cachedPath = new Path(cachedPath, sourceFile);
+        @Override
+        public Path call() throws IOException {
+            // let exceptions propagate. we can retrieve them later from
+            // the future and report them upon access to the result
+            FileUtils.copy(filePath, cachedPath, this.executable);
+            if (isZipped) {
+                return FileUtils.expandDirectory(cachedPath, cachedPath.getParent());
+            }
+            return cachedPath;
+        }
+    }
 
-		}
+    /** If no task is using this file after 5 seconds, clear it. */
+    @VisibleForTesting
+    class DeleteProcess implements Runnable {
 
-		@Override
-		public Path call() throws IOException {
-			// let exceptions propagate. we can retrieve them later from
-			// the future and report them upon access to the result
-			FileUtils.copy(filePath, cachedPath, this.executable);
-			if (isZipped) {
-				return FileUtils.expandDirectory(cachedPath, cachedPath.getParent());
-			}
-			return cachedPath;
-		}
-	}
+        private final JobID jobID;
 
-	/**
-	 * If no task is using this file after 5 seconds, clear it.
-	 */
-	@VisibleForTesting
-	class DeleteProcess implements Runnable {
+        DeleteProcess(JobID jobID) {
+            this.jobID = jobID;
+        }
 
-		private final JobID jobID;
+        @Override
+        public void run() {
+            try {
+                synchronized (lock) {
+                    Set<ExecutionAttemptID> jobRefs = jobRefHolders.get(jobID);
+                    if (jobRefs != null && jobRefs.isEmpty()) {
+                        // abort the copy
+                        for (Future<Path> fileFuture : entries.get(jobID).values()) {
+                            fileFuture.cancel(true);
+                        }
 
-		DeleteProcess(JobID jobID) {
-			this.jobID = jobID;
-		}
+                        // remove job specific entries in maps
+                        entries.remove(jobID);
+                        jobRefHolders.remove(jobID);
 
-		@Override
-		public void run() {
-			try {
-				synchronized (lock) {
-
-					Set<ExecutionAttemptID> jobRefs = jobRefHolders.get(jobID);
-					if (jobRefs != null && jobRefs.isEmpty()) {
-						// abort the copy
-						for (Future<Path> fileFuture : entries.get(jobID).values()) {
-							fileFuture.cancel(true);
-						}
-
-						//remove job specific entries in maps
-						entries.remove(jobID);
-						jobRefHolders.remove(jobID);
-
-						// remove the job wide temp directories
-						for (File storageDirectory : storageDirectories) {
-							File tempDir = new File(storageDirectory, jobID.toString());
-							FileUtils.deleteDirectory(tempDir);
-						}
-					}
-				}
-			} catch (IOException e) {
-				LOG.error("Could not delete file from local file cache.", e);
-			}
-		}
-	}
+                        // remove the job wide temp directories
+                        for (File storageDirectory : storageDirectories) {
+                            File tempDir = new File(storageDirectory, jobID.toString());
+                            FileUtils.deleteDirectory(tempDir);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                LOG.error("Could not delete file from local file cache.", e);
+            }
+        }
+    }
 }

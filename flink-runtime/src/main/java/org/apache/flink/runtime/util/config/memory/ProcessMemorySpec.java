@@ -22,19 +22,17 @@ import org.apache.flink.configuration.MemorySize;
 
 import java.io.Serializable;
 
-/**
- * Common interface for Flink JVM process memory components.
- */
+/** Common interface for Flink JVM process memory components. */
 public interface ProcessMemorySpec extends Serializable {
-	MemorySize getJvmHeapMemorySize();
+    MemorySize getJvmHeapMemorySize();
 
-	MemorySize getJvmDirectMemorySize();
+    MemorySize getJvmDirectMemorySize();
 
-	MemorySize getJvmMetaspaceSize();
+    MemorySize getJvmMetaspaceSize();
 
-	MemorySize getJvmOverheadSize();
+    MemorySize getJvmOverheadSize();
 
-	MemorySize getTotalFlinkMemorySize();
+    MemorySize getTotalFlinkMemorySize();
 
-	MemorySize getTotalProcessMemorySize();
+    MemorySize getTotalProcessMemorySize();
 }

@@ -26,12 +26,13 @@ import java.lang.annotation.Target;
  * Annotation for {@link MetricReporterFactory MetricReporterFactories} that want to maintain
  * backwards-compatibility with existing reflection-based configurations.
  *
- * <p>When a reporter is configured to be used via reflection the annotated factory will be used instead.
+ * <p>When a reporter is configured to be used via reflection the annotated factory will be used
+ * instead.
  *
  * @see InstantiateViaFactory
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface InterceptInstantiationViaReflection {
-	String reporterClassName();
+    String reporterClassName();
 }

@@ -29,43 +29,43 @@ import org.apache.flink.util.OutputTag;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Collecting {@link Output} for {@link StreamRecord}.
- */
+/** Collecting {@link Output} for {@link StreamRecord}. */
 public class CollectorOutput<T> implements Output<StreamRecord<T>> {
 
-	private final List<StreamElement> list;
+    private final List<StreamElement> list;
 
-	public CollectorOutput(List<StreamElement> list) {
-		this.list = list;
-	}
+    public CollectorOutput(List<StreamElement> list) {
+        this.list = list;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		list.add(mark);
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        list.add(mark);
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		list.add(latencyMarker);
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        list.add(latencyMarker);
+    }
 
-	@Override
-	public void collect(StreamRecord<T> record) {
-		try {
-			ClassLoader cl = record.getClass().getClassLoader();
-			T copied = InstantiationUtil.deserializeObject(InstantiationUtil.serializeObject(record.getValue()), cl);
-			list.add(record.copy(copied));
-		} catch (IOException | ClassNotFoundException ex) {
-			throw new RuntimeException("Unable to deserialize record: " + record, ex);
-		}
-	}
+    @Override
+    public void collect(StreamRecord<T> record) {
+        try {
+            ClassLoader cl = record.getClass().getClassLoader();
+            T copied =
+                    InstantiationUtil.deserializeObject(
+                            InstantiationUtil.serializeObject(record.getValue()), cl);
+            list.add(record.copy(copied));
+        } catch (IOException | ClassNotFoundException ex) {
+            throw new RuntimeException("Unable to deserialize record: " + record, ex);
+        }
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		throw new UnsupportedOperationException("Side output not supported for CollectorOutput");
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        throw new UnsupportedOperationException("Side output not supported for CollectorOutput");
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

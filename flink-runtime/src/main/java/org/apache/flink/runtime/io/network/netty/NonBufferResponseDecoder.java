@@ -26,60 +26,55 @@ import java.net.ProtocolException;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 
-/**
- * The decoder for messages other than {@link BufferResponse}.
- */
+/** The decoder for messages other than {@link BufferResponse}. */
 class NonBufferResponseDecoder extends NettyMessageDecoder {
 
-	/** The initial size of the message header accumulation buffer. */
-	private static final int INITIAL_MESSAGE_HEADER_BUFFER_LENGTH = 128;
+    /** The initial size of the message header accumulation buffer. */
+    private static final int INITIAL_MESSAGE_HEADER_BUFFER_LENGTH = 128;
 
-	/** The accumulation buffer of the message. */
-	private ByteBuf messageBuffer;
+    /** The accumulation buffer of the message. */
+    private ByteBuf messageBuffer;
 
-	@Override
-	public void onChannelActive(ChannelHandlerContext ctx) {
-		messageBuffer = ctx.alloc().directBuffer(INITIAL_MESSAGE_HEADER_BUFFER_LENGTH);
-	}
+    @Override
+    public void onChannelActive(ChannelHandlerContext ctx) {
+        messageBuffer = ctx.alloc().directBuffer(INITIAL_MESSAGE_HEADER_BUFFER_LENGTH);
+    }
 
-	@Override
-	void onNewMessageReceived(int msgId, int messageLength) {
-		super.onNewMessageReceived(msgId, messageLength);
-		messageBuffer.clear();
-		ensureBufferCapacity();
-	}
+    @Override
+    void onNewMessageReceived(int msgId, int messageLength) {
+        super.onNewMessageReceived(msgId, messageLength);
+        messageBuffer.clear();
+        ensureBufferCapacity();
+    }
 
-	@Override
-	public DecodingResult onChannelRead(ByteBuf data) throws Exception {
-		ByteBuf fullFrameHeaderBuf = ByteBufUtils.accumulate(
-			messageBuffer,
-			data,
-			messageLength,
-			messageBuffer.readableBytes());
-		if (fullFrameHeaderBuf == null) {
-			return DecodingResult.NOT_FINISHED;
-		}
+    @Override
+    public DecodingResult onChannelRead(ByteBuf data) throws Exception {
+        ByteBuf fullFrameHeaderBuf =
+                ByteBufUtils.accumulate(
+                        messageBuffer, data, messageLength, messageBuffer.readableBytes());
+        if (fullFrameHeaderBuf == null) {
+            return DecodingResult.NOT_FINISHED;
+        }
 
-		switch (msgId) {
-			case ErrorResponse.ID:
-				return DecodingResult.fullMessage(ErrorResponse.readFrom(fullFrameHeaderBuf));
-			default:
-				throw new ProtocolException("Received unknown message from producer: " + msgId);
-		}
-	}
+        switch (msgId) {
+            case ErrorResponse.ID:
+                return DecodingResult.fullMessage(ErrorResponse.readFrom(fullFrameHeaderBuf));
+            default:
+                throw new ProtocolException("Received unknown message from producer: " + msgId);
+        }
+    }
 
-	/**
-	 * Ensures the message header accumulation buffer has enough capacity for
-	 * the current message.
-	 */
-	private void ensureBufferCapacity() {
-		if (messageBuffer.capacity() < messageLength) {
-			messageBuffer.capacity(messageLength);
-		}
-	}
+    /**
+     * Ensures the message header accumulation buffer has enough capacity for the current message.
+     */
+    private void ensureBufferCapacity() {
+        if (messageBuffer.capacity() < messageLength) {
+            messageBuffer.capacity(messageLength);
+        }
+    }
 
-	@Override
-	public void close() {
-		messageBuffer.release();
-	}
+    @Override
+    public void close() {
+        messageBuffer.release();
+    }
 }

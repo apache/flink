@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -209,7 +209,7 @@ under the License.
 			<extension>
 				<groupId>kr.motd.maven</groupId>
 				<artifactId>os-maven-plugin</artifactId>
-				<version>1.5.0.Final</version>
+				<version>1.7.0</version>
 			</extension>
 		</extensions>
 
@@ -227,7 +227,7 @@ under the License.
 						</goals>
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
-							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
+							<testOutputDirectory>${project.basedir}/target/generated-test-sources/</testOutputDirectory>
 						</configuration>
 					</execution>
 				</executions>

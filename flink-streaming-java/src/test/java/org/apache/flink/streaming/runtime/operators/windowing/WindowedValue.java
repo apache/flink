@@ -21,28 +21,28 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * Helper class for emitting a value along with the window information from
- * a {@link org.apache.flink.streaming.api.functions.windowing.WindowFunction}.
+ * Helper class for emitting a value along with the window information from a {@link
+ * org.apache.flink.streaming.api.functions.windowing.WindowFunction}.
  */
 public class WindowedValue<T, W extends Window> {
-	private final T value;
-	private final W window;
+    private final T value;
+    private final W window;
 
-	public WindowedValue(T value, W window) {
-		this.value = value;
-		this.window = window;
-	}
+    public WindowedValue(T value, W window) {
+        this.value = value;
+        this.window = window;
+    }
 
-	public T value() {
-		return value;
-	}
+    public T value() {
+        return value;
+    }
 
-	public W window() {
-		return window;
-	}
+    public W window() {
+        return window;
+    }
 
-	@Override
-	public String toString() {
-		return "WindowedValue(" + value + ", " + window + ")";
-	}
+    @Override
+    public String toString() {
+        return "WindowedValue(" + value + ", " + window + ")";
+    }
 }

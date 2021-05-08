@@ -20,32 +20,33 @@ package org.apache.flink.runtime.util;
 
 import java.util.UUID;
 
-/**
- * Wrapper class for a pair of connection address and leader session ID.
- */
+/** Wrapper class for a pair of connection address and leader session ID. */
 public class LeaderConnectionInfo {
-	private final UUID leaderSessionId;
+    private final UUID leaderSessionId;
 
-	private final String address;
+    private final String address;
 
-	public LeaderConnectionInfo(UUID leaderSessionId, String address) {
-		this.leaderSessionId = leaderSessionId;
-		this.address = address;
-	}
+    public LeaderConnectionInfo(UUID leaderSessionId, String address) {
+        this.leaderSessionId = leaderSessionId;
+        this.address = address;
+    }
 
-	public UUID getLeaderSessionId() {
-		return leaderSessionId;
-	}
+    public UUID getLeaderSessionId() {
+        return leaderSessionId;
+    }
 
-	public String getAddress() {
-		return address;
-	}
+    public String getAddress() {
+        return address;
+    }
 
-	@Override
-	public String toString() {
-		return "LeaderConnectionInfo{" +
-			"leaderSessionId=" + leaderSessionId +
-			", address='" + address + '\'' +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "LeaderConnectionInfo{"
+                + "leaderSessionId="
+                + leaderSessionId
+                + ", address='"
+                + address
+                + '\''
+                + '}';
+    }
 }

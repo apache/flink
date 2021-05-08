@@ -34,102 +34,106 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Tests for {@link StreamFilter}. These test that:
  *
  * <ul>
- *     <li>RichFunction methods are called correctly</li>
- *     <li>Timestamps of processed elements match the input timestamp</li>
- *     <li>Watermarks are correctly forwarded</li>
+ *   <li>RichFunction methods are called correctly
+ *   <li>Timestamps of processed elements match the input timestamp
+ *   <li>Watermarks are correctly forwarded
  * </ul>
  */
 public class StreamFilterTest {
 
-	static class MyFilter implements FilterFunction<Integer> {
-		private static final long serialVersionUID = 1L;
+    static class MyFilter implements FilterFunction<Integer> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public boolean filter(Integer value) throws Exception {
-			return value % 2 == 0;
-		}
-	}
+        @Override
+        public boolean filter(Integer value) throws Exception {
+            return value % 2 == 0;
+        }
+    }
 
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testFilter() throws Exception {
-		StreamFilter<Integer> operator = new StreamFilter<Integer>(new MyFilter());
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFilter() throws Exception {
+        StreamFilter<Integer> operator = new StreamFilter<Integer>(new MyFilter());
 
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
-		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
-		testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
-		testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
-		testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
-		testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
+        testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
+        testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
+        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
+        testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
+        testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
+        testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
+        testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
 
-		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
-		expectedOutput.add(new StreamRecord<Integer>(6, initialTime + 6));
+        expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
+        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
+        expectedOutput.add(new StreamRecord<Integer>(6, initialTime + 6));
 
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testOpenClose() throws Exception {
-		StreamFilter<String> operator = new StreamFilter<String>(new TestOpenCloseFilterFunction());
+    @Test
+    public void testOpenClose() throws Exception {
+        StreamFilter<String> operator = new StreamFilter<String>(new TestOpenCloseFilterFunction());
 
-		OneInputStreamOperatorTestHarness<String, String> testHarness = new OneInputStreamOperatorTestHarness<String, String>(operator);
+        OneInputStreamOperatorTestHarness<String, String> testHarness =
+                new OneInputStreamOperatorTestHarness<String, String>(operator);
 
-		long initialTime = 0L;
+        long initialTime = 0L;
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<String>("fooHello", initialTime));
-		testHarness.processElement(new StreamRecord<String>("bar", initialTime));
+        testHarness.processElement(new StreamRecord<String>("fooHello", initialTime));
+        testHarness.processElement(new StreamRecord<String>("bar", initialTime));
 
-		testHarness.close();
+        testHarness.close();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFilterFunction.closeCalled);
-		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
-	}
+        Assert.assertTrue(
+                "RichFunction methods where not called.", TestOpenCloseFilterFunction.closeCalled);
+        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+    }
 
-	// This must only be used in one test, otherwise the static fields will be changed
-	// by several tests concurrently
-	private static class TestOpenCloseFilterFunction extends RichFilterFunction<String> {
-		private static final long serialVersionUID = 1L;
+    // This must only be used in one test, otherwise the static fields will be changed
+    // by several tests concurrently
+    private static class TestOpenCloseFilterFunction extends RichFilterFunction<String> {
+        private static final long serialVersionUID = 1L;
 
-		public static boolean openCalled = false;
-		public static boolean closeCalled = false;
+        public static boolean openCalled = false;
+        public static boolean closeCalled = false;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			if (closeCalled) {
-				Assert.fail("Close called before open.");
-			}
-			openCalled = true;
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            if (closeCalled) {
+                Assert.fail("Close called before open.");
+            }
+            openCalled = true;
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			if (!openCalled) {
-				Assert.fail("Open was not called before close.");
-			}
-			closeCalled = true;
-		}
+        @Override
+        public void close() throws Exception {
+            super.close();
+            if (!openCalled) {
+                Assert.fail("Open was not called before close.");
+            }
+            closeCalled = true;
+        }
 
-		@Override
-		public boolean filter(String value) throws Exception {
-			if (!openCalled) {
-				Assert.fail("Open was not called before run.");
-			}
-			return value.startsWith("foo");
-		}
-	}
+        @Override
+        public boolean filter(String value) throws Exception {
+            if (!openCalled) {
+                Assert.fail("Open was not called before run.");
+            }
+            return value.startsWith("foo");
+        }
+    }
 }

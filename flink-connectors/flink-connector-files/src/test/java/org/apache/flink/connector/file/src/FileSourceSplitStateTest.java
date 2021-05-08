@@ -28,55 +28,54 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit tests for the {@link FileSourceSplitState}.
- */
+/** Unit tests for the {@link FileSourceSplitState}. */
 public class FileSourceSplitStateTest {
 
-	@Test
-	public void testRoundTripWithoutModification() {
-		final FileSourceSplit split = getTestSplit();
-		final FileSourceSplitState state = new FileSourceSplitState(split);
+    @Test
+    public void testRoundTripWithoutModification() {
+        final FileSourceSplit split = getTestSplit();
+        final FileSourceSplitState state = new FileSourceSplitState(split);
 
-		final FileSourceSplit resultSplit = state.toFileSourceSplit();
+        final FileSourceSplit resultSplit = state.toFileSourceSplit();
 
-		assertEquals(split.getReaderPosition(), resultSplit.getReaderPosition());
-	}
+        assertEquals(split.getReaderPosition(), resultSplit.getReaderPosition());
+    }
 
-	@Test
-	public void testStateStartsWithSplitValues() {
-		final FileSourceSplit split = getTestSplit(new CheckpointedPosition(123L, 456L));
-		final FileSourceSplitState state = new FileSourceSplitState(split);
+    @Test
+    public void testStateStartsWithSplitValues() {
+        final FileSourceSplit split = getTestSplit(new CheckpointedPosition(123L, 456L));
+        final FileSourceSplitState state = new FileSourceSplitState(split);
 
-		assertEquals(123L, state.getOffset());
-		assertEquals(456L, state.getRecordsToSkipAfterOffset());
-	}
+        assertEquals(123L, state.getOffset());
+        assertEquals(456L, state.getRecordsToSkipAfterOffset());
+    }
 
-	@Test
-	public void testNewSplitTakesModifiedOffsetAndCount() {
-		final FileSourceSplit split = getTestSplit();
-		final FileSourceSplitState state = new FileSourceSplitState(split);
+    @Test
+    public void testNewSplitTakesModifiedOffsetAndCount() {
+        final FileSourceSplit split = getTestSplit();
+        final FileSourceSplitState state = new FileSourceSplitState(split);
 
-		state.setPosition(1234L, 7566L);
-		final Optional<CheckpointedPosition> position = state.toFileSourceSplit().getReaderPosition();
+        state.setPosition(1234L, 7566L);
+        final Optional<CheckpointedPosition> position =
+                state.toFileSourceSplit().getReaderPosition();
 
-		assertTrue(position.isPresent());
-		assertEquals(new CheckpointedPosition(1234L, 7566L), position.get());
-	}
+        assertTrue(position.isPresent());
+        assertEquals(new CheckpointedPosition(1234L, 7566L), position.get());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static FileSourceSplit getTestSplit() {
-		return getTestSplit(null);
-	}
+    private static FileSourceSplit getTestSplit() {
+        return getTestSplit(null);
+    }
 
-	private static FileSourceSplit getTestSplit(CheckpointedPosition position) {
-		return new FileSourceSplit(
-				"test-id",
-				new Path("file:/some/random/path"),
-				17,
-				121,
-				new String[] {"localhost"},
-				position);
-	}
+    private static FileSourceSplit getTestSplit(CheckpointedPosition position) {
+        return new FileSourceSplit(
+                "test-id",
+                new Path("file:/some/random/path"),
+                17,
+                121,
+                new String[] {"localhost"},
+                position);
+    }
 }

@@ -26,29 +26,29 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link LongValueToUnsignedIntValue}.
- */
+/** Tests for {@link LongValueToUnsignedIntValue}. */
 public class LongValueToUnsignedIntValueTest {
 
-	private TranslateFunction<LongValue, IntValue> translator = new LongValueToUnsignedIntValue();
+    private TranslateFunction<LongValue, IntValue> translator = new LongValueToUnsignedIntValue();
 
-	private IntValue reuse = new IntValue();
+    private IntValue reuse = new IntValue();
 
-	@Test
-	public void testTranslation() throws Exception {
-		assertEquals(new IntValue(0), translator.translate(new LongValue(0L), reuse));
-		assertEquals(new IntValue(Integer.MIN_VALUE), translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse));
-		assertEquals(new IntValue(-1), translator.translate(new LongValue((1L << 32) - 1), reuse));
-	}
+    @Test
+    public void testTranslation() throws Exception {
+        assertEquals(new IntValue(0), translator.translate(new LongValue(0L), reuse));
+        assertEquals(
+                new IntValue(Integer.MIN_VALUE),
+                translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse));
+        assertEquals(new IntValue(-1), translator.translate(new LongValue((1L << 32) - 1), reuse));
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testUpperOutOfRange() throws Exception {
-		translator.translate(new LongValue(1L << 32), reuse);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testUpperOutOfRange() throws Exception {
+        translator.translate(new LongValue(1L << 32), reuse);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testLowerOutOfRange() throws Exception {
-		translator.translate(new LongValue(-1), reuse);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testLowerOutOfRange() throws Exception {
+        translator.translate(new LongValue(-1), reuse);
+    }
 }

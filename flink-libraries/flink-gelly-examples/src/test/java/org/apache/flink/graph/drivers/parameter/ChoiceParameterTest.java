@@ -27,62 +27,58 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Tests for {@link ChoiceParameter}.
- */
-public class ChoiceParameterTest
-extends ParameterTestBase {
+/** Tests for {@link ChoiceParameter}. */
+public class ChoiceParameterTest extends ParameterTestBase {
 
-	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+    @Rule public ExpectedException expectedException = ExpectedException.none();
 
-	private ChoiceParameter parameter;
+    private ChoiceParameter parameter;
 
-	@Before
-	public void setup() {
-		super.setup();
-		parameter = new ChoiceParameter(owner, "choice");
-	}
+    @Before
+    public void setup() {
+        super.setup();
+        parameter = new ChoiceParameter(owner, "choice");
+    }
 
-	// With default
+    // With default
 
-	@Test
-	public void testWithDefaultWithParameter() {
-		parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
-		Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithParameter() {
+        parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
+        Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--choice", "c1"}));
-		Assert.assertEquals("c1", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--choice", "c1"}));
+        Assert.assertEquals("c1", parameter.getValue());
+    }
 
-	@Test
-	public void testWithDefaultWithoutParameter() {
-		parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
-		Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
+    @Test
+    public void testWithDefaultWithoutParameter() {
+        parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
+        Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-		Assert.assertEquals("default", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+        Assert.assertEquals("default", parameter.getValue());
+    }
 
-	// Without default
+    // Without default
 
-	@Test
-	public void testWithoutDefaultWithParameter() {
-		parameter.addChoices("c0", "c1", "c2");
-		Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithParameter() {
+        parameter.addChoices("c0", "c1", "c2");
+        Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--choice", "c2"}));
-		Assert.assertEquals("c2", parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--choice", "c2"}));
+        Assert.assertEquals("c2", parameter.getValue());
+    }
 
-	@Test
-	public void testWithoutDefaultWithoutParameter() {
-		parameter.addChoices("c0", "c1", "c2");
-		Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
+    @Test
+    public void testWithoutDefaultWithoutParameter() {
+        parameter.addChoices("c0", "c1", "c2");
+        Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
 
-		expectedException.expect(ProgramParametrizationException.class);
-		expectedException.expectMessage("Must select a choice for option 'choice': '[c0, c1, c2]'");
+        expectedException.expect(ProgramParametrizationException.class);
+        expectedException.expectMessage("Must select a choice for option 'choice': '[c0, c1, c2]'");
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+    }
 }

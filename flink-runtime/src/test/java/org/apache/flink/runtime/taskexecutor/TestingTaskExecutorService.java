@@ -20,73 +20,67 @@ package org.apache.flink.runtime.taskexecutor;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing implementation of {@link TaskManagerRunner.TaskExecutorService}.
- */
+/** Testing implementation of {@link TaskManagerRunner.TaskExecutorService}. */
 public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecutorService {
-	private final Runnable startRunnable;
-	private final CompletableFuture<Void> terminationFuture;
-	private final boolean completeTerminationFutureOnClose;
+    private final Runnable startRunnable;
+    private final CompletableFuture<Void> terminationFuture;
+    private final boolean completeTerminationFutureOnClose;
 
-	private TestingTaskExecutorService(
-			Runnable startRunnable,
-			CompletableFuture<Void> terminationFuture,
-			boolean completeTerminationFutureOnClose) {
-		this.startRunnable = startRunnable;
-		this.terminationFuture = terminationFuture;
-		this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
-	}
+    private TestingTaskExecutorService(
+            Runnable startRunnable,
+            CompletableFuture<Void> terminationFuture,
+            boolean completeTerminationFutureOnClose) {
+        this.startRunnable = startRunnable;
+        this.terminationFuture = terminationFuture;
+        this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
+    }
 
-	@Override
-	public void start() {
-		startRunnable.run();
-	}
+    @Override
+    public void start() {
+        startRunnable.run();
+    }
 
-	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (completeTerminationFutureOnClose) {
-			terminationFuture.complete(null);
-		}
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (completeTerminationFutureOnClose) {
+            terminationFuture.complete(null);
+        }
+        return terminationFuture;
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for {@link TestingTaskExecutorService}.
-	 */
-	public static final class Builder {
-		private Runnable startRunnable = () -> {};
-		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		private boolean completeTerminationFutureOnClose = true;
+    /** Builder for {@link TestingTaskExecutorService}. */
+    public static final class Builder {
+        private Runnable startRunnable = () -> {};
+        private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private boolean completeTerminationFutureOnClose = true;
 
-		public Builder setStartRunnable(Runnable startRunnable) {
-			this.startRunnable = startRunnable;
-			return this;
-		}
+        public Builder setStartRunnable(Runnable startRunnable) {
+            this.startRunnable = startRunnable;
+            return this;
+        }
 
-		public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
-			this.terminationFuture = terminationFuture;
-			return this;
-		}
+        public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
+            this.terminationFuture = terminationFuture;
+            return this;
+        }
 
-		public Builder withManualTerminationFutureCompletion() {
-			completeTerminationFutureOnClose = false;
-			return this;
-		}
+        public Builder withManualTerminationFutureCompletion() {
+            completeTerminationFutureOnClose = false;
+            return this;
+        }
 
-		TestingTaskExecutorService build() {
-			return new TestingTaskExecutorService(
-					startRunnable,
-					terminationFuture,
-					completeTerminationFutureOnClose);
-		}
-	}
+        TestingTaskExecutorService build() {
+            return new TestingTaskExecutorService(
+                    startRunnable, terminationFuture, completeTerminationFutureOnClose);
+        }
+    }
 }

@@ -27,9 +27,6 @@ import java.io.Serializable;
  */
 public interface RecordEqualiser extends Serializable {
 
-	/**
-	 * Returns {@code true} if the rows are equal to each other
-	 * and {@code false} otherwise.
-	 */
-	boolean equals(RowData row1, RowData row2);
+    /** Returns {@code true} if the rows are equal to each other and {@code false} otherwise. */
+    boolean equals(RowData row1, RowData row2);
 }

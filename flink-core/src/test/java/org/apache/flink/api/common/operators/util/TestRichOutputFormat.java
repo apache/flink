@@ -16,37 +16,37 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
-
-import java.util.LinkedList;
-import java.util.List;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
 
-/**
- * Same as the non rich test output format, except it provide access to runtime context.
- */
+import java.util.LinkedList;
+import java.util.List;
+
+/** Same as the non rich test output format, except it provide access to runtime context. */
 public class TestRichOutputFormat extends RichOutputFormat<String> {
-	public List<String> output = new LinkedList<String>();
+    public List<String> output = new LinkedList<String>();
 
-	@Override
-	public void configure(Configuration parameters){}
+    @Override
+    public void configure(Configuration parameters) {}
 
-	@Override
-	public void open(int a, int b){}
+    @Override
+    public void open(int a, int b) {}
 
-	@Override
-	public void close(){}
+    @Override
+    public void close() {}
 
-	@Override
-	public void writeRecord(String record){
-		output.add(record + getRuntimeContext().getIndexOfThisSubtask() + "" +
-				getRuntimeContext().getNumberOfParallelSubtasks());
-	}
+    @Override
+    public void writeRecord(String record) {
+        output.add(
+                record
+                        + getRuntimeContext().getIndexOfThisSubtask()
+                        + ""
+                        + getRuntimeContext().getNumberOfParallelSubtasks());
+    }
 
-	public void clear(){
-		output.clear();
-	}
+    public void clear() {
+        output.clear();
+    }
 }

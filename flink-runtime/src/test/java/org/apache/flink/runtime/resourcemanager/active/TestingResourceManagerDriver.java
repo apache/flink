@@ -34,106 +34,137 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/**
- * Testing implementation of {@link ResourceManagerDriver}.
- */
+/** Testing implementation of {@link ResourceManagerDriver}. */
 public class TestingResourceManagerDriver implements ResourceManagerDriver<ResourceID> {
 
-	private final TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction;
-	private final Supplier<CompletableFuture<Void>> terminateSupplier;
-	private final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer;
-	private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction;
-	private final Consumer<ResourceID> releaseResourceConsumer;
+    private final TriFunctionWithException<
+                    ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception>
+            initializeFunction;
+    private final Supplier<CompletableFuture<Void>> terminateSupplier;
+    private final BiConsumerWithException<ApplicationStatus, String, Exception>
+            deregisterApplicationConsumer;
+    private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+            requestResourceFunction;
+    private final Consumer<ResourceID> releaseResourceConsumer;
 
-	private TestingResourceManagerDriver(
-			final TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction,
-			final Supplier<CompletableFuture<Void>> terminateSupplier,
-			final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer,
-			final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction,
-			final Consumer<ResourceID> releaseResourceConsumer) {
-		this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
-		this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
-		this.deregisterApplicationConsumer = Preconditions.checkNotNull(deregisterApplicationConsumer);
-		this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
-		this.releaseResourceConsumer = Preconditions.checkNotNull(releaseResourceConsumer);
-	}
+    private TestingResourceManagerDriver(
+            final TriFunctionWithException<
+                            ResourceEventHandler<ResourceID>,
+                            ScheduledExecutor,
+                            Executor,
+                            Void,
+                            Exception>
+                    initializeFunction,
+            final Supplier<CompletableFuture<Void>> terminateSupplier,
+            final BiConsumerWithException<ApplicationStatus, String, Exception>
+                    deregisterApplicationConsumer,
+            final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+                    requestResourceFunction,
+            final Consumer<ResourceID> releaseResourceConsumer) {
+        this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
+        this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
+        this.deregisterApplicationConsumer =
+                Preconditions.checkNotNull(deregisterApplicationConsumer);
+        this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
+        this.releaseResourceConsumer = Preconditions.checkNotNull(releaseResourceConsumer);
+    }
 
-	@Override
-	public void initialize(
-			ResourceEventHandler<ResourceID> resourceEventHandler,
-			ScheduledExecutor mainThreadExecutor,
-			Executor ioExecutor) throws Exception {
-		initializeFunction.apply(resourceEventHandler, mainThreadExecutor, ioExecutor);
-	}
+    @Override
+    public void initialize(
+            ResourceEventHandler<ResourceID> resourceEventHandler,
+            ScheduledExecutor mainThreadExecutor,
+            Executor ioExecutor)
+            throws Exception {
+        initializeFunction.apply(resourceEventHandler, mainThreadExecutor, ioExecutor);
+    }
 
-	@Override
-	public CompletableFuture<Void> terminate() {
-		return terminateSupplier.get();
-	}
+    @Override
+    public CompletableFuture<Void> terminate() {
+        return terminateSupplier.get();
+    }
 
-	@Override
-	public void deregisterApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) throws Exception {
-		deregisterApplicationConsumer.accept(finalStatus, optionalDiagnostics);
-	}
+    @Override
+    public void deregisterApplication(
+            ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) throws Exception {
+        deregisterApplicationConsumer.accept(finalStatus, optionalDiagnostics);
+    }
 
-	@Override
-	public CompletableFuture<ResourceID> requestResource(TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		return requestResourceFunction.apply(taskExecutorProcessSpec);
-	}
+    @Override
+    public CompletableFuture<ResourceID> requestResource(
+            TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        return requestResourceFunction.apply(taskExecutorProcessSpec);
+    }
 
-	@Override
-	public void releaseResource(ResourceID worker) {
-		releaseResourceConsumer.accept(worker);
-	}
+    @Override
+    public void releaseResource(ResourceID worker) {
+        releaseResourceConsumer.accept(worker);
+    }
 
-	public static class Builder {
-		private TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction =
-				(ignore1, ignore2, ignore3) -> null;
+    public static class Builder {
+        private TriFunctionWithException<
+                        ResourceEventHandler<ResourceID>,
+                        ScheduledExecutor,
+                        Executor,
+                        Void,
+                        Exception>
+                initializeFunction = (ignore1, ignore2, ignore3) -> null;
 
-		private Supplier<CompletableFuture<Void>> terminateSupplier =
-				() -> CompletableFuture.completedFuture(null);
+        private Supplier<CompletableFuture<Void>> terminateSupplier =
+                () -> CompletableFuture.completedFuture(null);
 
-		private BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer =
-				(ignore1, ignore2) -> {};
+        private BiConsumerWithException<ApplicationStatus, String, Exception>
+                deregisterApplicationConsumer = (ignore1, ignore2) -> {};
 
-		private Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction =
-				(ignore) -> CompletableFuture.completedFuture(ResourceID.generate());
+        private Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+                requestResourceFunction =
+                        (ignore) -> CompletableFuture.completedFuture(ResourceID.generate());
 
-		private Consumer<ResourceID> releaseResourceConsumer =
-				(ignore) -> {};
+        private Consumer<ResourceID> releaseResourceConsumer = (ignore) -> {};
 
-		public Builder setInitializeFunction(TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction) {
-			this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
-			return this;
-		}
+        public Builder setInitializeFunction(
+                TriFunctionWithException<
+                                ResourceEventHandler<ResourceID>,
+                                ScheduledExecutor,
+                                Executor,
+                                Void,
+                                Exception>
+                        initializeFunction) {
+            this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
+            return this;
+        }
 
-		public Builder setTerminateSupplier(Supplier<CompletableFuture<Void>> terminateSupplier) {
-			this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
-			return this;
-		}
+        public Builder setTerminateSupplier(Supplier<CompletableFuture<Void>> terminateSupplier) {
+            this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
+            return this;
+        }
 
-		public Builder setDeregisterApplicationConsumer(BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer) {
-			this.deregisterApplicationConsumer = Preconditions.checkNotNull(deregisterApplicationConsumer);
-			return this;
-		}
+        public Builder setDeregisterApplicationConsumer(
+                BiConsumerWithException<ApplicationStatus, String, Exception>
+                        deregisterApplicationConsumer) {
+            this.deregisterApplicationConsumer =
+                    Preconditions.checkNotNull(deregisterApplicationConsumer);
+            return this;
+        }
 
-		public Builder setRequestResourceFunction(Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction) {
-			this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
-			return this;
-		}
+        public Builder setRequestResourceFunction(
+                Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>>
+                        requestResourceFunction) {
+            this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
+            return this;
+        }
 
-		public Builder setReleaseResourceConsumer(Consumer<ResourceID> releaseResourceConsumer) {
-			this.releaseResourceConsumer = Preconditions.checkNotNull(releaseResourceConsumer);
-			return this;
-		}
+        public Builder setReleaseResourceConsumer(Consumer<ResourceID> releaseResourceConsumer) {
+            this.releaseResourceConsumer = Preconditions.checkNotNull(releaseResourceConsumer);
+            return this;
+        }
 
-		public TestingResourceManagerDriver build() {
-			return new TestingResourceManagerDriver(
-				initializeFunction,
-					terminateSupplier,
-					deregisterApplicationConsumer,
-					requestResourceFunction,
-					releaseResourceConsumer);
-		}
-	}
+        public TestingResourceManagerDriver build() {
+            return new TestingResourceManagerDriver(
+                    initializeFunction,
+                    terminateSupplier,
+                    deregisterApplicationConsumer,
+                    requestResourceFunction,
+                    releaseResourceConsumer);
+        }
+    }
 }

@@ -26,41 +26,41 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import java.util.Collection;
 
-/**
- * Resource related actions which the {@link SlotManager} can perform.
- */
+/** Resource related actions which the {@link SlotManager} can perform. */
 public interface ResourceActions {
 
-	/**
-	 * Releases the resource with the given instance id.
-	 *
-	 * @param instanceId identifying which resource to release
-	 * @param cause why the resource is released
-	 */
-	void releaseResource(InstanceID instanceId, Exception cause);
+    /**
+     * Releases the resource with the given instance id.
+     *
+     * @param instanceId identifying which resource to release
+     * @param cause why the resource is released
+     */
+    void releaseResource(InstanceID instanceId, Exception cause);
 
-	/**
-	 * Requests to allocate a resource with the given {@link WorkerResourceSpec}.
-	 *
-	 * @param workerResourceSpec for the to be allocated worker
-	 * @return whether the resource can be allocated
-	 */
-	boolean allocateResource(WorkerResourceSpec workerResourceSpec);
+    /**
+     * Requests to allocate a resource with the given {@link WorkerResourceSpec}.
+     *
+     * @param workerResourceSpec for the to be allocated worker
+     * @return whether the resource can be allocated
+     */
+    boolean allocateResource(WorkerResourceSpec workerResourceSpec);
 
-	/**
-	 * Notifies that an allocation failure has occurred.
-	 *
-	 * @param jobId to which the allocation belonged
-	 * @param allocationId identifying the failed allocation
-	 * @param cause of the allocation failure
-	 */
-	void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
+    /**
+     * Notifies that an allocation failure has occurred.
+     *
+     * @param jobId to which the allocation belonged
+     * @param allocationId identifying the failed allocation
+     * @param cause of the allocation failure
+     */
+    void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
 
-	/**
-	 * Notifies that not enough resources are available to fulfill the resource requirements of a job.
-	 *
-	 * @param jobId job for which not enough resources are available
-	 * @param acquiredResources the resources that have been acquired for the job
-	 */
-	void notifyNotEnoughResourcesAvailable(JobID jobId, Collection<ResourceRequirement> acquiredResources);
+    /**
+     * Notifies that not enough resources are available to fulfill the resource requirements of a
+     * job.
+     *
+     * @param jobId job for which not enough resources are available
+     * @param acquiredResources the resources that have been acquired for the job
+     */
+    void notifyNotEnoughResourcesAvailable(
+            JobID jobId, Collection<ResourceRequirement> acquiredResources);
 }

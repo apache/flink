@@ -35,113 +35,111 @@ import java.util.Objects;
  * @param <T> Type of the input events
  */
 public class State<T> implements Serializable {
-	private static final long serialVersionUID = 6658700025989097781L;
+    private static final long serialVersionUID = 6658700025989097781L;
 
-	private final String name;
-	private StateType stateType;
-	private final Collection<StateTransition<T>> stateTransitions;
+    private final String name;
+    private StateType stateType;
+    private final Collection<StateTransition<T>> stateTransitions;
 
-	public State(final String name, final StateType stateType) {
-		this.name = name;
-		this.stateType = stateType;
+    public State(final String name, final StateType stateType) {
+        this.name = name;
+        this.stateType = stateType;
 
-		stateTransitions = new ArrayList<>();
-	}
+        stateTransitions = new ArrayList<>();
+    }
 
-	public StateType getStateType() {
-		return stateType;
-	}
+    public StateType getStateType() {
+        return stateType;
+    }
 
-	public boolean isFinal() {
-		return stateType == StateType.Final;
-	}
+    public boolean isFinal() {
+        return stateType == StateType.Final;
+    }
 
-	public boolean isStart() {
-		return stateType == StateType.Start;
-	}
+    public boolean isStart() {
+        return stateType == StateType.Start;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public Collection<StateTransition<T>> getStateTransitions() {
-		return stateTransitions;
-	}
+    public Collection<StateTransition<T>> getStateTransitions() {
+        return stateTransitions;
+    }
 
-	public void makeStart() {
-		this.stateType = StateType.Start;
-	}
+    public void makeStart() {
+        this.stateType = StateType.Start;
+    }
 
-	public void addStateTransition(
-			final StateTransitionAction action,
-			final State<T> targetState,
-			final IterativeCondition<T> condition) {
-		stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
-	}
+    public void addStateTransition(
+            final StateTransitionAction action,
+            final State<T> targetState,
+            final IterativeCondition<T> condition) {
+        stateTransitions.add(new StateTransition<T>(this, action, targetState, condition));
+    }
 
-	public void addIgnore(final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.IGNORE, this, condition);
-	}
+    public void addIgnore(final IterativeCondition<T> condition) {
+        addStateTransition(StateTransitionAction.IGNORE, this, condition);
+    }
 
-	public void addIgnore(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
-	}
+    public void addIgnore(final State<T> targetState, final IterativeCondition<T> condition) {
+        addStateTransition(StateTransitionAction.IGNORE, targetState, condition);
+    }
 
-	public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.TAKE, targetState, condition);
-	}
+    public void addTake(final State<T> targetState, final IterativeCondition<T> condition) {
+        addStateTransition(StateTransitionAction.TAKE, targetState, condition);
+    }
 
-	public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
-	}
+    public void addProceed(final State<T> targetState, final IterativeCondition<T> condition) {
+        addStateTransition(StateTransitionAction.PROCEED, targetState, condition);
+    }
 
-	public void addTake(final IterativeCondition<T> condition) {
-		addStateTransition(StateTransitionAction.TAKE, this, condition);
-	}
+    public void addTake(final IterativeCondition<T> condition) {
+        addStateTransition(StateTransitionAction.TAKE, this, condition);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof State) {
-			@SuppressWarnings("unchecked")
-			State<T> other = (State<T>) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof State) {
+            @SuppressWarnings("unchecked")
+            State<T> other = (State<T>) obj;
 
-			return name.equals(other.name) &&
-				stateType == other.stateType &&
-				stateTransitions.equals(other.stateTransitions);
-		} else {
-			return false;
-		}
-	}
+            return name.equals(other.name)
+                    && stateType == other.stateType
+                    && stateTransitions.equals(other.stateTransitions);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public String toString() {
-		StringBuilder builder = new StringBuilder();
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
 
-		builder.append(stateType).append(" State ").append(name).append(" [\n");
-		for (StateTransition<T> stateTransition: stateTransitions) {
-			builder.append("\t").append(stateTransition).append(",\n");
-		}
-		builder.append("])");
+        builder.append(stateType).append(" State ").append(name).append(" [\n");
+        for (StateTransition<T> stateTransition : stateTransitions) {
+            builder.append("\t").append(stateTransition).append(",\n");
+        }
+        builder.append("])");
 
-		return builder.toString();
-	}
+        return builder.toString();
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name, stateType, stateTransitions);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, stateType, stateTransitions);
+    }
 
-	public boolean isStop() {
-		return stateType == StateType.Stop;
-	}
+    public boolean isStop() {
+        return stateType == StateType.Stop;
+    }
 
-	/**
-	 * Set of valid state types.
-	 */
-	public enum StateType {
-		Start, // the state is a starting state for the NFA
-		Final, // the state is a final state for the NFA
-		Normal, // the state is neither a start nor a final state
-		Stop
-	}
+    /** Set of valid state types. */
+    public enum StateType {
+        Start, // the state is a starting state for the NFA
+        Final, // the state is a final state for the NFA
+        Normal, // the state is neither a start nor a final state
+        Stop
+    }
 }

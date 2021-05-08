@@ -31,40 +31,41 @@ import org.junit.Test;
 import java.util.stream.StreamSupport;
 
 /**
- * Test that {@code OperatorIDGenerator} creates ids
- * from uids exactly the same as the job graph generator.
+ * Test that {@code OperatorIDGenerator} creates ids from uids exactly the same as the job graph
+ * generator.
  */
 public class OperatorIDGeneratorTest {
-	private static final String UID = "uid";
+    private static final String UID = "uid";
 
-	private static final String OPERATOR_NAME = "operator";
+    private static final String OPERATOR_NAME = "operator";
 
-	@Test
-	public void testOperatorIdMatchesUid() {
-		OperatorID expectedId = getOperatorID();
+    @Test
+    public void testOperatorIdMatchesUid() {
+        OperatorID expectedId = getOperatorID();
 
-		OperatorID generatedId = OperatorIDGenerator.fromUid(UID);
+        OperatorID generatedId = OperatorIDGenerator.fromUid(UID);
 
-		Assert.assertEquals(expectedId, generatedId);
-	}
+        Assert.assertEquals(expectedId, generatedId);
+    }
 
-	private static OperatorID getOperatorID() {
+    private static OperatorID getOperatorID() {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		env
-			.fromElements(1, 2, 3)
-			.uid(UID).name(OPERATOR_NAME)
-			.disableChaining()
-			.addSink(new DiscardingSink<>());
+        env.fromElements(1, 2, 3)
+                .uid(UID)
+                .name(OPERATOR_NAME)
+                .disableChaining()
+                .addSink(new DiscardingSink<>());
 
-		JobGraph graph = env.getStreamGraph().getJobGraph(new JobID());
-		JobVertex vertex = StreamSupport.stream(graph.getVertices().spliterator(), false)
-			.filter(node -> node.getName().contains(OPERATOR_NAME))
-			.findFirst()
-			.orElseThrow(() -> new IllegalStateException("Unable to find vertex"));
+        JobGraph graph = env.getStreamGraph().getJobGraph(new JobID());
+        JobVertex vertex =
+                StreamSupport.stream(graph.getVertices().spliterator(), false)
+                        .filter(node -> node.getName().contains(OPERATOR_NAME))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Unable to find vertex"));
 
-		return vertex.getOperatorIDs().get(0).getGeneratedOperatorID();
-	}
+        return vertex.getOperatorIDs().get(0).getGeneratedOperatorID();
+    }
 }

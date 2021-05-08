@@ -22,11 +22,9 @@ import org.apache.hadoop.io.compress.BZip2Codec;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
 /**
- * Just a dummy class which extends BZip2Codec to verify
- * that custom Hadoop {@link CompressionCodec} can also
- * be successfully loaded using the class name or alias,
- * just like the default ones.
+ * Just a dummy class which extends BZip2Codec to verify that custom Hadoop {@link CompressionCodec}
+ * can also be successfully loaded using the class name or alias, just like the default ones.
  */
 public class CustomCompressionCodec extends BZip2Codec {
-	// Seriously nothing happens here
+    // Seriously nothing happens here
 }

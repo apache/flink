@@ -46,7 +46,9 @@ import _root_.java.util.function.{Function => JFunction}
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
-/** Util class for [[TableSource]]. */
+/**
+ * Note: We aim to gradually port the logic in this class to [[DynamicSinkUtils]].
+ */
 object TableSourceUtil {
 
   /**
@@ -152,7 +154,7 @@ object TableSourceUtil {
       // patch proctime field with time indicator type
       proctimeAttributes.foreach { proctimeField =>
         val idx = fieldNames.indexOf(proctimeField)
-        val proctimeType = new TimestampType(
+        val proctimeType = new LocalZonedTimestampType(
           true, TimestampKind.PROCTIME, 3)
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }

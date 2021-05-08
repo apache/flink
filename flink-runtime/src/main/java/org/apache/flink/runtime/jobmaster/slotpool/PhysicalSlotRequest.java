@@ -21,59 +21,55 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
-/**
- * Represents a request for a physical slot.
- */
+/** Represents a request for a physical slot. */
 public class PhysicalSlotRequest {
 
-	private final SlotRequestId slotRequestId;
+    private final SlotRequestId slotRequestId;
 
-	private final SlotProfile slotProfile;
+    private final SlotProfile slotProfile;
 
-	private final boolean slotWillBeOccupiedIndefinitely;
+    private final boolean slotWillBeOccupiedIndefinitely;
 
-	public PhysicalSlotRequest(
-			final SlotRequestId slotRequestId,
-			final SlotProfile slotProfile,
-			final boolean slotWillBeOccupiedIndefinitely) {
+    public PhysicalSlotRequest(
+            final SlotRequestId slotRequestId,
+            final SlotProfile slotProfile,
+            final boolean slotWillBeOccupiedIndefinitely) {
 
-		this.slotRequestId = slotRequestId;
-		this.slotProfile = slotProfile;
-		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
-	}
+        this.slotRequestId = slotRequestId;
+        this.slotProfile = slotProfile;
+        this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
+    }
 
-	public SlotRequestId getSlotRequestId() {
-		return slotRequestId;
-	}
+    public SlotRequestId getSlotRequestId() {
+        return slotRequestId;
+    }
 
-	public SlotProfile getSlotProfile() {
-		return slotProfile;
-	}
+    public SlotProfile getSlotProfile() {
+        return slotProfile;
+    }
 
-	public boolean willSlotBeOccupiedIndefinitely() {
-		return slotWillBeOccupiedIndefinitely;
-	}
+    public boolean willSlotBeOccupiedIndefinitely() {
+        return slotWillBeOccupiedIndefinitely;
+    }
 
-	/**
-	 * Result of a {@link PhysicalSlotRequest}.
-	 */
-	public static class Result {
+    /** Result of a {@link PhysicalSlotRequest}. */
+    public static class Result {
 
-		private final SlotRequestId slotRequestId;
+        private final SlotRequestId slotRequestId;
 
-		private final PhysicalSlot physicalSlot;
+        private final PhysicalSlot physicalSlot;
 
-		public Result(final SlotRequestId slotRequestId, final PhysicalSlot physicalSlot) {
-			this.slotRequestId = slotRequestId;
-			this.physicalSlot = physicalSlot;
-		}
+        public Result(final SlotRequestId slotRequestId, final PhysicalSlot physicalSlot) {
+            this.slotRequestId = slotRequestId;
+            this.physicalSlot = physicalSlot;
+        }
 
-		public SlotRequestId getSlotRequestId() {
-			return slotRequestId;
-		}
+        public SlotRequestId getSlotRequestId() {
+            return slotRequestId;
+        }
 
-		public PhysicalSlot getPhysicalSlot() {
-			return physicalSlot;
-		}
-	}
+        public PhysicalSlot getPhysicalSlot() {
+            return physicalSlot;
+        }
+    }
 }

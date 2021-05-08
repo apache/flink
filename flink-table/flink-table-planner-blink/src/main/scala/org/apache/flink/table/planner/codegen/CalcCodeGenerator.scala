@@ -34,11 +34,11 @@ import scala.collection.JavaConversions._
 
 object CalcCodeGenerator {
 
-  private[flink] def generateCalcOperator(
+  def generateCalcOperator(
       ctx: CodeGeneratorContext,
       inputTransform: Transformation[RowData],
       outputType: RowType,
-      calcProgram: RexProgram,
+      projection: Seq[RexNode],
       condition: Option[RexNode],
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[RowData] = {
@@ -52,7 +52,7 @@ object CalcCodeGenerator {
       inputType,
       outputType,
       classOf[BoxedWrapperRowData],
-      calcProgram,
+      projection,
       condition,
       eagerInputUnboxingCode = true,
       retainHeader = retainHeader,
@@ -75,7 +75,7 @@ object CalcCodeGenerator {
       name: String,
       returnType: RowType,
       outRowClass: Class[_ <: RowData],
-      calcProjection: RexProgram,
+      calcProjection: Seq[RexNode],
       calcCondition: Option[RexNode],
       config: TableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     val ctx = CodeGeneratorContext(config)
@@ -109,7 +109,7 @@ object CalcCodeGenerator {
       inputType: RowType,
       outRowType: RowType,
       outRowClass: Class[_ <: RowData],
-      calcProgram: RexProgram,
+      projection: Seq[RexNode],
       condition: Option[RexNode],
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
@@ -117,8 +117,6 @@ object CalcCodeGenerator {
       retainHeader: Boolean = false,
       outputDirectly: Boolean = false,
       allowSplit: Boolean = false): String = {
-
-    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
 
     // according to the SQL standard, every table function should also be a scalar function
     // but we don't allow that for now
@@ -133,13 +131,13 @@ object CalcCodeGenerator {
         rexNode.isInstanceOf[RexInputRef] && rexNode.asInstanceOf[RexInputRef].getIndex == index
       }
 
-    def produceOutputCode(resultTerm: String) = if (outputDirectly) {
+    def produceOutputCode(resultTerm: String): String = if (outputDirectly) {
       s"$collectorTerm.collect($resultTerm);"
     } else {
       s"${OperatorCodeGenerator.generateCollect(resultTerm)}"
     }
 
-    def produceProjectionCode = {
+    def produceProjectionCode: String = {
       val projectionExprs = projection.map(exprGenerator.generateExpression)
       val projectionExpression = exprGenerator.generateResultExpression(
         projectionExprs,

@@ -51,88 +51,98 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link JarUploadHandler}.
- */
+/** Tests for {@link JarUploadHandler}. */
 public class JarUploadHandlerTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private JarUploadHandler jarUploadHandler;
+    private JarUploadHandler jarUploadHandler;
 
-	@Mock
-	private DispatcherGateway mockDispatcherGateway;
+    @Mock private DispatcherGateway mockDispatcherGateway;
 
-	private Path jarDir;
+    private Path jarDir;
 
-	@Before
-	public void setUp() throws Exception {
-		MockitoAnnotations.initMocks(this);
+    @Before
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
 
-		jarDir = temporaryFolder.newFolder().toPath();
-		jarUploadHandler = new JarUploadHandler(
-			() -> CompletableFuture.completedFuture(mockDispatcherGateway),
-			Time.seconds(10),
-			Collections.emptyMap(),
-			JarUploadHeaders.getInstance(),
-			jarDir,
-			Executors.directExecutor());
-	}
+        jarDir = temporaryFolder.newFolder().toPath();
+        jarUploadHandler =
+                new JarUploadHandler(
+                        () -> CompletableFuture.completedFuture(mockDispatcherGateway),
+                        Time.seconds(10),
+                        Collections.emptyMap(),
+                        JarUploadHeaders.getInstance(),
+                        jarDir,
+                        Executors.directExecutor());
+    }
 
-	@Test
-	public void testRejectNonJarFiles() throws Exception {
-		final Path uploadedFile = Files.createFile(jarDir.resolve("katrin.png"));
-		final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request = createRequest(uploadedFile);
+    @Test
+    public void testRejectNonJarFiles() throws Exception {
+        final Path uploadedFile = Files.createFile(jarDir.resolve("katrin.png"));
+        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
+                createRequest(uploadedFile);
 
-		try {
-			jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-			fail("Expected exception not thrown.");
-		} catch (final ExecutionException e) {
-			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-			assertThat(throwable, instanceOf(RestHandlerException.class));
-			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
-		}
-	}
+        try {
+            jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
+            fail("Expected exception not thrown.");
+        } catch (final ExecutionException e) {
+            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
+            assertThat(throwable, instanceOf(RestHandlerException.class));
+            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    equalTo(HttpResponseStatus.BAD_REQUEST));
+        }
+    }
 
-	@Test
-	public void testUploadJar() throws Exception {
-		final Path uploadedFile = Files.createFile(jarDir.resolve("FooBazzleExample.jar"));
-		final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request = createRequest(uploadedFile);
+    @Test
+    public void testUploadJar() throws Exception {
+        final Path uploadedFile = Files.createFile(jarDir.resolve("FooBazzleExample.jar"));
+        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
+                createRequest(uploadedFile);
 
-		final JarUploadResponseBody jarUploadResponseBody = jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-		assertThat(jarUploadResponseBody.getStatus(), equalTo(JarUploadResponseBody.UploadStatus.success));
-		final String returnedFileNameWithUUID = jarUploadResponseBody.getFilename();
-		assertThat(returnedFileNameWithUUID, containsString("_"));
-		final String returnedFileName = returnedFileNameWithUUID.substring(returnedFileNameWithUUID.lastIndexOf("_") + 1);
-		assertThat(returnedFileName, equalTo(uploadedFile.getFileName().toString()));
-	}
+        final JarUploadResponseBody jarUploadResponseBody =
+                jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
+        assertThat(
+                jarUploadResponseBody.getStatus(),
+                equalTo(JarUploadResponseBody.UploadStatus.success));
+        final String returnedFileNameWithUUID = jarUploadResponseBody.getFilename();
+        assertThat(returnedFileNameWithUUID, containsString("_"));
+        final String returnedFileName =
+                returnedFileNameWithUUID.substring(returnedFileNameWithUUID.lastIndexOf("_") + 1);
+        assertThat(returnedFileName, equalTo(uploadedFile.getFileName().toString()));
+    }
 
-	@Test
-	public void testFailedUpload() throws Exception {
-		final Path uploadedFile = jarDir.resolve("FooBazzleExample.jar");
-		final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request = createRequest(uploadedFile);
+    @Test
+    public void testFailedUpload() throws Exception {
+        final Path uploadedFile = jarDir.resolve("FooBazzleExample.jar");
+        final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request =
+                createRequest(uploadedFile);
 
-		try {
-			jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
-			fail("Expected exception not thrown.");
-		} catch (final ExecutionException e) {
-			final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
-			assertThat(throwable, instanceOf(RestHandlerException.class));
-			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
-			assertThat(restHandlerException.getMessage(), containsString("Could not move uploaded jar file"));
-			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
-		}
-	}
+        try {
+            jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
+            fail("Expected exception not thrown.");
+        } catch (final ExecutionException e) {
+            final Throwable throwable = ExceptionUtils.stripCompletionException(e.getCause());
+            assertThat(throwable, instanceOf(RestHandlerException.class));
+            final RestHandlerException restHandlerException = (RestHandlerException) throwable;
+            assertThat(
+                    restHandlerException.getMessage(),
+                    containsString("Could not move uploaded jar file"));
+            assertThat(
+                    restHandlerException.getHttpResponseStatus(),
+                    equalTo(HttpResponseStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
 
-	private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest(
-			final Path uploadedFile) throws HandlerRequestException, IOException {
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			EmptyMessageParameters.getInstance(),
-			Collections.emptyMap(),
-			Collections.emptyMap(),
-			Collections.singleton(uploadedFile.toFile()));
-	}
+    private static HandlerRequest<EmptyRequestBody, EmptyMessageParameters> createRequest(
+            final Path uploadedFile) throws HandlerRequestException, IOException {
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                EmptyMessageParameters.getInstance(),
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Collections.singleton(uploadedFile.toFile()));
+    }
 }

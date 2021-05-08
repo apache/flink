@@ -25,30 +25,31 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.HashMultimap;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
 
 /**
- * The event handler manages {@link EventListener} instances and allows to
- * to publish events to them.
+ * The event handler manages {@link EventListener} instances and allows to to publish events to
+ * them.
  */
 public class TaskEventHandler {
 
-	/** Listeners for each event type. */
-	private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners = HashMultimap.create();
+    /** Listeners for each event type. */
+    private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners =
+            HashMultimap.create();
 
-	public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
-		synchronized (listeners) {
-			listeners.put(eventType, listener);
-		}
-	}
+    public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
+        synchronized (listeners) {
+            listeners.put(eventType, listener);
+        }
+    }
 
-	/**
-	 * Publishes the task event to all subscribed event listeners.
-	 *
-	 * @param event The event to publish.
-	 */
-	public void publish(TaskEvent event) {
-		synchronized (listeners) {
-			for (EventListener<TaskEvent> listener : listeners.get(event.getClass())) {
-				listener.onEvent(event);
-			}
-		}
-	}
+    /**
+     * Publishes the task event to all subscribed event listeners.
+     *
+     * @param event The event to publish.
+     */
+    public void publish(TaskEvent event) {
+        synchronized (listeners) {
+            for (EventListener<TaskEvent> listener : listeners.get(event.getClass())) {
+                listener.onEvent(event);
+            }
+        }
+    }
 }

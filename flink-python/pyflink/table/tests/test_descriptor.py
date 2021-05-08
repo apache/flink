@@ -25,8 +25,8 @@ from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafk
                                        CustomFormatDescriptor, HBase)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase,
+from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkOldStreamTableTestCase,
+                                             PyFlinkOldBatchTableTestCase,
                                              _load_specific_flink_module_jars)
 
 
@@ -1148,7 +1148,7 @@ class AbstractTableDescriptorTests(object):
         assert properties == expected
 
     def test_register_temporary_table(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -1188,7 +1188,7 @@ class AbstractTableDescriptorTests(object):
             assert lines == '2,Hi,Hello\n' + "3,Hello,Hello\n"
 
 
-class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescriptorTests):
+class StreamTableDescriptorTests(PyFlinkOldStreamTableTestCase, AbstractTableDescriptorTests):
 
     def test_in_append_mode(self):
         descriptor = self.t_env.connect(FileSystem())
@@ -1236,7 +1236,7 @@ class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescri
         assert properties == expected
 
 
-class BatchTableDescriptorTests(PyFlinkBatchTableTestCase, AbstractTableDescriptorTests):
+class BatchTableDescriptorTests(PyFlinkOldBatchTableTestCase, AbstractTableDescriptorTests):
     pass
 
 

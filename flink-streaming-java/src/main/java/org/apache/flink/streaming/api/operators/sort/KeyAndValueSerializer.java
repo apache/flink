@@ -34,155 +34,152 @@ import java.util.Objects;
  * timestamp. It serializes the record in a format known by the {@link FixedLengthByteKeyComparator}
  * and {@link VariableLengthByteKeyComparator}.
  *
- * <p>If the key is of known constant length, the length is not serialized with the data.
- * Therefore the serialized data is as follows:
+ * <p>If the key is of known constant length, the length is not serialized with the data. Therefore
+ * the serialized data is as follows:
  *
  * <pre>
  *      [key-length] | &lt;key&gt; | &lt;timestamp&gt; | &lt;record&gt;
  * </pre>
  */
 final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> {
-	private static final int TIMESTAMP_LENGTH = 8;
-	private final TypeSerializer<IN> valueSerializer;
+    private static final int TIMESTAMP_LENGTH = 8;
+    private final TypeSerializer<IN> valueSerializer;
 
-	// This represents either a variable length (-1) or a fixed one (>= 0).
-	private final int serializedKeyLength;
+    // This represents either a variable length (-1) or a fixed one (>= 0).
+    private final int serializedKeyLength;
 
-	KeyAndValueSerializer(TypeSerializer<IN> valueSerializer, int serializedKeyLength) {
-		this.valueSerializer = valueSerializer;
-		this.serializedKeyLength = serializedKeyLength;
-	}
+    KeyAndValueSerializer(TypeSerializer<IN> valueSerializer, int serializedKeyLength) {
+        this.valueSerializer = valueSerializer;
+        this.serializedKeyLength = serializedKeyLength;
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> duplicate() {
-		return new KeyAndValueSerializer<>(valueSerializer.duplicate(), this.serializedKeyLength);
-	}
+    @Override
+    public TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> duplicate() {
+        return new KeyAndValueSerializer<>(valueSerializer.duplicate(), this.serializedKeyLength);
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> copy(Tuple2<byte[], StreamRecord<IN>> from) {
-		StreamRecord<IN> fromRecord = from.f1;
-		return Tuple2.of(
-			Arrays.copyOf(from.f0, from.f0.length),
-			fromRecord.copy(valueSerializer.copy(fromRecord.getValue()))
-		);
-	}
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> copy(Tuple2<byte[], StreamRecord<IN>> from) {
+        StreamRecord<IN> fromRecord = from.f1;
+        return Tuple2.of(
+                Arrays.copyOf(from.f0, from.f0.length),
+                fromRecord.copy(valueSerializer.copy(fromRecord.getValue())));
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> createInstance() {
-		return Tuple2.of(new byte[0], new StreamRecord<>(valueSerializer.createInstance()));
-	}
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> createInstance() {
+        return Tuple2.of(new byte[0], new StreamRecord<>(valueSerializer.createInstance()));
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> copy(
-			Tuple2<byte[], StreamRecord<IN>> from,
-			Tuple2<byte[], StreamRecord<IN>> reuse) {
-		StreamRecord<IN> fromRecord = from.f1;
-		StreamRecord<IN> reuseRecord = reuse.f1;
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> copy(
+            Tuple2<byte[], StreamRecord<IN>> from, Tuple2<byte[], StreamRecord<IN>> reuse) {
+        StreamRecord<IN> fromRecord = from.f1;
+        StreamRecord<IN> reuseRecord = reuse.f1;
 
-		IN valueCopy = valueSerializer.copy(fromRecord.getValue(), reuseRecord.getValue());
-		fromRecord.copyTo(valueCopy, reuseRecord);
-		reuse.f0 = Arrays.copyOf(from.f0, from.f0.length);
-		reuse.f1 = reuseRecord;
-		return reuse;
-	}
+        IN valueCopy = valueSerializer.copy(fromRecord.getValue(), reuseRecord.getValue());
+        fromRecord.copyTo(valueCopy, reuseRecord);
+        reuse.f0 = Arrays.copyOf(from.f0, from.f0.length);
+        reuse.f1 = reuseRecord;
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		if (valueSerializer.getLength() < 0 || serializedKeyLength < 0) {
-			return -1;
-		}
-		return valueSerializer.getLength() + serializedKeyLength + TIMESTAMP_LENGTH;
-	}
+    @Override
+    public int getLength() {
+        if (valueSerializer.getLength() < 0 || serializedKeyLength < 0) {
+            return -1;
+        }
+        return valueSerializer.getLength() + serializedKeyLength + TIMESTAMP_LENGTH;
+    }
 
-	@Override
-	public void serialize(Tuple2<byte[], StreamRecord<IN>> record, DataOutputView target) throws IOException {
-		if (serializedKeyLength < 0) {
-			target.writeInt(record.f0.length);
-		}
-		target.write(record.f0);
-		StreamRecord<IN> toSerialize = record.f1;
-		target.writeLong(toSerialize.getTimestamp());
-		valueSerializer.serialize(toSerialize.getValue(), target);
-	}
+    @Override
+    public void serialize(Tuple2<byte[], StreamRecord<IN>> record, DataOutputView target)
+            throws IOException {
+        if (serializedKeyLength < 0) {
+            target.writeInt(record.f0.length);
+        }
+        target.write(record.f0);
+        StreamRecord<IN> toSerialize = record.f1;
+        target.writeLong(toSerialize.getTimestamp());
+        valueSerializer.serialize(toSerialize.getValue(), target);
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> deserialize(DataInputView source) throws IOException {
-		final int length = getKeyLength(source);
-		byte[] bytes = new byte[length];
-		source.read(bytes);
-		long timestamp = source.readLong();
-		IN value = valueSerializer.deserialize(source);
-		return Tuple2.of(
-			bytes,
-			new StreamRecord<>(value, timestamp)
-		);
-	}
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> deserialize(DataInputView source) throws IOException {
+        final int length = getKeyLength(source);
+        byte[] bytes = new byte[length];
+        source.read(bytes);
+        long timestamp = source.readLong();
+        IN value = valueSerializer.deserialize(source);
+        return Tuple2.of(bytes, new StreamRecord<>(value, timestamp));
+    }
 
-	@Override
-	public Tuple2<byte[], StreamRecord<IN>> deserialize(Tuple2<byte[], StreamRecord<IN>> reuse, DataInputView source) throws IOException {
-		final int length = getKeyLength(source);
-		byte[] bytes = new byte[length];
-		source.read(bytes);
-		long timestamp = source.readLong();
-		IN value = valueSerializer.deserialize(source);
-		StreamRecord<IN> reuseRecord = reuse.f1;
-		reuseRecord.replace(value, timestamp);
-		reuse.f0 = bytes;
-		reuse.f1 = reuseRecord;
-		return reuse;
-	}
+    @Override
+    public Tuple2<byte[], StreamRecord<IN>> deserialize(
+            Tuple2<byte[], StreamRecord<IN>> reuse, DataInputView source) throws IOException {
+        final int length = getKeyLength(source);
+        byte[] bytes = new byte[length];
+        source.read(bytes);
+        long timestamp = source.readLong();
+        IN value = valueSerializer.deserialize(source);
+        StreamRecord<IN> reuseRecord = reuse.f1;
+        reuseRecord.replace(value, timestamp);
+        reuse.f0 = bytes;
+        reuse.f1 = reuseRecord;
+        return reuse;
+    }
 
-	private int getKeyLength(DataInputView source) throws IOException {
-		final int length;
-		if (serializedKeyLength < 0) {
-			length = source.readInt();
-		} else {
-			length = serializedKeyLength;
-		}
-		return length;
-	}
+    private int getKeyLength(DataInputView source) throws IOException {
+        final int length;
+        if (serializedKeyLength < 0) {
+            length = source.readInt();
+        } else {
+            length = serializedKeyLength;
+        }
+        return length;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		final int length;
-		if (serializedKeyLength < 0) {
-			length = source.readInt();
-			target.writeInt(length);
-		} else {
-			length = serializedKeyLength;
-		}
-		for (int i = 0; i < length; i++) {
-			target.writeByte(source.readByte());
-		}
-		target.writeLong(source.readLong());
-		valueSerializer.copy(source, target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        final int length;
+        if (serializedKeyLength < 0) {
+            length = source.readInt();
+            target.writeInt(length);
+        } else {
+            length = serializedKeyLength;
+        }
+        for (int i = 0; i < length; i++) {
+            target.writeByte(source.readByte());
+        }
+        target.writeLong(source.readLong());
+        valueSerializer.copy(source, target);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		KeyAndValueSerializer<?> that = (KeyAndValueSerializer<?>) o;
-		return Objects.equals(valueSerializer, that.valueSerializer);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        KeyAndValueSerializer<?> that = (KeyAndValueSerializer<?>) o;
+        return Objects.equals(valueSerializer, that.valueSerializer);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(valueSerializer);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(valueSerializer);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Tuple2<byte[], StreamRecord<IN>>> snapshotConfiguration() {
-		throw new UnsupportedOperationException(
-			"The KeyAndValueSerializer should not be used for persisting into State!");
-	}
+    @Override
+    public TypeSerializerSnapshot<Tuple2<byte[], StreamRecord<IN>>> snapshotConfiguration() {
+        throw new UnsupportedOperationException(
+                "The KeyAndValueSerializer should not be used for persisting into State!");
+    }
 }

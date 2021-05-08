@@ -90,13 +90,6 @@
 		</file>
 
 		<file>
-			<source>../flink-filesystems/flink-swift-fs-hadoop/target/flink-swift-fs-hadoop-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-swift-fs-hadoop-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
 			<source>../flink-filesystems/flink-oss-fs-hadoop/target/flink-oss-fs-hadoop-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-oss-fs-hadoop-${project.version}.jar</destName>
@@ -123,14 +116,6 @@
 			<source>../flink-python/target/flink-python_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
 			<destName>flink-python_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<!-- ML (API & LIB)  -->
-		<file>
-			<source>../flink-ml-parent/flink-ml-uber/target/flink-ml-uber_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt</outputDirectory>
-			<destName>flink-ml_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

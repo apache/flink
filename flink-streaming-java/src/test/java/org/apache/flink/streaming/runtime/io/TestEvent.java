@@ -26,63 +26,61 @@ import org.apache.flink.util.StringUtils;
 import java.io.IOException;
 import java.util.Arrays;
 
-/**
- * A simple task event, used for validation of buffer or event blocking/buffering.
- */
+/** A simple task event, used for validation of buffer or event blocking/buffering. */
 public class TestEvent extends AbstractEvent {
 
-	private long magicNumber;
+    private long magicNumber;
 
-	private byte[] payload;
+    private byte[] payload;
 
-	public TestEvent() {}
+    public TestEvent() {}
 
-	public TestEvent(long magicNumber, byte[] payload) {
-		this.magicNumber = magicNumber;
-		this.payload = payload;
-	}
+    public TestEvent(long magicNumber, byte[] payload) {
+        this.magicNumber = magicNumber;
+        this.payload = payload;
+    }
 
+    // ------------------------------------------------------------------------
+    //  Serialization
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Serialization
-	// ------------------------------------------------------------------------
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeLong(magicNumber);
+        out.writeInt(payload.length);
+        out.write(payload);
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeLong(magicNumber);
-		out.writeInt(payload.length);
-		out.write(payload);
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.magicNumber = in.readLong();
+        this.payload = new byte[in.readInt()];
+        in.readFully(this.payload);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.magicNumber = in.readLong();
-		this.payload = new byte[in.readInt()];
-		in.readFully(this.payload);
-	}
+    // ------------------------------------------------------------------------
+    //  Standard utilities
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Standard utilities
-	// ------------------------------------------------------------------------
+    @Override
+    public int hashCode() {
+        return Long.valueOf(magicNumber).hashCode();
+    }
 
-	@Override
-	public int hashCode() {
-		return Long.valueOf(magicNumber).hashCode();
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj != null && obj.getClass() == TestEvent.class) {
+            TestEvent that = (TestEvent) obj;
+            return this.magicNumber == that.magicNumber
+                    && Arrays.equals(this.payload, that.payload);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj != null && obj.getClass() == TestEvent.class) {
-			TestEvent that = (TestEvent) obj;
-			return this.magicNumber == that.magicNumber && Arrays.equals(this.payload, that.payload);
-		}
-		else {
-			return false;
-		}
-	}
-
-	@Override
-	public String toString() {
-		return String.format("TestEvent %d (%s)", magicNumber, StringUtils.byteToHexString(payload));
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "TestEvent %d (%s)", magicNumber, StringUtils.byteToHexString(payload));
+    }
 }

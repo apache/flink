@@ -21,15 +21,13 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 
-/**
- * Metric group which is used by the {@link SlotManager} to register metrics.
- */
+/** Metric group which is used by the {@link SlotManager} to register metrics. */
 public class SlotManagerMetricGroup extends AbstractImitatingJobManagerMetricGroup {
-	SlotManagerMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, hostname);
-	}
+    SlotManagerMetricGroup(MetricRegistry registry, String hostname) {
+        super(registry, hostname);
+    }
 
-	public static SlotManagerMetricGroup create(MetricRegistry metricRegistry, String hostname) {
-		return new SlotManagerMetricGroup(metricRegistry, hostname);
-	}
+    public static SlotManagerMetricGroup create(MetricRegistry metricRegistry, String hostname) {
+        return new SlotManagerMetricGroup(metricRegistry, hostname);
+    }
 }

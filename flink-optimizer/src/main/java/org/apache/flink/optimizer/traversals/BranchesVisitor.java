@@ -23,24 +23,23 @@ import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.util.Visitor;
 
 /**
- * This traversal of the optimizer DAG computes the information needed to track
- * branches and joins in the data flow. This is important to support plans
- * that are not a minimally connected DAG (Such plans are not trees, but at least one node feeds its
- * output into more than one other node).
+ * This traversal of the optimizer DAG computes the information needed to track branches and joins
+ * in the data flow. This is important to support plans that are not a minimally connected DAG (Such
+ * plans are not trees, but at least one node feeds its output into more than one other node).
  */
 public final class BranchesVisitor implements Visitor<OptimizerNode> {
 
-	@Override
-	public boolean preVisit(OptimizerNode node) {
-		return node.getOpenBranches() == null;
-	}
+    @Override
+    public boolean preVisit(OptimizerNode node) {
+        return node.getOpenBranches() == null;
+    }
 
-	@Override
-	public void postVisit(OptimizerNode node) {
-		if (node instanceof IterationNode) {
-			((IterationNode) node).acceptForStepFunction(this);
-		}
+    @Override
+    public void postVisit(OptimizerNode node) {
+        if (node instanceof IterationNode) {
+            ((IterationNode) node).acceptForStepFunction(this);
+        }
 
-		node.computeUnclosedBranchStack();
-	}
+        node.computeUnclosedBranchStack();
+    }
 }

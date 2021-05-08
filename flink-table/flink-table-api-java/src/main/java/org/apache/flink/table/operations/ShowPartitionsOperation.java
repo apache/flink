@@ -21,33 +21,36 @@ package org.apache.flink.table.operations;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Operation to describe a SHOW PARTITIONS statement.
- */
+/** Operation to describe a SHOW PARTITIONS statement. */
 public class ShowPartitionsOperation implements ShowOperation {
 
-	protected final ObjectIdentifier tableIdentifier;
-	private final CatalogPartitionSpec partitionSpec;
+    protected final ObjectIdentifier tableIdentifier;
+    private final CatalogPartitionSpec partitionSpec;
 
-	public ShowPartitionsOperation(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
-		this.tableIdentifier = tableIdentifier;
-		this.partitionSpec = partitionSpec;
-	}
+    public ShowPartitionsOperation(
+            ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+        this.tableIdentifier = tableIdentifier;
+        this.partitionSpec = partitionSpec;
+    }
 
-	public ObjectIdentifier getTableIdentifier() {
-		return tableIdentifier;
-	}
+    public ObjectIdentifier getTableIdentifier() {
+        return tableIdentifier;
+    }
 
-	public CatalogPartitionSpec getPartitionSpec() {
-		return partitionSpec;
-	}
+    public CatalogPartitionSpec getPartitionSpec() {
+        return partitionSpec;
+    }
 
-	@Override
-	public String asSummaryString() {
-		StringBuilder builder = new StringBuilder(String.format("SHOW PARTITIONS %s", tableIdentifier.asSummaryString()));
-		if (partitionSpec != null) {
-			builder.append(String.format(" PARTITION (%s)", OperationUtils.formatPartitionSpec(partitionSpec)));
-		}
-		return builder.toString();
-	}
+    @Override
+    public String asSummaryString() {
+        StringBuilder builder =
+                new StringBuilder(
+                        String.format("SHOW PARTITIONS %s", tableIdentifier.asSummaryString()));
+        if (partitionSpec != null) {
+            builder.append(
+                    String.format(
+                            " PARTITION (%s)", OperationUtils.formatPartitionSpec(partitionSpec)));
+        }
+        return builder.toString();
+    }
 }

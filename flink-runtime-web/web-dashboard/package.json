@@ -22,6 +22,8 @@
     "@antv/g2": "^3.4.10",
     "core-js": "^2.5.4",
     "d3": "^5.9.1",
+    "d3-flame-graph": "^4.0.6",
+    "d3-tip": "^0.9.1",
     "dagre": "^0.8.4",
     "monaco-editor": "^0.16.0",
     "ng-zorro-antd": "^7.2.0",

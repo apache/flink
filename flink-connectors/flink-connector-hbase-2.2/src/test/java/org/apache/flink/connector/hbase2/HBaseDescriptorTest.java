@@ -42,106 +42,111 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Test case for {@link HBase} descriptor.
- */
+/** Test case for {@link HBase} descriptor. */
 public class HBaseDescriptorTest extends DescriptorTestBase {
 
-	@Override
-	protected List<Descriptor> descriptors() {
-		HBase hbaseDesc0 = new HBase()
-			.version("2.2.3")
-			.tableName("testNs:table0")
-			.zookeeperQuorum("localhost:2181,localhost:2182,localhost:2183")
-			.zookeeperNodeParent("/hbase/root-dir");
+    @Override
+    protected List<Descriptor> descriptors() {
+        HBase hbaseDesc0 =
+                new HBase()
+                        .version("2.2.3")
+                        .tableName("testNs:table0")
+                        .zookeeperQuorum("localhost:2181,localhost:2182,localhost:2183")
+                        .zookeeperNodeParent("/hbase/root-dir");
 
-		HBase hbaseDesc1 = new HBase()
-			.version("2.2.3")
-			.tableName("testNs:table1")
-			.zookeeperQuorum("localhost:2181")
-			.zookeeperNodeParent("/hbase/root")
-			.writeBufferFlushInterval("2s")
-			.writeBufferFlushMaxRows(100)
-			.writeBufferFlushMaxSize("1mb");
+        HBase hbaseDesc1 =
+                new HBase()
+                        .version("2.2.3")
+                        .tableName("testNs:table1")
+                        .zookeeperQuorum("localhost:2181")
+                        .zookeeperNodeParent("/hbase/root")
+                        .writeBufferFlushInterval("2s")
+                        .writeBufferFlushMaxRows(100)
+                        .writeBufferFlushMaxSize("1mb");
 
-		return Arrays.asList(hbaseDesc0, hbaseDesc1);
-	}
+        return Arrays.asList(hbaseDesc0, hbaseDesc1);
+    }
 
-	@Override
-	protected List<Map<String, String>> properties() {
-		Map<String, String> prop0 = new HashMap<>();
-		prop0.put("connector.version", "2.2.3");
-		prop0.put("connector.type", "hbase");
-		prop0.put("connector.table-name", "testNs:table0");
-		prop0.put("connector.zookeeper.quorum", "localhost:2181,localhost:2182,localhost:2183");
-		prop0.put("connector.zookeeper.znode.parent", "/hbase/root-dir");
-		prop0.put("connector.property-version", "1");
+    @Override
+    protected List<Map<String, String>> properties() {
+        Map<String, String> prop0 = new HashMap<>();
+        prop0.put("connector.version", "2.2.3");
+        prop0.put("connector.type", "hbase");
+        prop0.put("connector.table-name", "testNs:table0");
+        prop0.put("connector.zookeeper.quorum", "localhost:2181,localhost:2182,localhost:2183");
+        prop0.put("connector.zookeeper.znode.parent", "/hbase/root-dir");
+        prop0.put("connector.property-version", "1");
 
-		Map<String, String> prop1 = new HashMap<>();
-		prop1.put("connector.version", "2.2.3");
-		prop1.put("connector.type", "hbase");
-		prop1.put("connector.table-name", "testNs:table1");
-		prop1.put("connector.zookeeper.quorum", "localhost:2181");
-		prop1.put("connector.zookeeper.znode.parent", "/hbase/root");
-		prop1.put("connector.property-version", "1");
-		prop1.put("connector.write.buffer-flush.interval", "2s");
-		prop1.put("connector.write.buffer-flush.max-rows", "100");
-		prop1.put("connector.write.buffer-flush.max-size", "1 mb");
+        Map<String, String> prop1 = new HashMap<>();
+        prop1.put("connector.version", "2.2.3");
+        prop1.put("connector.type", "hbase");
+        prop1.put("connector.table-name", "testNs:table1");
+        prop1.put("connector.zookeeper.quorum", "localhost:2181");
+        prop1.put("connector.zookeeper.znode.parent", "/hbase/root");
+        prop1.put("connector.property-version", "1");
+        prop1.put("connector.write.buffer-flush.interval", "2s");
+        prop1.put("connector.write.buffer-flush.max-rows", "100");
+        prop1.put("connector.write.buffer-flush.max-size", "1 mb");
 
-		return Arrays.asList(prop0, prop1);
-	}
+        return Arrays.asList(prop0, prop1);
+    }
 
-	@Override
-	protected DescriptorValidator validator() {
-		return new HBaseValidator();
-	}
+    @Override
+    protected DescriptorValidator validator() {
+        return new HBaseValidator();
+    }
 
-	@Test
-	public void testRequiredFields() {
-		HBase hbaseDesc0 = new HBase();
-		HBase hbaseDesc1 = new HBase()
-			.version("2.2.3")
-			.zookeeperQuorum("localhost:2181")
-			.zookeeperNodeParent("/hbase/root"); // no table name
+    @Test
+    public void testRequiredFields() {
+        HBase hbaseDesc0 = new HBase();
+        HBase hbaseDesc1 =
+                new HBase()
+                        .version("2.2.3")
+                        .zookeeperQuorum("localhost:2181")
+                        .zookeeperNodeParent("/hbase/root"); // no table name
 
-		HBase[] testCases = new HBase[]{hbaseDesc0, hbaseDesc1};
-		for (int i = 0; i < testCases.length; i++) {
-			HBase hbaseDesc = testCases[i];
-			DescriptorProperties properties = new DescriptorProperties();
-			properties.putProperties(hbaseDesc.toProperties());
-			boolean caughtExpectedException = false;
-			try {
-				validator().validate(properties);
-			} catch (ValidationException e) {
-				caughtExpectedException = true;
-			}
-			Assert.assertTrue("The case#" + i + " didn't get the expected error", caughtExpectedException);
-		}
-	}
+        HBase[] testCases = new HBase[] {hbaseDesc0, hbaseDesc1};
+        for (int i = 0; i < testCases.length; i++) {
+            HBase hbaseDesc = testCases[i];
+            DescriptorProperties properties = new DescriptorProperties();
+            properties.putProperties(hbaseDesc.toProperties());
+            boolean caughtExpectedException = false;
+            try {
+                validator().validate(properties);
+            } catch (ValidationException e) {
+                caughtExpectedException = true;
+            }
+            Assert.assertTrue(
+                    "The case#" + i + " didn't get the expected error", caughtExpectedException);
+        }
+    }
 
-	@Test
-	public void testFormatNeed(){
-		String expected = "The connector org.apache.flink.table.descriptors.HBase does not require a format description but org.apache.flink.connector.hbase2.HBaseDescriptorTest$1 found.";
-		AtomicReference<CatalogTableImpl> reference = new AtomicReference<>();
-		HBase hBase = new HBase();
-		Registration registration = (path, table) -> reference.set((CatalogTableImpl) table);
-		ConnectTableDescriptor descriptor = new StreamTableDescriptor(
-			registration, hBase)
-			.withFormat(new FormatDescriptor("myFormat", 1) {
-				@Override
-				protected Map<String, String> toFormatProperties() {
-					return new HashMap<>();
-				}
-			})
-			.withSchema(new Schema()
-				.field("f0", DataTypes.INT())
-				.rowtime(new Rowtime().timestampsFromField("f0")));
-		String actual = null;
-		try {
-			descriptor.toProperties();
-		} catch (Exception e) {
-			actual = e.getMessage();
-		}
-		Assert.assertEquals(expected, actual);
-	}
+    @Test
+    public void testFormatNeed() {
+        String expected =
+                "The connector org.apache.flink.table.descriptors.HBase does not require a format description but org.apache.flink.connector.hbase2.HBaseDescriptorTest$1 found.";
+        AtomicReference<CatalogTableImpl> reference = new AtomicReference<>();
+        HBase hBase = new HBase();
+        Registration registration = (path, table) -> reference.set((CatalogTableImpl) table);
+        ConnectTableDescriptor descriptor =
+                new StreamTableDescriptor(registration, hBase)
+                        .withFormat(
+                                new FormatDescriptor("myFormat", 1) {
+                                    @Override
+                                    protected Map<String, String> toFormatProperties() {
+                                        return new HashMap<>();
+                                    }
+                                })
+                        .withSchema(
+                                new Schema()
+                                        .field("f0", DataTypes.INT())
+                                        .rowtime(new Rowtime().timestampsFromField("f0")));
+        String actual = null;
+        try {
+            descriptor.toProperties();
+        } catch (Exception e) {
+            actual = e.getMessage();
+        }
+        Assert.assertEquals(expected, actual);
+    }
 }

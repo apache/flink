@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.scheduler.SchedulerOperations;
 import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -43,132 +45,296 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
-	private final SchedulerOperations schedulerOperations;
+    private final SchedulerOperations schedulerOperations;
 
-	private final SchedulingTopology schedulingTopology;
+    private final SchedulingTopology schedulingTopology;
 
-	private final DeploymentOption deploymentOption = new DeploymentOption(false);
+    private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
-	/** Result partitions are correlated if they have the same result id. */
-	private final Map<IntermediateDataSetID, Set<SchedulingResultPartition>> correlatedResultPartitions = new HashMap<>();
+    /** ConsumedPartitionGroups are correlated if they have the same result id. */
+    private final Map<IntermediateDataSetID, Set<ConsumedPartitionGroup>>
+            correlatedResultPartitionGroups = new HashMap<>();
 
-	private final Map<IntermediateResultPartitionID, Set<SchedulingPipelinedRegion>> partitionConsumerRegions = new HashMap<>();
+    /** External consumer regions of each ConsumedPartitionGroup. */
+    private final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
+            partitionGroupConsumerRegions = new IdentityHashMap<>();
 
-	private final Map<SchedulingPipelinedRegion, List<ExecutionVertexID>> regionVerticesSorted = new IdentityHashMap<>();
+    private final Map<SchedulingPipelinedRegion, List<ExecutionVertexID>> regionVerticesSorted =
+            new IdentityHashMap<>();
 
-	public PipelinedRegionSchedulingStrategy(
-			final SchedulerOperations schedulerOperations,
-			final SchedulingTopology schedulingTopology) {
+    /** The ConsumedPartitionGroups which are produced by multiple regions. */
+    private final Set<ConsumedPartitionGroup> crossRegionConsumedPartitionGroups =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
-		this.schedulerOperations = checkNotNull(schedulerOperations);
-		this.schedulingTopology = checkNotNull(schedulingTopology);
+    public PipelinedRegionSchedulingStrategy(
+            final SchedulerOperations schedulerOperations,
+            final SchedulingTopology schedulingTopology) {
 
-		init();
-	}
+        this.schedulerOperations = checkNotNull(schedulerOperations);
+        this.schedulingTopology = checkNotNull(schedulingTopology);
 
-	private void init() {
-		for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
-			for (SchedulingResultPartition partition : region.getConsumedResults()) {
-				checkState(partition.getResultType().isBlocking());
+        init();
+    }
 
-				partitionConsumerRegions.computeIfAbsent(partition.getId(), pid -> new HashSet<>()).add(region);
-				correlatedResultPartitions.computeIfAbsent(partition.getResultId(), rid -> new HashSet<>()).add(partition);
-			}
-		}
+    private void init() {
 
-		for (SchedulingExecutionVertex vertex : schedulingTopology.getVertices()) {
-			final SchedulingPipelinedRegion region = schedulingTopology.getPipelinedRegionOfVertex(vertex.getId());
-			regionVerticesSorted.computeIfAbsent(region, r -> new ArrayList<>()).add(vertex.getId());
-		}
-	}
+        initCrossRegionConsumedPartitionGroups();
 
-	@Override
-	public void startScheduling() {
-		final Set<SchedulingPipelinedRegion> sourceRegions = IterableUtils
-			.toStream(schedulingTopology.getAllPipelinedRegions())
-			.filter(region -> !region.getConsumedResults().iterator().hasNext())
-			.collect(Collectors.toSet());
-		maybeScheduleRegions(sourceRegions);
-	}
+        initPartitionGroupConsumerRegions();
 
-	@Override
-	public void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
-		final Set<SchedulingPipelinedRegion> regionsToRestart = verticesToRestart.stream()
-			.map(schedulingTopology::getPipelinedRegionOfVertex)
-			.collect(Collectors.toSet());
-		maybeScheduleRegions(regionsToRestart);
-	}
+        initCorrelatedResultPartitionGroups();
 
-	@Override
-	public void onExecutionStateChange(final ExecutionVertexID executionVertexId, final ExecutionState executionState) {
-		if (executionState == ExecutionState.FINISHED) {
-			final Set<SchedulingResultPartition> finishedPartitions = IterableUtils
-				.toStream(schedulingTopology.getVertex(executionVertexId).getProducedResults())
-				.filter(partition -> partitionConsumerRegions.containsKey(partition.getId()))
-				.filter(partition -> partition.getState() == ResultPartitionState.CONSUMABLE)
-				.flatMap(partition -> correlatedResultPartitions.get(partition.getResultId()).stream())
-				.collect(Collectors.toSet());
+        for (SchedulingExecutionVertex vertex : schedulingTopology.getVertices()) {
+            final SchedulingPipelinedRegion region =
+                    schedulingTopology.getPipelinedRegionOfVertex(vertex.getId());
+            regionVerticesSorted
+                    .computeIfAbsent(region, r -> new ArrayList<>())
+                    .add(vertex.getId());
+        }
+    }
 
-			final Set<SchedulingPipelinedRegion> consumerRegions = finishedPartitions.stream()
-				.flatMap(partition -> partitionConsumerRegions.get(partition.getId()).stream())
-				.collect(Collectors.toSet());
-			maybeScheduleRegions(consumerRegions);
-		}
-	}
+    private void initCrossRegionConsumedPartitionGroups() {
+        final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
+                producerRegionsByConsumedPartitionGroup = new IdentityHashMap<>();
 
-	@Override
-	public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {
-	}
+        for (SchedulingPipelinedRegion pipelinedRegion :
+                schedulingTopology.getAllPipelinedRegions()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    pipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+                producerRegionsByConsumedPartitionGroup.computeIfAbsent(
+                        consumedPartitionGroup, this::getProducerRegionsForConsumedPartitionGroup);
+            }
+        }
 
-	private void maybeScheduleRegions(final Set<SchedulingPipelinedRegion> regions) {
-		final List<SchedulingPipelinedRegion> regionsSorted =
-			SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(schedulingTopology, regions);
-		for (SchedulingPipelinedRegion region : regionsSorted) {
-			maybeScheduleRegion(region);
-		}
-	}
+        for (SchedulingPipelinedRegion pipelinedRegion :
+                schedulingTopology.getAllPipelinedRegions()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    pipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+                final Set<SchedulingPipelinedRegion> producerRegions =
+                        producerRegionsByConsumedPartitionGroup.get(consumedPartitionGroup);
+                if (producerRegions.size() > 1 && producerRegions.contains(pipelinedRegion)) {
+                    crossRegionConsumedPartitionGroups.add(consumedPartitionGroup);
+                }
+            }
+        }
+    }
 
-	private void maybeScheduleRegion(final SchedulingPipelinedRegion region) {
-		if (!areRegionInputsAllConsumable(region)) {
-			return;
-		}
+    private Set<SchedulingPipelinedRegion> getProducerRegionsForConsumedPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        final Set<SchedulingPipelinedRegion> producerRegions =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            producerRegions.add(getProducerRegion(partitionId));
+        }
+        return producerRegions;
+    }
 
-		checkState(areRegionVerticesAllInCreatedState(region), "BUG: trying to schedule a region which is not in CREATED state");
+    private SchedulingPipelinedRegion getProducerRegion(IntermediateResultPartitionID partitionId) {
+        return schedulingTopology.getPipelinedRegionOfVertex(
+                schedulingTopology.getResultPartition(partitionId).getProducer().getId());
+    }
 
-		final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
-			SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
-				regionVerticesSorted.get(region),
-				id -> deploymentOption);
-		schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
-	}
+    private void initPartitionGroupConsumerRegions() {
+        for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    region.getAllBlockingConsumedPartitionGroups()) {
+                if (crossRegionConsumedPartitionGroups.contains(consumedPartitionGroup)
+                        || isExternalConsumedPartitionGroup(consumedPartitionGroup, region)) {
+                    partitionGroupConsumerRegions
+                            .computeIfAbsent(consumedPartitionGroup, group -> new HashSet<>())
+                            .add(region);
+                }
+            }
+        }
+    }
 
-	private boolean areRegionInputsAllConsumable(final SchedulingPipelinedRegion region) {
-		for (SchedulingResultPartition partition : region.getConsumedResults()) {
-			if (partition.getState() != ResultPartitionState.CONSUMABLE) {
-				return false;
-			}
-		}
-		return true;
-	}
+    private void initCorrelatedResultPartitionGroups() {
+        for (ConsumedPartitionGroup consumedPartitionGroup :
+                partitionGroupConsumerRegions.keySet()) {
+            for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+                correlatedResultPartitionGroups
+                        .computeIfAbsent(
+                                partitionId.getIntermediateDataSetID(), id -> new HashSet<>())
+                        .add(consumedPartitionGroup);
+            }
+        }
+    }
 
-	private boolean areRegionVerticesAllInCreatedState(final SchedulingPipelinedRegion region) {
-		for (SchedulingExecutionVertex vertex : region.getVertices()) {
-			if (vertex.getState() != ExecutionState.CREATED) {
-				return false;
-			}
-		}
-		return true;
-	}
+    @Override
+    public void startScheduling() {
+        final Set<SchedulingPipelinedRegion> sourceRegions =
+                IterableUtils.toStream(schedulingTopology.getAllPipelinedRegions())
+                        .filter(this::isSourceRegion)
+                        .collect(Collectors.toSet());
+        maybeScheduleRegions(sourceRegions);
+    }
 
-	/**
-	 * The factory for creating {@link PipelinedRegionSchedulingStrategy}.
-	 */
-	public static class Factory implements SchedulingStrategyFactory {
-		@Override
-		public SchedulingStrategy createInstance(
-				final SchedulerOperations schedulerOperations,
-				final SchedulingTopology schedulingTopology) {
-			return new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);
-		}
-	}
+    private boolean isSourceRegion(SchedulingPipelinedRegion region) {
+        for (ConsumedPartitionGroup consumedPartitionGroup :
+                region.getAllBlockingConsumedPartitionGroups()) {
+            if (crossRegionConsumedPartitionGroups.contains(consumedPartitionGroup)
+                    || isExternalConsumedPartitionGroup(consumedPartitionGroup, region)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
+        final Set<SchedulingPipelinedRegion> regionsToRestart =
+                verticesToRestart.stream()
+                        .map(schedulingTopology::getPipelinedRegionOfVertex)
+                        .collect(Collectors.toSet());
+        maybeScheduleRegions(regionsToRestart);
+    }
+
+    @Override
+    public void onExecutionStateChange(
+            final ExecutionVertexID executionVertexId, final ExecutionState executionState) {
+        if (executionState == ExecutionState.FINISHED) {
+            final Set<ConsumedPartitionGroup> finishedConsumedPartitionGroups =
+                    IterableUtils.toStream(
+                                    schedulingTopology
+                                            .getVertex(executionVertexId)
+                                            .getProducedResults())
+                            .filter(
+                                    partition ->
+                                            partition.getState() == ResultPartitionState.CONSUMABLE)
+                            .flatMap(
+                                    partition ->
+                                            correlatedResultPartitionGroups
+                                                    .getOrDefault(
+                                                            partition.getResultId(),
+                                                            Collections.emptySet())
+                                                    .stream())
+                            .collect(Collectors.toSet());
+
+            // for POINTWISE consumers of a BLOCKING partition, it's possible that some of the
+            // consumers are not affected by the restarting of sibling vertices so they are still in
+            // SCHEDULED/DEPLOYING/RUNNING/FINISHED. We should skip rescheduling these vertices.
+            final Set<SchedulingPipelinedRegion> consumerRegions =
+                    finishedConsumedPartitionGroups.stream()
+                            .flatMap(
+                                    partitionGroup ->
+                                            partitionGroupConsumerRegions.get(partitionGroup)
+                                                    .stream())
+                            .distinct()
+                            .filter(this::areRegionVerticesAllInCreatedState)
+                            .collect(Collectors.toSet());
+
+            maybeScheduleRegions(consumerRegions);
+        }
+    }
+
+    @Override
+    public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {}
+
+    private void maybeScheduleRegions(final Set<SchedulingPipelinedRegion> regions) {
+        final List<SchedulingPipelinedRegion> regionsSorted =
+                SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
+                        schedulingTopology, regions);
+
+        final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
+        for (SchedulingPipelinedRegion region : regionsSorted) {
+            maybeScheduleRegion(region, consumableStatusCache);
+        }
+    }
+
+    private void maybeScheduleRegion(
+            final SchedulingPipelinedRegion region,
+            final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache) {
+        if (!areRegionInputsAllConsumable(region, consumableStatusCache)) {
+            return;
+        }
+
+        checkState(
+                areRegionVerticesAllInCreatedState(region),
+                "BUG: trying to schedule a region which is not in CREATED state");
+
+        final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
+                SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
+                        regionVerticesSorted.get(region), id -> deploymentOption);
+        schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
+    }
+
+    private boolean areRegionInputsAllConsumable(
+            final SchedulingPipelinedRegion region,
+            final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache) {
+        for (ConsumedPartitionGroup consumedPartitionGroup :
+                region.getAllBlockingConsumedPartitionGroups()) {
+            if (crossRegionConsumedPartitionGroups.contains(consumedPartitionGroup)) {
+                if (!isCrossRegionConsumedPartitionConsumable(consumedPartitionGroup, region)) {
+                    return false;
+                }
+            } else if (isExternalConsumedPartitionGroup(consumedPartitionGroup, region)) {
+                if (!consumableStatusCache.computeIfAbsent(
+                        consumedPartitionGroup, this::isConsumedPartitionGroupConsumable)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isConsumedPartitionGroupConsumable(
+            final ConsumedPartitionGroup consumedPartitionGroup) {
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            if (schedulingTopology.getResultPartition(partitionId).getState()
+                    != ResultPartitionState.CONSUMABLE) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isCrossRegionConsumedPartitionConsumable(
+            final ConsumedPartitionGroup consumedPartitionGroup,
+            final SchedulingPipelinedRegion pipelinedRegion) {
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            if (isExternalConsumedPartition(partitionId, pipelinedRegion)
+                    && schedulingTopology.getResultPartition(partitionId).getState()
+                            != ResultPartitionState.CONSUMABLE) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean areRegionVerticesAllInCreatedState(final SchedulingPipelinedRegion region) {
+        for (SchedulingExecutionVertex vertex : region.getVertices()) {
+            if (vertex.getState() != ExecutionState.CREATED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isExternalConsumedPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            SchedulingPipelinedRegion pipelinedRegion) {
+
+        return isExternalConsumedPartition(consumedPartitionGroup.getFirst(), pipelinedRegion);
+    }
+
+    private boolean isExternalConsumedPartition(
+            IntermediateResultPartitionID partitionId, SchedulingPipelinedRegion pipelinedRegion) {
+        return !pipelinedRegion.contains(
+                schedulingTopology.getResultPartition(partitionId).getProducer().getId());
+    }
+
+    @VisibleForTesting
+    Set<ConsumedPartitionGroup> getCrossRegionConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(crossRegionConsumedPartitionGroups);
+    }
+
+    /** The factory for creating {@link PipelinedRegionSchedulingStrategy}. */
+    public static class Factory implements SchedulingStrategyFactory {
+        @Override
+        public SchedulingStrategy createInstance(
+                final SchedulerOperations schedulerOperations,
+                final SchedulingTopology schedulingTopology) {
+            return new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);
+        }
+    }
 }

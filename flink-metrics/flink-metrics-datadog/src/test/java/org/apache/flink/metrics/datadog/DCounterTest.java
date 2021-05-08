@@ -27,39 +27,39 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link DCounter}.
- */
+/** Tests for the {@link DCounter}. */
 public class DCounterTest extends TestLogger {
 
-	@Test
-	public void testGetMetricValue() {
-		final Counter backingCounter = new SimpleCounter();
-		final DCounter counter = new DCounter(backingCounter, "counter", "localhost", Collections.emptyList(), () -> 0);
+    @Test
+    public void testGetMetricValue() {
+        final Counter backingCounter = new SimpleCounter();
+        final DCounter counter =
+                new DCounter(
+                        backingCounter, "counter", "localhost", Collections.emptyList(), () -> 0);
 
-		// sane initial state
-		assertEquals(0L, counter.getMetricValue());
-		counter.ackReport();
-		assertEquals(0L, counter.getMetricValue());
+        // sane initial state
+        assertEquals(0L, counter.getMetricValue());
+        counter.ackReport();
+        assertEquals(0L, counter.getMetricValue());
 
-		// value is compared against initial state 0
-		backingCounter.inc(10);
-		assertEquals(10L, counter.getMetricValue());
+        // value is compared against initial state 0
+        backingCounter.inc(10);
+        assertEquals(10L, counter.getMetricValue());
 
-		// last value was not acked, should still be compared against initial state 0
-		backingCounter.inc(10);
-		assertEquals(20L, counter.getMetricValue());
+        // last value was not acked, should still be compared against initial state 0
+        backingCounter.inc(10);
+        assertEquals(20L, counter.getMetricValue());
 
-		// last value (20) acked, now target of comparison
-		counter.ackReport();
-		assertEquals(0L, counter.getMetricValue());
+        // last value (20) acked, now target of comparison
+        counter.ackReport();
+        assertEquals(0L, counter.getMetricValue());
 
-		// we now compare against the acked value
-		backingCounter.inc(10);
-		assertEquals(10L, counter.getMetricValue());
+        // we now compare against the acked value
+        backingCounter.inc(10);
+        assertEquals(10L, counter.getMetricValue());
 
-		// properly handle decrements
-		backingCounter.dec(10);
-		assertEquals(0L, counter.getMetricValue());
-	}
+        // properly handle decrements
+        backingCounter.dec(10);
+        assertEquals(0L, counter.getMetricValue());
+    }
 }

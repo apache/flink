@@ -34,439 +34,442 @@ import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.efoConsumerArn;
 
-
-/**
- * This is a configuration class for enhanced fan-out components.
- */
+/** This is a configuration class for enhanced fan-out components. */
 public class FanOutRecordPublisherConfiguration {
 
-	/**
-	 * The efo registration type for de-/registration of streams.
-	 */
-	private final EFORegistrationType efoRegistrationType;
+    /** The efo registration type for de-/registration of streams. */
+    private final EFORegistrationType efoRegistrationType;
 
-	/**
-	 * The efo stream consumer name. Should not be Null if the efoRegistrationType is either LAZY or EAGER.
-	 */
-	@Nullable
-	private String consumerName;
+    /**
+     * The efo stream consumer name. Should not be Null if the efoRegistrationType is either LAZY or
+     * EAGER.
+     */
+    @Nullable private String consumerName;
 
-	/**
-	 * A map of stream to stream consumer ARN for EFO subscriptions.
-	 */
-	private final Map<String, String> streamConsumerArns = new HashMap<>();
+    /** A map of stream to stream consumer ARN for EFO subscriptions. */
+    private final Map<String, String> streamConsumerArns = new HashMap<>();
 
-	/**
-	 * Base backoff millis for the deregister stream operation.
-	 */
-	private final int subscribeToShardMaxRetries;
+    /** Base backoff millis for the deregister stream operation. */
+    private final int subscribeToShardMaxRetries;
 
-	/**
-	 * Maximum backoff millis for the subscribe to shard operation.
-	 */
-	private final long subscribeToShardMaxBackoffMillis;
+    /** A timeout when waiting for a shard subscription to be established. */
+    private final Duration subscribeToShardTimeout;
 
-	/**
-	 * Base backoff millis for the subscribe to shard operation.
-	 */
-	private final long subscribeToShardBaseBackoffMillis;
+    /** Maximum backoff millis for the subscribe to shard operation. */
+    private final long subscribeToShardMaxBackoffMillis;
 
-	/**
-	 * Exponential backoff power constant for the subscribe to shard operation.
-	 */
-	private final double subscribeToShardExpConstant;
+    /** Base backoff millis for the subscribe to shard operation. */
+    private final long subscribeToShardBaseBackoffMillis;
 
-	/**
-	 * Base backoff millis for the register stream operation.
-	 */
-	private final long registerStreamBaseBackoffMillis;
+    /** Exponential backoff power constant for the subscribe to shard operation. */
+    private final double subscribeToShardExpConstant;
 
-	/**
-	 * Maximum backoff millis for the register stream operation.
-	 */
-	private final long registerStreamMaxBackoffMillis;
+    /** Base backoff millis for the register stream operation. */
+    private final long registerStreamBaseBackoffMillis;
 
-	/**
-	 * Exponential backoff power constant for the register stream operation.
-	 */
-	private final double registerStreamExpConstant;
+    /** Maximum backoff millis for the register stream operation. */
+    private final long registerStreamMaxBackoffMillis;
 
-	/**
-	 * Maximum retry attempts for the register stream operation.
-	 */
-	private final int registerStreamMaxRetries;
+    /** Exponential backoff power constant for the register stream operation. */
+    private final double registerStreamExpConstant;
 
-	/**
-	 * Maximum time to wait for a stream consumer to become active before giving up.
-	 */
-	private final Duration registerStreamConsumerTimeout;
+    /** Maximum retry attempts for the register stream operation. */
+    private final int registerStreamMaxRetries;
 
-	/**
-	 * Base backoff millis for the deregister stream operation.
-	 */
-	private final long deregisterStreamBaseBackoffMillis;
+    /** Maximum time to wait for a stream consumer to become active before giving up. */
+    private final Duration registerStreamConsumerTimeout;
 
-	/**
-	 * Maximum backoff millis for the deregister stream operation.
-	 */
-	private final long deregisterStreamMaxBackoffMillis;
+    /** Base backoff millis for the deregister stream operation. */
+    private final long deregisterStreamBaseBackoffMillis;
 
-	/**
-	 * Exponential backoff power constant for the deregister stream operation.
-	 */
-	private final double deregisterStreamExpConstant;
+    /** Maximum backoff millis for the deregister stream operation. */
+    private final long deregisterStreamMaxBackoffMillis;
 
-	/**
-	 * Maximum retry attempts for the deregister stream operation.
-	 */
-	private final int deregisterStreamMaxRetries;
+    /** Exponential backoff power constant for the deregister stream operation. */
+    private final double deregisterStreamExpConstant;
 
-	/**
-	 * Maximum time to wait for a stream consumer to deregister before giving up.
-	 */
-	private final Duration deregisterStreamConsumerTimeout;
+    /** Maximum retry attempts for the deregister stream operation. */
+    private final int deregisterStreamMaxRetries;
 
-	/**
-	 * Max retries for the describe stream operation.
-	 */
-	private final int describeStreamMaxRetries;
+    /** Maximum time to wait for a stream consumer to deregister before giving up. */
+    private final Duration deregisterStreamConsumerTimeout;
 
-	/**
-	 * Backoff millis for the describe stream operation.
-	 */
-	private final long describeStreamBaseBackoffMillis;
+    /** Max retries for the describe stream operation. */
+    private final int describeStreamMaxRetries;
 
-	/**
-	 *  Maximum backoff millis for the describe stream operation.
-	 */
-	private final long describeStreamMaxBackoffMillis;
+    /** Backoff millis for the describe stream operation. */
+    private final long describeStreamBaseBackoffMillis;
 
-	/**
-	 * Exponential backoff power constant for the describe stream operation.
-	 */
-	private final double describeStreamExpConstant;
+    /** Maximum backoff millis for the describe stream operation. */
+    private final long describeStreamMaxBackoffMillis;
 
-	/**
-	 * Max retries for the describe stream consumer operation.
-	 */
-	private final int describeStreamConsumerMaxRetries;
+    /** Exponential backoff power constant for the describe stream operation. */
+    private final double describeStreamExpConstant;
 
-	/**
-	 * Backoff millis for the describe stream consumer operation.
-	 */
-	private final long describeStreamConsumerBaseBackoffMillis;
+    /** Max retries for the describe stream consumer operation. */
+    private final int describeStreamConsumerMaxRetries;
 
-	/**
-	 * Maximum backoff millis for the describe stream consumer operation.
-	 */
-	private final long describeStreamConsumerMaxBackoffMillis;
+    /** Backoff millis for the describe stream consumer operation. */
+    private final long describeStreamConsumerBaseBackoffMillis;
 
-	/**
-	 * Exponential backoff power constant for the describe stream consumer operation.
-	 */
-	private final double describeStreamConsumerExpConstant;
+    /** Maximum backoff millis for the describe stream consumer operation. */
+    private final long describeStreamConsumerMaxBackoffMillis;
 
-	/**
-	 * Creates a FanOutRecordPublisherConfiguration.
-	 *
-	 * @param configProps the configuration properties from config file.
-	 * @param streams     the streams which is sent to match the EFO consumer arn if the EFO registration mode is set to `NONE`.
-	 */
-	public FanOutRecordPublisherConfiguration(final Properties configProps, final List<String> streams) {
-		Preconditions.checkArgument(configProps.getProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE).equals(RecordPublisherType.EFO.toString()), "Only efo record publisher can register a FanOutProperties.");
-		KinesisConfigUtil.validateEfoConfiguration(configProps, streams);
+    /** Exponential backoff power constant for the describe stream consumer operation. */
+    private final double describeStreamConsumerExpConstant;
 
-		efoRegistrationType = EFORegistrationType.valueOf(configProps.getProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EFORegistrationType.EAGER.toString()));
-		//if efo registration type is EAGER|LAZY, then user should explicitly provide a consumer name for each stream.
-		if (efoRegistrationType == EFORegistrationType.EAGER || efoRegistrationType == EFORegistrationType.LAZY) {
-			consumerName = configProps.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
-		}
+    /**
+     * Creates a FanOutRecordPublisherConfiguration.
+     *
+     * @param configProps the configuration properties from config file.
+     * @param streams the streams which is sent to match the EFO consumer arn if the EFO
+     *     registration mode is set to `NONE`.
+     */
+    public FanOutRecordPublisherConfiguration(
+            final Properties configProps, final List<String> streams) {
+        Preconditions.checkArgument(
+                configProps
+                        .getProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE)
+                        .equals(RecordPublisherType.EFO.toString()),
+                "Only efo record publisher can register a FanOutProperties.");
+        KinesisConfigUtil.validateEfoConfiguration(configProps, streams);
 
-		for (String stream : streams) {
-			String key = efoConsumerArn(stream);
-			if (configProps.containsKey(key)) {
-				streamConsumerArns.put(stream, configProps.getProperty(key));
-			}
-		}
+        efoRegistrationType =
+                EFORegistrationType.valueOf(
+                        configProps.getProperty(
+                                ConsumerConfigConstants.EFO_REGISTRATION_TYPE,
+                                EFORegistrationType.EAGER.toString()));
+        // if efo registration type is EAGER|LAZY, then user should explicitly provide a consumer
+        // name for each stream.
+        if (efoRegistrationType == EFORegistrationType.EAGER
+                || efoRegistrationType == EFORegistrationType.LAZY) {
+            consumerName = configProps.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
+        }
 
-		this.subscribeToShardMaxRetries = Optional
-			.ofNullable(configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES))
-			.map(Integer::parseInt)
-			.orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES);
-		this.subscribeToShardBaseBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE);
-		this.subscribeToShardMaxBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_MAX);
-		this.subscribeToShardExpConstant = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT))
-			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT);
+        for (String stream : streams) {
+            String key = efoConsumerArn(stream);
+            if (configProps.containsKey(key)) {
+                streamConsumerArns.put(stream, configProps.getProperty(key));
+            }
+        }
 
-		this.registerStreamBaseBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_BASE);
-		this.registerStreamMaxBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_MAX);
-		this.registerStreamExpConstant = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
-			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
-		this.registerStreamMaxRetries = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_RETRIES))
-			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_RETRIES);
-		this.registerStreamConsumerTimeout = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS))
-			.map(Integer::parseInt)
-			.map(Duration::ofSeconds)
-			.orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_TIMEOUT);
+        this.subscribeToShardMaxRetries =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES))
+                        .map(Integer::parseInt)
+                        .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES);
+        this.subscribeToShardTimeout =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS))
+                        .map(Integer::parseInt)
+                        .map(Duration::ofSeconds)
+                        .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+        this.subscribeToShardBaseBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE);
+        this.subscribeToShardMaxBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_MAX);
+        this.subscribeToShardExpConstant =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT))
+                        .map(Double::parseDouble)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT);
 
-		this.deregisterStreamBaseBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE);
-		this.deregisterStreamMaxBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX);
-		this.deregisterStreamExpConstant = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
-			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
-		this.deregisterStreamMaxRetries = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES))
-			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES);
-		this.deregisterStreamConsumerTimeout = Optional.ofNullable(
-			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS))
-			.map(Integer::parseInt)
-			.map(Duration::ofSeconds)
-			.orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_TIMEOUT);
+        this.registerStreamBaseBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_BASE);
+        this.registerStreamMaxBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_MAX);
+        this.registerStreamExpConstant =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
+                        .map(Double::parseDouble)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
+        this.registerStreamMaxRetries =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.REGISTER_STREAM_RETRIES))
+                        .map(Integer::parseInt)
+                        .orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_RETRIES);
+        this.registerStreamConsumerTimeout =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS))
+                        .map(Integer::parseInt)
+                        .map(Duration::ofSeconds)
+                        .orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_TIMEOUT);
 
-		this.describeStreamMaxRetries = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES))
-			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES);
-		this.describeStreamBaseBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE);
-		this.describeStreamMaxBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX);
-		this.describeStreamExpConstant = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT))
-			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT);
-		this.describeStreamConsumerMaxRetries = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES))
-			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES);
-		this.describeStreamConsumerBaseBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE);
-		this.describeStreamConsumerMaxBackoffMillis = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX))
-			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX);
-		this.describeStreamConsumerExpConstant = Optional.ofNullable(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT))
-			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT);
-	}
+        this.deregisterStreamBaseBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE);
+        this.deregisterStreamMaxBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX);
+        this.deregisterStreamExpConstant =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
+                        .map(Double::parseDouble)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
+        this.deregisterStreamMaxRetries =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES))
+                        .map(Integer::parseInt)
+                        .orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES);
+        this.deregisterStreamConsumerTimeout =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS))
+                        .map(Integer::parseInt)
+                        .map(Duration::ofSeconds)
+                        .orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_TIMEOUT);
 
-	// ------------------------------------------------------------------------
-	//  subscribeToShard() related performance settings
-	// ------------------------------------------------------------------------
+        this.describeStreamMaxRetries =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES))
+                        .map(Integer::parseInt)
+                        .orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES);
+        this.describeStreamBaseBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE);
+        this.describeStreamMaxBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX))
+                        .map(Long::parseLong)
+                        .orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX);
+        this.describeStreamExpConstant =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT))
+                        .map(Double::parseDouble)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT);
+        this.describeStreamConsumerMaxRetries =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES))
+                        .map(Integer::parseInt)
+                        .orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES);
+        this.describeStreamConsumerBaseBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE))
+                        .map(Long::parseLong)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE);
+        this.describeStreamConsumerMaxBackoffMillis =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX))
+                        .map(Long::parseLong)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX);
+        this.describeStreamConsumerExpConstant =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants
+                                                .DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT))
+                        .map(Double::parseDouble)
+                        .orElse(
+                                ConsumerConfigConstants
+                                        .DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT);
+    }
 
-	/**
-	 * Get maximum retry attempts for the subscribe to shard operation.
-	 */
-	public int getSubscribeToShardMaxRetries() {
-		return subscribeToShardMaxRetries;
-	}
+    // ------------------------------------------------------------------------
+    //  subscribeToShard() related performance settings
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get maximum backoff millis for the subscribe to shard operation.
-	 */
-	public long getSubscribeToShardMaxBackoffMillis() {
-		return subscribeToShardMaxBackoffMillis;
-	}
+    /** Get maximum retry attempts for the subscribe to shard operation. */
+    public int getSubscribeToShardMaxRetries() {
+        return subscribeToShardMaxRetries;
+    }
 
-	/**
-	 * Get base backoff millis for the subscribe to shard operation.
-	 */
-	public long getSubscribeToShardBaseBackoffMillis() {
-		return subscribeToShardBaseBackoffMillis;
-	}
+    /** Get timeout when waiting for a shard subscription to be established. */
+    public Duration getSubscribeToShardTimeout() {
+        return subscribeToShardTimeout;
+    }
 
-	/**
-	 * Get exponential backoff power constant for the subscribe to shard operation.
-	 */
-	public double getSubscribeToShardExpConstant() {
-		return subscribeToShardExpConstant;
-	}
+    /** Get maximum backoff millis for the subscribe to shard operation. */
+    public long getSubscribeToShardMaxBackoffMillis() {
+        return subscribeToShardMaxBackoffMillis;
+    }
 
-	// ------------------------------------------------------------------------
-	//  registerStream() related performance settings
-	// ------------------------------------------------------------------------
+    /** Get base backoff millis for the subscribe to shard operation. */
+    public long getSubscribeToShardBaseBackoffMillis() {
+        return subscribeToShardBaseBackoffMillis;
+    }
 
-	/**
-	 * Get base backoff millis for the register stream operation.
-	 */
-	public long getRegisterStreamBaseBackoffMillis() {
-		return registerStreamBaseBackoffMillis;
-	}
+    /** Get exponential backoff power constant for the subscribe to shard operation. */
+    public double getSubscribeToShardExpConstant() {
+        return subscribeToShardExpConstant;
+    }
 
-	/**
-	 * Get maximum backoff millis for the register stream operation.
-	 */
-	public long getRegisterStreamMaxBackoffMillis() {
-		return registerStreamMaxBackoffMillis;
-	}
+    // ------------------------------------------------------------------------
+    //  registerStream() related performance settings
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get exponential backoff power constant for the register stream operation.
-	 */
-	public double getRegisterStreamExpConstant() {
-		return registerStreamExpConstant;
-	}
+    /** Get base backoff millis for the register stream operation. */
+    public long getRegisterStreamBaseBackoffMillis() {
+        return registerStreamBaseBackoffMillis;
+    }
 
-	/**
-	 * Get maximum retry attempts for the register stream operation.
-	 */
-	public int getRegisterStreamMaxRetries() {
-		return registerStreamMaxRetries;
-	}
+    /** Get maximum backoff millis for the register stream operation. */
+    public long getRegisterStreamMaxBackoffMillis() {
+        return registerStreamMaxBackoffMillis;
+    }
 
-	/**
-	 * Get maximum duration to wait for a stream consumer to become active before giving up.
-	 */
-	public Duration getRegisterStreamConsumerTimeout() {
-		return registerStreamConsumerTimeout;
-	}
+    /** Get exponential backoff power constant for the register stream operation. */
+    public double getRegisterStreamExpConstant() {
+        return registerStreamExpConstant;
+    }
 
-	// ------------------------------------------------------------------------
-	//  deregisterStream() related performance settings
-	// ------------------------------------------------------------------------
+    /** Get maximum retry attempts for the register stream operation. */
+    public int getRegisterStreamMaxRetries() {
+        return registerStreamMaxRetries;
+    }
 
-	/**
-	 * Get base backoff millis for the deregister stream operation.
-	 */
-	public long getDeregisterStreamBaseBackoffMillis() {
-		return deregisterStreamBaseBackoffMillis;
-	}
+    /** Get maximum duration to wait for a stream consumer to become active before giving up. */
+    public Duration getRegisterStreamConsumerTimeout() {
+        return registerStreamConsumerTimeout;
+    }
 
-	/**
-	 * Get maximum backoff millis for the deregister stream operation.
-	 */
-	public long getDeregisterStreamMaxBackoffMillis() {
-		return deregisterStreamMaxBackoffMillis;
-	}
+    // ------------------------------------------------------------------------
+    //  deregisterStream() related performance settings
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get exponential backoff power constant for the deregister stream operation.
-	 */
-	public double getDeregisterStreamExpConstant() {
-		return deregisterStreamExpConstant;
-	}
+    /** Get base backoff millis for the deregister stream operation. */
+    public long getDeregisterStreamBaseBackoffMillis() {
+        return deregisterStreamBaseBackoffMillis;
+    }
 
-	/**
-	 * Get maximum retry attempts for the register stream operation.
-	 */
-	public int getDeregisterStreamMaxRetries() {
-		return deregisterStreamMaxRetries;
-	}
+    /** Get maximum backoff millis for the deregister stream operation. */
+    public long getDeregisterStreamMaxBackoffMillis() {
+        return deregisterStreamMaxBackoffMillis;
+    }
 
-	/**
-	 * Get maximum duration to wait for a stream consumer to deregister before giving up.
-	 */
-	public Duration getDeregisterStreamConsumerTimeout() {
-		return deregisterStreamConsumerTimeout;
-	}
+    /** Get exponential backoff power constant for the deregister stream operation. */
+    public double getDeregisterStreamExpConstant() {
+        return deregisterStreamExpConstant;
+    }
 
-	// ------------------------------------------------------------------------
-	//  describeStream() related performance settings
-	// ------------------------------------------------------------------------
+    /** Get maximum retry attempts for the register stream operation. */
+    public int getDeregisterStreamMaxRetries() {
+        return deregisterStreamMaxRetries;
+    }
 
-	/**
-	 * Get maximum retry attempts for the describe stream operation.
-	 */
-	public int getDescribeStreamMaxRetries() {
-		return describeStreamMaxRetries;
-	}
+    /** Get maximum duration to wait for a stream consumer to deregister before giving up. */
+    public Duration getDeregisterStreamConsumerTimeout() {
+        return deregisterStreamConsumerTimeout;
+    }
 
-	/**
-	 * Get base backoff millis for the describe stream operation.
-	 */
-	public long getDescribeStreamBaseBackoffMillis() {
-		return describeStreamBaseBackoffMillis;
-	}
+    // ------------------------------------------------------------------------
+    //  describeStream() related performance settings
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get maximum backoff millis for the describe stream operation.
-	 */
-	public long getDescribeStreamMaxBackoffMillis() {
-		return describeStreamMaxBackoffMillis;
-	}
+    /** Get maximum retry attempts for the describe stream operation. */
+    public int getDescribeStreamMaxRetries() {
+        return describeStreamMaxRetries;
+    }
 
-	/**
-	 * Get exponential backoff power constant for the describe stream operation.
-	 */
-	public double getDescribeStreamExpConstant() {
-		return describeStreamExpConstant;
-	}
+    /** Get base backoff millis for the describe stream operation. */
+    public long getDescribeStreamBaseBackoffMillis() {
+        return describeStreamBaseBackoffMillis;
+    }
 
-	// ------------------------------------------------------------------------
-	//  describeStreamConsumer() related performance settings
-	// ------------------------------------------------------------------------
+    /** Get maximum backoff millis for the describe stream operation. */
+    public long getDescribeStreamMaxBackoffMillis() {
+        return describeStreamMaxBackoffMillis;
+    }
 
-	/**
-	 * Get maximum retry attempts for the describe stream operation.
-	 */
-	public int getDescribeStreamConsumerMaxRetries() {
-		return describeStreamConsumerMaxRetries;
-	}
+    /** Get exponential backoff power constant for the describe stream operation. */
+    public double getDescribeStreamExpConstant() {
+        return describeStreamExpConstant;
+    }
 
-	/**
-	 * Get base backoff millis for the describe stream operation.
-	 */
-	public long getDescribeStreamConsumerBaseBackoffMillis() {
-		return describeStreamConsumerBaseBackoffMillis;
-	}
+    // ------------------------------------------------------------------------
+    //  describeStreamConsumer() related performance settings
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Get maximum backoff millis for the describe stream operation.
-	 */
-	public long getDescribeStreamConsumerMaxBackoffMillis() {
-		return describeStreamConsumerMaxBackoffMillis;
-	}
+    /** Get maximum retry attempts for the describe stream operation. */
+    public int getDescribeStreamConsumerMaxRetries() {
+        return describeStreamConsumerMaxRetries;
+    }
 
-	/**
-	 * Get exponential backoff power constant for the describe stream operation.
-	 */
-	public double getDescribeStreamConsumerExpConstant() {
-		return describeStreamConsumerExpConstant;
-	}
+    /** Get base backoff millis for the describe stream operation. */
+    public long getDescribeStreamConsumerBaseBackoffMillis() {
+        return describeStreamConsumerBaseBackoffMillis;
+    }
 
-	/**
-	 * Get efo registration type.
-	 */
-	public EFORegistrationType getEfoRegistrationType() {
-		return efoRegistrationType;
-	}
+    /** Get maximum backoff millis for the describe stream operation. */
+    public long getDescribeStreamConsumerMaxBackoffMillis() {
+        return describeStreamConsumerMaxBackoffMillis;
+    }
 
-	/**
-	 * Get consumer name, will be null if efo registration type is 'NONE'.
-	 */
-	public Optional<String> getConsumerName() {
-		return Optional.ofNullable(consumerName);
-	}
+    /** Get exponential backoff power constant for the describe stream operation. */
+    public double getDescribeStreamConsumerExpConstant() {
+        return describeStreamConsumerExpConstant;
+    }
 
-	/**
-	 * Get the according consumer arn to the stream, will be null if efo registration type is 'LAZY' or 'EAGER'.
-	 */
-	public Optional<String> getStreamConsumerArn(String stream) {
-		return Optional.ofNullable(streamConsumerArns.get(stream));
-	}
+    /** Get efo registration type. */
+    public EFORegistrationType getEfoRegistrationType() {
+        return efoRegistrationType;
+    }
+
+    /** Get consumer name, will be null if efo registration type is 'NONE'. */
+    public Optional<String> getConsumerName() {
+        return Optional.ofNullable(consumerName);
+    }
+
+    /**
+     * Get the according consumer arn to the stream, will be null if efo registration type is 'LAZY'
+     * or 'EAGER'.
+     */
+    public Optional<String> getStreamConsumerArn(String stream) {
+        return Optional.ofNullable(streamConsumerArns.get(stream));
+    }
 }

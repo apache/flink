@@ -37,286 +37,289 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Default implementation of the {@link JobTable}.
- */
+/** Default implementation of the {@link JobTable}. */
 public final class DefaultJobTable implements JobTable {
-	private final Map<JobID, JobOrConnection> jobs;
+    private final Map<JobID, JobOrConnection> jobs;
 
-	private final Map<ResourceID, JobID> resourceIdJobIdIndex;
+    private final Map<ResourceID, JobID> resourceIdJobIdIndex;
 
-	private DefaultJobTable() {
-		this.jobs = new HashMap<>();
-		this.resourceIdJobIdIndex = new HashMap<>();
-	}
+    private DefaultJobTable() {
+        this.jobs = new HashMap<>();
+        this.resourceIdJobIdIndex = new HashMap<>();
+    }
 
-	@Override
-	public <E extends Exception> Job getOrCreateJob(JobID jobId, SupplierWithException<? extends JobTable.JobServices, E> jobServicesSupplier) throws E {
-		JobOrConnection job = jobs.get(jobId);
+    @Override
+    public <E extends Exception> Job getOrCreateJob(
+            JobID jobId,
+            SupplierWithException<? extends JobTable.JobServices, E> jobServicesSupplier)
+            throws E {
+        JobOrConnection job = jobs.get(jobId);
 
-		if (job == null) {
-			job = new JobOrConnection(jobId, jobServicesSupplier.get());
-			jobs.put(jobId, job);
-		}
+        if (job == null) {
+            job = new JobOrConnection(jobId, jobServicesSupplier.get());
+            jobs.put(jobId, job);
+        }
 
-		return job;
-	}
+        return job;
+    }
 
-	@Override
-	public Optional<Job> getJob(JobID jobId) {
-		return Optional.ofNullable(jobs.get(jobId));
-	}
+    @Override
+    public Optional<Job> getJob(JobID jobId) {
+        return Optional.ofNullable(jobs.get(jobId));
+    }
 
-	@Override
-	public Optional<Connection> getConnection(JobID jobId) {
-		return getJob(jobId).flatMap(Job::asConnection);
-	}
+    @Override
+    public Optional<Connection> getConnection(JobID jobId) {
+        return getJob(jobId).flatMap(Job::asConnection);
+    }
 
-	@Override
-	public Optional<Connection> getConnection(ResourceID resourceId) {
-		final JobID jobId = resourceIdJobIdIndex.get(resourceId);
+    @Override
+    public Optional<Connection> getConnection(ResourceID resourceId) {
+        final JobID jobId = resourceIdJobIdIndex.get(resourceId);
 
-		if (jobId != null) {
-			return getConnection(jobId);
-		} else {
-			return Optional.empty();
-		}
-	}
+        if (jobId != null) {
+            return getConnection(jobId);
+        } else {
+            return Optional.empty();
+        }
+    }
 
-	@Override
-	public Collection<Job> getJobs() {
-		return new ArrayList<>(jobs.values());
-	}
+    @Override
+    public Collection<Job> getJobs() {
+        return new ArrayList<>(jobs.values());
+    }
 
-	@Override
-	public boolean isEmpty() {
-		return jobs.isEmpty();
-	}
+    @Override
+    public boolean isEmpty() {
+        return jobs.isEmpty();
+    }
 
-	public static DefaultJobTable create() {
-		return new DefaultJobTable();
-	}
+    public static DefaultJobTable create() {
+        return new DefaultJobTable();
+    }
 
-	@Override
-	public void close() {
-		for (JobTable.Job job : getJobs()) {
-			job.close();
-		}
-	}
+    @Override
+    public void close() {
+        for (JobTable.Job job : getJobs()) {
+            job.close();
+        }
+    }
 
-	private final class JobOrConnection implements JobTable.Job, JobTable.Connection {
+    private final class JobOrConnection implements JobTable.Job, JobTable.Connection {
 
-		private final JobID jobId;
+        private final JobID jobId;
 
-		private final JobTable.JobServices jobServices;
+        private final JobTable.JobServices jobServices;
 
-		@Nullable
-		private EstablishedConnection connection;
+        @Nullable private EstablishedConnection connection;
 
-		private boolean isClosed;
+        private boolean isClosed;
 
-		private JobOrConnection(JobID jobId, JobTable.JobServices jobServices) {
-			this.jobId = jobId;
-			this.jobServices = jobServices;
-			this.connection = null;
-			this.isClosed = false;
-		}
+        private JobOrConnection(JobID jobId, JobTable.JobServices jobServices) {
+            this.jobId = jobId;
+            this.jobServices = jobServices;
+            this.connection = null;
+            this.isClosed = false;
+        }
 
-		@Override
-		public boolean isConnected() {
-			verifyJobIsNotClosed();
-			return connection != null;
-		}
+        @Override
+        public boolean isConnected() {
+            verifyJobIsNotClosed();
+            return connection != null;
+        }
 
-		@Override
-		public JobTable.Job disconnect() {
-			resourceIdJobIdIndex.remove(verifyContainsEstablishedConnection().getResourceID());
-			connection = null;
+        @Override
+        public JobTable.Job disconnect() {
+            resourceIdJobIdIndex.remove(verifyContainsEstablishedConnection().getResourceID());
+            connection = null;
 
-			return this;
-		}
+            return this;
+        }
 
-		@Override
-		public JobMasterId getJobMasterId() {
-			return verifyContainsEstablishedConnection().getJobMasterId();
-		}
+        @Override
+        public JobMasterId getJobMasterId() {
+            return verifyContainsEstablishedConnection().getJobMasterId();
+        }
 
-		@Override
-		public JobMasterGateway getJobManagerGateway() {
-			return verifyContainsEstablishedConnection().getJobMasterGateway();
-		}
+        @Override
+        public JobMasterGateway getJobManagerGateway() {
+            return verifyContainsEstablishedConnection().getJobMasterGateway();
+        }
 
-		@Override
-		public TaskManagerActions getTaskManagerActions() {
-			return verifyContainsEstablishedConnection().getTaskManagerActions();
-		}
+        @Override
+        public TaskManagerActions getTaskManagerActions() {
+            return verifyContainsEstablishedConnection().getTaskManagerActions();
+        }
 
-		@Override
-		public CheckpointResponder getCheckpointResponder() {
-			return verifyContainsEstablishedConnection().getCheckpointResponder();
-		}
+        @Override
+        public CheckpointResponder getCheckpointResponder() {
+            return verifyContainsEstablishedConnection().getCheckpointResponder();
+        }
 
-		@Override
-		public GlobalAggregateManager getGlobalAggregateManager() {
-			return verifyContainsEstablishedConnection().getGlobalAggregateManager();
-		}
+        @Override
+        public GlobalAggregateManager getGlobalAggregateManager() {
+            return verifyContainsEstablishedConnection().getGlobalAggregateManager();
+        }
 
-		@Override
-		public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
-			verifyJobIsNotClosed();
-			return jobServices.getClassLoaderHandle();
-		}
+        @Override
+        public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
+            verifyJobIsNotClosed();
+            return jobServices.getClassLoaderHandle();
+        }
 
-		@Override
-		public ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier() {
-			return verifyContainsEstablishedConnection().getResultPartitionConsumableNotifier();
-		}
+        @Override
+        public ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier() {
+            return verifyContainsEstablishedConnection().getResultPartitionConsumableNotifier();
+        }
 
-		@Override
-		public PartitionProducerStateChecker getPartitionStateChecker() {
-			return verifyContainsEstablishedConnection().getPartitionStateChecker();
-		}
+        @Override
+        public PartitionProducerStateChecker getPartitionStateChecker() {
+            return verifyContainsEstablishedConnection().getPartitionStateChecker();
+        }
 
-		@Override
-		public JobID getJobId() {
-			return jobId;
-		}
+        @Override
+        public JobID getJobId() {
+            return jobId;
+        }
 
-		@Override
-		public ResourceID getResourceId() {
-			return verifyContainsEstablishedConnection().getResourceID();
-		}
+        @Override
+        public ResourceID getResourceId() {
+            return verifyContainsEstablishedConnection().getResourceID();
+        }
 
-		@Override
-		public Optional<JobTable.Connection> asConnection() {
-			verifyJobIsNotClosed();
-			if (connection != null) {
-				return Optional.of(this);
-			} else {
-				return Optional.empty();
-			}
-		}
+        @Override
+        public Optional<JobTable.Connection> asConnection() {
+            verifyJobIsNotClosed();
+            if (connection != null) {
+                return Optional.of(this);
+            } else {
+                return Optional.empty();
+            }
+        }
 
-		@Override
-		public JobTable.Connection connect(
-				ResourceID resourceId,
-				JobMasterGateway jobMasterGateway,
-				TaskManagerActions taskManagerActions,
-				CheckpointResponder checkpointResponder,
-				GlobalAggregateManager aggregateManager,
-				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-				PartitionProducerStateChecker partitionStateChecker) {
-			verifyJobIsNotClosed();
-			Preconditions.checkState(connection == null);
+        @Override
+        public JobTable.Connection connect(
+                ResourceID resourceId,
+                JobMasterGateway jobMasterGateway,
+                TaskManagerActions taskManagerActions,
+                CheckpointResponder checkpointResponder,
+                GlobalAggregateManager aggregateManager,
+                ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+                PartitionProducerStateChecker partitionStateChecker) {
+            verifyJobIsNotClosed();
+            Preconditions.checkState(connection == null);
 
-			connection = new EstablishedConnection(
-				resourceId,
-				jobMasterGateway,
-				taskManagerActions,
-				checkpointResponder,
-				aggregateManager,
-				resultPartitionConsumableNotifier,
-				partitionStateChecker);
-			resourceIdJobIdIndex.put(resourceId, jobId);
+            connection =
+                    new EstablishedConnection(
+                            resourceId,
+                            jobMasterGateway,
+                            taskManagerActions,
+                            checkpointResponder,
+                            aggregateManager,
+                            resultPartitionConsumableNotifier,
+                            partitionStateChecker);
+            resourceIdJobIdIndex.put(resourceId, jobId);
 
-			return this;
-		}
+            return this;
+        }
 
-		@Override
-		public void close() {
-			if (!isClosed) {
-				if (isConnected()) {
-					disconnect();
-				}
+        @Override
+        public void close() {
+            if (!isClosed) {
+                if (isConnected()) {
+                    disconnect();
+                }
 
-				jobServices.close();
-				jobs.remove(jobId);
+                jobServices.close();
+                jobs.remove(jobId);
 
-				isClosed = true;
-			}
-		}
+                isClosed = true;
+            }
+        }
 
-		private void verifyJobIsNotClosed() {
-			Preconditions.checkState(!isClosed, "The job has been closed.");
-		}
+        private void verifyJobIsNotClosed() {
+            Preconditions.checkState(!isClosed, "The job has been closed.");
+        }
 
-		private EstablishedConnection verifyContainsEstablishedConnection() {
-			verifyJobIsNotClosed();
-			Preconditions.checkState(connection != null, "The job has not been connected to a JobManager.");
-			return connection;
-		}
-	}
+        private EstablishedConnection verifyContainsEstablishedConnection() {
+            verifyJobIsNotClosed();
+            Preconditions.checkState(
+                    connection != null, "The job has not been connected to a JobManager.");
+            return connection;
+        }
+    }
 
-	private static final class EstablishedConnection {
+    private static final class EstablishedConnection {
 
-		// The unique id used for identifying the job manager
-		private final ResourceID resourceID;
+        // The unique id used for identifying the job manager
+        private final ResourceID resourceID;
 
-		// Gateway to the job master
-		private final JobMasterGateway jobMasterGateway;
+        // Gateway to the job master
+        private final JobMasterGateway jobMasterGateway;
 
-		// Task manager actions with respect to the connected job manager
-		private final TaskManagerActions taskManagerActions;
+        // Task manager actions with respect to the connected job manager
+        private final TaskManagerActions taskManagerActions;
 
-		// Checkpoint responder for the specific job manager
-		private final CheckpointResponder checkpointResponder;
+        // Checkpoint responder for the specific job manager
+        private final CheckpointResponder checkpointResponder;
 
-		// GlobalAggregateManager interface to job manager
-		private final GlobalAggregateManager globalAggregateManager;
+        // GlobalAggregateManager interface to job manager
+        private final GlobalAggregateManager globalAggregateManager;
 
-		// Result partition consumable notifier for the specific job manager
-		private final ResultPartitionConsumableNotifier resultPartitionConsumableNotifier;
+        // Result partition consumable notifier for the specific job manager
+        private final ResultPartitionConsumableNotifier resultPartitionConsumableNotifier;
 
-		// Partition state checker for the specific job manager
-		private final PartitionProducerStateChecker partitionStateChecker;
+        // Partition state checker for the specific job manager
+        private final PartitionProducerStateChecker partitionStateChecker;
 
-		private EstablishedConnection(
-			ResourceID resourceID,
-			JobMasterGateway jobMasterGateway,
-			TaskManagerActions taskManagerActions,
-			CheckpointResponder checkpointResponder,
-			GlobalAggregateManager globalAggregateManager,
-			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
-			PartitionProducerStateChecker partitionStateChecker) {
-			this.resourceID = Preconditions.checkNotNull(resourceID);
-			this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
-			this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
-			this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
-			this.globalAggregateManager = Preconditions.checkNotNull(globalAggregateManager);
-			this.resultPartitionConsumableNotifier = Preconditions.checkNotNull(resultPartitionConsumableNotifier);
-			this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
-		}
+        private EstablishedConnection(
+                ResourceID resourceID,
+                JobMasterGateway jobMasterGateway,
+                TaskManagerActions taskManagerActions,
+                CheckpointResponder checkpointResponder,
+                GlobalAggregateManager globalAggregateManager,
+                ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
+                PartitionProducerStateChecker partitionStateChecker) {
+            this.resourceID = Preconditions.checkNotNull(resourceID);
+            this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
+            this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
+            this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
+            this.globalAggregateManager = Preconditions.checkNotNull(globalAggregateManager);
+            this.resultPartitionConsumableNotifier =
+                    Preconditions.checkNotNull(resultPartitionConsumableNotifier);
+            this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
+        }
 
-		public ResourceID getResourceID() {
-			return resourceID;
-		}
+        public ResourceID getResourceID() {
+            return resourceID;
+        }
 
-		public JobMasterId getJobMasterId() {
-			return jobMasterGateway.getFencingToken();
-		}
+        public JobMasterId getJobMasterId() {
+            return jobMasterGateway.getFencingToken();
+        }
 
-		public JobMasterGateway getJobMasterGateway() {
-			return jobMasterGateway;
-		}
+        public JobMasterGateway getJobMasterGateway() {
+            return jobMasterGateway;
+        }
 
-		public TaskManagerActions getTaskManagerActions() {
-			return taskManagerActions;
-		}
+        public TaskManagerActions getTaskManagerActions() {
+            return taskManagerActions;
+        }
 
-		public CheckpointResponder getCheckpointResponder() {
-			return checkpointResponder;
-		}
+        public CheckpointResponder getCheckpointResponder() {
+            return checkpointResponder;
+        }
 
-		public GlobalAggregateManager getGlobalAggregateManager() {
-			return globalAggregateManager;
-		}
+        public GlobalAggregateManager getGlobalAggregateManager() {
+            return globalAggregateManager;
+        }
 
-		public ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier() {
-			return resultPartitionConsumableNotifier;
-		}
+        public ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier() {
+            return resultPartitionConsumableNotifier;
+        }
 
-		public PartitionProducerStateChecker getPartitionStateChecker() {
-			return partitionStateChecker;
-		}
-	}
+        public PartitionProducerStateChecker getPartitionStateChecker() {
+            return partitionStateChecker;
+        }
+    }
 }

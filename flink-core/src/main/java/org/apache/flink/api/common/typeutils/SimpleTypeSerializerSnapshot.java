@@ -30,8 +30,8 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A simple base class for TypeSerializerSnapshots, for serializers that have no
- * parameters. The serializer is defined solely by its class name.
+ * A simple base class for TypeSerializerSnapshots, for serializers that have no parameters. The
+ * serializer is defined solely by its class name.
  *
  * <p>Serializers that produce these snapshots must be public, have public a zero-argument
  * constructor and cannot be a non-static inner classes.
@@ -39,85 +39,90 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public abstract class SimpleTypeSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
-	/**
-	 * This snapshot starts from version 2 (since Flink 1.7.x), so that version 1 is reserved for implementing
-	 * backwards compatible code paths in case we decide to make this snapshot backwards compatible with
-	 * the {@link ParameterlessTypeSerializerConfig}.
-	 */
-	private static final int CURRENT_VERSION = 3;
+    /**
+     * This snapshot starts from version 2 (since Flink 1.7.x), so that version 1 is reserved for
+     * implementing backwards compatible code paths in case we decide to make this snapshot
+     * backwards compatible with the {@link ParameterlessTypeSerializerConfig}.
+     */
+    private static final int CURRENT_VERSION = 3;
 
-	/** The class of the serializer for this snapshot.
-	 * The field is null if the serializer was created for read and has not been read, yet. */
-	@Nonnull
-	private Supplier<? extends TypeSerializer<T>> serializerSupplier;
+    /**
+     * The class of the serializer for this snapshot. The field is null if the serializer was
+     * created for read and has not been read, yet.
+     */
+    @Nonnull private Supplier<? extends TypeSerializer<T>> serializerSupplier;
 
-	/**
-	 * Constructor to create snapshot from serializer (writing the snapshot).
-	 */
-	public SimpleTypeSerializerSnapshot(@Nonnull Supplier<? extends TypeSerializer<T>> serializerSupplier) {
-		this.serializerSupplier = checkNotNull(serializerSupplier);
-	}
+    /** Constructor to create snapshot from serializer (writing the snapshot). */
+    public SimpleTypeSerializerSnapshot(
+            @Nonnull Supplier<? extends TypeSerializer<T>> serializerSupplier) {
+        this.serializerSupplier = checkNotNull(serializerSupplier);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Serializer Snapshot Methods
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Serializer Snapshot Methods
+    // ------------------------------------------------------------------------
 
-	@Override
-	public int getCurrentVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    public int getCurrentVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	public TypeSerializer<T> restoreSerializer() {
-		return serializerSupplier.get();
-	}
+    @Override
+    public TypeSerializer<T> restoreSerializer() {
+        return serializerSupplier.get();
+    }
 
-	@Override
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+    @Override
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
 
-		return newSerializer.getClass() == serializerSupplier.get().getClass() ?
-				TypeSerializerSchemaCompatibility.compatibleAsIs() :
-				TypeSerializerSchemaCompatibility.incompatible();
-	}
+        return newSerializer.getClass() == serializerSupplier.get().getClass()
+                ? TypeSerializerSchemaCompatibility.compatibleAsIs()
+                : TypeSerializerSchemaCompatibility.incompatible();
+    }
 
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		//
-	}
+    @Override
+    public void writeSnapshot(DataOutputView out) throws IOException {
+        //
+    }
 
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader) throws IOException {
-		switch (readVersion) {
-			case 3: {
-				break;
-			}
-			case 2: {
-				// we don't need the classname any more; read and drop to maintain compatibility
-				in.readUTF();
-				break;
-			}
-			default: {
-				throw new IOException("Unrecognized version: " + readVersion);
-			}
-		}
-	}
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader)
+            throws IOException {
+        switch (readVersion) {
+            case 3:
+                {
+                    break;
+                }
+            case 2:
+                {
+                    // we don't need the classname any more; read and drop to maintain compatibility
+                    in.readUTF();
+                    break;
+                }
+            default:
+                {
+                    throw new IOException("Unrecognized version: " + readVersion);
+                }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  standard utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  standard utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public final boolean equals(Object obj) {
-		return obj != null && obj.getClass() == getClass();
-	}
+    @Override
+    public final boolean equals(Object obj) {
+        return obj != null && obj.getClass() == getClass();
+    }
 
-	@Override
-	public final int hashCode() {
-		return getClass().hashCode();
-	}
+    @Override
+    public final int hashCode() {
+        return getClass().hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return getClass().getName();
-	}
+    @Override
+    public String toString() {
+        return getClass().getName();
+    }
 }

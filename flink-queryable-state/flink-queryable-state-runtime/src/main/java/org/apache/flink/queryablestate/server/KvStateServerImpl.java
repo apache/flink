@@ -33,79 +33,87 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
-/**
- * The default implementation of the {@link KvStateServer}.
- */
+/** The default implementation of the {@link KvStateServer}. */
 @Internal
-public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest, KvStateResponse> implements KvStateServer {
+public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest, KvStateResponse>
+        implements KvStateServer {
 
-	/** The {@link KvStateRegistry} to query for state instances. */
-	private final KvStateRegistry kvStateRegistry;
+    /** The {@link KvStateRegistry} to query for state instances. */
+    private final KvStateRegistry kvStateRegistry;
 
-	private final KvStateRequestStats stats;
+    private final KvStateRequestStats stats;
 
-	private MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer;
+    private MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer;
 
-	/**
-	 * Creates the state server.
-	 *
-	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(String, Iterator, int, int, KvStateRegistry, KvStateRequestStats)
-	 * QueryableStateUtils.createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)}.
-	 *
-	 * <p>The server needs to be started via {@link #start()} in order to bind
-	 * to the configured bind address.
-	 *
-	 * @param bindAddress the address to listen to.
-	 * @param bindPortIterator the port range to try to bind to.
-	 * @param numEventLoopThreads number of event loop threads.
-	 * @param numQueryThreads number of query threads.
-	 * @param kvStateRegistry {@link KvStateRegistry} to query for state instances.
-	 * @param stats the statistics collector.
-	 */
-	public KvStateServerImpl(
-			final String bindAddress,
-			final Iterator<Integer> bindPortIterator,
-			final Integer numEventLoopThreads,
-			final Integer numQueryThreads,
-			final KvStateRegistry kvStateRegistry,
-			final KvStateRequestStats stats) {
+    /**
+     * Creates the state server.
+     *
+     * <p>The server is instantiated using reflection by the {@link
+     * org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(String, Iterator, int,
+     * int, KvStateRegistry, KvStateRequestStats)
+     * QueryableStateUtils.createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry,
+     * KvStateRequestStats)}.
+     *
+     * <p>The server needs to be started via {@link #start()} in order to bind to the configured
+     * bind address.
+     *
+     * @param bindAddress the address to listen to.
+     * @param bindPortIterator the port range to try to bind to.
+     * @param numEventLoopThreads number of event loop threads.
+     * @param numQueryThreads number of query threads.
+     * @param kvStateRegistry {@link KvStateRegistry} to query for state instances.
+     * @param stats the statistics collector.
+     */
+    public KvStateServerImpl(
+            final String bindAddress,
+            final Iterator<Integer> bindPortIterator,
+            final Integer numEventLoopThreads,
+            final Integer numQueryThreads,
+            final KvStateRegistry kvStateRegistry,
+            final KvStateRequestStats stats) {
 
-		super("Queryable State Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads);
-		this.stats = Preconditions.checkNotNull(stats);
-		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
-	}
+        super(
+                "Queryable State Server",
+                bindAddress,
+                bindPortIterator,
+                numEventLoopThreads,
+                numQueryThreads);
+        this.stats = Preconditions.checkNotNull(stats);
+        this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
+    }
 
-	@Override
-	public AbstractServerHandler<KvStateInternalRequest, KvStateResponse> initializeHandler() {
-		this.serializer = new MessageSerializer<>(
-				new KvStateInternalRequest.KvStateInternalRequestDeserializer(),
-				new KvStateResponse.KvStateResponseDeserializer());
-		return new KvStateServerHandler(this, kvStateRegistry, serializer, stats);
-	}
+    @Override
+    public AbstractServerHandler<KvStateInternalRequest, KvStateResponse> initializeHandler() {
+        this.serializer =
+                new MessageSerializer<>(
+                        new KvStateInternalRequest.KvStateInternalRequestDeserializer(),
+                        new KvStateResponse.KvStateResponseDeserializer());
+        return new KvStateServerHandler(this, kvStateRegistry, serializer, stats);
+    }
 
-	public MessageSerializer<KvStateInternalRequest, KvStateResponse> getSerializer() {
-		Preconditions.checkState(serializer != null, "Server " + getServerName() + " has not been started.");
-		return serializer;
-	}
+    public MessageSerializer<KvStateInternalRequest, KvStateResponse> getSerializer() {
+        Preconditions.checkState(
+                serializer != null, "Server " + getServerName() + " has not been started.");
+        return serializer;
+    }
 
-	@Override
-	public void start() throws Throwable {
-		super.start();
-	}
+    @Override
+    public void start() throws Throwable {
+        super.start();
+    }
 
-	@Override
-	public InetSocketAddress getServerAddress() {
-		return super.getServerAddress();
-	}
+    @Override
+    public InetSocketAddress getServerAddress() {
+        return super.getServerAddress();
+    }
 
-	@Override
-	public void shutdown() {
-		try {
-			shutdownServer().get(10L, TimeUnit.SECONDS);
-			log.info("{} was shutdown successfully.", getServerName());
-		} catch (Exception e) {
-			log.warn("{} shutdown failed: {}", getServerName(), e);
-		}
-	}
+    @Override
+    public void shutdown() {
+        try {
+            shutdownServer().get(10L, TimeUnit.SECONDS);
+            log.info("{} was shutdown successfully.", getServerName());
+        } catch (Exception e) {
+            log.warn("{} shutdown failed: {}", getServerName(), e);
+        }
+    }
 }

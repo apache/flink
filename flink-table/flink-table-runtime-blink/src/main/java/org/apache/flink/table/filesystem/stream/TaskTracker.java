@@ -23,32 +23,28 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Track the upstream tasks to determine whether all the upstream data of a checkpoint
- * has been received.
+ * Track the upstream tasks to determine whether all the upstream data of a checkpoint has been
+ * received.
  */
 public class TaskTracker {
 
-	private final int numberOfTasks;
+    private final int numberOfTasks;
 
-	/**
-	 * Checkpoint id to notified tasks.
-	 */
-	private final TreeMap<Long, Set<Integer>> notifiedTasks = new TreeMap<>();
+    /** Checkpoint id to notified tasks. */
+    private final TreeMap<Long, Set<Integer>> notifiedTasks = new TreeMap<>();
 
-	public TaskTracker(int numberOfTasks) {
-		this.numberOfTasks = numberOfTasks;
-	}
+    public TaskTracker(int numberOfTasks) {
+        this.numberOfTasks = numberOfTasks;
+    }
 
-	/**
-	 * @return true, if this checkpoint id need be committed.
-	 */
-	public boolean add(long checkpointId, int task) {
-		Set<Integer> tasks = notifiedTasks.computeIfAbsent(checkpointId, (k) -> new HashSet<>());
-		tasks.add(task);
-		if (tasks.size() == numberOfTasks) {
-			notifiedTasks.headMap(checkpointId, true).clear();
-			return true;
-		}
-		return false;
-	}
+    /** @return true, if this checkpoint id need be committed. */
+    public boolean add(long checkpointId, int task) {
+        Set<Integer> tasks = notifiedTasks.computeIfAbsent(checkpointId, (k) -> new HashSet<>());
+        tasks.add(task);
+        if (tasks.size() == numberOfTasks) {
+            notifiedTasks.headMap(checkpointId, true).clear();
+            return true;
+        }
+        return false;
+    }
 }

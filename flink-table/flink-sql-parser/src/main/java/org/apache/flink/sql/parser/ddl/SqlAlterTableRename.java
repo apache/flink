@@ -29,30 +29,32 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.] dataBasesName].newTableName.
+ * ALTER TABLE [[catalogName.] dataBasesName].tableName RENAME TO [[catalogName.]
+ * dataBasesName].newTableName.
  */
 public class SqlAlterTableRename extends SqlAlterTable {
 
-	private final SqlIdentifier newTableIdentifier;
+    private final SqlIdentifier newTableIdentifier;
 
-	public SqlAlterTableRename(SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier newTableName) {
-		super(pos, tableName);
-		this.newTableIdentifier = requireNonNull(newTableName, "new tableName should not be null");
-	}
+    public SqlAlterTableRename(
+            SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier newTableName) {
+        super(pos, tableName);
+        this.newTableIdentifier = requireNonNull(newTableName, "new tableName should not be null");
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, newTableIdentifier);
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(tableIdentifier, newTableIdentifier);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("RENAME TO");
-		newTableIdentifier.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("RENAME TO");
+        newTableIdentifier.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public String[] fullNewTableName() {
-		return newTableIdentifier.names.toArray(new String[0]);
-	}
+    public String[] fullNewTableName() {
+        return newTableIdentifier.names.toArray(new String[0]);
+    }
 }

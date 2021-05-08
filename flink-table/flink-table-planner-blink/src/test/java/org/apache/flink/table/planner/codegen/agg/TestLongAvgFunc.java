@@ -24,51 +24,49 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
 
-/**
- * Test avg agg function.
- */
+/** Test avg agg function. */
 public class TestLongAvgFunc extends AggregateFunction<Long, Tuple2<Long, Long>> {
 
-	@Override
-	public Tuple2<Long, Long> createAccumulator() {
-		return new Tuple2<>(0L, 0L);
-	}
+    @Override
+    public Tuple2<Long, Long> createAccumulator() {
+        return new Tuple2<>(0L, 0L);
+    }
 
-	public void accumulate(Tuple2<Long, Long> acc, Long value) {
-		if (value != null) {
-			acc.f0 += value;
-			acc.f1 += 1L;
-		}
-	}
+    public void accumulate(Tuple2<Long, Long> acc, Long value) {
+        if (value != null) {
+            acc.f0 += value;
+            acc.f1 += 1L;
+        }
+    }
 
-	public void retract(Tuple2<Long, Long> acc, Long value) {
-		if (value != null) {
-			acc.f0 -= value;
-			acc.f1 -= 1L;
-		}
-	}
+    public void retract(Tuple2<Long, Long> acc, Long value) {
+        if (value != null) {
+            acc.f0 -= value;
+            acc.f1 -= 1L;
+        }
+    }
 
-	public void merge(Tuple2<Long, Long> acc, Iterable<Tuple2<Long, Long>> iterable) {
-		for (Tuple2<Long, Long> a : iterable) {
-			acc.f1 += a.f1;
-			acc.f0 += a.f0;
-		}
-	}
+    public void merge(Tuple2<Long, Long> acc, Iterable<Tuple2<Long, Long>> iterable) {
+        for (Tuple2<Long, Long> a : iterable) {
+            acc.f1 += a.f1;
+            acc.f0 += a.f0;
+        }
+    }
 
-	@Override
-	public Long getValue(Tuple2<Long, Long> acc) {
-		if (acc.f1 == 0) {
-			return null;
-		} else {
-			return acc.f0 / acc.f1;
-		}
-	}
+    @Override
+    public Long getValue(Tuple2<Long, Long> acc) {
+        if (acc.f1 == 0) {
+            return null;
+        } else {
+            return acc.f0 / acc.f1;
+        }
+    }
 
-	@Override
-	public TypeInformation<Tuple2<Long, Long>> getAccumulatorType() {
-		return new TupleTypeInfo(
-				createAccumulator().getClass(),
-				BasicTypeInfo.LONG_TYPE_INFO,
-				BasicTypeInfo.LONG_TYPE_INFO);
-	}
+    @Override
+    public TypeInformation<Tuple2<Long, Long>> getAccumulatorType() {
+        return new TupleTypeInfo(
+                createAccumulator().getClass(),
+                BasicTypeInfo.LONG_TYPE_INFO,
+                BasicTypeInfo.LONG_TYPE_INFO);
+    }
 }

@@ -65,7 +65,9 @@ def get_gateway():
             callback_server_listening_address = callback_server.get_listening_address()
             callback_server_listening_port = callback_server.get_listening_port()
             _gateway.jvm.org.apache.flink.client.python.PythonEnvUtils.resetCallbackClient(
-                callback_server_listening_address, callback_server_listening_port)
+                _gateway.java_gateway_server,
+                callback_server_listening_address,
+                callback_server_listening_port)
             # import the flink view
             import_flink_view(_gateway)
             install_exception_handler()
@@ -165,7 +167,7 @@ class PythonFunctionFactory(object):
 
     def getPythonFunction(self, moduleName, objectName):
         udf_wrapper = getattr(importlib.import_module(moduleName), objectName)
-        return udf_wrapper.java_user_defined_function()
+        return udf_wrapper._java_user_defined_function()
 
     class Java:
         implements = ["org.apache.flink.client.python.PythonFunctionFactory"]

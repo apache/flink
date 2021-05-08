@@ -27,68 +27,67 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit tests for the {@link ArrayResultIterator}.
- */
+/** Unit tests for the {@link ArrayResultIterator}. */
 public class ArrayResultIteratorTest {
 
-	@Test
-	public void testEmptyConstruction() {
-		final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
-		assertNull(iter.next());
-	}
+    @Test
+    public void testEmptyConstruction() {
+        final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
+        assertNull(iter.next());
+    }
 
-	@Test
-	public void testGetElements() {
-		final String[] elements = new String[] { "1", "2", "3", "4"};
-		final long initialPos = 1422;
-		final long initialSkipCount = 17;
+    @Test
+    public void testGetElements() {
+        final String[] elements = new String[] {"1", "2", "3", "4"};
+        final long initialPos = 1422;
+        final long initialSkipCount = 17;
 
-		final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
-		iter.set(elements, elements.length, initialPos, initialSkipCount);
+        final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
+        iter.set(elements, elements.length, initialPos, initialSkipCount);
 
-		for (int i = 0; i < elements.length; i++) {
-			final RecordAndPosition<String> recAndPos = iter.next();
-			assertEquals(elements[i], recAndPos.getRecord());
-			assertEquals(initialPos, recAndPos.getOffset());
-			assertEquals(initialSkipCount + i + 1, recAndPos.getRecordSkipCount());
-		}
-	}
+        for (int i = 0; i < elements.length; i++) {
+            final RecordAndPosition<String> recAndPos = iter.next();
+            assertEquals(elements[i], recAndPos.getRecord());
+            assertEquals(initialPos, recAndPos.getOffset());
+            assertEquals(initialSkipCount + i + 1, recAndPos.getRecordSkipCount());
+        }
+    }
 
-	@Test
-	public void testExhausted() {
-		final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
-		iter.set(new String[] { "1", "2"}, 2, 0L, 0L);
+    @Test
+    public void testExhausted() {
+        final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
+        iter.set(new String[] {"1", "2"}, 2, 0L, 0L);
 
-		iter.next();
-		iter.next();
+        iter.next();
+        iter.next();
 
-		assertNull(iter.next());
-	}
+        assertNull(iter.next());
+    }
 
-	@Test
-	public void testArraySubRange() {
-		final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
-		iter.set(new String[] { "1", "2", "3"}, 2, 0L, 0L);
+    @Test
+    public void testArraySubRange() {
+        final ArrayResultIterator<String> iter = new ArrayResultIterator<>();
+        iter.set(new String[] {"1", "2", "3"}, 2, 0L, 0L);
 
-		assertNotNull(iter.next());
-		assertNotNull(iter.next());
-		assertNull(iter.next());
-	}
+        assertNotNull(iter.next());
+        assertNotNull(iter.next());
+        assertNull(iter.next());
+    }
 
-	@Test
-	public void testNoRecycler() {
-		final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
-		iter.releaseBatch();
-	}
+    @Test
+    public void testNoRecycler() {
+        final ArrayResultIterator<Object> iter = new ArrayResultIterator<>();
+        iter.releaseBatch();
+    }
 
-	@Test
-	public void testRecycler() {
-		final AtomicBoolean recycled = new AtomicBoolean();
-		final ArrayResultIterator<Object> iter = new ArrayResultIterator<>(() -> recycled.set(true));
+    @Test
+    public void testRecycler() {
+        final AtomicBoolean recycled = new AtomicBoolean();
+        final ArrayResultIterator<Object> iter =
+                new ArrayResultIterator<>(() -> recycled.set(true));
 
-		iter.releaseBatch();
+        iter.releaseBatch();
 
-		assertTrue(recycled.get());
-	}
+        assertTrue(recycled.get());
+    }
 }

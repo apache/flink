@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
@@ -59,7 +60,7 @@ class LegacyTableSourceTest extends TableTestBase {
   @Test
   def testBoundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = true, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
@@ -67,17 +68,17 @@ class LegacyTableSourceTest extends TableTestBase {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Cannot query on an unbounded source in batch mode")
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM ProjectableTable")
+    util.verifyExecPlan("SELECT a, c FROM ProjectableTable")
   }
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) FROM ProjectableTable")
+    util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
 
   @Test
@@ -118,38 +119,38 @@ class LegacyTableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM T
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFilterCanPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2")
   }
 
   @Test
   def testFilterCannotPushDown(): Unit = {
     // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE price > 10")
   }
 
   @Test
   def testFilterPartialPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
   }
 
   @Test
   def testFilterFullyPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
   }
 
   @Test
   def testFilterCannotPushDown2(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
   }
 
   @Test
   def testFilterCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
   }
 
   @Test
@@ -159,24 +160,25 @@ class LegacyTableSourceTest extends TableTestBase {
         |SELECT * FROM FilterableTable WHERE
         |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testFilterPushDownWithUdf(): Unit = {
     util.addFunction("myUdf", Func1)
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+    util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
   @Test
   def testPartitionTableSource(): Unit = {
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+    util.verifyExecPlan(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
   }
 
   @Test
   def testPartitionTableSourceWithUdf(): Unit = {
     util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
@@ -209,6 +211,51 @@ class LegacyTableSourceTest extends TableTestBase {
          |  dv > DATE '2017-02-03' AND
          |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testTableHint(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable1 (
+         |  name STRING,
+         |  a bigint,
+         |  b int,
+         |  c double
+         |) with (
+         |  'connector.type' = 'TestFilterableSource',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` BIGINT,
+         |  `b` INT,
+         |  `c` DOUBLE
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='31') */
+        |""".stripMargin)
+    stmtSet.addInsertSql(
+      """
+        |insert into MySink select a,b,c from MyTable1
+        |  /*+ OPTIONS('source.num-element-to-skip'='32') */
+        |""".stripMargin)
+
+    util.verifyExecPlan(stmtSet)
   }
 }

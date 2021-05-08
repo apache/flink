@@ -23,20 +23,21 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
-/**
- * Tests for {@link TopSpeedWindowing}.
- */
+/** Tests for {@link TopSpeedWindowing}. */
 public class TopSpeedWindowingExampleITCase extends AbstractTestBase {
 
-	@Test
-	public void testProgram() throws Exception {
-		String textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
-		String resultPath = getTempDirPath("result");
+    @Test
+    public void testProgram() throws Exception {
+        String textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
+        String resultPath = getTempDirPath("result");
 
-		TopSpeedWindowing.main(new String[]{
-				"--input", textPath,
-				"--output", resultPath});
+        TopSpeedWindowing.main(
+                new String[] {
+                    "--input", textPath,
+                    "--output", resultPath
+                });
 
-		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
-	}
+        compareResultsByLinesInMemory(
+                TopSpeedWindowingExampleData.TOP_CASE_CLASS_SPEEDS, resultPath);
+    }
 }

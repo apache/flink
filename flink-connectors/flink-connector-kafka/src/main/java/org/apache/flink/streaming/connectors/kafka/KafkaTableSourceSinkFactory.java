@@ -41,55 +41,50 @@ import java.util.Properties;
 @Deprecated
 public class KafkaTableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
-	@Override
-	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_UNIVERSAL;
-	}
+    @Override
+    protected String kafkaVersion() {
+        return KafkaValidator.CONNECTOR_VERSION_VALUE_UNIVERSAL;
+    }
 
-	@Override
-	protected boolean supportsKafkaTimestamps() {
-		return true;
-	}
+    @Override
+    protected boolean supportsKafkaTimestamps() {
+        return true;
+    }
 
-	@Override
-	protected KafkaTableSourceBase createKafkaTableSource(
-		TableSchema schema,
-		Optional<String> proctimeAttribute,
-		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-		Map<String, String> fieldMapping,
-		String topic,
-		Properties properties,
-		DeserializationSchema<Row> deserializationSchema,
-		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets,
-		long startupTimestampMillis) {
+    @Override
+    protected KafkaTableSourceBase createKafkaTableSource(
+            TableSchema schema,
+            Optional<String> proctimeAttribute,
+            List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+            Map<String, String> fieldMapping,
+            String topic,
+            Properties properties,
+            DeserializationSchema<Row> deserializationSchema,
+            StartupMode startupMode,
+            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            long startupTimestampMillis) {
 
-		return new KafkaTableSource(
-			schema,
-			proctimeAttribute,
-			rowtimeAttributeDescriptors,
-			Optional.of(fieldMapping),
-			topic,
-			properties,
-			deserializationSchema,
-			startupMode,
-			specificStartupOffsets,
-			startupTimestampMillis);
-	}
+        return new KafkaTableSource(
+                schema,
+                proctimeAttribute,
+                rowtimeAttributeDescriptors,
+                Optional.of(fieldMapping),
+                topic,
+                properties,
+                deserializationSchema,
+                startupMode,
+                specificStartupOffsets,
+                startupTimestampMillis);
+    }
 
-	@Override
-	protected KafkaTableSinkBase createKafkaTableSink(
-		TableSchema schema,
-		String topic,
-		Properties properties,
-		Optional<FlinkKafkaPartitioner<Row>> partitioner,
-		SerializationSchema<Row> serializationSchema) {
+    @Override
+    protected KafkaTableSinkBase createKafkaTableSink(
+            TableSchema schema,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner,
+            SerializationSchema<Row> serializationSchema) {
 
-		return new KafkaTableSink(
-			schema,
-			topic,
-			properties,
-			partitioner,
-			serializationSchema);
-	}
+        return new KafkaTableSink(schema, topic, properties, partitioner, serializationSchema);
+    }
 }

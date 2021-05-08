@@ -25,47 +25,45 @@ import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Preconditions;
 
 /**
- * @see <a href="http://mathworld.wolfram.com/HypercubeGraph.html">Hypercube Graph at Wolfram MathWorld</a>
+ * @see <a href="http://mathworld.wolfram.com/HypercubeGraph.html">Hypercube Graph at Wolfram
+ *     MathWorld</a>
  */
-public class HypercubeGraph
-extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
+public class HypercubeGraph extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
-	public static final int MINIMUM_DIMENSIONS = 1;
+    public static final int MINIMUM_DIMENSIONS = 1;
 
-	// Required to create the DataSource
-	private final ExecutionEnvironment env;
+    // Required to create the DataSource
+    private final ExecutionEnvironment env;
 
-	// Required configuration
-	private final long dimensions;
+    // Required configuration
+    private final long dimensions;
 
-	/**
-	 * An undirected {@code Graph} where edges form an n-dimensional hypercube.
-	 * Each vertex in a hypercube connects to one other vertex in each
-	 * dimension.
-	 *
-	 * @param env the Flink execution environment
-	 * @param dimensions number of dimensions
-	 */
-	public HypercubeGraph(ExecutionEnvironment env, long dimensions) {
-		Preconditions.checkArgument(dimensions >= MINIMUM_DIMENSIONS,
-			"Number of dimensions must be at least " + MINIMUM_DIMENSIONS);
+    /**
+     * An undirected {@code Graph} where edges form an n-dimensional hypercube. Each vertex in a
+     * hypercube connects to one other vertex in each dimension.
+     *
+     * @param env the Flink execution environment
+     * @param dimensions number of dimensions
+     */
+    public HypercubeGraph(ExecutionEnvironment env, long dimensions) {
+        Preconditions.checkArgument(
+                dimensions >= MINIMUM_DIMENSIONS,
+                "Number of dimensions must be at least " + MINIMUM_DIMENSIONS);
 
-		this.env = env;
-		this.dimensions = dimensions;
-	}
+        this.env = env;
+        this.dimensions = dimensions;
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> generate() {
-		Preconditions.checkState(dimensions > 0);
+    @Override
+    public Graph<LongValue, NullValue, NullValue> generate() {
+        Preconditions.checkState(dimensions > 0);
 
-		GridGraph graph = new GridGraph(env);
+        GridGraph graph = new GridGraph(env);
 
-		for (int i = 0; i < dimensions; i++) {
-			graph.addDimension(2, false);
-		}
+        for (int i = 0; i < dimensions; i++) {
+            graph.addDimension(2, false);
+        }
 
-		return graph
-			.setParallelism(parallelism)
-			.generate();
-	}
+        return graph.setParallelism(parallelism).generate();
+    }
 }

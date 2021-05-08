@@ -31,6 +31,7 @@
         <tr>
           <th nzShowExpand></th>
           <th>Time</th>
+          <th>Exception</th>
           <th>Name</th>
           <th>Location</th>
         </tr>
@@ -40,21 +41,28 @@
           <tr>
             <td nzShowExpand [(nzExpand)]="exception.expand"></td>
             <td>{{exception.timestamp | date:'yyyy-MM-dd HH:mm:ss'}}</td>
+            <td><div class="name">{{exception.exceptionName}}</div></td>
             <td>
               <div class="name">
-                {{exception.task}}
+                  {{exception.taskName || "(global failure)"}}
               </div>
             </td>
-            <td>{{exception.location}}</td>
+            <td>{{exception.location || "(unassigned)"}}</td>
           </tr>
           <tr [nzExpand]="exception.expand">
-            <td colspan="6" class="expand-td">
-              <flink-monaco-editor *ngIf="exception.expand" class="subtask" [value]="exception.exception"></flink-monaco-editor>
+            <td colspan="5" class="expand-td">
+              <flink-monaco-editor *ngIf="exception.expand" class="subtask" [value]="exception.stacktrace"></flink-monaco-editor>
             </td>
           </tr>
         </ng-container>
-        <tr *ngIf="truncated">
+        <tr *ngIf="listOfException.length > 0">
           <td colspan="6">
+            <i nz-icon nzType="info-circle" nzTheme="fill"></i>&nbsp;
+            <i>The exception history is limited to the most recent failures that caused parts of the job or the entire job to restart. The maximum history size can be configured via the Flink configuration property <b>web.exception-history-size</b>.</i>
+          </td>
+        </tr>
+        <tr *ngIf="truncated">
+          <td colspan="5">
             <button nz-button nzBlock nzType="primary" nzGhost (click)="loadMore()" [nzLoading]="isLoading">Load More</button>
           </td>
         </tr>

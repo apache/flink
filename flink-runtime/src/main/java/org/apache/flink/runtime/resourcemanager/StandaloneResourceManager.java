@@ -45,85 +45,84 @@ import java.util.concurrent.TimeUnit;
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
-	/** The duration of the startup period. A duration of zero means there is no startup period. */
-	private final Time startupPeriodTime;
+    /** The duration of the startup period. A duration of zero means there is no startup period. */
+    private final Time startupPeriodTime;
 
-	public StandaloneResourceManager(
-			RpcService rpcService,
-			ResourceID resourceId,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			SlotManager slotManager,
-			ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
-			JobLeaderIdService jobLeaderIdService,
-			ClusterInformation clusterInformation,
-			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			Time startupPeriodTime,
-			Time rpcTimeout,
-			Executor ioExecutor) {
-		super(
-			rpcService,
-			resourceId,
-			highAvailabilityServices,
-			heartbeatServices,
-			slotManager,
-			clusterPartitionTrackerFactory,
-			jobLeaderIdService,
-			clusterInformation,
-			fatalErrorHandler,
-			resourceManagerMetricGroup,
-			rpcTimeout,
-			ioExecutor);
-		this.startupPeriodTime = Preconditions.checkNotNull(startupPeriodTime);
-	}
+    public StandaloneResourceManager(
+            RpcService rpcService,
+            ResourceID resourceId,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            SlotManager slotManager,
+            ResourceManagerPartitionTrackerFactory clusterPartitionTrackerFactory,
+            JobLeaderIdService jobLeaderIdService,
+            ClusterInformation clusterInformation,
+            FatalErrorHandler fatalErrorHandler,
+            ResourceManagerMetricGroup resourceManagerMetricGroup,
+            Time startupPeriodTime,
+            Time rpcTimeout,
+            Executor ioExecutor) {
+        super(
+                rpcService,
+                resourceId,
+                highAvailabilityServices,
+                heartbeatServices,
+                slotManager,
+                clusterPartitionTrackerFactory,
+                jobLeaderIdService,
+                clusterInformation,
+                fatalErrorHandler,
+                resourceManagerMetricGroup,
+                rpcTimeout,
+                ioExecutor);
+        this.startupPeriodTime = Preconditions.checkNotNull(startupPeriodTime);
+    }
 
-	@Override
-	protected void initialize() throws ResourceManagerException {
-		// nothing to initialize
-	}
+    @Override
+    protected void initialize() throws ResourceManagerException {
+        // nothing to initialize
+    }
 
-	@Override
-	protected void terminate() {
-		// noop
-	}
+    @Override
+    protected void terminate() {
+        // noop
+    }
 
-	@Override
-	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) {
-	}
+    @Override
+    protected void internalDeregisterApplication(
+            ApplicationStatus finalStatus, @Nullable String diagnostics) {}
 
-	@Override
-	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
-		return false;
-	}
+    @Override
+    public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
+        return false;
+    }
 
-	@Override
-	public boolean stopWorker(ResourceID resourceID) {
-		// standalone resource manager cannot stop workers
-		return false;
-	}
+    @Override
+    public boolean stopWorker(ResourceID resourceID) {
+        // standalone resource manager cannot stop workers
+        return false;
+    }
 
-	@Override
-	protected ResourceID workerStarted(ResourceID resourceID) {
-		return resourceID;
-	}
+    @Override
+    protected ResourceID workerStarted(ResourceID resourceID) {
+        return resourceID;
+    }
 
-	@Override
-	protected void onLeadership() {
-		startStartupPeriod();
-	}
+    @Override
+    protected void onLeadership() {
+        startStartupPeriod();
+    }
 
-	private void startStartupPeriod() {
-		setFailUnfulfillableRequest(false);
+    private void startStartupPeriod() {
+        setFailUnfulfillableRequest(false);
 
-		final long startupPeriodMillis = startupPeriodTime.toMilliseconds();
+        final long startupPeriodMillis = startupPeriodTime.toMilliseconds();
 
-		if (startupPeriodMillis > 0) {
-			scheduleRunAsync(
-				() -> setFailUnfulfillableRequest(true),
-				startupPeriodMillis,
-				TimeUnit.MILLISECONDS
-			);
-		}
-	}
+        if (startupPeriodMillis > 0) {
+            scheduleRunAsync(
+                    () -> setFailUnfulfillableRequest(true),
+                    startupPeriodMillis,
+                    TimeUnit.MILLISECONDS);
+        }
+    }
 }

@@ -33,57 +33,58 @@ import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
 import org.apache.flink.table.sources.StreamTableSource;
 
 /**
- * A {@link StreamTableSource} that emits each number from a given interval exactly once,
- * possibly in parallel. See {@link StatefulSequenceSource}.
+ * A {@link StreamTableSource} that emits each number from a given interval exactly once, possibly
+ * in parallel. See {@link StatefulSequenceSource}.
  */
 @Internal
 public class DataGenTableSource implements ScanTableSource {
 
-	private final DataGenerator<?>[] fieldGenerators;
-	private final String tableName;
-	private final TableSchema schema;
-	private final long rowsPerSecond;
-	private final Long numberOfRows;
+    private final DataGenerator<?>[] fieldGenerators;
+    private final String tableName;
+    private final TableSchema schema;
+    private final long rowsPerSecond;
+    private final Long numberOfRows;
 
-	public DataGenTableSource(
-		DataGenerator<?>[] fieldGenerators,
-		String tableName,
-		TableSchema schema,
-		long rowsPerSecond,
-		Long numberOfRows) {
-		this.fieldGenerators = fieldGenerators;
-		this.tableName = tableName;
-		this.schema = schema;
-		this.rowsPerSecond = rowsPerSecond;
-		this.numberOfRows = numberOfRows;
-	}
+    public DataGenTableSource(
+            DataGenerator<?>[] fieldGenerators,
+            String tableName,
+            TableSchema schema,
+            long rowsPerSecond,
+            Long numberOfRows) {
+        this.fieldGenerators = fieldGenerators;
+        this.tableName = tableName;
+        this.schema = schema;
+        this.rowsPerSecond = rowsPerSecond;
+        this.numberOfRows = numberOfRows;
+    }
 
-	@Override
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-		boolean isBounded = numberOfRows != null;
-		return SourceFunctionProvider.of(createSource(), isBounded);
-	}
+    @Override
+    public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
+        boolean isBounded = numberOfRows != null;
+        return SourceFunctionProvider.of(createSource(), isBounded);
+    }
 
-	@VisibleForTesting
-	public DataGeneratorSource<RowData> createSource() {
-		return new DataGeneratorSource<>(
-			new RowDataGenerator(fieldGenerators, schema.getFieldNames()),
-			rowsPerSecond, numberOfRows);
-	}
+    @VisibleForTesting
+    public DataGeneratorSource<RowData> createSource() {
+        return new DataGeneratorSource<>(
+                new RowDataGenerator(fieldGenerators, schema.getFieldNames()),
+                rowsPerSecond,
+                numberOfRows);
+    }
 
-	@Override
-	public DynamicTableSource copy() {
-		return new DataGenTableSource(fieldGenerators, tableName, schema, rowsPerSecond, numberOfRows);
-	}
+    @Override
+    public DynamicTableSource copy() {
+        return new DataGenTableSource(
+                fieldGenerators, tableName, schema, rowsPerSecond, numberOfRows);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "DataGenTableSource";
-	}
+    @Override
+    public String asSummaryString() {
+        return "DataGenTableSource";
+    }
 
-	@Override
-	public ChangelogMode getChangelogMode() {
-		return ChangelogMode.insertOnly();
-	}
+    @Override
+    public ChangelogMode getChangelogMode() {
+        return ChangelogMode.insertOnly();
+    }
 }
-

@@ -39,55 +39,64 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Extension of the {@link KinesisDataFetcher} for testing what happens when the thread is interrupted during
- * {@link #awaitTermination()}.
+ * Extension of the {@link KinesisDataFetcher} for testing what happens when the thread is
+ * interrupted during {@link #awaitTermination()}.
  */
-public class TestableKinesisDataFetcherForShardConsumerException<T> extends TestableKinesisDataFetcher<T> {
-	public volatile boolean wasInterrupted = false;
+public class TestableKinesisDataFetcherForShardConsumerException<T>
+        extends TestableKinesisDataFetcher<T> {
+    public volatile boolean wasInterrupted = false;
 
-	private OneShotLatch awaitTerminationWaiter = new OneShotLatch();
+    private OneShotLatch awaitTerminationWaiter = new OneShotLatch();
 
-	public TestableKinesisDataFetcherForShardConsumerException(final List<String> fakeStreams,
-			final SourceFunction.SourceContext<T> sourceContext,
-			final Properties fakeConfiguration,
-			final KinesisDeserializationSchema<T> deserializationSchema,
-			final int fakeTotalCountOfSubtasks,
-			final int fakeIndexOfThisSubtask,
-			final AtomicReference<Throwable> thrownErrorUnderTest,
-			final LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
-			final HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
-			final KinesisProxyInterface fakeKinesis,
-			final RecordPublisherFactory recordPublisherFactory) {
-		super(fakeStreams, sourceContext, fakeConfiguration, deserializationSchema, fakeTotalCountOfSubtasks,
-			fakeIndexOfThisSubtask, thrownErrorUnderTest, subscribedShardsStateUnderTest,
-			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest, fakeKinesis);
-	}
+    public TestableKinesisDataFetcherForShardConsumerException(
+            final List<String> fakeStreams,
+            final SourceFunction.SourceContext<T> sourceContext,
+            final Properties fakeConfiguration,
+            final KinesisDeserializationSchema<T> deserializationSchema,
+            final int fakeTotalCountOfSubtasks,
+            final int fakeIndexOfThisSubtask,
+            final AtomicReference<Throwable> thrownErrorUnderTest,
+            final LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
+            final HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+            final KinesisProxyInterface fakeKinesis,
+            final RecordPublisherFactory recordPublisherFactory) {
+        super(
+                fakeStreams,
+                sourceContext,
+                fakeConfiguration,
+                deserializationSchema,
+                fakeTotalCountOfSubtasks,
+                fakeIndexOfThisSubtask,
+                thrownErrorUnderTest,
+                subscribedShardsStateUnderTest,
+                subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
+                fakeKinesis);
+    }
 
-	/**
-	 * Block until awaitTermination() has been called on this class.
-	 */
-	public void waitUntilAwaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException, TimeoutException {
-		awaitTerminationWaiter.await(timeout, timeUnit);
-	}
+    /** Block until awaitTermination() has been called on this class. */
+    public void waitUntilAwaitTermination(long timeout, TimeUnit timeUnit)
+            throws InterruptedException, TimeoutException {
+        awaitTerminationWaiter.await(timeout, timeUnit);
+    }
 
-	@Override
-	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
-		final ThreadFactory threadFactory =
-			new ThreadFactoryBuilder().setNameFormat("KinesisShardConsumers-%d").build();
-		return Executors.newSingleThreadExecutor(threadFactory);
-	}
+    @Override
+    protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
+        final ThreadFactory threadFactory =
+                new ThreadFactoryBuilder().setNameFormat("KinesisShardConsumers-%d").build();
+        return Executors.newSingleThreadExecutor(threadFactory);
+    }
 
-	@Override
-	public void awaitTermination() throws InterruptedException {
-		awaitTerminationWaiter.trigger();
-		try {
-			// Force this method to only exit by thread getting interrupted.
-			while (true) {
-				Thread.sleep(1000);
-			}
-		} catch (InterruptedException e) {
-			wasInterrupted = true;
-			throw e;
-		}
-	}
+    @Override
+    public void awaitTermination() throws InterruptedException {
+        awaitTerminationWaiter.trigger();
+        try {
+            // Force this method to only exit by thread getting interrupted.
+            while (true) {
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException e) {
+            wasInterrupted = true;
+            throw e;
+        }
+    }
 }

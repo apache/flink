@@ -38,95 +38,121 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * Starts a {@link MiniCluster} for every submitted job.
- * This class guarantees to tear down the MiniCluster in case of normal or exceptional job completion.
- * */
+ * Starts a {@link MiniCluster} for every submitted job. This class guarantees to tear down the
+ * MiniCluster in case of normal or exceptional job completion.
+ */
 public final class PerJobMiniClusterFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterFactory.class);
 
-	private final Configuration configuration;
-	private final Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory;
+    private final Configuration configuration;
+    private final Function<? super MiniClusterConfiguration, ? extends MiniCluster>
+            miniClusterFactory;
 
-	public static PerJobMiniClusterFactory create() {
-		return new PerJobMiniClusterFactory(new Configuration(), MiniCluster::new);
-	}
+    public static PerJobMiniClusterFactory create() {
+        return new PerJobMiniClusterFactory(new Configuration(), MiniCluster::new);
+    }
 
-	public static PerJobMiniClusterFactory createWithFactory(
-			Configuration configuration,
-			Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
-		return new PerJobMiniClusterFactory(configuration, miniClusterFactory);
-	}
+    public static PerJobMiniClusterFactory createWithFactory(
+            Configuration configuration,
+            Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
+        return new PerJobMiniClusterFactory(configuration, miniClusterFactory);
+    }
 
-	private PerJobMiniClusterFactory(
-			Configuration configuration,
-			Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
-		this.configuration = configuration;
-		this.miniClusterFactory = miniClusterFactory;
-	}
+    private PerJobMiniClusterFactory(
+            Configuration configuration,
+            Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
+        this.configuration = configuration;
+        this.miniClusterFactory = miniClusterFactory;
+    }
 
-	/**
-	 * Starts a {@link MiniCluster} and submits a job.
-	 */
-	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
-		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
-		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
-		miniCluster.start();
+    /** Starts a {@link MiniCluster} and submits a job. */
+    public CompletableFuture<JobClient> submitJob(
+            JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
+        MiniClusterConfiguration miniClusterConfig =
+                getMiniClusterConfig(jobGraph.getMaximumParallelism());
+        MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
+        miniCluster.start();
 
-		return miniCluster
-			.submitJob(jobGraph)
-			.thenApplyAsync(FunctionUtils.uncheckedFunction(submissionResult -> {
-				org.apache.flink.client.ClientUtils.waitUntilJobInitializationFinished(
-					() -> miniCluster.getJobStatus(submissionResult.getJobID()).get(),
-					() -> miniCluster.requestJobResult(submissionResult.getJobID()).get(),
-					userCodeClassloader);
-				return submissionResult;
-			}))
-			.thenApply(result -> new MiniClusterJobClient(
-					result.getJobID(),
-					miniCluster,
-					userCodeClassloader,
-					MiniClusterJobClient.JobFinalizationBehavior.SHUTDOWN_CLUSTER))
-			.whenComplete((ignored, throwable) -> {
-				if (throwable != null) {
-					// We failed to create the JobClient and must shutdown to ensure cleanup.
-					shutDownCluster(miniCluster);
-				}
-			})
-			.thenApply(Function.identity());
-	}
+        return miniCluster
+                .submitJob(jobGraph)
+                .thenApplyAsync(
+                        FunctionUtils.uncheckedFunction(
+                                submissionResult -> {
+                                    org.apache.flink.client.ClientUtils
+                                            .waitUntilJobInitializationFinished(
+                                                    () ->
+                                                            miniCluster
+                                                                    .getJobStatus(
+                                                                            submissionResult
+                                                                                    .getJobID())
+                                                                    .get(),
+                                                    () ->
+                                                            miniCluster
+                                                                    .requestJobResult(
+                                                                            submissionResult
+                                                                                    .getJobID())
+                                                                    .get(),
+                                                    userCodeClassloader);
+                                    return submissionResult;
+                                }))
+                .thenApply(
+                        result ->
+                                new MiniClusterJobClient(
+                                        result.getJobID(),
+                                        miniCluster,
+                                        userCodeClassloader,
+                                        MiniClusterJobClient.JobFinalizationBehavior
+                                                .SHUTDOWN_CLUSTER))
+                .whenComplete(
+                        (ignored, throwable) -> {
+                            if (throwable != null) {
+                                // We failed to create the JobClient and must shutdown to ensure
+                                // cleanup.
+                                shutDownCluster(miniCluster);
+                            }
+                        })
+                .thenApply(Function.identity());
+    }
 
-	private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
-		Configuration configuration = new Configuration(this.configuration);
+    private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
+        Configuration configuration = new Configuration(this.configuration);
 
-		if (!configuration.contains(RestOptions.BIND_PORT)) {
-			configuration.setString(RestOptions.BIND_PORT, "0");
-		}
+        if (!configuration.contains(RestOptions.BIND_PORT)) {
+            configuration.setString(RestOptions.BIND_PORT, "0");
+        }
 
-		int numTaskManagers = configuration.getInteger(
-			ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-			ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
+        int numTaskManagers =
+                configuration.getInteger(
+                        ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+                        ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
 
-		int numSlotsPerTaskManager = configuration.getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
-			.orElseGet(() -> maximumParallelism > 0 ?
-				MathUtils.divideRoundUp(maximumParallelism, numTaskManagers) :
-				TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
+        int numSlotsPerTaskManager =
+                configuration
+                        .getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
+                        .orElseGet(
+                                () ->
+                                        maximumParallelism > 0
+                                                ? MathUtils.divideRoundUp(
+                                                        maximumParallelism, numTaskManagers)
+                                                : TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
 
-		return new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(numTaskManagers)
-			.setRpcServiceSharing(RpcServiceSharing.SHARED)
-			.setNumSlotsPerTaskManager(numSlotsPerTaskManager)
-			.build();
-	}
+        return new MiniClusterConfiguration.Builder()
+                .setConfiguration(configuration)
+                .setNumTaskManagers(numTaskManagers)
+                .setRpcServiceSharing(RpcServiceSharing.SHARED)
+                .setNumSlotsPerTaskManager(numSlotsPerTaskManager)
+                .build();
+    }
 
-	private static void shutDownCluster(MiniCluster miniCluster) {
-		miniCluster.closeAsync()
-			.whenComplete((ignored, throwable) -> {
-				if (throwable != null) {
-					LOG.warn("Shutdown of MiniCluster failed.", throwable);
-				}
-			});
-	}
-
+    private static void shutDownCluster(MiniCluster miniCluster) {
+        miniCluster
+                .closeAsync()
+                .whenComplete(
+                        (ignored, throwable) -> {
+                            if (throwable != null) {
+                                LOG.warn("Shutdown of MiniCluster failed.", throwable);
+                            }
+                        });
+    }
 }

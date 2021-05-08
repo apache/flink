@@ -25,13 +25,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Helper annotation for repeatable {@link FunctionHint}s.
- */
+/** Helper annotation for repeatable {@link FunctionHint}s. */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface FunctionHints {
 
-	FunctionHint[] value();
+    FunctionHint[] value();
 }

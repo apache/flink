@@ -71,6 +71,13 @@ object FlinkStreamRuleSets {
   )
 
   /**
+   * Solid transformations before actual decorrelation.
+   */
+  val PRE_DECORRELATION_RULES: RuleSet = RuleSets.ofList(
+    CorrelateSortToRankRule.INSTANCE
+  )
+
+  /**
     * RuleSet to reduce expressions
     */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
@@ -237,6 +244,10 @@ object FlinkStreamRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+    PushLimitIntoTableSourceScanRule.INSTANCE,
+
+    // reorder the project and watermark assigner
+    ProjectWatermarkAssignerTransposeRule.INSTANCE,
 
     // reorder sort and projection
     CoreRules.SORT_PROJECT_TRANSPOSE,
@@ -314,6 +325,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalIntermediateTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
+    FlinkLogicalRank.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalWindowTableAggregate.CONVERTER,
@@ -338,6 +350,9 @@ object FlinkStreamRuleSets {
     * RuleSet to do rewrite on FlinkLogicalRel for Stream
     */
   val LOGICAL_REWRITE: RuleSet = RuleSets.ofList(
+    // watermark push down
+    PushWatermarkIntoTableSourceScanAcrossCalcRule.INSTANCE,
+    PushWatermarkIntoTableSourceScanRule.INSTANCE,
     // transform over window to topn node
     FlinkLogicalRankRule.INSTANCE,
     // transpose calc past rank to reduce rank input fields
@@ -359,78 +374,104 @@ object FlinkStreamRuleSets {
     PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
+    // remove the trivial calc that is produced by PushWatermarkIntoTableSourceScanAcrossCalcRule.
+    // because [[PushWatermarkIntoTableSourceScanAcrossCalcRule]] will push the rowtime computed
+    // column into the source. After FlinkCalcMergeRule applies, it may produces a trivial calc.
+    FlinkLogicalCalcRemoveRule.INSTANCE,
+    // filter push down
+    PushFilterInCalcIntoTableSourceScanRule.INSTANCE,
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
+    PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
-    PythonCalcSplitRule.REWRITE_PROJECT
-  )
+    PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapMergeRule.INSTANCE
+    )
 
   /**
     * RuleSet to do physical optimize for stream
     */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+    FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,
     FlinkExpandConversionRule.STREAM_INSTANCE,
+    StreamPhysicalCalcRemoveRule.INSTANCE,
     // source
-    StreamExecDataStreamScanRule.INSTANCE,
-    StreamExecTableSourceScanRule.INSTANCE,
-    StreamExecLegacyTableSourceScanRule.INSTANCE,
-    StreamExecIntermediateTableScanRule.INSTANCE,
-    StreamExecWatermarkAssignerRule.INSTANCE,
-    StreamExecValuesRule.INSTANCE,
+    StreamPhysicalDataStreamScanRule.INSTANCE,
+    StreamPhysicalTableSourceScanRule.INSTANCE,
+    StreamPhysicalLegacyTableSourceScanRule.INSTANCE,
+    StreamPhysicalIntermediateTableScanRule.INSTANCE,
+    StreamPhysicalWatermarkAssignerRule.INSTANCE,
+    StreamPhysicalValuesRule.INSTANCE,
     // calc
-    StreamExecCalcRule.INSTANCE,
-    StreamExecPythonCalcRule.INSTANCE,
+    StreamPhysicalCalcRule.INSTANCE,
+    StreamPhysicalPythonCalcRule.INSTANCE,
     // union
-    StreamExecUnionRule.INSTANCE,
+    StreamPhysicalUnionRule.INSTANCE,
     // sort
-    StreamExecSortRule.INSTANCE,
-    StreamExecLimitRule.INSTANCE,
-    StreamExecSortLimitRule.INSTANCE,
-    StreamExecTemporalSortRule.INSTANCE,
+    StreamPhysicalSortRule.INSTANCE,
+    StreamPhysicalLimitRule.INSTANCE,
+    StreamPhysicalSortLimitRule.INSTANCE,
+    StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
-    StreamExecRankRule.INSTANCE,
-    StreamExecDeduplicateRule.RANK_INSTANCE,
+    StreamPhysicalRankRule.INSTANCE,
+    StreamPhysicalDeduplicateRule.RANK_INSTANCE,
     // expand
-    StreamExecExpandRule.INSTANCE,
+    StreamPhysicalExpandRule.INSTANCE,
     // group agg
-    StreamExecGroupAggregateRule.INSTANCE,
-    StreamExecGroupTableAggregateRule.INSTANCE,
-    StreamExecPythonGroupAggregateRule.INSTANCE,
+    StreamPhysicalGroupAggregateRule.INSTANCE,
+    StreamPhysicalGroupTableAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupTableAggregateRule.INSTANCE,
     // over agg
-    StreamExecOverAggregateRule.INSTANCE,
-    StreamExecPythonOverAggregateRule.INSTANCE,
+    StreamPhysicalOverAggregateRule.INSTANCE,
+    StreamPhysicalPythonOverAggregateRule.INSTANCE,
     // window agg
-    StreamExecGroupWindowAggregateRule.INSTANCE,
-    StreamExecGroupWindowTableAggregateRule.INSTANCE,
-    StreamExecPythonGroupWindowAggregateRule.INSTANCE,
+    StreamPhysicalGroupWindowAggregateRule.INSTANCE,
+    StreamPhysicalGroupWindowTableAggregateRule.INSTANCE,
+    StreamPhysicalPythonGroupWindowAggregateRule.INSTANCE,
+    // window TVFs
+    StreamPhysicalWindowTableFunctionRule.INSTANCE,
+    StreamPhysicalWindowAggregateRule.INSTANCE,
+    PullUpWindowTableFunctionIntoWindowAggregateRule.INSTANCE,
+    ExpandWindowTableFunctionTransposeRule.INSTANCE,
+    StreamPhysicalWindowRankRule.INSTANCE,
     // join
-    StreamExecJoinRule.INSTANCE,
-    StreamExecIntervalJoinRule.INSTANCE,
-    StreamExecTemporalJoinRule.INSTANCE,
-    StreamExecLegacyTemporalJoinRule.INSTANCE,
-    StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
-    StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    StreamPhysicalJoinRule.INSTANCE,
+    StreamPhysicalIntervalJoinRule.INSTANCE,
+    StreamPhysicalTemporalJoinRule.INSTANCE,
+    StreamPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
+    StreamPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    StreamPhysicalWindowJoinRule.INSTANCE,
     // CEP
-    StreamExecMatchRule.INSTANCE,
+    StreamPhysicalMatchRule.INSTANCE,
     // correlate
-    StreamExecConstantTableFunctionScanRule.INSTANCE,
-    StreamExecCorrelateRule.INSTANCE,
-    StreamExecPythonCorrelateRule.INSTANCE,
+    StreamPhysicalConstantTableFunctionScanRule.INSTANCE,
+    StreamPhysicalCorrelateRule.INSTANCE,
+    StreamPhysicalPythonCorrelateRule.INSTANCE,
     // sink
-    StreamExecSinkRule.INSTANCE,
-    StreamExecLegacySinkRule.INSTANCE
+    StreamPhysicalSinkRule.INSTANCE,
+    StreamPhysicalLegacySinkRule.INSTANCE
   )
 
   /**
-    * RuleSet related to watermark assignment.
+   * RuleSet related to transpose watermark to be close to source
+   */
+  val WATERMARK_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
+    WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC
+  )
+
+  /**
+    * RuleSet related to mini-batch.
     */
   val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(
-    // watermark interval infer rule
+    // mini-batch interval infer rule
     MiniBatchIntervalInferRule.INSTANCE
   )
 
@@ -438,10 +479,12 @@ object FlinkStreamRuleSets {
     * RuleSet to optimize plans after stream exec execution.
     */
   val PHYSICAL_REWRITE: RuleSet = RuleSets.ofList(
-    //optimize agg rule
+    // optimize agg rule
     TwoStageOptimizedAggregateRule.INSTANCE,
     // incremental agg rule
-    IncrementalAggregateRule.INSTANCE
+    IncrementalAggregateRule.INSTANCE,
+    // optimize window agg rule
+    TwoStageOptimizedWindowAggregateRule.INSTANCE
   )
 
 }

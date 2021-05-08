@@ -87,6 +87,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -94,274 +95,350 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Tests that verify correct HA behavior.
- */
+/** Tests that verify correct HA behavior. */
 public class YARNHighAvailabilityITCase extends YarnTestBase {
 
-	@ClassRule
-	public static final TemporaryFolder FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
-	private static final String LOG_DIR = "flink-yarn-tests-ha";
-	private static final Duration TIMEOUT = Duration.ofSeconds(200L);
+    private static final String LOG_DIR = "flink-yarn-tests-ha";
+    private static final Duration TIMEOUT = Duration.ofSeconds(200L);
 
-	private static TestingServer zkServer;
-	private static String storageDir;
+    private static TestingServer zkServer;
+    private static String storageDir;
 
-	private YarnTestJob.StopJobSignal stopJobSignal;
-	private JobGraph job;
+    private YarnTestJob.StopJobSignal stopJobSignal;
+    private JobGraph job;
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		zkServer = new TestingServer();
+    @BeforeClass
+    public static void setup() throws Exception {
+        zkServer = new TestingServer();
 
-		storageDir = FOLDER.newFolder().getAbsolutePath();
+        storageDir = FOLDER.newFolder().getAbsolutePath();
 
-		// startYARNWithConfig should be implemented by subclass
-		YARN_CONFIGURATION.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
-		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, LOG_DIR);
-		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 4096);
-		startYARNWithConfig(YARN_CONFIGURATION);
-	}
+        // startYARNWithConfig should be implemented by subclass
+        YARN_CONFIGURATION.setClass(
+                YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
+        YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, LOG_DIR);
+        YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 4096);
+        startYARNWithConfig(YARN_CONFIGURATION);
+    }
 
-	@AfterClass
-	public static void teardown() throws Exception {
-		if (zkServer != null) {
-			zkServer.stop();
-			zkServer = null;
-		}
-	}
+    @AfterClass
+    public static void teardown() throws Exception {
+        if (zkServer != null) {
+            zkServer.stop();
+            zkServer = null;
+        }
+    }
 
-	@Before
-	public void setUp() throws Exception {
-		initJobGraph();
-	}
+    @Before
+    public void setUp() throws Exception {
+        initJobGraph();
+    }
 
-	private void initJobGraph() throws IOException {
-		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
-		job = YarnTestJob.stoppableJob(stopJobSignal);
-		final File testingJar =
-			TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
+    private void initJobGraph() throws IOException {
+        stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
+        job = YarnTestJob.stoppableJob(stopJobSignal);
+        final File testingJar =
+                TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
-		assertThat(testingJar, notNullValue());
+        assertThat(testingJar, notNullValue());
 
-		job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-	}
+        job.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+    }
 
-	/**
-	 * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then resume
-	 * a persisted {@link JobGraph}.
-	 */
-	@Test
-	public void testKillYarnSessionClusterEntrypoint() throws Exception {
-		runTest(() -> {
-			assumeTrue(
-				"This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.",
-				OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
+    /**
+     * Tests that Yarn will restart a killed {@link YarnSessionClusterEntrypoint} which will then
+     * resume a persisted {@link JobGraph}.
+     */
+    @Test(timeout = 1_000 * 60 * 30)
+    public void testKillYarnSessionClusterEntrypoint() throws Exception {
+        runTest(
+                () -> {
+                    assumeTrue(
+                            "This test kills processes via the pkill command. Thus, it only runs on Linux, Mac OS, Free BSD and Solaris.",
+                            OperatingSystem.isLinux()
+                                    || OperatingSystem.isMac()
+                                    || OperatingSystem.isFreeBSD()
+                                    || OperatingSystem.isSolaris());
 
-			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
+                    final YarnClusterDescriptor yarnClusterDescriptor =
+                            setupYarnClusterDescriptor();
+                    final RestClusterClient<ApplicationId> restClusterClient =
+                            deploySessionCluster(yarnClusterDescriptor);
 
-			try {
-				final JobID jobId = submitJob(restClusterClient);
-				final ApplicationId id = restClusterClient.getClusterId();
+                    try {
+                        final JobID jobId = submitJob(restClusterClient);
+                        final ApplicationId id = restClusterClient.getClusterId();
 
-				waitUntilJobIsRunning(restClusterClient, jobId);
+                        waitUntilJobIsRunning(restClusterClient, jobId);
 
-				killApplicationMaster(yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
-				waitForApplicationAttempt(id, 2);
+                        killApplicationMaster(
+                                yarnClusterDescriptor.getYarnSessionClusterEntrypoint());
+                        waitForApplicationAttempt(id, 2);
 
-				waitForJobTermination(restClusterClient, jobId);
+                        waitForJobTermination(restClusterClient, jobId);
 
-				killApplicationAndWait(id);
-			} finally {
-				restClusterClient.close();
-			}
-		});
-	}
+                        killApplicationAndWait(id);
+                    } finally {
+                        restClusterClient.close();
+                    }
+                });
+    }
 
-	@Test
-	public void testJobRecoversAfterKillingTaskManager() throws Exception {
-		runTest(() -> {
-			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
-			try {
-				final JobID jobId = submitJob(restClusterClient);
-				waitUntilJobIsRunning(restClusterClient, jobId);
+    @Test(timeout = 1_000 * 60 * 30)
+    public void testJobRecoversAfterKillingTaskManager() throws Exception {
+        runTest(
+                () -> {
+                    final YarnClusterDescriptor yarnClusterDescriptor =
+                            setupYarnClusterDescriptor();
+                    final RestClusterClient<ApplicationId> restClusterClient =
+                            deploySessionCluster(yarnClusterDescriptor);
+                    try {
+                        final JobID jobId = submitJob(restClusterClient);
+                        waitUntilJobIsRunning(restClusterClient, jobId);
 
-				stopTaskManagerContainer();
-				waitUntilJobIsRestarted(restClusterClient, jobId, 1);
+                        stopTaskManagerContainer();
+                        waitUntilJobIsRestarted(restClusterClient, jobId, 1);
 
-				waitForJobTermination(restClusterClient, jobId);
+                        waitForJobTermination(restClusterClient, jobId);
 
-				killApplicationAndWait(restClusterClient.getClusterId());
-			} finally {
-				restClusterClient.close();
-			}
-		});
-	}
+                        killApplicationAndWait(restClusterClient.getClusterId());
+                    } finally {
+                        restClusterClient.close();
+                    }
+                });
+    }
 
-	private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId) throws Exception {
-		final YarnClient yarnClient = getYarnClient();
-		checkState(yarnClient != null, "yarnClient must be initialized");
+    /**
+     * Tests that we can retrieve an HA enabled cluster by only specifying the application id if no
+     * other high-availability.cluster-id has been configured. See FLINK-20866.
+     */
+    @Test(timeout = 1_000 * 60 * 30)
+    public void testClusterClientRetrieval() throws Exception {
+        runTest(
+                () -> {
+                    final YarnClusterDescriptor yarnClusterDescriptor =
+                            setupYarnClusterDescriptor();
+                    final RestClusterClient<ApplicationId> restClusterClient =
+                            deploySessionCluster(yarnClusterDescriptor);
 
-		CommonTestUtils.waitUntilCondition(() -> {
-			final ApplicationReport applicationReport = yarnClient.getApplicationReport(applicationId);
-			return applicationReport.getCurrentApplicationAttemptId().getAttemptId() >= attemptId;
-		}, Deadline.fromNow(TIMEOUT));
-	}
+                    ClusterClient<ApplicationId> newClusterClient = null;
+                    try {
+                        final ApplicationId clusterId = restClusterClient.getClusterId();
 
-	/**
-	 * Stops a container running {@link YarnTaskExecutorRunner}.
-	 */
-	private void stopTaskManagerContainer() throws Exception {
-		// find container id of taskManager:
-		ContainerId taskManagerContainer = null;
-		NodeManager nodeManager = null;
-		NMTokenIdentifier nmIdent = null;
-		UserGroupInformation remoteUgi = UserGroupInformation.getCurrentUser();
+                        final YarnClusterDescriptor newClusterDescriptor =
+                                setupYarnClusterDescriptor();
+                        newClusterClient =
+                                newClusterDescriptor.retrieve(clusterId).getClusterClient();
 
-		for (int nmId = 0; nmId < NUM_NODEMANAGERS; nmId++) {
-			NodeManager nm = yarnCluster.getNodeManager(nmId);
-			ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
-			for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
-				String command = StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
-				if (command.contains(YarnTaskExecutorRunner.class.getSimpleName())) {
-					taskManagerContainer = entry.getKey();
-					nodeManager = nm;
-					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "", 0);
-					// allow myself to do stuff with the container
-					// remoteUgi.addCredentials(entry.getValue().getCredentials());
-					remoteUgi.addTokenIdentifier(nmIdent);
-				}
-			}
-		}
+                        assertThat(newClusterClient.listJobs().join(), is(empty()));
 
-		assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
-		assertNotNull("Illegal state", nodeManager);
+                        newClusterClient.shutDownCluster();
+                    } finally {
+                        restClusterClient.close();
 
-		StopContainersRequest scr = StopContainersRequest.newInstance(Collections.singletonList(taskManagerContainer));
+                        if (newClusterClient != null) {
+                            newClusterClient.close();
+                        }
+                    }
+                });
+    }
 
-		nodeManager.getNMContext().getContainerManager().stopContainers(scr);
+    private void waitForApplicationAttempt(final ApplicationId applicationId, final int attemptId)
+            throws Exception {
+        final YarnClient yarnClient = getYarnClient();
+        checkState(yarnClient != null, "yarnClient must be initialized");
 
-		// cleanup auth for the subsequent tests.
-		remoteUgi.getTokenIdentifiers().remove(nmIdent);
-	}
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final ApplicationReport applicationReport =
+                            yarnClient.getApplicationReport(applicationId);
+                    return applicationReport.getCurrentApplicationAttemptId().getAttemptId()
+                            >= attemptId;
+                },
+                Deadline.fromNow(TIMEOUT));
+    }
 
-	private void killApplicationAndWait(final ApplicationId id) throws Exception {
-		final YarnClient yarnClient = getYarnClient();
-		checkState(yarnClient != null, "yarnClient must be initialized");
+    /** Stops a container running {@link YarnTaskExecutorRunner}. */
+    private void stopTaskManagerContainer() throws Exception {
+        // find container id of taskManager:
+        ContainerId taskManagerContainer = null;
+        NodeManager nodeManager = null;
+        NMTokenIdentifier nmIdent = null;
+        UserGroupInformation remoteUgi = UserGroupInformation.getCurrentUser();
 
-		yarnClient.killApplication(id);
+        for (int nmId = 0; nmId < NUM_NODEMANAGERS; nmId++) {
+            NodeManager nm = yarnCluster.getNodeManager(nmId);
+            ConcurrentMap<ContainerId, Container> containers = nm.getNMContext().getContainers();
+            for (Map.Entry<ContainerId, Container> entry : containers.entrySet()) {
+                String command =
+                        StringUtils.join(entry.getValue().getLaunchContext().getCommands(), " ");
+                if (command.contains(YarnTaskExecutorRunner.class.getSimpleName())) {
+                    taskManagerContainer = entry.getKey();
+                    nodeManager = nm;
+                    nmIdent =
+                            new NMTokenIdentifier(
+                                    taskManagerContainer.getApplicationAttemptId(), null, "", 0);
+                    // allow myself to do stuff with the container
+                    // remoteUgi.addCredentials(entry.getValue().getCredentials());
+                    remoteUgi.addTokenIdentifier(nmIdent);
+                }
+            }
+        }
 
-		CommonTestUtils.waitUntilCondition(() -> !yarnClient.getApplications(EnumSet.of(YarnApplicationState.KILLED, YarnApplicationState.FINISHED)).isEmpty(),
-			Deadline.fromNow(TIMEOUT));
-	}
+        assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
+        assertNotNull("Illegal state", nodeManager);
 
-	private void waitForJobTermination(
-			final RestClusterClient<ApplicationId> restClusterClient,
-			final JobID jobId) throws Exception {
-		stopJobSignal.signal();
-		final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
-		jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-	}
+        StopContainersRequest scr =
+                StopContainersRequest.newInstance(Collections.singletonList(taskManagerContainer));
 
-	@Nonnull
-	private YarnClusterDescriptor setupYarnClusterDescriptor() {
-		final Configuration flinkConfiguration = new Configuration();
-		flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
-		flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-		flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
-		flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
-		flinkConfiguration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-		flinkConfiguration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
+        nodeManager.getNMContext().getContainerManager().stopContainers(scr);
 
-		flinkConfiguration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
-		flinkConfiguration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        // cleanup auth for the subsequent tests.
+        remoteUgi.getTokenIdentifiers().remove(nmIdent);
+    }
 
-		return createYarnClusterDescriptor(flinkConfiguration);
-	}
+    private void killApplicationAndWait(final ApplicationId id) throws Exception {
+        final YarnClient yarnClient = getYarnClient();
+        checkState(yarnClient != null, "yarnClient must be initialized");
 
-	private RestClusterClient<ApplicationId> deploySessionCluster(YarnClusterDescriptor yarnClusterDescriptor) throws ClusterDeploymentException {
-		final int masterMemory = yarnClusterDescriptor.getFlinkConfiguration().get(JobManagerOptions.TOTAL_PROCESS_MEMORY).getMebiBytes();
-		final int taskManagerMemory = 1024;
-		final ClusterClient<ApplicationId> yarnClusterClient = yarnClusterDescriptor
-				.deploySessionCluster(new ClusterSpecification.ClusterSpecificationBuilder()
-						.setMasterMemoryMB(masterMemory)
-						.setTaskManagerMemoryMB(taskManagerMemory)
-						.setSlotsPerTaskManager(1)
-						.createClusterSpecification())
-				.getClusterClient();
+        yarnClient.killApplication(id);
 
-		assertThat(yarnClusterClient, is(instanceOf(RestClusterClient.class)));
-		return (RestClusterClient<ApplicationId>) yarnClusterClient;
-	}
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        !getApplicationReportWithRetryOnNPE(
+                                        yarnClient,
+                                        EnumSet.of(
+                                                YarnApplicationState.KILLED,
+                                                YarnApplicationState.FINISHED))
+                                .isEmpty(),
+                Deadline.fromNow(TIMEOUT));
+    }
 
-	private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient) throws InterruptedException, java.util.concurrent.ExecutionException {
-		return restClusterClient.submitJob(job).get();
-	}
+    private void waitForJobTermination(
+            final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
+            throws Exception {
+        stopJobSignal.signal();
+        final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
+        jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
 
-	private void killApplicationMaster(final String processName) throws IOException, InterruptedException {
-		final Process exec = Runtime.getRuntime().exec("pkill -f " + processName);
-		assertThat(exec.waitFor(), is(0));
-	}
+    @Nonnull
+    private YarnClusterDescriptor setupYarnClusterDescriptor() {
+        final Configuration flinkConfiguration = new Configuration();
+        flinkConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
+        flinkConfiguration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+        flinkConfiguration.setString(YarnConfigOptions.APPLICATION_ATTEMPTS, "10");
+        flinkConfiguration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        flinkConfiguration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, storageDir);
+        flinkConfiguration.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+        flinkConfiguration.setInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 20000);
 
-	private static void waitUntilJobIsRunning(RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
-		CommonTestUtils.waitUntilCondition(
-			() -> {
-				final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
-				return jobDetails.getJobStatus() == JobStatus.RUNNING && jobDetails.getJobVertexInfos()
-					.stream()
-					.map(toExecutionState())
-					.allMatch(isRunning());
-			},
-			Deadline.fromNow(TIMEOUT));
-	}
+        flinkConfiguration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        flinkConfiguration.setInteger(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
 
-	private static Function<JobDetailsInfo.JobVertexDetailsInfo, ExecutionState> toExecutionState() {
-		return JobDetailsInfo.JobVertexDetailsInfo::getExecutionState;
-	}
+        return createYarnClusterDescriptor(flinkConfiguration);
+    }
 
-	private static Predicate<ExecutionState> isRunning() {
-		return executionState -> executionState == ExecutionState.RUNNING;
-	}
+    private RestClusterClient<ApplicationId> deploySessionCluster(
+            YarnClusterDescriptor yarnClusterDescriptor) throws ClusterDeploymentException {
+        final int masterMemory =
+                yarnClusterDescriptor
+                        .getFlinkConfiguration()
+                        .get(JobManagerOptions.TOTAL_PROCESS_MEMORY)
+                        .getMebiBytes();
+        final int taskManagerMemory = 1024;
+        final ClusterClient<ApplicationId> yarnClusterClient =
+                yarnClusterDescriptor
+                        .deploySessionCluster(
+                                new ClusterSpecification.ClusterSpecificationBuilder()
+                                        .setMasterMemoryMB(masterMemory)
+                                        .setTaskManagerMemoryMB(taskManagerMemory)
+                                        .setSlotsPerTaskManager(1)
+                                        .createClusterSpecification())
+                        .getClusterClient();
 
-	private static void waitUntilJobIsRestarted(
-		final RestClusterClient<ApplicationId> restClusterClient,
-		final JobID jobId,
-		final int expectedFullRestarts) throws Exception {
-		CommonTestUtils.waitUntilCondition(
-			() -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts,
-			Deadline.fromNow(TIMEOUT));
-	}
+        assertThat(yarnClusterClient, is(instanceOf(RestClusterClient.class)));
+        return (RestClusterClient<ApplicationId>) yarnClusterClient;
+    }
 
-	private static int getJobFullRestarts(
-		final RestClusterClient<ApplicationId> restClusterClient,
-		final JobID jobId) throws Exception {
+    private JobID submitJob(RestClusterClient<ApplicationId> restClusterClient)
+            throws InterruptedException, java.util.concurrent.ExecutionException {
+        return restClusterClient.submitJob(job).get();
+    }
 
-		return getJobMetric(restClusterClient, jobId, "fullRestarts")
-			.map(Metric::getValue)
-			.map(Integer::parseInt)
-			.orElse(0);
-	}
+    private void killApplicationMaster(final String processName)
+            throws IOException, InterruptedException {
+        final Process exec = Runtime.getRuntime().exec("pkill -f " + processName);
+        assertThat(exec.waitFor(), is(0));
+    }
 
-	private static Optional<Metric> getJobMetric(
-		final RestClusterClient<ApplicationId> restClusterClient,
-		final JobID jobId,
-		final String metricName) throws Exception {
+    private static void waitUntilJobIsRunning(
+            RestClusterClient<ApplicationId> restClusterClient, JobID jobId) throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).get();
+                    return jobDetails.getJobStatus() == JobStatus.RUNNING
+                            && jobDetails.getJobVertexInfos().stream()
+                                    .map(toExecutionState())
+                                    .allMatch(isRunning());
+                },
+                Deadline.fromNow(TIMEOUT));
+    }
 
-		final JobMetricsMessageParameters messageParameters = new JobMetricsMessageParameters();
-		messageParameters.jobPathParameter.resolve(jobId);
-		messageParameters.metricsFilterParameter.resolveFromString(metricName);
+    private static Function<JobDetailsInfo.JobVertexDetailsInfo, ExecutionState>
+            toExecutionState() {
+        return JobDetailsInfo.JobVertexDetailsInfo::getExecutionState;
+    }
 
-		final Collection<Metric> metrics = restClusterClient.sendRequest(
-			JobMetricsHeaders.getInstance(),
-			messageParameters,
-			EmptyRequestBody.getInstance()).get().getMetrics();
+    private static Predicate<ExecutionState> isRunning() {
+        return executionState -> executionState == ExecutionState.RUNNING;
+    }
 
-		final Metric metric = Iterables.getOnlyElement(metrics, null);
-		checkState(metric == null || metric.getId().equals(metricName));
-		return Optional.ofNullable(metric);
-	}
+    private static void waitUntilJobIsRestarted(
+            final RestClusterClient<ApplicationId> restClusterClient,
+            final JobID jobId,
+            final int expectedFullRestarts)
+            throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts,
+                Deadline.fromNow(TIMEOUT));
+    }
+
+    private static int getJobFullRestarts(
+            final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
+            throws Exception {
+
+        return getJobMetric(restClusterClient, jobId, "fullRestarts")
+                .map(Metric::getValue)
+                .map(Integer::parseInt)
+                .orElse(0);
+    }
+
+    private static Optional<Metric> getJobMetric(
+            final RestClusterClient<ApplicationId> restClusterClient,
+            final JobID jobId,
+            final String metricName)
+            throws Exception {
+
+        final JobMetricsMessageParameters messageParameters = new JobMetricsMessageParameters();
+        messageParameters.jobPathParameter.resolve(jobId);
+        messageParameters.metricsFilterParameter.resolveFromString(metricName);
+
+        final Collection<Metric> metrics =
+                restClusterClient
+                        .sendRequest(
+                                JobMetricsHeaders.getInstance(),
+                                messageParameters,
+                                EmptyRequestBody.getInstance())
+                        .get()
+                        .getMetrics();
+
+        final Metric metric = Iterables.getOnlyElement(metrics, null);
+        checkState(metric == null || metric.getId().equals(metricName));
+        return Optional.ofNullable(metric);
+    }
 }

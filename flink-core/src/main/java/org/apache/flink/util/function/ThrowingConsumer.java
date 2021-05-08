@@ -21,8 +21,8 @@ package org.apache.flink.util.function;
 import org.apache.flink.annotation.Public;
 
 /**
- * This interface is basically Java's {@link java.util.function.Consumer} interface enhanced with the ability to throw
- * an exception.
+ * This interface is basically Java's {@link java.util.function.Consumer} interface enhanced with
+ * the ability to throw an exception.
  *
  * @param <T> type of the consumed elements.
  * @param <E> type of the exception thrown.
@@ -31,11 +31,11 @@ import org.apache.flink.annotation.Public;
 @FunctionalInterface
 public interface ThrowingConsumer<T, E extends Throwable> {
 
-	/**
-	 * Performs this operation on the given argument.
-	 *
-	 * @param t the input argument
-	 * @throws E on errors during consumption
-	 */
-	void accept(T t) throws E;
+    /**
+     * Performs this operation on the given argument.
+     *
+     * @param t the input argument
+     * @throws E on errors during consumption
+     */
+    void accept(T t) throws E;
 }

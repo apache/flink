@@ -20,6 +20,7 @@ set -o pipefail
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
+source "$(dirname "$0")"/common_artifact_download_cacher.sh
 
 FLINK_TARBALL_DIR=$TEST_DATA_DIR
 FLINK_TARBALL=flink.tar.gz
@@ -93,6 +94,10 @@ function start_hadoop_cluster() {
 }
 
 function build_image() {
+    echo "Predownloading Hadoop tarball"
+    cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.8.4/hadoop-2.8.4.tar.gz")
+    ln "$cache_path" "$END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/hadoop-2.8.4.tar.gz"
+
     echo "Building Hadoop Docker container"
     docker build --build-arg HADOOP_VERSION=2.8.4 \
         -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \

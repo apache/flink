@@ -26,37 +26,35 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Type strategy that returns a fixed {@link DataType}.
- */
+/** Type strategy that returns a fixed {@link DataType}. */
 @Internal
 public final class ExplicitTypeStrategy implements TypeStrategy {
 
-	private final DataType explicitDataType;
+    private final DataType explicitDataType;
 
-	public ExplicitTypeStrategy(DataType explicitDataType) {
-		this.explicitDataType = explicitDataType;
-	}
+    public ExplicitTypeStrategy(DataType explicitDataType) {
+        this.explicitDataType = explicitDataType;
+    }
 
-	@Override
-	public Optional<DataType> inferType(CallContext callContext) {
-		return Optional.of(explicitDataType);
-	}
+    @Override
+    public Optional<DataType> inferType(CallContext callContext) {
+        return Optional.of(explicitDataType);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ExplicitTypeStrategy that = (ExplicitTypeStrategy) o;
-		return explicitDataType.equals(that.explicitDataType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ExplicitTypeStrategy that = (ExplicitTypeStrategy) o;
+        return explicitDataType.equals(that.explicitDataType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(explicitDataType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(explicitDataType);
+    }
 }

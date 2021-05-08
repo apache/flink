@@ -18,45 +18,65 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-/**
- * The type of checkpoint to perform.
- */
+/** The type of checkpoint to perform. */
 public enum CheckpointType {
 
-	/** A checkpoint, full or incremental. */
-	CHECKPOINT(false, false, "Checkpoint"),
+    /** A checkpoint, full or incremental. */
+    CHECKPOINT(false, PostCheckpointAction.NONE, "Checkpoint"),
 
-	/** A regular savepoint. */
-	SAVEPOINT(true, false, "Savepoint"),
+    /** A regular savepoint. */
+    SAVEPOINT(true, PostCheckpointAction.NONE, "Savepoint"),
 
-	/** A savepoint taken while suspending/terminating the job. */
-	SYNC_SAVEPOINT(true, true, "Synchronous Savepoint");
+    /** A savepoint taken while suspending the job. */
+    SAVEPOINT_SUSPEND(true, PostCheckpointAction.SUSPEND, "Suspend Savepoint"),
 
-	private final boolean isSavepoint;
+    /** A savepoint taken while terminating the job. */
+    SAVEPOINT_TERMINATE(true, PostCheckpointAction.TERMINATE, "Terminate Savepoint");
 
-	private final boolean isSynchronous;
+    private final boolean isSavepoint;
 
-	private final String name;
+    private final PostCheckpointAction postCheckpointAction;
 
-	CheckpointType(
-			final boolean isSavepoint,
-			final boolean isSynchronous,
-			final String name) {
+    private final String name;
 
-		this.isSavepoint = isSavepoint;
-		this.isSynchronous = isSynchronous;
-		this.name = name;
-	}
+    CheckpointType(
+            final boolean isSavepoint,
+            final PostCheckpointAction postCheckpointAction,
+            final String name) {
 
-	public boolean isSavepoint() {
-		return isSavepoint;
-	}
+        this.isSavepoint = isSavepoint;
+        this.postCheckpointAction = postCheckpointAction;
+        this.name = name;
+    }
 
-	public boolean isSynchronous() {
-		return isSynchronous;
-	}
+    public boolean isSavepoint() {
+        return isSavepoint;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public boolean isSynchronous() {
+        return postCheckpointAction != PostCheckpointAction.NONE;
+    }
+
+    public PostCheckpointAction getPostCheckpointAction() {
+        return postCheckpointAction;
+    }
+
+    public boolean shouldAdvanceToEndOfTime() {
+        return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
+    }
+
+    public boolean shouldIgnoreEndOfInput() {
+        return getPostCheckpointAction() == PostCheckpointAction.SUSPEND;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
+    public enum PostCheckpointAction {
+        NONE,
+        SUSPEND,
+        TERMINATE
+    }
 }

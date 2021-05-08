@@ -26,7 +26,11 @@ bin=$(cd "${bin}" || exit; pwd)
 # get Flink config
 . "${bin}"/config.sh
 
-parseJmJvmArgsAndExportLogs "${ARGS[@]}"
+parseJmArgsAndExportLogs "${ARGS[@]}"
+
+if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
+    ARGS=(${DYNAMIC_PARAMETERS[@]} "${ARGS[@]}")
+fi
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
     FLINK_IDENT_STRING="$USER"
@@ -37,7 +41,7 @@ CC_CLASSPATH=$(manglePathList "$(constructFlinkClassPath):${INTERNAL_HADOOP_CLAS
 log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.log"
 log_setting="-Dlog.file=${log} -Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties -Dlog4j.configurationFile=file:${FLINK_CONF_DIR}/log4j.properties -Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml"
 
-${JAVA_RUN} ${JVM_ARGS} -classpath ${CC_CLASSPATH} ${log_setting} ${ENTRY_POINT} "${ARGS[@]}"
+"${JAVA_RUN}" ${JVM_ARGS} -classpath ${CC_CLASSPATH} ${log_setting} ${ENTRY_POINT} "${ARGS[@]}"
 
 rc=$?
 

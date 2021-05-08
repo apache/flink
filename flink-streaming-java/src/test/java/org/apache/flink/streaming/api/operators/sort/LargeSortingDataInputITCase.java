@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -63,249 +64,239 @@ import static org.junit.Assert.assertThat;
  * @see MultiInputSortingDataInputsTest
  */
 public class LargeSortingDataInputITCase {
-	@Test
-	public void intKeySorting() throws Exception {
-		int numberOfRecords = 500_000;
-		GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
-		KeySelector<Tuple3<Integer, String, byte[]>, Integer> keySelector = value -> value.f0;
-		try (
-			MockEnvironment environment = MockEnvironment.builder().build();
-			SortingDataInput<Tuple3<Integer, String, byte[]>, Integer> sortingDataInput = new SortingDataInput<>(
-			input,
-			GeneratedRecordsDataInput.SERIALIZER,
-			new IntSerializer(),
-			keySelector,
-			environment.getMemoryManager(),
-			environment.getIOManager(),
-			true,
-			1.0,
-			new Configuration(),
-			new DummyInvokable()
-		)) {
-			InputStatus inputStatus;
-			VerifyingOutput<Integer> output = new VerifyingOutput<>(keySelector);
-			do {
-				inputStatus = sortingDataInput.emitNext(output);
-			} while (inputStatus != InputStatus.END_OF_INPUT);
+    @Test
+    public void intKeySorting() throws Exception {
+        int numberOfRecords = 500_000;
+        GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
+        KeySelector<Tuple3<Integer, String, byte[]>, Integer> keySelector = value -> value.f0;
+        try (MockEnvironment environment = MockEnvironment.builder().build();
+                SortingDataInput<Tuple3<Integer, String, byte[]>, Integer> sortingDataInput =
+                        new SortingDataInput<>(
+                                input,
+                                GeneratedRecordsDataInput.SERIALIZER,
+                                new IntSerializer(),
+                                keySelector,
+                                environment.getMemoryManager(),
+                                environment.getIOManager(),
+                                true,
+                                1.0,
+                                new Configuration(),
+                                new DummyInvokable())) {
+            InputStatus inputStatus;
+            VerifyingOutput<Integer> output = new VerifyingOutput<>(keySelector);
+            do {
+                inputStatus = sortingDataInput.emitNext(output);
+            } while (inputStatus != InputStatus.END_OF_INPUT);
 
-			assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
-		}
-	}
+            assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
+        }
+    }
 
-	@Test
-	public void stringKeySorting() throws Exception {
-		int numberOfRecords = 500_000;
-		GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
-		KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
-		try (
-			MockEnvironment environment = MockEnvironment.builder().build();
-			SortingDataInput<Tuple3<Integer, String, byte[]>, String> sortingDataInput = new SortingDataInput<>(
-			input,
-			GeneratedRecordsDataInput.SERIALIZER,
-			new StringSerializer(),
-			keySelector,
-			environment.getMemoryManager(),
-			environment.getIOManager(),
-			true,
-			1.0,
-			new Configuration(),
-			new DummyInvokable()
-		)) {
-			InputStatus inputStatus;
-			VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
-			do {
-				inputStatus = sortingDataInput.emitNext(output);
-			} while (inputStatus != InputStatus.END_OF_INPUT);
+    @Test
+    public void stringKeySorting() throws Exception {
+        int numberOfRecords = 500_000;
+        GeneratedRecordsDataInput input = new GeneratedRecordsDataInput(numberOfRecords, 0);
+        KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
+        try (MockEnvironment environment = MockEnvironment.builder().build();
+                SortingDataInput<Tuple3<Integer, String, byte[]>, String> sortingDataInput =
+                        new SortingDataInput<>(
+                                input,
+                                GeneratedRecordsDataInput.SERIALIZER,
+                                new StringSerializer(),
+                                keySelector,
+                                environment.getMemoryManager(),
+                                environment.getIOManager(),
+                                true,
+                                1.0,
+                                new Configuration(),
+                                new DummyInvokable())) {
+            InputStatus inputStatus;
+            VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
+            do {
+                inputStatus = sortingDataInput.emitNext(output);
+            } while (inputStatus != InputStatus.END_OF_INPUT);
 
-			assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
-		}
-	}
+            assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
+        }
+    }
 
-	@Test
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	public void multiInputKeySorting() throws Exception {
-		int numberOfRecords = 500_000;
-		GeneratedRecordsDataInput input1 = new GeneratedRecordsDataInput(numberOfRecords, 0);
-		GeneratedRecordsDataInput input2 = new GeneratedRecordsDataInput(numberOfRecords, 1);
-		KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
-		try (MockEnvironment environment = MockEnvironment.builder().build()) {
-			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
-				new DummyInvokable(),
-				new StreamTaskInput[]{input1, input2},
-				new KeySelector[]{keySelector, keySelector},
-				new TypeSerializer[]{GeneratedRecordsDataInput.SERIALIZER, GeneratedRecordsDataInput.SERIALIZER},
-				new StringSerializer(),
-				environment.getMemoryManager(),
-				environment.getIOManager(),
-				true,
-				1.0,
-				new Configuration()
-			);
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void multiInputKeySorting() throws Exception {
+        int numberOfRecords = 500_000;
+        GeneratedRecordsDataInput input1 = new GeneratedRecordsDataInput(numberOfRecords, 0);
+        GeneratedRecordsDataInput input2 = new GeneratedRecordsDataInput(numberOfRecords, 1);
+        KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
+        try (MockEnvironment environment = MockEnvironment.builder().build()) {
+            SelectableSortingInputs selectableSortingInputs =
+                    MultiInputSortingDataInput.wrapInputs(
+                            new DummyInvokable(),
+                            new StreamTaskInput[] {input1, input2},
+                            new KeySelector[] {keySelector, keySelector},
+                            new TypeSerializer[] {
+                                GeneratedRecordsDataInput.SERIALIZER,
+                                GeneratedRecordsDataInput.SERIALIZER
+                            },
+                            new StringSerializer(),
+                            new StreamTaskInput[0],
+                            environment.getMemoryManager(),
+                            environment.getIOManager(),
+                            true,
+                            1.0,
+                            new Configuration());
 
-			StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortingInputs();
-			try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortingDataInputs[0];
-					StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput2 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortingDataInputs[1]) {
+            StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
+            try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 =
+                            (StreamTaskInput<Tuple3<Integer, String, byte[]>>)
+                                    sortingDataInputs[0];
+                    StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput2 =
+                            (StreamTaskInput<Tuple3<Integer, String, byte[]>>)
+                                    sortingDataInputs[1]) {
 
-				VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
-				StreamMultipleInputProcessor multiSortedProcessor = new StreamMultipleInputProcessor(
-					new MultipleInputSelectionHandler(selectableSortingInputs.getInputSelectable(), 2),
-					new StreamOneInputProcessor[]{
-						new StreamOneInputProcessor(
-							sortedInput1,
-							output,
-							new DummyOperatorChain()
-						),
-						new StreamOneInputProcessor(
-							sortedInput2,
-							output,
-							new DummyOperatorChain()
-						)
-					}
-				);
-				InputStatus inputStatus;
-				do {
-					inputStatus = multiSortedProcessor.processInput();
-				} while (inputStatus != InputStatus.END_OF_INPUT);
+                VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
+                StreamMultipleInputProcessor multiSortedProcessor =
+                        new StreamMultipleInputProcessor(
+                                new MultipleInputSelectionHandler(
+                                        selectableSortingInputs.getInputSelectable(), 2),
+                                new StreamOneInputProcessor[] {
+                                    new StreamOneInputProcessor(
+                                            sortedInput1, output, new DummyOperatorChain()),
+                                    new StreamOneInputProcessor(
+                                            sortedInput2, output, new DummyOperatorChain())
+                                });
+                InputStatus inputStatus;
+                do {
+                    inputStatus = multiSortedProcessor.processInput();
+                } while (inputStatus != InputStatus.END_OF_INPUT);
 
-				assertThat(output.getSeenRecords(), equalTo(numberOfRecords * 2));
-			}
-		}
-	}
+                assertThat(output.getSeenRecords(), equalTo(numberOfRecords * 2));
+            }
+        }
+    }
 
-	/**
-	 * The idea of the tests here is to check that the keys are grouped together. Therefore there should not be a
-	 * situation were we see a key different from the key of the previous record, but one that we've seen before.
-	 *
-	 * <p>This output verifies that invariant.
-	 */
-	private static final class VerifyingOutput<E> implements PushingAsyncDataInput.DataOutput<Tuple3<Integer, String, byte[]>> {
+    /**
+     * The idea of the tests here is to check that the keys are grouped together. Therefore there
+     * should not be a situation were we see a key different from the key of the previous record,
+     * but one that we've seen before.
+     *
+     * <p>This output verifies that invariant.
+     */
+    private static final class VerifyingOutput<E>
+            implements PushingAsyncDataInput.DataOutput<Tuple3<Integer, String, byte[]>> {
 
-		private final KeySelector<Tuple3<Integer, String, byte[]>, E> keySelector;
-		private final Set<E> seenKeys = new LinkedHashSet<>();
-		private E currentKey = null;
-		private int seenRecords = 0;
+        private final KeySelector<Tuple3<Integer, String, byte[]>, E> keySelector;
+        private final Set<E> seenKeys = new LinkedHashSet<>();
+        private E currentKey = null;
+        private int seenRecords = 0;
 
-		private VerifyingOutput(KeySelector<Tuple3<Integer, String, byte[]>, E> keySelector) {
-			this.keySelector = keySelector;
-		}
+        private VerifyingOutput(KeySelector<Tuple3<Integer, String, byte[]>, E> keySelector) {
+            this.keySelector = keySelector;
+        }
 
-		@Override
-		public void emitRecord(StreamRecord<Tuple3<Integer, String, byte[]>> streamRecord) throws Exception {
-			this.seenRecords++;
-			E incomingKey = keySelector.getKey(streamRecord.getValue());
-			if (!Objects.equals(incomingKey, currentKey)) {
-				if (!seenKeys.add(incomingKey)) {
-					Assert.fail("Received an out of order key: " + incomingKey);
-				}
-				this.currentKey = incomingKey;
-			}
-		}
+        @Override
+        public void emitRecord(StreamRecord<Tuple3<Integer, String, byte[]>> streamRecord)
+                throws Exception {
+            this.seenRecords++;
+            E incomingKey = keySelector.getKey(streamRecord.getValue());
+            if (!Objects.equals(incomingKey, currentKey)) {
+                if (!seenKeys.add(incomingKey)) {
+                    Assert.fail("Received an out of order key: " + incomingKey);
+                }
+                this.currentKey = incomingKey;
+            }
+        }
 
-		@Override
-		public void emitWatermark(Watermark watermark) throws Exception {
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {}
 
-		}
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {}
 
-		@Override
-		public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {}
 
-		}
+        public int getSeenRecords() {
+            return seenRecords;
+        }
+    }
 
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+    private static final class GeneratedRecordsDataInput
+            implements StreamTaskInput<Tuple3<Integer, String, byte[]>> {
 
-		}
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        private static final TypeSerializer<Tuple3<Integer, String, byte[]>> SERIALIZER =
+                new TupleSerializer<>(
+                        (Class<Tuple3<Integer, String, byte[]>>) (Class) Tuple3.class,
+                        new TypeSerializer[] {
+                            new IntSerializer(),
+                            new StringSerializer(),
+                            new BytePrimitiveArraySerializer()
+                        });
 
-		public int getSeenRecords() {
-			return seenRecords;
-		}
-	}
+        private static final String ALPHA_NUM =
+                "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        private final long numberOfRecords;
+        private final int inputIdx;
+        private int recordsGenerated;
+        private final Random rnd = new Random();
+        private final byte[] buffer;
 
-	private static final class GeneratedRecordsDataInput
-		implements StreamTaskInput<Tuple3<Integer, String, byte[]>> {
+        private GeneratedRecordsDataInput(int numberOfRecords, int inputIdx) {
+            this.numberOfRecords = numberOfRecords;
+            this.recordsGenerated = 0;
+            this.buffer = new byte[500];
+            rnd.nextBytes(buffer);
+            this.inputIdx = inputIdx;
+        }
 
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		private static final TypeSerializer<Tuple3<Integer, String, byte[]>> SERIALIZER = new TupleSerializer<>(
-			(Class<Tuple3<Integer, String, byte[]>>) (Class) Tuple3.class,
-			new TypeSerializer[]{
-				new IntSerializer(),
-				new StringSerializer(),
-				new BytePrimitiveArraySerializer()
-			});
+        @Override
+        public InputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output)
+                throws Exception {
+            if (recordsGenerated >= numberOfRecords) {
+                return InputStatus.END_OF_INPUT;
+            }
 
-		private static final String ALPHA_NUM = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-		private final long numberOfRecords;
-		private final int inputIdx;
-		private int recordsGenerated;
-		private final Random rnd = new Random();
-		private final byte[] buffer;
+            output.emitRecord(
+                    new StreamRecord<>(
+                            Tuple3.of(rnd.nextInt(), randomString(rnd.nextInt(256)), buffer), 1));
+            if (recordsGenerated++ >= numberOfRecords) {
+                return InputStatus.END_OF_INPUT;
+            } else {
+                return InputStatus.MORE_AVAILABLE;
+            }
+        }
 
-		private GeneratedRecordsDataInput(int numberOfRecords, int inputIdx) {
-			this.numberOfRecords = numberOfRecords;
-			this.recordsGenerated = 0;
-			this.buffer = new byte[500];
-			rnd.nextBytes(buffer);
-			this.inputIdx = inputIdx;
-		}
+        @Override
+        public CompletableFuture<?> getAvailableFuture() {
+            return AvailabilityProvider.AVAILABLE;
+        }
 
-		@Override
-		public InputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output) throws Exception {
-			if (recordsGenerated >= numberOfRecords) {
-				return InputStatus.END_OF_INPUT;
-			}
+        private String randomString(int len) {
+            StringBuilder sb = new StringBuilder(len);
+            for (int i = 0; i < len; i++) {
+                sb.append(ALPHA_NUM.charAt(rnd.nextInt(ALPHA_NUM.length())));
+            }
+            return sb.toString();
+        }
 
-			output.emitRecord(
-				new StreamRecord<>(
-					Tuple3.of(
-						rnd.nextInt(),
-						randomString(rnd.nextInt(256)),
-						buffer
-					),
-					1
-				)
-			);
-			if (recordsGenerated++ >= numberOfRecords) {
-				return InputStatus.END_OF_INPUT;
-			} else {
-				return InputStatus.MORE_AVAILABLE;
-			}
-		}
+        @Override
+        public int getInputIndex() {
+            return inputIdx;
+        }
 
-		@Override
-		public CompletableFuture<?> getAvailableFuture() {
-			return AvailabilityProvider.AVAILABLE;
-		}
+        @Override
+        public CompletableFuture<Void> prepareSnapshot(
+                ChannelStateWriter channelStateWriter, long checkpointId)
+                throws CheckpointException {
+            return CompletableFuture.completedFuture(null);
+        }
 
-		private String randomString(int len) {
-			StringBuilder sb = new StringBuilder(len);
-			for (int i = 0; i < len; i++) {
-				sb.append(ALPHA_NUM.charAt(rnd.nextInt(ALPHA_NUM.length())));
-			}
-			return sb.toString();
-		}
+        @Override
+        public void close() throws IOException {}
+    }
 
-		@Override
-		public int getInputIndex() {
-			return inputIdx;
-		}
-
-		@Override
-		public CompletableFuture<Void> prepareSnapshot(
-				ChannelStateWriter channelStateWriter,
-				long checkpointId) throws IOException {
-			return CompletableFuture.completedFuture(null);
-		}
-
-		@Override
-		public void close() throws IOException {
-
-		}
-	}
-
-	private static class DummyOperatorChain implements BoundedMultiInput {
-		@Override
-		public void endInput(int inputId) throws Exception {
-
-		}
-	}
+    private static class DummyOperatorChain implements BoundedMultiInput {
+        @Override
+        public void endInput(int inputId) throws Exception {}
+    }
 }

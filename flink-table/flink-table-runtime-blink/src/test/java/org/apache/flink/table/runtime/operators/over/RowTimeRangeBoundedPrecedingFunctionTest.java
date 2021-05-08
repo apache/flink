@@ -30,62 +30,66 @@ import org.junit.Test;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link RowTimeRangeBoundedPrecedingFunction}.
- */
+/** Test for {@link RowTimeRangeBoundedPrecedingFunction}. */
 public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
-	@Test
-	public void testStateCleanup() throws Exception {
-		RowTimeRangeBoundedPrecedingFunction<RowData> function = new RowTimeRangeBoundedPrecedingFunction<>(
-			aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
+    @Test
+    public void testStateCleanup() throws Exception {
+        RowTimeRangeBoundedPrecedingFunction<RowData> function =
+                new RowTimeRangeBoundedPrecedingFunction<>(
+                        aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
 
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
 
-		testHarness.open();
+        testHarness.open();
 
-		AbstractKeyedStateBackend stateBackend = (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
+        AbstractKeyedStateBackend stateBackend =
+                (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
 
-		assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
 
-		// put some records
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 500L));
+        // put some records
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 500L));
 
-		testHarness.processWatermark(new Watermark(1000L));
-		// at this moment we expect the function to have some records in state
+        testHarness.processWatermark(new Watermark(1000L));
+        // at this moment we expect the function to have some records in state
 
-		testHarness.processWatermark(new Watermark(4000L));
-		// at this moment the function should have cleaned up states
+        testHarness.processWatermark(new Watermark(4000L));
+        // at this moment the function should have cleaned up states
 
-		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
-	}
+        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+    }
 
-	@Test
-	public void testLateRecordMetrics() throws Exception {
-		RowTimeRangeBoundedPrecedingFunction<RowData> function = new RowTimeRangeBoundedPrecedingFunction<>(
-			aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
+    @Test
+    public void testLateRecordMetrics() throws Exception {
+        RowTimeRangeBoundedPrecedingFunction<RowData> function =
+                new RowTimeRangeBoundedPrecedingFunction<>(
+                        aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
 
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
 
-		testHarness.open();
+        testHarness.open();
 
-		Counter counter = function.getCounter();
+        Counter counter = function.getCounter();
 
-		// put some records
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 500L));
+        // put some records
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 100L));
+        testHarness.processElement(insertRecord("key", 1L, 500L));
 
-		testHarness.processWatermark(new Watermark(500L));
+        testHarness.processWatermark(new Watermark(500L));
 
-		//late record
-		testHarness.processElement(insertRecord("key", 1L, 400L));
+        // late record
+        testHarness.processElement(insertRecord("key", 1L, 400L));
 
-		assertEquals(1L, counter.getCount());
-	}
-
+        assertEquals(1L, counter.getCount());
+    }
 }

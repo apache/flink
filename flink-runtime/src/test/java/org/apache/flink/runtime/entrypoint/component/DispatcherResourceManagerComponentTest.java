@@ -34,62 +34,59 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link DispatcherResourceManagerComponent}.
- */
+/** Tests for the {@link DispatcherResourceManagerComponent}. */
 public class DispatcherResourceManagerComponentTest extends TestLogger {
 
-	@Test
-	public void unexpectedResourceManagerTermination_failsFatally() {
-		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-		final TestingResourceManagerService resourceManagerService = TestingResourceManagerService
-			.newBuilder()
-			.setTerminationFuture(terminationFuture)
-			.build();
+    @Test
+    public void unexpectedResourceManagerTermination_failsFatally() {
+        final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+        final TestingResourceManagerService resourceManagerService =
+                TestingResourceManagerService.newBuilder()
+                        .setTerminationFuture(terminationFuture)
+                        .build();
 
-		createDispatcherResourceManagerComponent(fatalErrorHandler, resourceManagerService);
+        createDispatcherResourceManagerComponent(fatalErrorHandler, resourceManagerService);
 
-		final FlinkException expectedException = new FlinkException("Expected test exception.");
+        final FlinkException expectedException = new FlinkException("Expected test exception.");
 
-		terminationFuture.completeExceptionally(expectedException);
+        terminationFuture.completeExceptionally(expectedException);
 
-		final Throwable error = fatalErrorHandler.getException();
-		assertThat(error, containsCause(expectedException));
-	}
+        final Throwable error = fatalErrorHandler.getException();
+        assertThat(error, containsCause(expectedException));
+    }
 
-	private DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
-			TestingFatalErrorHandler fatalErrorHandler,
-			TestingResourceManagerService resourceManagerService) {
-		return new DispatcherResourceManagerComponent(
-				TestingDispatcherRunner.newBuilder().build(),
-				resourceManagerService,
-				new SettableLeaderRetrievalService(),
-				new SettableLeaderRetrievalService(),
-				FutureUtils::completedVoidFuture,
-				fatalErrorHandler);
-	}
+    private DispatcherResourceManagerComponent createDispatcherResourceManagerComponent(
+            TestingFatalErrorHandler fatalErrorHandler,
+            TestingResourceManagerService resourceManagerService) {
+        return new DispatcherResourceManagerComponent(
+                TestingDispatcherRunner.newBuilder().build(),
+                resourceManagerService,
+                new SettableLeaderRetrievalService(),
+                new SettableLeaderRetrievalService(),
+                FutureUtils::completedVoidFuture,
+                fatalErrorHandler);
+    }
 
-	@Test
-	public void unexpectedResourceManagerTermination_ifNotRunning_doesNotFailFatally() {
-		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-		final TestingResourceManagerService resourceManagerService = TestingResourceManagerService
-				.newBuilder()
-				.setTerminationFuture(terminationFuture)
-				.withManualTerminationFutureCompletion()
-				.build();
+    @Test
+    public void unexpectedResourceManagerTermination_ifNotRunning_doesNotFailFatally() {
+        final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+        final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        final TestingResourceManagerService resourceManagerService =
+                TestingResourceManagerService.newBuilder()
+                        .setTerminationFuture(terminationFuture)
+                        .withManualTerminationFutureCompletion()
+                        .build();
 
-		final DispatcherResourceManagerComponent dispatcherResourceManagerComponent = createDispatcherResourceManagerComponent(
-				fatalErrorHandler,
-				resourceManagerService);
+        final DispatcherResourceManagerComponent dispatcherResourceManagerComponent =
+                createDispatcherResourceManagerComponent(fatalErrorHandler, resourceManagerService);
 
-		dispatcherResourceManagerComponent.closeAsync();
+        dispatcherResourceManagerComponent.closeAsync();
 
-		final FlinkException expectedException = new FlinkException("Expected test exception.");
-		terminationFuture.completeExceptionally(expectedException);
+        final FlinkException expectedException = new FlinkException("Expected test exception.");
+        terminationFuture.completeExceptionally(expectedException);
 
-		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
-		assertThat(errorFuture, willNotComplete(Duration.ofMillis(10L)));
-	}
+        final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
+        assertThat(errorFuture, willNotComplete(Duration.ofMillis(10L)));
+    }
 }

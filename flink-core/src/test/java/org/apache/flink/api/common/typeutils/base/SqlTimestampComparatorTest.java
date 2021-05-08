@@ -18,34 +18,35 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Timestamp;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.sql.Timestamp;
+
 public class SqlTimestampComparatorTest extends ComparatorTestBase<Timestamp> {
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected TypeComparator<Timestamp> createComparator(boolean ascending) {
-		return (TypeComparator) new SqlTimestampComparator(ascending);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected TypeComparator<Timestamp> createComparator(boolean ascending) {
+        return (TypeComparator) new SqlTimestampComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Timestamp> createSerializer() {
-		return new SqlTimestampSerializer();
-	}
+    @Override
+    protected TypeSerializer<Timestamp> createSerializer() {
+        return new SqlTimestampSerializer();
+    }
 
-	@Override
-	protected Timestamp[] getSortedTestData() {
-		return new Timestamp[] {
-			Timestamp.valueOf("1970-01-01 00:00:00.000"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123000001"),
-			Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
-			Timestamp.valueOf("2013-08-12 14:15:59.478"),
-			Timestamp.valueOf("2013-08-12 14:15:59.479"),
-			Timestamp.valueOf("2040-05-12 18:00:45.999")
-		};
-	}
+    @Override
+    protected Timestamp[] getSortedTestData() {
+        return new Timestamp[] {
+            Timestamp.valueOf("1970-01-01 00:00:00.000"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123000001"),
+            Timestamp.valueOf("1990-10-14 02:42:25.123000002"),
+            Timestamp.valueOf("2013-08-12 14:15:59.478"),
+            Timestamp.valueOf("2013-08-12 14:15:59.479"),
+            Timestamp.valueOf("2040-05-12 18:00:45.999")
+        };
+    }
 }

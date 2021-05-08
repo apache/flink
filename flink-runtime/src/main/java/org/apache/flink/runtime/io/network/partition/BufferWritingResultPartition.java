@@ -19,15 +19,13 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -42,9 +40,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link ResultPartition} which writes buffers directly to {@link ResultSubpartition}s. This
- * is in contrast to implementations where records are written to a joint structure, from which
- * the subpartitions draw the data after the write phase is finished, for example the sort-based
+ * A {@link ResultPartition} which writes buffers directly to {@link ResultSubpartition}s. This is
+ * in contrast to implementations where records are written to a joint structure, from which the
+ * subpartitions draw the data after the write phase is finished, for example the sort-based
  * partitioning.
  *
  * <p>To avoid confusion: On the read side, all subpartitions return buffers (and backlog) to be
@@ -52,262 +50,337 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public abstract class BufferWritingResultPartition extends ResultPartition {
 
-	/** The subpartitions of this partition. At least one. */
-	protected final ResultSubpartition[] subpartitions;
+    /** The subpartitions of this partition. At least one. */
+    protected final ResultSubpartition[] subpartitions;
 
-	/** For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be null. */
-	private final BufferBuilder[] subpartitionBufferBuilders;
+    /**
+     * For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be
+     * null.
+     */
+    private final BufferBuilder[] unicastBufferBuilders;
 
-	/** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
-	private BufferBuilder broadcastBufferBuilder;
+    /** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
+    private BufferBuilder broadcastBufferBuilder;
 
-	private Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+    private TimerGauge backPressuredTimeMsPerSecond = new TimerGauge();
 
-	public BufferWritingResultPartition(
-		String owningTaskName,
-		int partitionIndex,
-		ResultPartitionID partitionId,
-		ResultPartitionType partitionType,
-		ResultSubpartition[] subpartitions,
-		int numTargetKeyGroups,
-		ResultPartitionManager partitionManager,
-		@Nullable BufferCompressor bufferCompressor,
-		SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
+    public BufferWritingResultPartition(
+            String owningTaskName,
+            int partitionIndex,
+            ResultPartitionID partitionId,
+            ResultPartitionType partitionType,
+            ResultSubpartition[] subpartitions,
+            int numTargetKeyGroups,
+            ResultPartitionManager partitionManager,
+            @Nullable BufferCompressor bufferCompressor,
+            SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
-		super(
-			owningTaskName,
-			partitionIndex,
-			partitionId,
-			partitionType,
-			subpartitions.length,
-			numTargetKeyGroups,
-			partitionManager,
-			bufferCompressor,
-			bufferPoolFactory);
+        super(
+                owningTaskName,
+                partitionIndex,
+                partitionId,
+                partitionType,
+                subpartitions.length,
+                numTargetKeyGroups,
+                partitionManager,
+                bufferCompressor,
+                bufferPoolFactory);
 
-		this.subpartitions = checkNotNull(subpartitions);
-		this.subpartitionBufferBuilders = new BufferBuilder[subpartitions.length];
-	}
+        this.subpartitions = checkNotNull(subpartitions);
+        this.unicastBufferBuilders = new BufferBuilder[subpartitions.length];
+    }
 
-	@Override
-	public int getNumberOfQueuedBuffers() {
-		int totalBuffers = 0;
+    @Override
+    public void setup() throws IOException {
+        super.setup();
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			totalBuffers += subpartition.unsynchronizedGetNumberOfQueuedBuffers();
-		}
+        checkState(
+                bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
+                "Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for"
+                        + " this result partition.");
+    }
 
-		return totalBuffers;
-	}
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        int totalBuffers = 0;
 
-	@Override
-	public int getNumberOfQueuedBuffers(int targetSubpartition) {
-		checkArgument(targetSubpartition >= 0 && targetSubpartition < numSubpartitions);
-		return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
-	}
+        for (ResultSubpartition subpartition : subpartitions) {
+            totalBuffers += subpartition.unsynchronizedGetNumberOfQueuedBuffers();
+        }
 
-	protected void flushSubpartition(int targetSubpartition, boolean finishProducers) {
-		if (finishProducers) {
-			finishBroadcastBufferBuilder();
-			finishSubpartitionBufferBuilder(targetSubpartition);
-		}
+        return totalBuffers;
+    }
 
-		subpartitions[targetSubpartition].flush();
-	}
+    @Override
+    public int getNumberOfQueuedBuffers(int targetSubpartition) {
+        checkArgument(targetSubpartition >= 0 && targetSubpartition < numSubpartitions);
+        return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
+    }
 
-	protected void flushAllSubpartitions(boolean finishProducers) {
-		if (finishProducers) {
-			finishBroadcastBufferBuilder();
-			finishSubpartitionBufferBuilders();
-		}
+    protected void flushSubpartition(int targetSubpartition, boolean finishProducers) {
+        if (finishProducers) {
+            finishBroadcastBufferBuilder();
+            finishUnicastBufferBuilder(targetSubpartition);
+        }
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.flush();
-		}
-	}
+        subpartitions[targetSubpartition].flush();
+    }
 
-	@Override
-	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-		do {
-			final BufferBuilder bufferBuilder = getSubpartitionBufferBuilder(targetSubpartition);
-			bufferBuilder.appendAndCommit(record);
+    protected void flushAllSubpartitions(boolean finishProducers) {
+        if (finishProducers) {
+            finishBroadcastBufferBuilder();
+            finishUnicastBufferBuilders();
+        }
 
-			if (bufferBuilder.isFull()) {
-				finishSubpartitionBufferBuilder(targetSubpartition);
-			}
-		} while (record.hasRemaining());
-	}
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.flush();
+        }
+    }
 
-	@Override
-	public void broadcastRecord(ByteBuffer record) throws IOException {
-		do {
-			final BufferBuilder bufferBuilder = getBroadcastBufferBuilder();
-			bufferBuilder.appendAndCommit(record);
+    @Override
+    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
-			if (bufferBuilder.isFull()) {
-				finishBroadcastBufferBuilder();
-			}
-		} while (record.hasRemaining());
-	}
+        while (record.hasRemaining()) {
+            // full buffer, partial record
+            finishUnicastBufferBuilder(targetSubpartition);
+            buffer = appendUnicastDataForRecordContinuation(record, targetSubpartition);
+        }
 
-	@Override
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		checkInProduceState();
-		finishBroadcastBufferBuilder();
-		finishSubpartitionBufferBuilders();
+        if (buffer.isFull()) {
+            // full buffer, full record
+            finishUnicastBufferBuilder(targetSubpartition);
+        }
 
-		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
-			for (ResultSubpartition subpartition : subpartitions) {
-				// Retain the buffer so that it can be recycled by each channel of targetPartition
-				subpartition.add(eventBufferConsumer.copy());
-			}
-		}
-	}
+        // partial buffer, full record
+    }
 
-	@Override
-	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		super.setMetricGroup(metrics);
-		idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
-	}
+    @Override
+    public void broadcastRecord(ByteBuffer record) throws IOException {
+        BufferBuilder buffer = appendBroadcastDataForNewRecord(record);
 
-	@Override
-	public ResultSubpartitionView createSubpartitionView(
-			int subpartitionIndex,
-			BufferAvailabilityListener availabilityListener) throws IOException {
-		checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
-		checkState(!isReleased(), "Partition released.");
+        while (record.hasRemaining()) {
+            // full buffer, partial record
+            finishBroadcastBufferBuilder();
+            buffer = appendBroadcastDataForRecordContinuation(record);
+        }
 
-		ResultSubpartition subpartition = subpartitions[subpartitionIndex];
-		ResultSubpartitionView readView = subpartition.createReadView(availabilityListener);
+        if (buffer.isFull()) {
+            // full buffer, full record
+            finishBroadcastBufferBuilder();
+        }
 
-		LOG.debug("Created {}", readView);
+        // partial buffer, full record
+    }
 
-		return readView;
-	}
+    @Override
+    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+        checkInProduceState();
+        finishBroadcastBufferBuilder();
+        finishUnicastBufferBuilders();
 
-	@Override
-	public void finish() throws IOException {
-		finishBroadcastBufferBuilder();
-		finishSubpartitionBufferBuilders();
+        try (BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
+            for (ResultSubpartition subpartition : subpartitions) {
+                // Retain the buffer so that it can be recycled by each channel of targetPartition
+                subpartition.add(eventBufferConsumer.copy(), 0);
+            }
+        }
+    }
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.finish();
-		}
+    @Override
+    public void setMetricGroup(TaskIOMetricGroup metrics) {
+        super.setMetricGroup(metrics);
+        backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
+    }
 
-		super.finish();
-	}
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            int subpartitionIndex, BufferAvailabilityListener availabilityListener)
+            throws IOException {
+        checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
+        checkState(!isReleased(), "Partition released.");
 
-	@Override
-	protected void releaseInternal() {
-		// Release all subpartitions
-		for (ResultSubpartition subpartition : subpartitions) {
-			try {
-				subpartition.release();
-			}
-			// Catch this in order to ensure that release is called on all subpartitions
-			catch (Throwable t) {
-				LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
-			}
-		}
-	}
+        ResultSubpartition subpartition = subpartitions[subpartitionIndex];
+        ResultSubpartitionView readView = subpartition.createReadView(availabilityListener);
 
-	private BufferBuilder getSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
-		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
-		if (bufferBuilder != null) {
-			return bufferBuilder;
-		}
+        LOG.debug("Created {}", readView);
 
-		return getNewSubpartitionBufferBuilder(targetSubpartition);
-	}
+        return readView;
+    }
 
-	private BufferBuilder getNewSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
-		checkInProduceState();
-		ensureUnicastMode();
+    @Override
+    public void finish() throws IOException {
+        finishBroadcastBufferBuilder();
+        finishUnicastBufferBuilders();
 
-		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
-		subpartitions[targetSubpartition].add(bufferBuilder.createBufferConsumer());
-		subpartitionBufferBuilders[targetSubpartition] = bufferBuilder;
-		return bufferBuilder;
-	}
+        for (ResultSubpartition subpartition : subpartitions) {
+            subpartition.finish();
+        }
 
-	private BufferBuilder getBroadcastBufferBuilder() throws IOException {
-		if (broadcastBufferBuilder != null) {
-			return broadcastBufferBuilder;
-		}
+        super.finish();
+    }
 
-		return getNewBroadcastBufferBuilder();
-	}
+    @Override
+    protected void releaseInternal() {
+        // Release all subpartitions
+        for (ResultSubpartition subpartition : subpartitions) {
+            try {
+                subpartition.release();
+            }
+            // Catch this in order to ensure that release is called on all subpartitions
+            catch (Throwable t) {
+                LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
+            }
+        }
+    }
 
-	private BufferBuilder getNewBroadcastBufferBuilder() throws IOException {
-		checkInProduceState();
-		ensureBroadcastMode();
+    private BufferBuilder appendUnicastDataForNewRecord(
+            final ByteBuffer record, final int targetSubpartition) throws IOException {
+        if (targetSubpartition < 0 || targetSubpartition > unicastBufferBuilders.length) {
+            throw new ArrayIndexOutOfBoundsException(targetSubpartition);
+        }
+        BufferBuilder buffer = unicastBufferBuilders[targetSubpartition];
 
-		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(0);
-		broadcastBufferBuilder = bufferBuilder;
+        if (buffer == null) {
+            buffer = requestNewUnicastBufferBuilder(targetSubpartition);
+            subpartitions[targetSubpartition].add(buffer.createBufferConsumerFromBeginning(), 0);
+        }
 
-		try (final BufferConsumer consumer = bufferBuilder.createBufferConsumer()) {
-			for (ResultSubpartition subpartition : subpartitions) {
-				subpartition.add(consumer.copy());
-			}
-		}
+        buffer.appendAndCommit(record);
 
-		return bufferBuilder;
-	}
+        return buffer;
+    }
 
-	private BufferBuilder requestNewBufferBuilderFromPool(int targetSubpartition) throws IOException {
-		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetSubpartition);
-		if (bufferBuilder != null) {
-			return bufferBuilder;
-		}
+    private BufferBuilder appendUnicastDataForRecordContinuation(
+            final ByteBuffer remainingRecordBytes, final int targetSubpartition)
+            throws IOException {
+        final BufferBuilder buffer = requestNewUnicastBufferBuilder(targetSubpartition);
+        // !! Be aware, in case of partialRecordBytes != 0, partial length and data has to
+        // `appendAndCommit` first
+        // before consumer is created. Otherwise it would be confused with the case the buffer
+        // starting
+        // with a complete record.
+        // !! The next two lines can not change order.
+        final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
+        subpartitions[targetSubpartition].add(
+                buffer.createBufferConsumerFromBeginning(), partialRecordBytes);
 
-		final long start = System.currentTimeMillis();
-		try {
-			bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
-			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
-			return bufferBuilder;
-		} catch (InterruptedException e) {
-			throw new IOException("Interrupted while waiting for buffer");
-		}
-	}
+        return buffer;
+    }
 
-	private void finishSubpartitionBufferBuilder(int targetSubpartition) {
-		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
-		if (bufferBuilder != null) {
-			numBytesOut.inc(bufferBuilder.finish());
-			numBuffersOut.inc();
-			subpartitionBufferBuilders[targetSubpartition] = null;
-		}
-	}
+    private BufferBuilder appendBroadcastDataForNewRecord(final ByteBuffer record)
+            throws IOException {
+        BufferBuilder buffer = broadcastBufferBuilder;
 
-	private void finishSubpartitionBufferBuilders() {
-		for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
-			finishSubpartitionBufferBuilder(channelIndex);
-		}
-	}
+        if (buffer == null) {
+            buffer = requestNewBroadcastBufferBuilder();
+            createBroadcastBufferConsumers(buffer, 0);
+        }
 
-	private void finishBroadcastBufferBuilder() {
-		if (broadcastBufferBuilder != null) {
-			numBytesOut.inc(broadcastBufferBuilder.finish() * numSubpartitions);
-			numBuffersOut.inc(numSubpartitions);
-			broadcastBufferBuilder = null;
-		}
-	}
+        buffer.appendAndCommit(record);
 
-	private void ensureUnicastMode() {
-		finishBroadcastBufferBuilder();
-	}
+        return buffer;
+    }
 
-	private void ensureBroadcastMode() {
-		finishSubpartitionBufferBuilders();
-	}
+    private BufferBuilder appendBroadcastDataForRecordContinuation(
+            final ByteBuffer remainingRecordBytes) throws IOException {
+        final BufferBuilder buffer = requestNewBroadcastBufferBuilder();
+        // !! Be aware, in case of partialRecordBytes != 0, partial length and data has to
+        // `appendAndCommit` first
+        // before consumer is created. Otherwise it would be confused with the case the buffer
+        // starting
+        // with a complete record.
+        // !! The next two lines can not change order.
+        final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
+        createBroadcastBufferConsumers(buffer, partialRecordBytes);
 
-	@VisibleForTesting
-	public Meter getIdleTimeMsPerSecond() {
-		return idleTimeMsPerSecond;
-	}
+        return buffer;
+    }
 
-	@VisibleForTesting
-	public ResultSubpartition[] getAllPartitions() {
-		return subpartitions;
-	}
+    private void createBroadcastBufferConsumers(BufferBuilder buffer, int partialRecordBytes)
+            throws IOException {
+        try (final BufferConsumer consumer = buffer.createBufferConsumerFromBeginning()) {
+            for (ResultSubpartition subpartition : subpartitions) {
+                subpartition.add(consumer.copy(), partialRecordBytes);
+            }
+        }
+    }
+
+    private BufferBuilder requestNewUnicastBufferBuilder(int targetSubpartition)
+            throws IOException {
+        checkInProduceState();
+        ensureUnicastMode();
+        final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
+        unicastBufferBuilders[targetSubpartition] = bufferBuilder;
+
+        return bufferBuilder;
+    }
+
+    private BufferBuilder requestNewBroadcastBufferBuilder() throws IOException {
+        checkInProduceState();
+        ensureBroadcastMode();
+
+        final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(0);
+        broadcastBufferBuilder = bufferBuilder;
+        return bufferBuilder;
+    }
+
+    private BufferBuilder requestNewBufferBuilderFromPool(int targetSubpartition)
+            throws IOException {
+        BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetSubpartition);
+        if (bufferBuilder != null) {
+            return bufferBuilder;
+        }
+
+        backPressuredTimeMsPerSecond.markStart();
+        try {
+            bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
+            backPressuredTimeMsPerSecond.markEnd();
+            return bufferBuilder;
+        } catch (InterruptedException e) {
+            throw new IOException("Interrupted while waiting for buffer");
+        }
+    }
+
+    private void finishUnicastBufferBuilder(int targetSubpartition) {
+        final BufferBuilder bufferBuilder = unicastBufferBuilders[targetSubpartition];
+        if (bufferBuilder != null) {
+            numBytesOut.inc(bufferBuilder.finish());
+            numBuffersOut.inc();
+            unicastBufferBuilders[targetSubpartition] = null;
+        }
+    }
+
+    private void finishUnicastBufferBuilders() {
+        for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
+            finishUnicastBufferBuilder(channelIndex);
+        }
+    }
+
+    private void finishBroadcastBufferBuilder() {
+        if (broadcastBufferBuilder != null) {
+            numBytesOut.inc(broadcastBufferBuilder.finish() * numSubpartitions);
+            numBuffersOut.inc(numSubpartitions);
+            broadcastBufferBuilder = null;
+        }
+    }
+
+    private void ensureUnicastMode() {
+        finishBroadcastBufferBuilder();
+    }
+
+    private void ensureBroadcastMode() {
+        finishUnicastBufferBuilders();
+    }
+
+    @VisibleForTesting
+    public TimerGauge getBackPressuredTimeMsPerSecond() {
+        return backPressuredTimeMsPerSecond;
+    }
+
+    @VisibleForTesting
+    public ResultSubpartition[] getAllPartitions() {
+        return subpartitions;
+    }
 }

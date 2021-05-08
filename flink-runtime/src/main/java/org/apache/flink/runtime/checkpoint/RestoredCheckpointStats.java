@@ -24,80 +24,77 @@ import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Statistics for a restored checkpoint.
- */
+/** Statistics for a restored checkpoint. */
 public class RestoredCheckpointStats implements Serializable {
 
-	private static final long serialVersionUID = 2305815319666360821L;
+    private static final long serialVersionUID = 2305815319666360821L;
 
-	/** ID of the restored checkpoint. */
-	private final long checkpointId;
+    /** ID of the restored checkpoint. */
+    private final long checkpointId;
 
-	/** Properties of the restored checkpoint. */
-	private final CheckpointProperties props;
+    /** Properties of the restored checkpoint. */
+    private final CheckpointProperties props;
 
-	/** Timestamp when the checkpoint was restored at the coordinator. */
-	private final long restoreTimestamp;
+    /** Timestamp when the checkpoint was restored at the coordinator. */
+    private final long restoreTimestamp;
 
-	/** Optional external path. */
-	@Nullable
-	private final String externalPath;
+    /** Optional external path. */
+    @Nullable private final String externalPath;
 
-	/**
-	 * Creates a new restored checkpoint stats.
-	 *
-	 * @param checkpointId ID of the checkpoint.
-	 * @param props Checkpoint properties of the checkpoint.
-	 * @param restoreTimestamp Timestamp when the checkpoint was restored.
-	 * @param externalPath Optional external path if persisted externally.
-	 */
-	RestoredCheckpointStats(
-			long checkpointId,
-			CheckpointProperties props,
-			long restoreTimestamp,
-			@Nullable String externalPath) {
+    /**
+     * Creates a new restored checkpoint stats.
+     *
+     * @param checkpointId ID of the checkpoint.
+     * @param props Checkpoint properties of the checkpoint.
+     * @param restoreTimestamp Timestamp when the checkpoint was restored.
+     * @param externalPath Optional external path if persisted externally.
+     */
+    RestoredCheckpointStats(
+            long checkpointId,
+            CheckpointProperties props,
+            long restoreTimestamp,
+            @Nullable String externalPath) {
 
-		this.checkpointId = checkpointId;
-		this.props = checkNotNull(props, "Checkpoint Properties");
-		this.restoreTimestamp = restoreTimestamp;
-		this.externalPath = externalPath;
-	}
+        this.checkpointId = checkpointId;
+        this.props = checkNotNull(props, "Checkpoint Properties");
+        this.restoreTimestamp = restoreTimestamp;
+        this.externalPath = externalPath;
+    }
 
-	/**
-	 * Returns the ID of this checkpoint.
-	 *
-	 * @return ID of this checkpoint.
-	 */
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    /**
+     * Returns the ID of this checkpoint.
+     *
+     * @return ID of this checkpoint.
+     */
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	/**
-	 * Returns the properties of the restored checkpoint.
-	 *
-	 * @return Properties of the restored checkpoint.
-	 */
-	public CheckpointProperties getProperties() {
-		return props;
-	}
+    /**
+     * Returns the properties of the restored checkpoint.
+     *
+     * @return Properties of the restored checkpoint.
+     */
+    public CheckpointProperties getProperties() {
+        return props;
+    }
 
-	/**
-	 * Returns the timestamp when the checkpoint was restored.
-	 *
-	 * @return Timestamp when the checkpoint was restored.
-	 */
-	public long getRestoreTimestamp() {
-		return restoreTimestamp;
-	}
+    /**
+     * Returns the timestamp when the checkpoint was restored.
+     *
+     * @return Timestamp when the checkpoint was restored.
+     */
+    public long getRestoreTimestamp() {
+        return restoreTimestamp;
+    }
 
-	/**
-	 * Returns the external path if this checkpoint was persisted externally.
-	 *
-	 * @return External path of this checkpoint or <code>null</code>.
-	 */
-	@Nullable
-	public String getExternalPath() {
-		return externalPath;
-	}
+    /**
+     * Returns the external path if this checkpoint was persisted externally.
+     *
+     * @return External path of this checkpoint or <code>null</code>.
+     */
+    @Nullable
+    public String getExternalPath() {
+        return externalPath;
+    }
 }

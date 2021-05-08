@@ -18,33 +18,31 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-/**
- * Headers for aggregating task manager metrics.
- */
-public class AggregatedTaskManagerMetricsHeaders extends AbstractAggregatedMetricsHeaders<AggregateTaskManagerMetricsParameters> {
+/** Headers for aggregating task manager metrics. */
+public class AggregatedTaskManagerMetricsHeaders
+        extends AbstractAggregatedMetricsHeaders<AggregateTaskManagerMetricsParameters> {
 
-	private static final AggregatedTaskManagerMetricsHeaders INSTANCE = new AggregatedTaskManagerMetricsHeaders();
+    private static final AggregatedTaskManagerMetricsHeaders INSTANCE =
+            new AggregatedTaskManagerMetricsHeaders();
 
-	private AggregatedTaskManagerMetricsHeaders() {
-	}
+    private AggregatedTaskManagerMetricsHeaders() {}
 
-	@Override
-	public AggregateTaskManagerMetricsParameters getUnresolvedMessageParameters() {
-		return new AggregateTaskManagerMetricsParameters();
-	}
+    @Override
+    public AggregateTaskManagerMetricsParameters getUnresolvedMessageParameters() {
+        return new AggregateTaskManagerMetricsParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/taskmanagers/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/taskmanagers/metrics";
+    }
 
-	public static AggregatedTaskManagerMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static AggregatedTaskManagerMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to aggregated task manager metrics.";
-	}
-
+    @Override
+    public String getDescription() {
+        return "Provides access to aggregated task manager metrics.";
+    }
 }

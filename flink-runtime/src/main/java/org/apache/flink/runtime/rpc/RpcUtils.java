@@ -34,127 +34,130 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-/**
- * Utility functions for Flink's RPC implementation.
- */
+/** Utility functions for Flink's RPC implementation. */
 public class RpcUtils {
 
-	/**
-	 * <b>HACK:</b> Set to 21474835 seconds, Akka's maximum delay (Akka 2.4.20). The value cannot be
-	 * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
-	 * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
-	 */
-	public static final Time INF_TIMEOUT = Time.seconds(21474835);
+    /**
+     * <b>HACK:</b> Set to 21474835 seconds, Akka's maximum delay (Akka 2.4.20). The value cannot be
+     * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
+     * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
+     */
+    public static final Time INF_TIMEOUT = Time.seconds(21474835);
 
-	public static final Duration INF_DURATION = Duration.ofSeconds(21474835);
+    public static final Duration INF_DURATION = Duration.ofSeconds(21474835);
 
-	/**
-	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
-	 *
-	 * @param clazz from which to extract the implemented RpcGateway interfaces
-	 * @return A set of all implemented RpcGateway interfaces
-	 */
-	public static Set<Class<? extends RpcGateway>> extractImplementedRpcGateways(Class<?> clazz) {
-		HashSet<Class<? extends RpcGateway>> interfaces = new HashSet<>();
+    /**
+     * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
+     *
+     * @param clazz from which to extract the implemented RpcGateway interfaces
+     * @return A set of all implemented RpcGateway interfaces
+     */
+    public static Set<Class<? extends RpcGateway>> extractImplementedRpcGateways(Class<?> clazz) {
+        HashSet<Class<? extends RpcGateway>> interfaces = new HashSet<>();
 
-		while (clazz != null) {
-			for (Class<?> interfaze : clazz.getInterfaces()) {
-				if (RpcGateway.class.isAssignableFrom(interfaze)) {
-					interfaces.add((Class<? extends RpcGateway>) interfaze);
-				}
-			}
+        while (clazz != null) {
+            for (Class<?> interfaze : clazz.getInterfaces()) {
+                if (RpcGateway.class.isAssignableFrom(interfaze)) {
+                    interfaces.add((Class<? extends RpcGateway>) interfaze);
+                }
+            }
 
-			clazz = clazz.getSuperclass();
-		}
+            clazz = clazz.getSuperclass();
+        }
 
-		return interfaces;
-	}
+        return interfaces;
+    }
 
-	/**
-	 * Shuts the given {@link RpcEndpoint} down and awaits its termination.
-	 *
-	 * @param rpcEndpoint to terminate
-	 * @param timeout for this operation
-	 * @throws ExecutionException if a problem occurred
-	 * @throws InterruptedException if the operation has been interrupted
-	 * @throws TimeoutException if a timeout occurred
-	 */
-	public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint, Time timeout) throws ExecutionException, InterruptedException, TimeoutException {
-		rpcEndpoint.closeAsync().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+    /**
+     * Shuts the given {@link RpcEndpoint} down and awaits its termination.
+     *
+     * @param rpcEndpoint to terminate
+     * @param timeout for this operation
+     * @throws ExecutionException if a problem occurred
+     * @throws InterruptedException if the operation has been interrupted
+     * @throws TimeoutException if a timeout occurred
+     */
+    public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint, Time timeout)
+            throws ExecutionException, InterruptedException, TimeoutException {
+        rpcEndpoint.closeAsync().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	/**
-	 * Shuts the given {@link RpcEndpoint RpcEndpoints} down and waits for their termination.
-	 *
-	 * @param rpcEndpoints to shut down
-	 * @param timeout for this operation
-	 * @throws InterruptedException if the operation has been interrupted
-	 * @throws ExecutionException if a problem occurred
-	 * @throws TimeoutException if a timeout occurred
-	 */
-	public static void terminateRpcEndpoints(
-			Time timeout,
-			RpcEndpoint... rpcEndpoints) throws InterruptedException, ExecutionException, TimeoutException {
-		terminateAsyncCloseables(Arrays.asList(rpcEndpoints), timeout);
-	}
+    /**
+     * Shuts the given {@link RpcEndpoint RpcEndpoints} down and waits for their termination.
+     *
+     * @param rpcEndpoints to shut down
+     * @param timeout for this operation
+     * @throws InterruptedException if the operation has been interrupted
+     * @throws ExecutionException if a problem occurred
+     * @throws TimeoutException if a timeout occurred
+     */
+    public static void terminateRpcEndpoints(Time timeout, RpcEndpoint... rpcEndpoints)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        terminateAsyncCloseables(Arrays.asList(rpcEndpoints), timeout);
+    }
 
-	/**
-	 * Shuts the given rpc service down and waits for its termination.
-	 *
-	 * @param rpcService to shut down
-	 * @param timeout for this operation
-	 * @throws InterruptedException if the operation has been interrupted
-	 * @throws ExecutionException if a problem occurred
-	 * @throws TimeoutException if a timeout occurred
-	 */
-	public static void terminateRpcService(RpcService rpcService, Time timeout) throws InterruptedException, ExecutionException, TimeoutException {
-		rpcService.stopService().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+    /**
+     * Shuts the given rpc service down and waits for its termination.
+     *
+     * @param rpcService to shut down
+     * @param timeout for this operation
+     * @throws InterruptedException if the operation has been interrupted
+     * @throws ExecutionException if a problem occurred
+     * @throws TimeoutException if a timeout occurred
+     */
+    public static void terminateRpcService(RpcService rpcService, Time timeout)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        rpcService.stopService().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	/**
-	 * Shuts the given rpc services down and waits for their termination.
-	 *
-	 * @param rpcServices to shut down
-	 * @param timeout for this operation
-	 * @throws InterruptedException if the operation has been interrupted
-	 * @throws ExecutionException if a problem occurred
-	 * @throws TimeoutException if a timeout occurred
-	 */
-	public static void terminateRpcServices(
-			Time timeout,
-			RpcService... rpcServices) throws InterruptedException, ExecutionException, TimeoutException {
-		terminateAsyncCloseables(
-			Arrays.stream(rpcServices)
-				.map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
-				.collect(Collectors.toList()),
-			timeout);
-	}
+    /**
+     * Shuts the given rpc services down and waits for their termination.
+     *
+     * @param rpcServices to shut down
+     * @param timeout for this operation
+     * @throws InterruptedException if the operation has been interrupted
+     * @throws ExecutionException if a problem occurred
+     * @throws TimeoutException if a timeout occurred
+     */
+    public static void terminateRpcServices(Time timeout, RpcService... rpcServices)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        terminateAsyncCloseables(
+                Arrays.stream(rpcServices)
+                        .map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
+                        .collect(Collectors.toList()),
+                timeout);
+    }
 
-	private static void terminateAsyncCloseables(Collection<? extends AutoCloseableAsync> closeables, Time timeout) throws InterruptedException, ExecutionException, TimeoutException {
-		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(closeables.size());
+    private static void terminateAsyncCloseables(
+            Collection<? extends AutoCloseableAsync> closeables, Time timeout)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        final Collection<CompletableFuture<?>> terminationFutures =
+                new ArrayList<>(closeables.size());
 
-		for (AutoCloseableAsync closeableAsync : closeables) {
-			if (closeableAsync != null) {
-				terminationFutures.add(closeableAsync.closeAsync());
-			}
-		}
+        for (AutoCloseableAsync closeableAsync : closeables) {
+            if (closeableAsync != null) {
+                terminationFutures.add(closeableAsync.closeAsync());
+            }
+        }
 
-		FutureUtils.waitForAll(terminationFutures).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
+        FutureUtils.waitForAll(terminationFutures)
+                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+    }
 
-	/**
-	 * Returns the hostname onto which the given {@link RpcService} has been bound. If
-	 * the {@link RpcService} has been started in local mode, then the hostname is
-	 * {@code "hostname"}.
-	 *
-	 * @param rpcService to retrieve the hostname for
-	 * @return hostname onto which the given {@link RpcService} has been bound or localhost
-	 */
-	public static String getHostname(RpcService rpcService) {
-		final String rpcServiceAddress = rpcService.getAddress();
-		return rpcServiceAddress != null && rpcServiceAddress.isEmpty() ? "localhost" : rpcServiceAddress;
-	}
+    /**
+     * Returns the hostname onto which the given {@link RpcService} has been bound. If the {@link
+     * RpcService} has been started in local mode, then the hostname is {@code "hostname"}.
+     *
+     * @param rpcService to retrieve the hostname for
+     * @return hostname onto which the given {@link RpcService} has been bound or localhost
+     */
+    public static String getHostname(RpcService rpcService) {
+        final String rpcServiceAddress = rpcService.getAddress();
+        return rpcServiceAddress != null && rpcServiceAddress.isEmpty()
+                ? "localhost"
+                : rpcServiceAddress;
+    }
 
-	// We don't want this class to be instantiable
-	private RpcUtils() {}
+    // We don't want this class to be instantiable
+    private RpcUtils() {}
 }

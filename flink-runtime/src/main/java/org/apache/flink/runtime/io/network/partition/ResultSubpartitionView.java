@@ -25,40 +25,35 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * A view to consume a {@link ResultSubpartition} instance.
- */
+/** A view to consume a {@link ResultSubpartition} instance. */
 public interface ResultSubpartitionView {
 
-	/**
-	 * Returns the next {@link Buffer} instance of this queue iterator.
-	 *
-	 * <p>If there is currently no instance available, it will return <code>null</code>.
-	 * This might happen for example when a pipelined queue producer is slower
-	 * than the consumer or a spilled queue needs to read in more data.
-	 *
-	 * <p><strong>Important</strong>: The consumer has to make sure that each
-	 * buffer instance will eventually be recycled with {@link Buffer#recycleBuffer()}
-	 * after it has been consumed.
-	 */
-	@Nullable
-	BufferAndBacklog getNextBuffer() throws IOException;
+    /**
+     * Returns the next {@link Buffer} instance of this queue iterator.
+     *
+     * <p>If there is currently no instance available, it will return <code>null</code>. This might
+     * happen for example when a pipelined queue producer is slower than the consumer or a spilled
+     * queue needs to read in more data.
+     *
+     * <p><strong>Important</strong>: The consumer has to make sure that each buffer instance will
+     * eventually be recycled with {@link Buffer#recycleBuffer()} after it has been consumed.
+     */
+    @Nullable
+    BufferAndBacklog getNextBuffer() throws IOException;
 
-	void notifyDataAvailable();
+    void notifyDataAvailable();
 
-	default void notifyPriorityEvent(int priorityBufferNumber) {
-	}
+    default void notifyPriorityEvent(int priorityBufferNumber) {}
 
-	void releaseAllResources() throws IOException;
+    void releaseAllResources() throws IOException;
 
-	boolean isReleased();
+    boolean isReleased();
 
-	void resumeConsumption();
+    void resumeConsumption();
 
-	Throwable getFailureCause();
+    Throwable getFailureCause();
 
-	boolean isAvailable(int numCreditsAvailable);
+    boolean isAvailable(int numCreditsAvailable);
 
-	int unsynchronizedGetNumberOfQueuedBuffers();
-
+    int unsynchronizedGetNumberOfQueuedBuffers();
 }

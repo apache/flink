@@ -18,26 +18,36 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
 import java.util.List;
 
 /** ConstantRankRangeWithoutEnd is a RankRange which not specify RankEnd. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonTypeName("ConstantWithoutEnd")
 public class ConstantRankRangeWithoutEnd implements RankRange {
 
-	private static final long serialVersionUID = -1944057111062598696L;
+    private static final long serialVersionUID = -1944057111062598696L;
 
-	private final long rankStart;
+    @JsonProperty(ConstantRankRange.FIELD_NAME_START)
+    private final long rankStart;
 
-	public ConstantRankRangeWithoutEnd(long rankStart) {
-		this.rankStart = rankStart;
-	}
+    @JsonCreator
+    public ConstantRankRangeWithoutEnd(
+            @JsonProperty(ConstantRankRange.FIELD_NAME_START) long rankStart) {
+        this.rankStart = rankStart;
+    }
 
-	@Override
-	public String toString(List<String> inputFieldNames) {
-		return toString();
-	}
+    @Override
+    public String toString(List<String> inputFieldNames) {
+        return toString();
+    }
 
-	@Override
-	public String toString() {
-		return "rankStart=" + rankStart;
-	}
+    @Override
+    public String toString() {
+        return "rankStart=" + rankStart;
+    }
 }

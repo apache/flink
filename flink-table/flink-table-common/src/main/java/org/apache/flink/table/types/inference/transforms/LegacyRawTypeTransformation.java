@@ -19,28 +19,29 @@
 package org.apache.flink.table.types.inference.transforms;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 
-/**
- * This type transformation transforms the LEGACY('RAW', ...) type to the RAW(..., ?) type.
- */
+/** This type transformation transforms the LEGACY('RAW', ...) type to the RAW(..., ?) type. */
 public class LegacyRawTypeTransformation implements TypeTransformation {
 
-	public static final TypeTransformation INSTANCE = new LegacyRawTypeTransformation();
+    public static final TypeTransformation INSTANCE = new LegacyRawTypeTransformation();
 
-	@Override
-	public DataType transform(DataType typeToTransform) {
-		LogicalType logicalType = typeToTransform.getLogicalType();
-		if (logicalType instanceof LegacyTypeInformationType && logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
-			TypeInformation<?> typeInfo = ((LegacyTypeInformationType<?>) logicalType).getTypeInformation();
-			DataType rawType = DataTypes.RAW(typeInfo).bridgedTo(typeInfo.getTypeClass());
-			return logicalType.isNullable() ? rawType : rawType.notNull();
-		}
-		return typeToTransform;
-	}
+    @Override
+    public DataType transform(DataType typeToTransform) {
+        LogicalType logicalType = typeToTransform.getLogicalType();
+        if (logicalType instanceof LegacyTypeInformationType
+                && logicalType.getTypeRoot() == LogicalTypeRoot.RAW) {
+            TypeInformation<?> typeInfo =
+                    ((LegacyTypeInformationType<?>) logicalType).getTypeInformation();
+            DataType rawDataType = new AtomicDataType(new TypeInformationRawType<>(typeInfo));
+            return logicalType.isNullable() ? rawDataType : rawDataType.notNull();
+        }
+        return typeToTransform;
+    }
 }

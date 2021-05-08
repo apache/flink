@@ -17,13 +17,13 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testAddColumns">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[TestFunc($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, TestFunc$(a, b) AS d])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -31,13 +31,13 @@ Calc(select=[a, b, c, TestFunc$(a, b) AS d])
     </Resource>
   </TestCase>
   <TestCase name="testColumnFunctionsInUDF">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(_c0=[CONCAT($2, $3)])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CONCAT(string1, string2) AS _c0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
@@ -45,13 +45,13 @@ Calc(select=[CONCAT(string1, string2) AS _c0])
     </Resource>
   </TestCase>
   <TestCase name="testColumnRange">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], c=[$2], a=[$0], e=[$4], f=[$5], d=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, c, a, e, f, d])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
@@ -59,13 +59,13 @@ Calc(select=[b, c, a, e, f, d])
     </Resource>
   </TestCase>
   <TestCase name="testColumnWithoutRange">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], f=[$5])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, f])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
@@ -73,13 +73,13 @@ Calc(select=[a, b, c, f])
     </Resource>
   </TestCase>
   <TestCase name="testDropColumns">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -87,28 +87,28 @@ Calc(select=[c])
     </Resource>
   </TestCase>
   <TestCase name="testFilter">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=(CONCAT($2, $3), _UTF-16LE'a')])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[int, long, string1, string2], where=[=(CONCAT(string1, string2), _UTF-16LE'a')])
+Calc(select=[int, long, string1, string2], where=[(CONCAT(string1, string2) = _UTF-16LE'a')])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string1, string2)]]], fields=[int, long, string1, string2])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testGroupBy">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
 +- Exchange(distribution=[hash[a, b]])
@@ -117,13 +117,13 @@ GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$0])
     </Resource>
   </TestCase>
   <TestCase name="testInverseSelection">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(e=[$4], f=[$5])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[e, f])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
@@ -131,16 +131,16 @@ Calc(select=[e, f])
     </Resource>
   </TestCase>
   <TestCase name="testJoin">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalJoin(condition=[=($0, $3)], joinType=[inner])
 :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(int2, long2, string2)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(int1, int2)], select=[int1, long1, string1, int2, long2, string2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[(int1 = int2)], select=[int1, long1, string1, int2, long2, string2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[int1]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int1, long1, string1)]]], fields=[int1, long1, string1])
 +- Exchange(distribution=[hash[int2]])
@@ -149,14 +149,14 @@ Join(joinType=[InnerJoin], where=[=(int1, int2)], select=[int1, long1, string1, 
     </Resource>
   </TestCase>
   <TestCase name="testJoinLateral">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
 :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]])
 +- LogicalTableFunctionScan(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], rowType=[RecordType(VARCHAR(2147483647) name, INTEGER age)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe13c1b76114d2c7b3a5240fa($2)], correlate=[table(TableFunc0(string))], select=[int,long,string,name,age], rowType=[RecordType(DOUBLE int, BIGINT long, VARCHAR(2147483647) string, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(int, long, string)]]], fields=[int, long, string])
@@ -164,13 +164,13 @@ Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe1
     </Resource>
   </TestCase>
   <TestCase name="testOver">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
 +- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, CountAggFunction(b) AS w0$o0, weightAvgFun(a, $4) AS w0$o1, CountDistinct(a) AS w0$o2])
@@ -181,13 +181,13 @@ Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
     </Resource>
   </TestCase>
   <TestCase name="testRenameColumns">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$0], b=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a AS d, b])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -195,13 +195,13 @@ Calc(select=[a AS d, b])
     </Resource>
   </TestCase>
   <TestCase name="testStar">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(_c0=[TestFunc($0, $1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[TestFunc$(double, long) AS _c0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(double, long)]]], fields=[double, long])
@@ -209,7 +209,7 @@ Calc(select=[TestFunc$(double, long) AS _c0])
     </Resource>
   </TestCase>
   <TestCase name="testWindowGroupBy">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[AS($2, _UTF-16LE'c')])
 +- LogicalWindowAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)], window=[SlidingGroupWindow('w, b, 3, 10)], properties=[])
@@ -217,7 +217,7 @@ LogicalProject(a=[$0], b=[$1], c=[AS($2, _UTF-16LE'c')])
       +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, EXPR$0 AS c])
 +- GroupWindowAggregate(groupBy=[a, b], window=[SlidingGroupWindow('w, b, 3, 10)], select=[a, b, COUNT(c) AS EXPR$0])

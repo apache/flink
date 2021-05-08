@@ -40,80 +40,80 @@ import java.util.Arrays;
  * functions for the old planner.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
+public abstract class AbstractPythonScalarFunctionFlatMap
+        extends AbstractPythonStatelessFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
+    private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
 
-	/**
-	 * The Python {@link ScalarFunction}s to be executed.
-	 */
-	public final PythonFunctionInfo[] scalarFunctions;
+    /** The Python {@link ScalarFunction}s to be executed. */
+    public final PythonFunctionInfo[] scalarFunctions;
 
-	/**
-	 * The offset of the fields which should be forwarded.
-	 */
-	private final int[] forwardedFields;
+    /** The offset of the fields which should be forwarded. */
+    private final int[] forwardedFields;
 
-	public AbstractPythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, inputType, outputType, udfInputOffsets);
-		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
-	}
+    public AbstractPythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, inputType, outputType, udfInputOffsets);
+        this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+        this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-		RowTypeInfo forwardedInputTypeInfo = new RowTypeInfo(
-			Arrays.stream(forwardedFields)
-				.mapToObj(i -> inputType.getFields().get(i))
-				.map(RowType.RowField::getType)
-				.map(TypeConversions::fromLogicalToDataType)
-				.map(TypeConversions::fromDataTypeToLegacyInfo)
-				.toArray(TypeInformation[]::new));
-		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
-	}
+        RowTypeInfo forwardedInputTypeInfo =
+                new RowTypeInfo(
+                        Arrays.stream(forwardedFields)
+                                .mapToObj(i -> inputType.getFields().get(i))
+                                .map(RowType.RowField::getType)
+                                .map(TypeConversions::fromLogicalToDataType)
+                                .map(TypeConversions::fromDataTypeToLegacyInfo)
+                                .toArray(TypeInformation[]::new));
+        forwardedInputSerializer =
+                forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+    }
 
-	@Override
-	public PythonEnv getPythonEnv() {
-		return scalarFunctions[0].getPythonFunction().getPythonEnv();
-	}
+    @Override
+    public PythonEnv getPythonEnv() {
+        return scalarFunctions[0].getPythonFunction().getPythonEnv();
+    }
 
-	@Override
-	public void bufferInput(Row input) {
-		Row forwardedFieldsRow = Row.project(input, forwardedFields);
-		if (getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()) {
-			forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
-		}
-		forwardedInputQueue.add(forwardedFieldsRow);
-	}
+    @Override
+    public void bufferInput(Row input) {
+        Row forwardedFieldsRow = Row.project(input, forwardedFields);
+        if (getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()) {
+            forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
+        }
+        forwardedInputQueue.add(forwardedFieldsRow);
+    }
 
-	@Override
-	public int getForwardedFieldsCount() {
-		return forwardedFields.length;
-	}
+    @Override
+    public int getForwardedFieldsCount() {
+        return forwardedFields.length;
+    }
 
-	@Override
-	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
-		// add udf proto
-		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
-		}
-		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
-		return builder.build();
-	}
+    @Override
+    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        // add udf proto
+        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
+            builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
+        }
+        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        return builder.build();
+    }
 
-	@Override
-	public String getFunctionUrn() {
-		return SCALAR_FUNCTION_URN;
-	}
+    @Override
+    public String getFunctionUrn() {
+        return SCALAR_FUNCTION_URN;
+    }
 }

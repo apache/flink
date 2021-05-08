@@ -26,37 +26,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Util class to handle timestamp vectors. It's responsible for deciding whether new or legacy (Hive 2.0.x) timestamp
- * column vector should be used.
+ * Util class to handle timestamp vectors. It's responsible for deciding whether new or legacy (Hive
+ * 2.0.x) timestamp column vector should be used.
  */
 public class TimestampUtil {
 
-	private TimestampUtil() {
-	}
+    private TimestampUtil() {}
 
-	private static final Logger LOG = LoggerFactory.getLogger(OrcLegacyTimestampColumnVector.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OrcLegacyTimestampColumnVector.class);
 
-	private static Class hiveTSColVectorClz = null;
+    private static Class hiveTSColVectorClz = null;
 
-	static {
-		try {
-			hiveTSColVectorClz = Class.forName("org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector");
-		} catch (ClassNotFoundException e) {
-			LOG.debug("Hive TimestampColumnVector not available", e);
-		}
-	}
+    static {
+        try {
+            hiveTSColVectorClz =
+                    Class.forName("org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector");
+        } catch (ClassNotFoundException e) {
+            LOG.debug("Hive TimestampColumnVector not available", e);
+        }
+    }
 
-	// whether a ColumnVector is the new TimestampColumnVector
-	public static boolean isHiveTimestampColumnVector(ColumnVector vector) {
-		return hiveTSColVectorClz != null && hiveTSColVectorClz.isAssignableFrom(vector.getClass());
-	}
+    // whether a ColumnVector is the new TimestampColumnVector
+    public static boolean isHiveTimestampColumnVector(ColumnVector vector) {
+        return hiveTSColVectorClz != null && hiveTSColVectorClz.isAssignableFrom(vector.getClass());
+    }
 
-	// creates a Hive ColumnVector of constant timestamp value
-	public static ColumnVector createVectorFromConstant(int batchSize, Object value) {
-		if (hiveTSColVectorClz != null) {
-			return OrcTimestampColumnVector.createFromConstant(batchSize, value);
-		} else {
-			return OrcLegacyTimestampColumnVector.createFromConstant(batchSize, value);
-		}
-	}
+    // creates a Hive ColumnVector of constant timestamp value
+    public static ColumnVector createVectorFromConstant(int batchSize, Object value) {
+        if (hiveTSColVectorClz != null) {
+            return OrcTimestampColumnVector.createFromConstant(batchSize, value);
+        } else {
+            return OrcLegacyTimestampColumnVector.createFromConstant(batchSize, value);
+        }
+    }
 }

@@ -77,12 +77,14 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
 
   @Test
   def testPushCountAggThroughJoinOverUniqueColumn(): Unit = {
-    util.verifyPlan("SELECT COUNT(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
+    util.verifyRelPlan(
+      "SELECT COUNT(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
   }
 
   @Test
   def testPushSumAggThroughJoinOverUniqueColumn(): Unit = {
-    util.verifyPlan("SELECT SUM(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
+    util.verifyRelPlan(
+      "SELECT SUM(A.a) FROM (SELECT DISTINCT a FROM T) AS A JOIN T AS B ON A.a=B.a")
   }
 
   @Test
@@ -94,7 +96,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
         |SELECT MIN(a1), MIN(b1), MIN(a2), MIN(b2), a, b, COUNT(c) FROM
         |  (SELECT * FROM T1, T2, T WHERE a1 = b2 AND a1 = a) t GROUP BY a, b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -104,7 +106,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
         |SELECT MIN(a2), MIN(b2), a, b, COUNT(c2) FROM
         |    (SELECT * FROM T2, T WHERE b2 = a) t GROUP BY a, b
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -113,7 +115,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
       """
         |SELECT a2, b2, c2, SUM(a) FROM (SELECT * FROM T2, T WHERE b2 = b) GROUP BY a2, b2, c2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -122,7 +124,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
       """
         |SELECT a2, b2, c, SUM(a) FROM (SELECT * FROM T2, T WHERE b2 = b) GROUP BY a2, b2, c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -131,7 +133,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
       """
         |SELECT a2, b2, c2, SUM(a) FROM (SELECT * FROM T2, T WHERE a2 = a) GROUP BY a2, b2, c2
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -140,7 +142,7 @@ class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
       """
         |SELECT a2, b2, c, SUM(a) FROM (SELECT * FROM T2, T WHERE a2 = a) GROUP BY a2, b2, c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

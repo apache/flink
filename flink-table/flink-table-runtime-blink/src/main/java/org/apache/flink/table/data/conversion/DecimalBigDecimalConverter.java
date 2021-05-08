@@ -25,39 +25,37 @@ import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 
-/**
- * Converter for {@link DecimalType} of {@link BigDecimal} external type.
- */
+/** Converter for {@link DecimalType} of {@link BigDecimal} external type. */
 @Internal
 public class DecimalBigDecimalConverter implements DataStructureConverter<DecimalData, BigDecimal> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int precision;
+    private final int precision;
 
-	private final int scale;
+    private final int scale;
 
-	private DecimalBigDecimalConverter(int precision, int scale) {
-		this.precision = precision;
-		this.scale = scale;
-	}
+    private DecimalBigDecimalConverter(int precision, int scale) {
+        this.precision = precision;
+        this.scale = scale;
+    }
 
-	@Override
-	public DecimalData toInternal(BigDecimal external) {
-		return DecimalData.fromBigDecimal(external, precision, scale);
-	}
+    @Override
+    public DecimalData toInternal(BigDecimal external) {
+        return DecimalData.fromBigDecimal(external, precision, scale);
+    }
 
-	@Override
-	public BigDecimal toExternal(DecimalData internal) {
-		return internal.toBigDecimal();
-	}
+    @Override
+    public BigDecimal toExternal(DecimalData internal) {
+        return internal.toBigDecimal();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Factory method
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Factory method
+    // --------------------------------------------------------------------------------------------
 
-	static DecimalBigDecimalConverter create(DataType dataType) {
-		final DecimalType decimalType = (DecimalType) dataType.getLogicalType();
-		return new DecimalBigDecimalConverter(decimalType.getPrecision(), decimalType.getScale());
-	}
+    static DecimalBigDecimalConverter create(DataType dataType) {
+        final DecimalType decimalType = (DecimalType) dataType.getLogicalType();
+        return new DecimalBigDecimalConverter(decimalType.getPrecision(), decimalType.getScale());
+    }
 }

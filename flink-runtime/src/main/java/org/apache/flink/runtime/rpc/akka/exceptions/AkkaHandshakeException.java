@@ -20,21 +20,19 @@ package org.apache.flink.runtime.rpc.akka.exceptions;
 
 import org.apache.flink.runtime.rpc.exceptions.HandshakeException;
 
-/**
- * Exception which is thrown if the handshake fails.
- */
+/** Exception which is thrown if the handshake fails. */
 public class AkkaHandshakeException extends HandshakeException {
-	private static final long serialVersionUID = 7690464691855200936L;
+    private static final long serialVersionUID = 7690464691855200936L;
 
-	public AkkaHandshakeException(String message) {
-		super(message);
-	}
+    public AkkaHandshakeException(String message) {
+        super(message);
+    }
 
-	public AkkaHandshakeException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public AkkaHandshakeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public AkkaHandshakeException(Throwable cause) {
-		super(cause);
-	}
+    public AkkaHandshakeException(Throwable cause) {
+        super(cause);
+    }
 }

@@ -21,12 +21,12 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Extension of {@link AppendingState} that allows merging of state. That is, two instances
- * of {@link MergingState} can be combined into a single instance that contains all the
- * information of the two merged states.
+ * Extension of {@link AppendingState} that allows merging of state. That is, two instances of
+ * {@link MergingState} can be combined into a single instance that contains all the information of
+ * the two merged states.
  *
  * @param <IN> Type of the value that can be added to the state.
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @PublicEvolving
-public interface MergingState<IN, OUT> extends AppendingState<IN, OUT> { }
+public interface MergingState<IN, OUT> extends AppendingState<IN, OUT> {}

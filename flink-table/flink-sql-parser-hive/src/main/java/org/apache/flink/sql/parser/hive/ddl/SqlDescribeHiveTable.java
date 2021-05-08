@@ -24,28 +24,30 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * DESCRIBE DDL to describe a Hive table.
- */
+/** DESCRIBE DDL to describe a Hive table. */
 public class SqlDescribeHiveTable extends SqlRichDescribeTable {
 
-	private final boolean extended;
-	private final boolean formatted;
+    private final boolean extended;
+    private final boolean formatted;
 
-	public SqlDescribeHiveTable(SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean extended, boolean formatted) {
-		super(pos, tableNameIdentifier, extended || formatted);
-		this.extended = extended;
-		this.formatted = formatted;
-	}
+    public SqlDescribeHiveTable(
+            SqlParserPos pos,
+            SqlIdentifier tableNameIdentifier,
+            boolean extended,
+            boolean formatted) {
+        super(pos, tableNameIdentifier, extended || formatted);
+        this.extended = extended;
+        this.formatted = formatted;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("DESCRIBE");
-		if (extended) {
-			writer.keyword("EXTENDED");
-		} else if (formatted) {
-			writer.keyword("FORMATTED");
-		}
-		tableNameIdentifier.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("DESCRIBE");
+        if (extended) {
+            writer.keyword("EXTENDED");
+        } else if (formatted) {
+            writer.keyword("FORMATTED");
+        }
+        tableNameIdentifier.unparse(writer, leftPrec, rightPrec);
+    }
 }

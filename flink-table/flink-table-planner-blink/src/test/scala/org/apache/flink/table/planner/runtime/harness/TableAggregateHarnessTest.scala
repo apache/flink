@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.runtime.harness
 
 import java.lang.{Integer => JInt}
 import java.util.concurrent.ConcurrentLinkedQueue
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -34,6 +33,8 @@ import org.apache.flink.types.Row
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.time.Duration
 
 import scala.collection.mutable
 
@@ -60,7 +61,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .flatAggregate(top3('b) as ('b1, 'b2))
       .select('a, 'b1, 'b2)
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
     val testHarness = createHarnessTester(
       resultTable.toRetractStream[Row], "GroupTableAggregate")
     val assertor = new RowDataHarnessAssertor(
@@ -72,8 +73,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt, 1: JInt))
@@ -104,8 +105,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.processElement(insertRecord(2: JInt, 2: JInt))
     expectedOutput.add(insertRecord(2: JInt, 2: JInt, 2: JInt))
 
-    // trigger cleanup timer
-    testHarness.setProcessingTime(3002)
+    //set TtlTimeProvider with 3002 to trigger expired state cleanup
+    testHarness.setStateTtlProcessingTime(3002)
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
     expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
 
@@ -125,7 +126,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .flatAggregate(top3('b) as ('b1, 'b2))
       .select('b1, 'b2)
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
     val testHarness = createHarnessTester(
       resultTable.toRetractStream[Row], "GroupTableAggregate")
     val assertor = new RowDataHarnessAssertor(
@@ -136,8 +137,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt))

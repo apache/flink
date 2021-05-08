@@ -34,110 +34,139 @@ import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.AdditionalMatchers.geq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for {@link PollingRecordPublisher}.
- */
+/** Tests for {@link PollingRecordPublisher}. */
 public class PollingRecordPublisherTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    private static final long FETCH_INTERVAL_MILLIS = 500L;
 
-	@Test
-	public void testRunPublishesRecordsToConsumer() throws Exception {
-		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
-		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-		TestConsumer consumer = new TestConsumer();
-		recordPublisher.run(consumer);
+    @Test
+    public void testRunPublishesRecordsToConsumer() throws Exception {
+        KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
+        PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		assertEquals(1, consumer.getRecordBatches().size());
-		assertEquals(5, consumer.getRecordBatches().get(0).getDeaggregatedRecordSize());
-		assertEquals(100L, consumer.getRecordBatches().get(0).getMillisBehindLatest(), 0);
-	}
+        TestConsumer consumer = new TestConsumer();
+        recordPublisher.run(consumer);
 
-	@Test
-	public void testRunReturnsCompleteWhenShardExpires() throws Exception {
-		// There are 2 batches available in the stream
-		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 2, 100);
-		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
+        assertEquals(1, consumer.getRecordBatches().size());
+        assertEquals(5, consumer.getRecordBatches().get(0).getDeaggregatedRecordSize());
+        assertEquals(100L, consumer.getRecordBatches().get(0).getMillisBehindLatest(), 0);
+    }
 
-		// First call results in INCOMPLETE, there is one batch left
-		assertEquals(INCOMPLETE, recordPublisher.run(new TestConsumer()));
+    @Test
+    public void testRunEmitsRunLoopTimeNanos() throws Exception {
+        PollingRecordPublisherMetricsReporter metricsReporter =
+                spy(new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class)));
 
-		// After second call the shard is complete
-		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
-	}
+        KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 5, 100);
+        PollingRecordPublisher recordPublisher =
+                createPollingRecordPublisher(fakeKinesis, metricsReporter);
 
-	@Test
-	public void testRunOnCompletelyConsumedShardReturnsComplete() throws Exception {
-		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
-		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
+        recordPublisher.run(new TestConsumer());
 
-		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
-		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
-	}
+        // Expect that the run loop took at least FETCH_INTERVAL_MILLIS in nanos
+        verify(metricsReporter).setRunLoopTimeNanos(geq(FETCH_INTERVAL_MILLIS * 1_000_000));
+    }
 
-	@Test
-	public void testRunGetShardIteratorReturnsNullIsComplete() throws Exception {
-		KinesisProxyInterface fakeKinesis = FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour();
-		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
+    @Test
+    public void testRunReturnsCompleteWhenShardExpires() throws Exception {
+        // There are 2 batches available in the stream
+        KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 2, 100);
+        PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
-	}
+        // First call results in INCOMPLETE, there is one batch left
+        assertEquals(INCOMPLETE, recordPublisher.run(new TestConsumer()));
 
-	@Test
-	public void testRunGetRecordsRecoversFromExpiredIteratorException() throws Exception  {
-		KinesisProxyInterface fakeKinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(2, 2, 1, 500));
-		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
+        // After second call the shard is complete
+        assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
+    }
 
-		recordPublisher.run(new TestConsumer());
+    @Test
+    public void testRunOnCompletelyConsumedShardReturnsComplete() throws Exception {
+        KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
+        PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		// Get shard iterator is called twice, once during first run, secondly to refresh expired iterator
-		verify(fakeKinesis, times(2)).getShardIterator(any(), any(), any());
-	}
+        assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
+        assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
+    }
 
-	@Test
-	public void validateExpiredIteratorBackoffMillisNegativeThrows() throws Exception {
-		thrown.expect(IllegalArgumentException.class);
+    @Test
+    public void testRunGetShardIteratorReturnsNullIsComplete() throws Exception {
+        KinesisProxyInterface fakeKinesis =
+                FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour();
+        PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		new PollingRecordPublisher(
-			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
-			TestUtils.createDummyStreamShardHandle(),
-			mock(PollingRecordPublisherMetricsReporter.class),
-			mock(KinesisProxyInterface.class),
-			100,
-			-1);
-	}
+        assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
+    }
 
-	@Test
-	public void validateMaxNumberOfRecordsPerFetchZeroThrows() throws Exception  {
-		thrown.expect(IllegalArgumentException.class);
+    @Test
+    public void testRunGetRecordsRecoversFromExpiredIteratorException() throws Exception {
+        KinesisProxyInterface fakeKinesis =
+                spy(
+                        FakeKinesisBehavioursFactory
+                                .totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
+                                        2, 2, 1, 500));
+        PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		new PollingRecordPublisher(
-			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
-			TestUtils.createDummyStreamShardHandle(),
-			mock(PollingRecordPublisherMetricsReporter.class),
-			mock(KinesisProxyInterface.class),
-			0,
-			100);
-	}
+        recordPublisher.run(new TestConsumer());
 
-	PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis) throws Exception {
-		PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class));
+        // Get shard iterator is called twice, once during first run, secondly to refresh expired
+        // iterator
+        verify(fakeKinesis, times(2)).getShardIterator(any(), any(), any());
+    }
 
-		return new PollingRecordPublisher(
-			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
-			TestUtils.createDummyStreamShardHandle(),
-			metricsReporter,
-			kinesis,
-			10000,
-			500L);
-	}
+    @Test
+    public void validateExpiredIteratorBackoffMillisNegativeThrows() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
 
+        new PollingRecordPublisher(
+                StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
+                TestUtils.createDummyStreamShardHandle(),
+                mock(PollingRecordPublisherMetricsReporter.class),
+                mock(KinesisProxyInterface.class),
+                100,
+                -1);
+    }
+
+    @Test
+    public void validateMaxNumberOfRecordsPerFetchZeroThrows() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+
+        new PollingRecordPublisher(
+                StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
+                TestUtils.createDummyStreamShardHandle(),
+                mock(PollingRecordPublisherMetricsReporter.class),
+                mock(KinesisProxyInterface.class),
+                0,
+                100);
+    }
+
+    PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis)
+            throws Exception {
+        PollingRecordPublisherMetricsReporter metricsReporter =
+                new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class));
+
+        return createPollingRecordPublisher(kinesis, metricsReporter);
+    }
+
+    PollingRecordPublisher createPollingRecordPublisher(
+            final KinesisProxyInterface kinesis,
+            final PollingRecordPublisherMetricsReporter metricGroupReporter)
+            throws Exception {
+        return new PollingRecordPublisher(
+                StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
+                TestUtils.createDummyStreamShardHandle(),
+                metricGroupReporter,
+                kinesis,
+                10000,
+                FETCH_INTERVAL_MILLIS);
+    }
 }

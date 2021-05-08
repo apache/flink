@@ -27,96 +27,95 @@ import org.apache.flink.types.IntValue;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link AbstractInvokable} for testing purposes.
- */
+/** {@link AbstractInvokable} for testing purposes. */
 public class TestingAbstractInvokables {
 
-	private TestingAbstractInvokables() {
-		throw new UnsupportedOperationException(getClass().getSimpleName() + " should not be instantiated.");
-	}
+    private TestingAbstractInvokables() {
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + " should not be instantiated.");
+    }
 
-	/**
-	 * Basic sender {@link AbstractInvokable} which sends 42 and 1337 down stream.
-	 */
-	public static class Sender extends AbstractInvokable {
+    /** Basic sender {@link AbstractInvokable} which sends 42 and 1337 down stream. */
+    public static class Sender extends AbstractInvokable {
 
-		public Sender(Environment environment) {
-			super(environment);
-		}
+        public Sender(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			final RecordWriter<IntValue> writer = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
+        @Override
+        public void invoke() throws Exception {
+            final RecordWriter<IntValue> writer =
+                    new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
 
-			try {
-				writer.emit(new IntValue(42));
-				writer.emit(new IntValue(1337));
-				writer.flushAll();
-			} finally {
-				writer.close();
-			}
-		}
-	}
+            try {
+                writer.emit(new IntValue(42));
+                writer.emit(new IntValue(1337));
+                writer.flushAll();
+            } finally {
+                writer.close();
+            }
+        }
+    }
 
-	/**
-	 * Basic receiver {@link AbstractInvokable} which verifies the sent elements
-	 * from the {@link Sender}.
-	 */
-	public static class Receiver extends AbstractInvokable {
+    /**
+     * Basic receiver {@link AbstractInvokable} which verifies the sent elements from the {@link
+     * Sender}.
+     */
+    public static class Receiver extends AbstractInvokable {
 
-		public Receiver(Environment environment) {
-			super(environment);
-		}
+        public Receiver(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			final RecordReader<IntValue> reader = new RecordReader<>(
-				getEnvironment().getInputGate(0),
-				IntValue.class,
-				getEnvironment().getTaskManagerInfo().getTmpDirectories());
+        @Override
+        public void invoke() throws Exception {
+            final RecordReader<IntValue> reader =
+                    new RecordReader<>(
+                            getEnvironment().getInputGate(0),
+                            IntValue.class,
+                            getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-			final IntValue i1 = reader.next();
-			final IntValue i2 = reader.next();
-			final IntValue i3 = reader.next();
+            final IntValue i1 = reader.next();
+            final IntValue i2 = reader.next();
+            final IntValue i3 = reader.next();
 
-			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-				throw new Exception("Wrong data received.");
-			}
-		}
-	}
+            if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
+                throw new Exception("Wrong data received.");
+            }
+        }
+    }
 
-	public static final class TestInvokableRecordCancel extends AbstractInvokable {
+    public static final class TestInvokableRecordCancel extends AbstractInvokable {
 
-		private static CompletableFuture<Boolean> gotCanceledFuture = new CompletableFuture<>();
+        private static CompletableFuture<Boolean> gotCanceledFuture = new CompletableFuture<>();
 
-		public TestInvokableRecordCancel(Environment environment) {
-			super(environment);
-		}
+        public TestInvokableRecordCancel(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			final Object o = new Object();
-			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
-			for (int i = 0; i < 1024; i++) {
-				recordWriter.emit(new IntValue(42));
-			}
+        @Override
+        public void invoke() throws Exception {
+            final Object o = new Object();
+            RecordWriter<IntValue> recordWriter =
+                    new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
+            for (int i = 0; i < 1024; i++) {
+                recordWriter.emit(new IntValue(42));
+            }
 
-			gotCanceledFuture.get();
+            gotCanceledFuture.get();
+        }
 
-		}
+        @Override
+        public void cancel() {
+            gotCanceledFuture.complete(true);
+        }
 
-		@Override
-		public void cancel() {
-			gotCanceledFuture.complete(true);
-		}
+        public static void resetGotCanceledFuture() {
+            gotCanceledFuture = new CompletableFuture<>();
+        }
 
-		public static void resetGotCanceledFuture() {
-			gotCanceledFuture = new CompletableFuture<>();
-		}
-
-		public static CompletableFuture<Boolean> gotCanceled() {
-			return gotCanceledFuture;
-		}
-	}
+        public static CompletableFuture<Boolean> gotCanceled() {
+            return gotCanceledFuture;
+        }
+    }
 }

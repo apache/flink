@@ -118,5 +118,25 @@ export class TaskManagerService {
     });
   }
 
+  /**
+   * Get TM metric
+   * @param taskManagerId
+   * @param listOfMetricName
+   */
+  getMetrics(taskManagerId: string, listOfMetricName: string[]) {
+    const metricName = listOfMetricName.join(',');
+    return this.httpClient
+      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/taskmanagers/${taskManagerId}/metrics?get=${metricName}`)
+      .pipe(
+        map(arr => {
+          const result: { [id: string]: number } = {};
+          arr.forEach(item => {
+            result[item.id] = parseInt(item.value, 10);
+          });
+          return result;
+        })
+      );
+  }
+
   constructor(private httpClient: HttpClient) {}
 }

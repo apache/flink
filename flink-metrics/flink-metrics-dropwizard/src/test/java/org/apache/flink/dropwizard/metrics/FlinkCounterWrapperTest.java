@@ -25,23 +25,21 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the FlinkCounterWrapper.
- */
+/** Tests for the FlinkCounterWrapper. */
 public class FlinkCounterWrapperTest {
 
-	@Test
-	public void testWrapperIncDec() {
-		Counter counter = new TestCounter();
-		counter.inc();
+    @Test
+    public void testWrapperIncDec() {
+        Counter counter = new TestCounter();
+        counter.inc();
 
-		FlinkCounterWrapper wrapper = new FlinkCounterWrapper(counter);
-		assertEquals(1L, wrapper.getCount());
-		wrapper.dec();
-		assertEquals(0L, wrapper.getCount());
-		wrapper.inc(2);
-		assertEquals(2L, wrapper.getCount());
-		wrapper.dec(2);
-		assertEquals(0L, wrapper.getCount());
-	}
+        FlinkCounterWrapper wrapper = new FlinkCounterWrapper(counter);
+        assertEquals(1L, wrapper.getCount());
+        wrapper.dec();
+        assertEquals(0L, wrapper.getCount());
+        wrapper.inc(2);
+        assertEquals(2L, wrapper.getCount());
+        wrapper.dec(2);
+        assertEquals(0L, wrapper.getCount());
+    }
 }

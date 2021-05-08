@@ -21,25 +21,21 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 
-/**
- * Default implementation of {@link YarnResourceManagerClientFactory}.
- */
+/** Default implementation of {@link YarnResourceManagerClientFactory}. */
 public class DefaultYarnResourceManagerClientFactory implements YarnResourceManagerClientFactory {
 
-	private static final YarnResourceManagerClientFactory INSTANCE = new DefaultYarnResourceManagerClientFactory();
+    private static final YarnResourceManagerClientFactory INSTANCE =
+            new DefaultYarnResourceManagerClientFactory();
 
-	private DefaultYarnResourceManagerClientFactory() {}
+    private DefaultYarnResourceManagerClientFactory() {}
 
-	public static YarnResourceManagerClientFactory getInstance() {
-		return INSTANCE;
-	}
+    public static YarnResourceManagerClientFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
-		int yarnHeartbeatIntervalMillis,
-		AMRMClientAsync.CallbackHandler callbackHandler) {
-		return AMRMClientAsync.createAMRMClientAsync(
-			yarnHeartbeatIntervalMillis,
-			callbackHandler);
-	}
+    @Override
+    public AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
+            int yarnHeartbeatIntervalMillis, AMRMClientAsync.CallbackHandler callbackHandler) {
+        return AMRMClientAsync.createAMRMClientAsync(yarnHeartbeatIntervalMillis, callbackHandler);
+    }
 }

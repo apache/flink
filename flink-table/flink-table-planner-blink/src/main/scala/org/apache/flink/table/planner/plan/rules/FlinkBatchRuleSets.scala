@@ -113,8 +113,15 @@ object FlinkBatchRuleSets {
       List(
         // Transform window to LogicalWindowAggregate
         BatchLogicalWindowAggregateRule.INSTANCE,
+        // slices a project into sections which contain window agg functions
+        // and sections which do not.
+        CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+        // adjust the sequence of window's groups.
+        WindowGroupReorderRule.INSTANCE,
         WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
         WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE,
+        // let project transpose window operator.
+        CoreRules.PROJECT_WINDOW_TRANSPOSE,
         //ensure union set operator have the same row type
         new CoerceInputsRule(classOf[LogicalUnion], false),
         //ensure intersect set operator have the same row type
@@ -144,10 +151,14 @@ object FlinkBatchRuleSets {
     CoreRules.FILTER_MERGE
   )
 
-  val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
-    JoinDependentConditionDerivationRule.INSTANCE,
+  val JOIN_NULL_FILTER_RULES: RuleSet = RuleSets.ofList(
     JoinDeriveNullFilterRule.INSTANCE
   )
+
+  val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList((
+    RuleSets.ofList(JoinDependentConditionDerivationRule.INSTANCE).asScala ++
+    JOIN_NULL_FILTER_RULES.asScala
+  ).asJava)
 
   /**
     * RuleSet to do predicate pushdown
@@ -207,16 +218,6 @@ object FlinkBatchRuleSets {
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
     CoreRules.PROJECT_SET_OP_TRANSPOSE
-  )
-
-  val WINDOW_RULES: RuleSet = RuleSets.ofList(
-    // slices a project into sections which contain window agg functions and sections which do not.
-    CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
-    //adjust the sequence of window's groups.
-    WindowGroupReorderRule.INSTANCE,
-    // Transform window to LogicalWindowAggregate
-    WindowPropertiesRules.WINDOW_PROPERTIES_RULE,
-    WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE
   )
 
   val JOIN_COND_EQUAL_TRANSFER_RULES: RuleSet = RuleSets.ofList((
@@ -340,7 +341,8 @@ object FlinkBatchRuleSets {
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalSink.CONVERTER,
-    FlinkLogicalLegacySink.CONVERTER
+    FlinkLogicalLegacySink.CONVERTER,
+    FlinkLogicalDistribution.BATCH_CONVERTER
   )
 
   /**
@@ -373,13 +375,16 @@ object FlinkBatchRuleSets {
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
+    PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
-    PythonCalcSplitRule.REWRITE_PROJECT
-  )
+    PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapMergeRule.INSTANCE
+    )
 
   /**
     * RuleSet to do physical optimize for batch
@@ -387,51 +392,53 @@ object FlinkBatchRuleSets {
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
     FlinkExpandConversionRule.BATCH_INSTANCE,
     // source
-    BatchExecBoundedStreamScanRule.INSTANCE,
-    BatchExecTableSourceScanRule.INSTANCE,
-    BatchExecLegacyTableSourceScanRule.INSTANCE,
-    BatchExecIntermediateTableScanRule.INSTANCE,
-    BatchExecValuesRule.INSTANCE,
+    BatchPhysicalBoundedStreamScanRule.INSTANCE,
+    BatchPhysicalTableSourceScanRule.INSTANCE,
+    BatchPhysicalLegacyTableSourceScanRule.INSTANCE,
+    BatchPhysicalIntermediateTableScanRule.INSTANCE,
+    BatchPhysicalValuesRule.INSTANCE,
     // calc
-    BatchExecCalcRule.INSTANCE,
-    BatchExecPythonCalcRule.INSTANCE,
+    BatchPhysicalCalcRule.INSTANCE,
+    BatchPhysicalPythonCalcRule.INSTANCE,
     // union
-    BatchExecUnionRule.INSTANCE,
+    BatchPhysicalUnionRule.INSTANCE,
     // sort
-    BatchExecSortRule.INSTANCE,
-    BatchExecLimitRule.INSTANCE,
-    BatchExecSortLimitRule.INSTANCE,
+    BatchPhysicalSortRule.INSTANCE,
+    BatchPhysicalLimitRule.INSTANCE,
+    BatchPhysicalSortLimitRule.INSTANCE,
     // rank
-    BatchExecRankRule.INSTANCE,
+    BatchPhysicalRankRule.INSTANCE,
     RemoveRedundantLocalRankRule.INSTANCE,
     // expand
-    BatchExecExpandRule.INSTANCE,
+    BatchPhysicalExpandRule.INSTANCE,
     // group agg
-    BatchExecHashAggRule.INSTANCE,
-    BatchExecSortAggRule.INSTANCE,
+    BatchPhysicalHashAggRule.INSTANCE,
+    BatchPhysicalSortAggRule.INSTANCE,
     RemoveRedundantLocalSortAggRule.WITHOUT_SORT,
     RemoveRedundantLocalSortAggRule.WITH_SORT,
     RemoveRedundantLocalHashAggRule.INSTANCE,
-    BatchExecPythonAggregateRule.INSTANCE,
+    BatchPhysicalPythonAggregateRule.INSTANCE,
     // over agg
-    BatchExecOverAggregateRule.INSTANCE,
+    BatchPhysicalOverAggregateRule.INSTANCE,
     // window agg
-    BatchExecWindowAggregateRule.INSTANCE,
-    BatchExecPythonWindowAggregateRule.INSTANCE,
+    BatchPhysicalWindowAggregateRule.INSTANCE,
+    BatchPhysicalPythonWindowAggregateRule.INSTANCE,
     // join
-    BatchExecHashJoinRule.INSTANCE,
-    BatchExecSortMergeJoinRule.INSTANCE,
-    BatchExecNestedLoopJoinRule.INSTANCE,
-    BatchExecSingleRowJoinRule.INSTANCE,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    BatchPhysicalHashJoinRule.INSTANCE,
+    BatchPhysicalSortMergeJoinRule.INSTANCE,
+    BatchPhysicalNestedLoopJoinRule.INSTANCE,
+    BatchPhysicalSingleRowJoinRule.INSTANCE,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
-    BatchExecConstantTableFunctionScanRule.INSTANCE,
-    BatchExecCorrelateRule.INSTANCE,
-    BatchExecPythonCorrelateRule.INSTANCE,
+    BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
+    BatchPhysicalCorrelateRule.INSTANCE,
+    BatchPhysicalPythonCorrelateRule.INSTANCE,
     // sink
-    BatchExecSinkRule.INSTANCE,
-    BatchExecLegacySinkRule.INSTANCE
+    BatchPhysicalSinkRule.INSTANCE,
+    BatchPhysicalLegacySinkRule.INSTANCE,
+    // hive distribution
+    BatchPhysicalDistributionRule.INSTANCE
   )
 
   /**

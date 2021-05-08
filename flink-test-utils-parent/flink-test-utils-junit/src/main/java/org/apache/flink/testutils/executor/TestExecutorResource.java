@@ -19,37 +19,34 @@ package org.apache.flink.testutils.executor;
 
 import org.junit.rules.ExternalResource;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
-/**
- * Resource which starts/stops an {@link ExecutorService} for testing purposes.
- */
-public class TestExecutorResource extends ExternalResource {
+/** Resource which starts/stops an {@link ExecutorService} for testing purposes. */
+public class TestExecutorResource<T extends ExecutorService> extends ExternalResource {
 
-	private final Supplier<ExecutorService> serviceFactory;
+    private final Supplier<T> serviceFactory;
 
-	private ExecutorService executorService;
+    private T executorService;
 
-	public TestExecutorResource(Supplier<ExecutorService> serviceFactory) {
-		this.serviceFactory = serviceFactory;
-	}
+    public TestExecutorResource(Supplier<T> serviceFactory) {
+        this.serviceFactory = serviceFactory;
+    }
 
-	@Override
-	protected void before() throws Throwable {
-		executorService = serviceFactory.get();
-	}
+    @Override
+    protected void before() throws Throwable {
+        executorService = serviceFactory.get();
+    }
 
-	public Executor getExecutor() {
-		// only return an Executor since this resource is in charge of the life cycle
-		return executorService;
-	}
+    public T getExecutor() {
+        // only return an Executor since this resource is in charge of the life cycle
+        return executorService;
+    }
 
-	@Override
-	protected void after() {
-		if (executorService != null) {
-			executorService.shutdown();
-		}
-	}
+    @Override
+    protected void after() {
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+    }
 }

@@ -41,8 +41,8 @@ class TemporalJoinTest extends TableTestBase {
         | o_proctime as PROCTIME(),
         | WATERMARK FOR o_rowtime AS o_rowtime
         |) WITH (
-        | 'connector' = 'COLLECTION',
-        | 'is-bounded' = 'true'
+        | 'connector' = 'values',
+        | 'bounded' = 'true'
         |)
       """.stripMargin)
 
@@ -54,8 +54,8 @@ class TemporalJoinTest extends TableTestBase {
         | rowtime TIMESTAMP(3),
         | WATERMARK FOR rowtime AS rowtime
         |) WITH (
-        | 'connector' = 'COLLECTION',
-        | 'is-bounded' = 'true'
+        | 'connector' = 'values',
+        | 'bounded' = 'true'
         |)
       """.stripMargin)
 
@@ -68,8 +68,8 @@ class TemporalJoinTest extends TableTestBase {
         | WATERMARK FOR rowtime AS rowtime,
         | PRIMARY KEY(currency) NOT ENFORCED
         |) WITH (
-        | 'connector' = 'COLLECTION',
-        | 'is-bounded' = 'true'
+        | 'connector' = 'values',
+        | 'bounded' = 'true'
         |)
       """.stripMargin)
 
@@ -80,13 +80,13 @@ class TemporalJoinTest extends TableTestBase {
         | rate INT,
         | proctime AS PROCTIME()
         |) WITH (
-        | 'connector' = 'COLLECTION',
-        | 'is-bounded' = 'true'
+        | 'connector' = 'values',
+        | 'bounded' = 'true'
         |)
       """.stripMargin)
 
     util.addTable(
-      " CREATE VIEW DeduplicatedView as SELECT currency, rate, rowtime FROM " +
+      " CREATE VIEW rates_last_row_rowtime as SELECT currency, rate, rowtime FROM " +
         "  (SELECT *, " +
         "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY rowtime DESC) AS rowNum " +
         "   FROM RatesHistory" +
@@ -94,14 +94,14 @@ class TemporalJoinTest extends TableTestBase {
         "  WHERE rowNum = 1")
 
     util.addTable(
-      " CREATE VIEW latestView as SELECT currency, rate, proctime FROM " +
+      " CREATE VIEW rates_last_row_proctime as SELECT currency, rate, proctime FROM " +
         "  (SELECT *, " +
         "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY proctime DESC) AS rowNum " +
         "   FROM RatesOnly" +
         "  ) T" +
         "  WHERE rowNum = 1")
 
-    util.addTable("CREATE VIEW latest_rates AS SELECT currency, LAST_VALUE(rate) AS rate " +
+    util.addTable("CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
       "FROM RatesHistory " +
       "GROUP BY currency ")
   }
@@ -114,7 +114,7 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.o_rowtime as r " +
       "on o.o_currency = r.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -122,11 +122,11 @@ class TemporalJoinTest extends TableTestBase {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
-      "DeduplicatedView " +
+      "rates_last_row_rowtime " +
       "FOR SYSTEM_TIME AS OF o.o_rowtime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -134,11 +134,11 @@ class TemporalJoinTest extends TableTestBase {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
-      "latestView " +
+      "rates_last_row_proctime " +
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[TableException])
@@ -147,10 +147,10 @@ class TemporalJoinTest extends TableTestBase {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
-      "latest_rates " +
+      "rates_last_value " +
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 }

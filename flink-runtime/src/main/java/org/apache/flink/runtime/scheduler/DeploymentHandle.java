@@ -31,53 +31,58 @@ import java.util.concurrent.CompletableFuture;
  * This class is a tuple holding the information necessary to deploy an {@link ExecutionVertex}.
  *
  * <p>The tuple consists of:
+ *
  * <ul>
- *     <li>{@link ExecutionVertexVersion}
- *     <li>{@link ExecutionVertexDeploymentOption}
- *     <li>{@link SlotExecutionVertexAssignment}
+ *   <li>{@link ExecutionVertexVersion}
+ *   <li>{@link ExecutionVertexDeploymentOption}
+ *   <li>{@link SlotExecutionVertexAssignment}
  * </ul>
  */
 class DeploymentHandle {
 
-	private final ExecutionVertexVersion requiredVertexVersion;
+    private final ExecutionVertexVersion requiredVertexVersion;
 
-	private final ExecutionVertexDeploymentOption executionVertexDeploymentOption;
+    private final ExecutionVertexDeploymentOption executionVertexDeploymentOption;
 
-	private final SlotExecutionVertexAssignment slotExecutionVertexAssignment;
+    private final SlotExecutionVertexAssignment slotExecutionVertexAssignment;
 
-	public DeploymentHandle(
-		final ExecutionVertexVersion requiredVertexVersion,
-		final ExecutionVertexDeploymentOption executionVertexDeploymentOption,
-		final SlotExecutionVertexAssignment slotExecutionVertexAssignment) {
+    public DeploymentHandle(
+            final ExecutionVertexVersion requiredVertexVersion,
+            final ExecutionVertexDeploymentOption executionVertexDeploymentOption,
+            final SlotExecutionVertexAssignment slotExecutionVertexAssignment) {
 
-		this.requiredVertexVersion = Preconditions.checkNotNull(requiredVertexVersion);
-		this.executionVertexDeploymentOption = Preconditions.checkNotNull(executionVertexDeploymentOption);
-		this.slotExecutionVertexAssignment = Preconditions.checkNotNull(slotExecutionVertexAssignment);
-	}
+        this.requiredVertexVersion = Preconditions.checkNotNull(requiredVertexVersion);
+        this.executionVertexDeploymentOption =
+                Preconditions.checkNotNull(executionVertexDeploymentOption);
+        this.slotExecutionVertexAssignment =
+                Preconditions.checkNotNull(slotExecutionVertexAssignment);
+    }
 
-	public ExecutionVertexID getExecutionVertexId() {
-		return requiredVertexVersion.getExecutionVertexId();
-	}
+    public ExecutionVertexID getExecutionVertexId() {
+        return requiredVertexVersion.getExecutionVertexId();
+    }
 
-	public ExecutionVertexVersion getRequiredVertexVersion() {
-		return requiredVertexVersion;
-	}
+    public ExecutionVertexVersion getRequiredVertexVersion() {
+        return requiredVertexVersion;
+    }
 
-	public DeploymentOption getDeploymentOption() {
-		return executionVertexDeploymentOption.getDeploymentOption();
-	}
+    public DeploymentOption getDeploymentOption() {
+        return executionVertexDeploymentOption.getDeploymentOption();
+    }
 
-	public SlotExecutionVertexAssignment getSlotExecutionVertexAssignment() {
-		return slotExecutionVertexAssignment;
-	}
+    public SlotExecutionVertexAssignment getSlotExecutionVertexAssignment() {
+        return slotExecutionVertexAssignment;
+    }
 
-	public Optional<LogicalSlot> getLogicalSlot() {
-		final CompletableFuture<LogicalSlot> logicalSlotFuture = slotExecutionVertexAssignment.getLogicalSlotFuture();
-		Preconditions.checkState(logicalSlotFuture.isDone(), "method can only be called after slot future is done");
+    public Optional<LogicalSlot> getLogicalSlot() {
+        final CompletableFuture<LogicalSlot> logicalSlotFuture =
+                slotExecutionVertexAssignment.getLogicalSlotFuture();
+        Preconditions.checkState(
+                logicalSlotFuture.isDone(), "method can only be called after slot future is done");
 
-		if (logicalSlotFuture.isCompletedExceptionally()) {
-			return Optional.empty();
-		}
-		return Optional.ofNullable(logicalSlotFuture.getNow(null));
-	}
+        if (logicalSlotFuture.isCompletedExceptionally()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(logicalSlotFuture.getNow(null));
+    }
 }

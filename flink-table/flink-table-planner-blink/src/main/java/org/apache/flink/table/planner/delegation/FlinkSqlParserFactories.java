@@ -25,19 +25,16 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.validate.SqlConformance;
 
-/**
- * A util method to create SqlParserImplFactory according to SqlConformance.
- */
+/** A util method to create SqlParserImplFactory according to SqlConformance. */
 public class FlinkSqlParserFactories {
 
-	private FlinkSqlParserFactories() {
-	}
+    private FlinkSqlParserFactories() {}
 
-	public static SqlParserImplFactory create(SqlConformance conformance) {
-		if (conformance == FlinkSqlConformance.HIVE) {
-			return FlinkHiveSqlParserImpl.FACTORY;
-		} else {
-			return FlinkSqlParserImpl.FACTORY;
-		}
-	}
+    public static SqlParserImplFactory create(SqlConformance conformance) {
+        if (conformance == FlinkSqlConformance.HIVE) {
+            return FlinkHiveSqlParserImpl.FACTORY;
+        } else {
+            return FlinkSqlParserImpl.FACTORY;
+        }
+    }
 }

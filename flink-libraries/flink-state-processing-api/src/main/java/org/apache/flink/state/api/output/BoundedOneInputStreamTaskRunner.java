@@ -22,13 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.util.Collector;
 
 /**
- * A {@link RichMapPartitionFunction} that serves as the runtime for a {@link
- * BoundedStreamTask}.
+ * A {@link RichMapPartitionFunction} that serves as the runtime for a {@link BoundedStreamTask}.
  *
  * <p>The task is executed processing the data in a particular partition instead of the pulling from
  * the network stack. After all data has been processed the runner will output the {@link
@@ -37,43 +37,46 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input to the partition
  */
 @Internal
-public class BoundedOneInputStreamTaskRunner<IN> extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
+public class BoundedOneInputStreamTaskRunner<IN>
+        extends RichMapPartitionFunction<IN, TaggedOperatorSubtaskState> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final StreamConfig streamConfig;
+    private final StreamConfig streamConfig;
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	private transient SavepointEnvironment env;
+    private final Timestamper<IN> timestamper;
 
-	/**
-	 * Create a new {@link BoundedOneInputStreamTaskRunner}.
-	 *
-	 * @param streamConfig The internal configuration for the task.
-	 * @param  maxParallelism The max parallelism of the operator.
-	 */
-	public BoundedOneInputStreamTaskRunner(
-		StreamConfig streamConfig,
-		int maxParallelism) {
+    private transient SavepointEnvironment env;
 
-		this.streamConfig = streamConfig;
-		this.maxParallelism = maxParallelism;
-	}
+    /**
+     * Create a new {@link BoundedOneInputStreamTaskRunner}.
+     *
+     * @param streamConfig The internal configuration for the task.
+     * @param maxParallelism The max parallelism of the operator.
+     */
+    public BoundedOneInputStreamTaskRunner(
+            StreamConfig streamConfig, int maxParallelism, Timestamper<IN> timestamper) {
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+        this.streamConfig = streamConfig;
+        this.maxParallelism = maxParallelism;
+        this.timestamper = timestamper;
+    }
 
-		env = new SavepointEnvironment
-			.Builder(getRuntimeContext(), maxParallelism)
-			.setConfiguration(streamConfig.getConfiguration())
-			.build();
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-	@Override
-	public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out) throws Exception {
-		new BoundedStreamTask<>(env, values, out).invoke();
-	}
+        env =
+                new SavepointEnvironment.Builder(getRuntimeContext(), maxParallelism)
+                        .setConfiguration(streamConfig.getConfiguration())
+                        .build();
+    }
+
+    @Override
+    public void mapPartition(Iterable<IN> values, Collector<TaggedOperatorSubtaskState> out)
+            throws Exception {
+        new BoundedStreamTask<>(env, values, timestamper, out).invoke();
+    }
 }
-

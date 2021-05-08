@@ -32,45 +32,55 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link CatalogTableImpl}.
- */
+/** Test for {@link CatalogTableImpl}. */
 public class CatalogTableImpTest {
-	private static final String TEST = "test";
+    private static final String TEST = "test";
 
-	@Test
-	public void testToProperties() {
-		TableSchema schema = createTableSchema();
-		Map<String, String> prop = createProperties();
-		CatalogTable table = new CatalogTableImpl(
-			schema,
-			createPartitionKeys(),
-			prop,
-			TEST
-		);
+    @Test
+    public void testToProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(table.toProperties());
+        DescriptorProperties descriptorProperties = new DescriptorProperties(false);
+        descriptorProperties.putProperties(table.toProperties());
 
-		assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
-	}
+        assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
+    }
 
-	private static Map<String, String> createProperties() {
-		return new HashMap<String, String>() {{
-			put("k", "v");
-		}};
-	}
+    @Test
+    public void testFromProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-	private static TableSchema createTableSchema() {
-		return TableSchema.builder()
-			.field("first", DataTypes.STRING())
-			.field("second", DataTypes.INT())
-			.field("third", DataTypes.DOUBLE())
-			.build();
-	}
+        CatalogTableImpl tableFromProperties =
+                CatalogTableImpl.fromProperties(table.toProperties());
 
-	private static List<String> createPartitionKeys() {
-		return Arrays.asList("second", "third");
-	}
+        assertEquals(tableFromProperties.getOptions(), table.getOptions());
+        assertEquals(tableFromProperties.getPartitionKeys(), table.getPartitionKeys());
+        assertEquals(tableFromProperties.getSchema(), table.getSchema());
+    }
 
+    private static Map<String, String> createProperties() {
+        return new HashMap<String, String>() {
+            {
+                put("k", "v");
+                put("K1", "V1"); // for test case-sensitive
+            }
+        };
+    }
+
+    private static TableSchema createTableSchema() {
+        return TableSchema.builder()
+                .field("first", DataTypes.STRING())
+                .field("second", DataTypes.INT())
+                .field("third", DataTypes.DOUBLE())
+                .field("Fourth", DataTypes.BOOLEAN()) // for test case-sensitive
+                .build();
+    }
+
+    private static List<String> createPartitionKeys() {
+        return Arrays.asList("second", "third");
+    }
 }

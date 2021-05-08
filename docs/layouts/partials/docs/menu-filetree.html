@@ -1,0 +1,68 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<!--
+    Partial that renders the side navigation.
+-->
+{{ $bookSection := default "docs" .Site.Params.BookSection  }}
+{{ if eq $bookSection "*" }}
+  {{ $bookSection = "/" }}{{/* Backward compatibility */}}
+{{ end }}
+
+{{ with .Site.GetPage $bookSection }}
+  {{ template "book-section-children" (dict "Section" . "CurrentPage" $) }}
+{{ end }}
+
+{{ define "book-section-children" }}{{/* (dict "Section" .Section "CurrentPage" .CurrentPage) */}}
+  <ul>
+    {{ range (where .Section.Pages "Params.bookhidden" "ne" true) }}
+      {{ if .IsSection }}
+        <li {{- if .Params.BookFlatSection }} class="book-section-flat" {{ end -}}>
+          {{ template "book-page-link" (dict "Page" . "CurrentPage" $.CurrentPage) }}
+          {{ template "book-section-children" (dict "Section" . "CurrentPage" $.CurrentPage) }}
+        </li>
+      {{ else if and .IsPage .Content }}
+        <li>
+          {{ template "book-page-link" (dict "Page" . "CurrentPage" $.CurrentPage) }}
+        </li>
+      {{ end }}
+    {{ end }}
+  </ul>
+{{ end }}
+
+{{ define "book-page-link" }}{{/* (dict "Page" .Page "CurrentPage" .CurrentPage) */}}
+  {{ $current := eq .CurrentPage .Page }}
+  {{ $ancestor := .Page.IsAncestor .CurrentPage }}
+
+  {{ if .Page.Params.sectionBreak }}
+  	<br/>
+  {{ end }}
+  {{ if .Page.Params.bookCollapseSection }}
+    <input type="checkbox" id="section-{{ md5 .Page }}" class="toggle" {{ if or $current $ancestor }}checked{{ end }} />
+    <label for="section-{{ md5 .Page }}" class="flex justify-between">
+      {{- partial "docs/title" .Page -}}
+      <span>▾</span>
+    </label>
+  {{ else if .Page.Content }}
+    <a href="{{ .Page.Permalink }}" class="{{ if $current }} active{{ end }}">
+      {{- partial "docs/title" .Page -}}
+    </a>
+  {{ else }}
+    <span>{{- partial "docs/title" .Page -}}</span>
+  {{ end }}
+{{ end }}

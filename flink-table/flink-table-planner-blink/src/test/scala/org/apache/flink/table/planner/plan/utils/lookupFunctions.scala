@@ -39,28 +39,21 @@ class InvalidTableFunctionResultType extends TableFunction[String] {
 }
 
 @SerialVersionUID(1L)
-class InvalidTableFunctionEvalSignature1 extends TableFunction[RowData] {
+class InvalidTableFunctionEvalSignature extends TableFunction[RowData] {
   def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
   }
 }
 
 @SerialVersionUID(1L)
-class ValidTableFunction extends TableFunction[RowData] {
+class TableFunctionWithRowDataVarArg extends TableFunction[RowData] {
   @varargs
   def eval(obj: AnyRef*): Unit = {
   }
 }
 
 @SerialVersionUID(1L)
-class ValidTableFunction2 extends TableFunction[Row] {
+class TableFunctionWithRow extends TableFunction[Row] {
   def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
-  }
-}
-
-@SerialVersionUID(1L)
-class InvalidAsyncTableFunctionResultType extends AsyncTableFunction[Row] {
-  @varargs
-  def eval(obj: AnyRef*): Unit = {
   }
 }
 
@@ -71,9 +64,8 @@ class InvalidAsyncTableFunctionEvalSignature1 extends AsyncTableFunction[RowData
 }
 
 @SerialVersionUID(1L)
-class InvalidAsyncTableFunctionEvalSignature2 extends AsyncTableFunction[RowData] {
-  def eval(resultFuture: CompletableFuture[JCollection[RowData]],
-    a: Integer, b: String,  c: LocalDateTime): Unit = {
+class InvalidAsyncTableFunctionEvalSignature2 extends AsyncTableFunction[Row] {
+  def eval(a: Integer, b: String,  c: LocalDateTime): Unit = {
   }
 }
 
@@ -85,15 +77,22 @@ class InvalidAsyncTableFunctionEvalSignature3 extends AsyncTableFunction[RowData
 }
 
 @SerialVersionUID(1L)
-class ValidAsyncTableFunction extends AsyncTableFunction[RowData] {
+class AsyncTableFunctionWithRowData extends AsyncTableFunction[RowData] {
+  def eval(resultFuture: CompletableFuture[JCollection[RowData]],
+    a: Integer, b: StringData, c: JLong): Unit = {
+  }
+}
+
+@SerialVersionUID(1L)
+class AsyncTableFunctionWithRowDataVarArg extends AsyncTableFunction[RowData] {
   @varargs
   def eval(resultFuture: CompletableFuture[JCollection[RowData]], objs: AnyRef*): Unit = {
   }
 }
 
 @SerialVersionUID(1L)
-class ValidAsyncTableFunction2 extends AsyncTableFunction[RowData] {
-  def eval(resultFuture: CompletableFuture[JCollection[RowData]],
-    a: Integer, b: StringData, c: JLong): Unit = {
+class AsyncTableFunctionWithRow extends AsyncTableFunction[Row] {
+  @varargs
+  def eval(obj: AnyRef*): Unit = {
   }
 }

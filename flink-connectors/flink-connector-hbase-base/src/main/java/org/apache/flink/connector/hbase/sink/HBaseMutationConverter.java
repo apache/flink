@@ -28,19 +28,18 @@ import java.io.Serializable;
 
 /**
  * A converter used to converts the input record into HBase {@link Mutation}.
+ *
  * @param <T> type of input record.
  */
 @Internal
 public interface HBaseMutationConverter<T> extends Serializable {
 
-	/**
-	 * Initialization method for the function. It is called once before conversion method.
-	 */
-	void open();
+    /** Initialization method for the function. It is called once before conversion method. */
+    void open();
 
-	/**
-	 * Converts the input record into HBase {@link Mutation}. A mutation can be a
-	 * {@link Put} or {@link Delete}.
-	 */
-	Mutation convertToMutation(T record);
+    /**
+     * Converts the input record into HBase {@link Mutation}. A mutation can be a {@link Put} or
+     * {@link Delete}.
+     */
+    Mutation convertToMutation(T record);
 }

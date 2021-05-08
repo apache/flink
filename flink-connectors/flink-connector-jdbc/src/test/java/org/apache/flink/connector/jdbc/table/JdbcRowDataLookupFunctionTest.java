@@ -39,89 +39,90 @@ import java.util.stream.Collectors;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test suite for {@link JdbcRowDataLookupFunction}.
- */
+/** Test suite for {@link JdbcRowDataLookupFunction}. */
 public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
 
-	private static String[] fieldNames = new String[] {"id1", "id2", "comment1", "comment2"};
-	private static DataType[] fieldDataTypes = new DataType[] {
-		DataTypes.INT(),
-		DataTypes.STRING(),
-		DataTypes.STRING(),
-		DataTypes.STRING()
-	};
+    private static String[] fieldNames = new String[] {"id1", "id2", "comment1", "comment2"};
+    private static DataType[] fieldDataTypes =
+            new DataType[] {
+                DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()
+            };
 
-	private static String[] lookupKeys = new String[] {"id1", "id2"};
+    private static String[] lookupKeys = new String[] {"id1", "id2"};
 
-	@Test
-	public void testEval() throws Exception {
+    @Test
+    public void testEval() throws Exception {
 
-		JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction();
+        JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction();
 
-		ListOutputCollector collector = new ListOutputCollector();
-		lookupFunction.setCollector(collector);
+        ListOutputCollector collector = new ListOutputCollector();
+        lookupFunction.setCollector(collector);
 
-		lookupFunction.open(null);
+        lookupFunction.open(null);
 
-		lookupFunction.eval(1, StringData.fromString("1"));
+        lookupFunction.eval(1, StringData.fromString("1"));
 
-		// close connection
-		lookupFunction.getDbConnection().close();
+        // close connection
+        lookupFunction.getDbConnection().close();
 
-		lookupFunction.eval(2, StringData.fromString("3"));
+        lookupFunction.eval(2, StringData.fromString("3"));
 
-		List<String> result = new ArrayList<>(collector.getOutputs()).stream()
-			.map(RowData::toString)
-			.sorted()
-			.collect(Collectors.toList());
+        List<String> result =
+                new ArrayList<>(collector.getOutputs())
+                        .stream().map(RowData::toString).sorted().collect(Collectors.toList());
 
-		List<String> expected = new ArrayList<>();
-		expected.add("+I(1,1,11-c1-v1,11-c2-v1)");
-		expected.add("+I(1,1,11-c1-v2,11-c2-v2)");
-		expected.add("+I(2,3,null,23-c2)");
-		Collections.sort(expected);
+        List<String> expected = new ArrayList<>();
+        expected.add("+I(1,1,11-c1-v1,11-c2-v1)");
+        expected.add("+I(1,1,11-c1-v2,11-c2-v2)");
+        expected.add("+I(2,3,null,23-c2)");
+        Collections.sort(expected);
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 
-	private JdbcRowDataLookupFunction buildRowDataLookupFunction() {
-		JdbcOptions jdbcOptions = JdbcOptions.builder()
-			.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
-			.setDBUrl(DB_URL)
-			.setTableName(LOOKUP_TABLE)
-			.build();
+    private JdbcRowDataLookupFunction buildRowDataLookupFunction() {
+        JdbcOptions jdbcOptions =
+                JdbcOptions.builder()
+                        .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                        .setDBUrl(DB_URL)
+                        .setTableName(LOOKUP_TABLE)
+                        .build();
 
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
+        JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
 
-		RowType rowType = RowType.of(Arrays.stream(fieldDataTypes).
-			map(DataType::getLogicalType).toArray(LogicalType[]::new), fieldNames);
+        RowType rowType =
+                RowType.of(
+                        Arrays.stream(fieldDataTypes)
+                                .map(DataType::getLogicalType)
+                                .toArray(LogicalType[]::new),
+                        fieldNames);
 
-		JdbcRowDataLookupFunction lookupFunction = new JdbcRowDataLookupFunction(
-			jdbcOptions,
-			lookupOptions,
-			fieldNames,
-			fieldDataTypes,
-			lookupKeys,
-			rowType);
+        JdbcRowDataLookupFunction lookupFunction =
+                new JdbcRowDataLookupFunction(
+                        jdbcOptions,
+                        lookupOptions,
+                        fieldNames,
+                        fieldDataTypes,
+                        lookupKeys,
+                        rowType);
 
-		return lookupFunction;
-	}
+        return lookupFunction;
+    }
 
-	private static final class ListOutputCollector implements Collector<RowData> {
+    private static final class ListOutputCollector implements Collector<RowData> {
 
-		private final List<RowData> output = new ArrayList<>();
+        private final List<RowData> output = new ArrayList<>();
 
-		@Override
-		public void collect(RowData row) {
-			this.output.add(row);
-		}
+        @Override
+        public void collect(RowData row) {
+            this.output.add(row);
+        }
 
-		@Override
-		public void close() {}
+        @Override
+        public void close() {}
 
-		public List<RowData> getOutputs() {
-			return output;
-		}
-	}
+        public List<RowData> getOutputs() {
+            return output;
+        }
+    }
 }

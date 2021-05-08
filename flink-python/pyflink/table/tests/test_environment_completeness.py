@@ -41,8 +41,6 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'getCompletionHints',
             'fromValues',
             'create',
-            'loadModule',
-            'unloadModule',
             'createTemporarySystemFunction',
             'dropTemporarySystemFunction',
             'createFunction',

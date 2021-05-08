@@ -40,123 +40,131 @@ import java.util.Map;
  */
 @Internal
 public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
-	extends AbstractStreamArrowPythonOverWindowAggregateFunctionOperator<K> {
+        extends AbstractStreamArrowPythonOverWindowAggregateFunctionOperator<K> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient LinkedList<List<RowData>> inputData;
+    private transient LinkedList<List<RowData>> inputData;
 
-	public AbstractStreamArrowPythonBoundedRangeOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggFunctions,
-		RowType inputType,
-		RowType outputType,
-		int inputTimeFieldIndex,
-		long lowerBoundary,
-		int[] groupingSet,
-		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex, lowerBoundary,
-			groupingSet, udafInputOffsets);
-	}
+    public AbstractStreamArrowPythonBoundedRangeOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggFunctions,
+            RowType inputType,
+            RowType outputType,
+            int inputTimeFieldIndex,
+            long lowerBoundary,
+            int[] groupingSet,
+            int[] udafInputOffsets) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                outputType,
+                inputTimeFieldIndex,
+                lowerBoundary,
+                groupingSet,
+                udafInputOffsets);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		inputData = new LinkedList<>();
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        inputData = new LinkedList<>();
+    }
 
-	@Override
-	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		long timestamp = timer.getTimestamp();
-		Long cleanupTimestamp = cleanupTsState.value();
-		// if cleanupTsState has not been updated then it is safe to cleanup states
-		if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
-			inputState.clear();
-			lastTriggeringTsState.clear();
-			cleanupTsState.clear();
-			return;
-		}
-		// gets all window data from state for the calculation
-		List<RowData> inputs = inputState.get(timestamp);
-		triggerWindowProcess(timestamp, inputs);
-		lastTriggeringTsState.update(timestamp);
-	}
+    @Override
+    public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+        long timestamp = timer.getTimestamp();
+        Long cleanupTimestamp = cleanupTsState.value();
+        // if cleanupTsState has not been updated then it is safe to cleanup states
+        if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
+            inputState.clear();
+            lastTriggeringTsState.clear();
+            cleanupTsState.clear();
+            return;
+        }
+        // gets all window data from state for the calculation
+        List<RowData> inputs = inputState.get(timestamp);
+        triggerWindowProcess(timestamp, inputs);
+        lastTriggeringTsState.update(timestamp);
+    }
 
-	@Override
-	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		long timestamp = timer.getTimestamp();
-		Long cleanupTimestamp = cleanupTsState.value();
-		// if cleanupTsState has not been updated then it is safe to cleanup states
-		if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
-			inputState.clear();
-			cleanupTsState.clear();
-			return;
-		}
+    @Override
+    public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+        long timestamp = timer.getTimestamp();
+        Long cleanupTimestamp = cleanupTsState.value();
+        // if cleanupTsState has not been updated then it is safe to cleanup states
+        if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
+            inputState.clear();
+            cleanupTsState.clear();
+            return;
+        }
 
-		// we consider the original timestamp of events
-		// that have registered this time trigger 1 ms ago
+        // we consider the original timestamp of events
+        // that have registered this time trigger 1 ms ago
 
-		long currentTime = timestamp - 1;
+        long currentTime = timestamp - 1;
 
-		// get the list of elements of current proctime
-		List<RowData> currentElements = inputState.get(currentTime);
-		triggerWindowProcess(timestamp, currentElements);
-	}
+        // get the list of elements of current proctime
+        List<RowData> currentElements = inputState.get(currentTime);
+        triggerWindowProcess(timestamp, currentElements);
+    }
 
-	@Override
-	@SuppressWarnings("ConstantConditions")
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		byte[] udafResult = resultTuple.f0;
-		int length = resultTuple.f1;
-		bais.setBuffer(udafResult, 0, length);
-		int rowCount = arrowSerializer.load();
-		for (int i = 0; i < rowCount; i++) {
-			RowData data = arrowSerializer.read(i);
-			List<RowData> input = inputData.poll();
-			for (RowData ele : input) {
-				reuseJoinedRow.setRowKind(ele.getRowKind());
-				rowDataWrapper.collect(reuseJoinedRow.replace(ele, data));
-			}
-		}
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] udafResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(udafResult, 0, length);
+        int rowCount = arrowSerializer.load();
+        for (int i = 0; i < rowCount; i++) {
+            RowData data = arrowSerializer.read(i);
+            List<RowData> input = inputData.poll();
+            for (RowData ele : input) {
+                reuseJoinedRow.setRowKind(ele.getRowKind());
+                rowDataWrapper.collect(reuseJoinedRow.replace(ele, data));
+            }
+        }
+        arrowSerializer.resetReader();
+    }
 
-	void registerCleanupTimer(long timestamp, TimeDomain domain) throws Exception {
-		long minCleanupTimestamp = timestamp + lowerBoundary + 1;
-		long maxCleanupTimestamp = timestamp + (long) (lowerBoundary * 1.5) + 1;
-		// update timestamp and register timer if needed
-		Long curCleanupTimestamp = cleanupTsState.value();
-		if (curCleanupTimestamp == null || curCleanupTimestamp < minCleanupTimestamp) {
-			// we don't delete existing timer since it may delete timer for data processing
-			if (domain == TimeDomain.EVENT_TIME) {
-				timerService.registerEventTimeTimer(maxCleanupTimestamp);
-			} else {
-				timerService.registerProcessingTimeTimer(maxCleanupTimestamp);
-			}
-			cleanupTsState.update(maxCleanupTimestamp);
-		}
-	}
+    void registerCleanupTimer(long timestamp, TimeDomain domain) throws Exception {
+        long minCleanupTimestamp = timestamp + lowerBoundary + 1;
+        long maxCleanupTimestamp = timestamp + (long) (lowerBoundary * 1.5) + 1;
+        // update timestamp and register timer if needed
+        Long curCleanupTimestamp = cleanupTsState.value();
+        if (curCleanupTimestamp == null || curCleanupTimestamp < minCleanupTimestamp) {
+            // we don't delete existing timer since it may delete timer for data processing
+            if (domain == TimeDomain.EVENT_TIME) {
+                timerService.registerEventTimeTimer(maxCleanupTimestamp);
+            } else {
+                timerService.registerProcessingTimeTimer(maxCleanupTimestamp);
+            }
+            cleanupTsState.update(maxCleanupTimestamp);
+        }
+    }
 
-	private void triggerWindowProcess(long upperLimit, List<RowData> inputs) throws Exception {
-		long lowerLimit = upperLimit - lowerBoundary;
-		if (inputs != null) {
-			Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.iterator();
-			while (iter.hasNext()) {
-				Map.Entry<Long, List<RowData>> entry = iter.next();
-				long dataTs = entry.getKey();
-				if (dataTs >= lowerLimit) {
-					if (dataTs <= upperLimit) {
-						List<RowData> dataList = entry.getValue();
-						for (RowData data : dataList) {
-							arrowSerializer.write(getFunctionInput(data));
-							currentBatchCount++;
-						}
-					}
-				} else {
-					iter.remove();
-				}
-			}
-			inputData.add(inputs);
-			invokeCurrentBatch();
-		}
-	}
+    private void triggerWindowProcess(long upperLimit, List<RowData> inputs) throws Exception {
+        long lowerLimit = upperLimit - lowerBoundary;
+        if (inputs != null) {
+            Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.iterator();
+            while (iter.hasNext()) {
+                Map.Entry<Long, List<RowData>> entry = iter.next();
+                long dataTs = entry.getKey();
+                if (dataTs >= lowerLimit) {
+                    if (dataTs <= upperLimit) {
+                        List<RowData> dataList = entry.getValue();
+                        for (RowData data : dataList) {
+                            arrowSerializer.write(getFunctionInput(data));
+                            currentBatchCount++;
+                        }
+                    }
+                } else {
+                    iter.remove();
+                }
+            }
+            inputData.add(inputs);
+            invokeCurrentBatch();
+        }
+    }
 }
