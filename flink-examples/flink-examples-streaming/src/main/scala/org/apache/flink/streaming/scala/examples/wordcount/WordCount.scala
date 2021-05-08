@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.scala.examples.wordcount
 
+import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.api.java.utils.ParameterTool
+import org.apache.flink.core.fs.Path
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData
 
@@ -79,7 +82,10 @@ object WordCount {
 
     // emit result
     if (params.has("output")) {
-      counts.writeAsText(params.get("output"))
+      counts.addSink(StreamingFileSink.forRowFormat(
+        new Path(params.get("output")),
+        new SimpleStringEncoder[(String, Int)]("UTF-8"))
+        .build())
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
       counts.print()
