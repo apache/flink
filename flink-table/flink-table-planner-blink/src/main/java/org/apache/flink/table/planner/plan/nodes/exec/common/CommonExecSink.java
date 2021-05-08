@@ -319,6 +319,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     }
 
     private RowType getConsumedRowType(ResolvedSchema schema) {
-        return (RowType) schema.toSinkRowDataType().getLogicalType();
+        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
     }
 }

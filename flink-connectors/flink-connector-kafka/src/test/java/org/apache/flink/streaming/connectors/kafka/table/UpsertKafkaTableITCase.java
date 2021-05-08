@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -198,7 +197,6 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
     }
 
     @Test
-    @Ignore // FLINK-22559
     public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
         // we always use a different topic name for each parameterized topic,
         // in order to make sure the topic can be created.
