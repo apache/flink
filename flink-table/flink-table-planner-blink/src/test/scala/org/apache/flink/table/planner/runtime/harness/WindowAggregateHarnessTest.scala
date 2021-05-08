@@ -344,20 +344,10 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
     testHarness.close()
 
     val testHarness1 = createHarnessTester(stream, "GlobalWindowAggregate")
-    // window aggregate put window properties at the end of aggs
-    val outputTypes1 = Array(
-      DataTypes.STRING().getLogicalType,
-      DataTypes.BIGINT().getLogicalType,
-      DataTypes.DOUBLE().getLogicalType,
-      DataTypes.BIGINT().getLogicalType,
-      DataTypes.TIMESTAMP_LTZ(3).getLogicalType,
-      DataTypes.TIMESTAMP_LTZ(3).getLogicalType)
-    testHarness1.setup(new RowDataSerializer(outputTypes1: _*))
+    testHarness1.setup(new RowDataSerializer(outputTypes: _*))
 
     // simulate a failover after a failed task open, expect no exception happens
     testHarness1.close()
-
-
   }
 
   /**
