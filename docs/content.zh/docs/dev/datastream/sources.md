@@ -55,7 +55,7 @@ A Data Source has three core components: *Splits*, the *SplitEnumerator*, and th
   
 The [Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) class is API entry point that ties the above three components together.
 
-{{< img src="fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
+{{< img src="/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
 
 
 **Unified Across Streaming and Batch**
