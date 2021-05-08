@@ -139,24 +139,53 @@ function debug_and_show_logs {
 }
 
 function wait_rest_endpoint_up_k8s {
+  wait_for_logs $1 "Rest endpoint listening at"
+}
+
+function wait_num_checkpoints {
+    POD_NAME=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($POD_NAME) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+   # wait at most 120 seconds
+    local TIMEOUT=120
+    for i in $(seq 1 ${TIMEOUT}); do
+      N=$(kubectl logs $POD_NAME 2> /dev/null | grep -o "Completed checkpoint [1-9]* for job" | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        return
+      fi
+    done
+    echo "Could not get $NUM_CHECKPOINTS completed checkpoints in $TIMEOUT sec"
+    exit 1
+}
+
+function wait_for_logs {
   local jm_pod_name=$1
-  local successful_response_regex="Rest endpoint listening at"
+  local successful_response_regex=$2
 
   echo "Waiting for jobmanager pod ${jm_pod_name} ready."
   kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
 
-  # wait at most 30 seconds until the endpoint is up
+  # wait at most 30 seconds until the log shows up
   local TIMEOUT=30
+  echo "Waiting for log \"$2\"..."
   for i in $(seq 1 ${TIMEOUT}); do
     if check_logs_output $jm_pod_name $successful_response_regex; then
-      echo "REST endpoint is up."
+      echo "Log \"$2\" shows up."
       return
     fi
 
-    echo "Waiting for REST endpoint to come up..."
     sleep 1
   done
-  echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  echo "Log $2 does not show up within a timeout of ${TIMEOUT} sec"
   exit 1
 }
 
@@ -185,7 +214,7 @@ function get_host_machine_address {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
     else
-        echo "localhost"
+        echo $(hostname --ip-address)
     fi
 }
 
