@@ -139,7 +139,7 @@ DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamEx
 
 注意，如果没有调用 execute()，应用就不会运行。
 
-<img src="{% link /fig/distributed-runtime.svg %}" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" />
+{{< img src="/fig/distributed-runtime.svg" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" >}}
 
 此分布式运行时取决于你的应用是否是可序列化的。它还要求所有依赖对集群中的每个节点均可用。
 
