@@ -212,7 +212,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return new Iterable<ArchivedExecutionVertex>() {
             @Override
             public Iterator<ArchivedExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
+                return new AllVerticesIterator<>(getVerticesTopologically().iterator());
             }
         };
     }
@@ -260,51 +260,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Override
     public Optional<String> getCheckpointStorageName() {
         return Optional.ofNullable(checkpointStorageName);
-    }
-
-    class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
-
-        private final Iterator<ArchivedExecutionJobVertex> jobVertices;
-
-        private ArchivedExecutionVertex[] currVertices;
-
-        private int currPos;
-
-        public AllVerticesIterator(Iterator<ArchivedExecutionJobVertex> jobVertices) {
-            this.jobVertices = jobVertices;
-        }
-
-        @Override
-        public boolean hasNext() {
-            while (true) {
-                if (currVertices != null) {
-                    if (currPos < currVertices.length) {
-                        return true;
-                    } else {
-                        currVertices = null;
-                    }
-                } else if (jobVertices.hasNext()) {
-                    currVertices = jobVertices.next().getTaskVertices();
-                    currPos = 0;
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        @Override
-        public ArchivedExecutionVertex next() {
-            if (hasNext()) {
-                return currVertices[currPos++];
-            } else {
-                throw new NoSuchElementException();
-            }
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
     }
 
     /**
