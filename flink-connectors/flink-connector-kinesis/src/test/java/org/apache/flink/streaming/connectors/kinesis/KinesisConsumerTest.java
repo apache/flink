@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,7 +34,7 @@ import java.util.Properties;
  * Tests for {@link FlinkKinesisConsumer}. In contrast to tests in {@link FlinkKinesisConsumerTest}
  * it does not use power mock, which makes it possible to use e.g. the {@link ExpectedException}.
  */
-public class KinesisConsumerTest {
+public class KinesisConsumerTest extends TestLogger {
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
