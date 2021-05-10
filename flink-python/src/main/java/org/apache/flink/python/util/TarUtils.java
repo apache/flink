@@ -17,7 +17,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-/** Utils used to extract tar.gz files and try to restore the origin permissions of files. */
+/** Utils used to extract tar files. */
 @Internal
 public class TarUtils {
     public static void unTar(String inFilePath, String targetDirPath)
@@ -36,6 +36,8 @@ public class TarUtils {
         }
     }
 
+    // Copy and simplify from hadoop-common package that is used in YARN
+    // See https://github.com/apache/hadoop/blob/7f93349ee74da5f35276b7535781714501ab2457/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/FileUtil.java
     private static void unTarUsingTar(String inFilePath, String targetDirPath, boolean gzipped)
             throws IOException, InterruptedException {
         inFilePath = makeSecureShellPath(inFilePath);
@@ -56,6 +58,8 @@ public class TarUtils {
         }
     }
 
+    // Follow the pattern suggested in
+    // https://commons.apache.org/proper/commons-compress/examples.html
     private static void unTarUsingJava(String inFilePath, String targetDirPath, boolean gzipped)
             throws IOException {
         try (InputStream fi = Files.newInputStream(Paths.get(inFilePath));
@@ -84,6 +88,10 @@ public class TarUtils {
         }
     }
 
+    /**
+     * Convert a os-native filename to a path that works for the shell
+     * and avoids script injection attacks.
+     */
     private static String makeSecureShellPath(String filePath) {
         return filePath.replace("'", "'\\''");
     }
