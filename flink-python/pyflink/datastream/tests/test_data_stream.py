@@ -197,16 +197,17 @@ class DataStreamTests(object):
         ds1.connect(ds2) \
             .key_by(lambda x: x[0], lambda x: x[0]) \
             .process(MyKeyedCoProcessFunction()) \
+            .map(lambda x: Row(x[0], x[1] + 1)) \
             .add_sink(self.test_sink)
         self.env.execute('test_keyed_co_process_function')
         results = self.test_sink.get_results(True)
-        expected = ["<Row('a', 1)>",
-                    "<Row('b', 1)>",
+        expected = ["<Row('a', 2)>",
                     "<Row('b', 2)>",
-                    "<Row('c', 1)>",
+                    "<Row('b', 3)>",
                     "<Row('c', 2)>",
-                    "<Row('d', 1)>",
-                    "<Row('on_timer', 3)>"]
+                    "<Row('c', 3)>",
+                    "<Row('d', 2)>",
+                    "<Row('on_timer', 4)>"]
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_co_map(self):
@@ -246,14 +247,13 @@ class DataStreamTests(object):
         ds1.connect(ds2)\
             .key_by(MyKeySelector(), MyKeySelector(), key_type=Types.INT())\
             .map(AssertKeyCoMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1)) \
             .add_sink(self.test_sink)
 
         self.env.execute()
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)", "Row(f0='e', f1=2)",
-                    "Row(f0='a', f1=0)", "Row(f0='b', f1=0)", "Row(f0='c', f1=1)",
-                    "Row(f0='d', f1=1)"]
+        expected = ["('e', 3)", "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)", "('e', 3)",
+                    "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)"]
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_co_flat_map(self):
@@ -263,10 +263,11 @@ class DataStreamTests(object):
                                        type_info=Types.ROW([Types.STRING(), Types.STRING()]))
         ds1.connect(ds2).key_by(lambda x: 1, lambda x: 1) \
             .flat_map(MyRichCoFlatMapFunction(), output_type=Types.STRING()) \
+            .filter(lambda x: x != '4') \
             .add_sink(self.test_sink)
         self.env.execute('test_keyed_co_flat_map')
         results = self.test_sink.get_results(False)
-        expected = ['2', '2', '3', '3', '4', '4', 'a', 'b', 'c']
+        expected = ['2', '2', '3', '3', 'a', 'b', 'c']
         self.assert_equals_sorted(expected, results)
 
     def test_execute_and_collect(self):
@@ -361,11 +362,12 @@ class DataStreamTests(object):
                     state_value += 1
                 return state_value
 
-        keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
+        keyed_stream.map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
+            .add_sink(self.test_sink)
         self.env.execute('test_keyed_map')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=1)",
-                    "Row(f0='c', f1=0)", "Row(f0='d', f1=1)"]
+        expected = ["('e', 3)", "('a', 1)", "('b', 2)", "('c', 1)", "('d', 2)"]
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_flat_map(self):
@@ -403,11 +405,12 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 yield value
 
-        keyed_stream.flat_map(AssertKeyMapFunction()).add_sink(self.test_sink)
+        keyed_stream.flat_map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
+            .add_sink(self.test_sink)
         self.env.execute('test_keyed_flat_map')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)"]
+        expected = ["('e', 3)", "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)"]
         self.assert_equals_sorted(expected, results)
 
     def test_keyed_filter(self):
@@ -447,10 +450,12 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 return True
 
-        keyed_stream.filter(AssertKeyFilterFunction()).add_sink(self.test_sink)
+        keyed_stream.filter(AssertKeyFilterFunction())\
+            .filter(lambda x: x[1] > 0)\
+            .add_sink(self.test_sink)
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
-        expected = ['+I[a, 0]', '+I[c, 1]', '+I[e, 2]']
+        expected = ['+I[c, 1]', '+I[e, 2]']
         self.assert_equals_sorted(expected, results)
 
     def test_multi_key_by(self):

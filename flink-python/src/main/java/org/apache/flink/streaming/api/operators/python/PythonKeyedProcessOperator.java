@@ -53,7 +53,8 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  * state request from the python stateful user defined function.
  */
 @Internal
-public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOperator<Row, OUT>
+public class PythonKeyedProcessOperator<OUT>
+        extends AbstractOneInputPythonFunctionOperator<Row, OUT>
         implements Triggerable<Row, Object> {
 
     private static final long serialVersionUID = 1L;
@@ -138,7 +139,7 @@ public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOpera
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATEFUL_FUNCTION_URN,
-                ProtoUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamStatefulFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         Collections.emptyMap(),
@@ -232,5 +233,16 @@ public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOpera
     @Override
     public Object getCurrentKey() {
         return keyForTimerService;
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonKeyedProcessOperator<>(
+                getConfig().getConfig(),
+                pythonFunctionInfo,
+                (RowTypeInfo) getInputTypeInfo(),
+                outputTypeInfo,
+                namespaceSerializer);
     }
 }

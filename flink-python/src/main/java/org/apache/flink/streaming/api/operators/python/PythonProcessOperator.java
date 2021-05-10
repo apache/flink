@@ -26,6 +26,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -35,7 +36,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -43,7 +43,8 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  * harness to execute user defined python ProcessFunction.
  */
 @Internal
-public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
+public class PythonProcessOperator<IN, OUT>
+        extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -74,7 +75,7 @@ public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperat
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATELESS_FUNCTION_URN,
-                getUserDefinedDataStreamFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         getInternalParameters(),
@@ -125,5 +126,12 @@ public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperat
 
     public void setNumPartitions(int numPartitions) {
         this.numPartitions = numPartitions;
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonProcessOperator<>(
+                getConfig().getConfig(), pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
     }
 }

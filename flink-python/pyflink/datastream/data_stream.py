@@ -68,7 +68,7 @@ class DataStream(object):
     def name(self, name: str) -> 'DataStream':
         """
         Sets the name of the current data stream. This name is used by the visualization and logging
-        during runting.
+        during runtime.
 
         :param name: Name of the stream.
         :return: The named operator.
