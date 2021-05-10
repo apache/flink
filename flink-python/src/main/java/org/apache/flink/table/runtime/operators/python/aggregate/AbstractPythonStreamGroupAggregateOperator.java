@@ -85,8 +85,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long minRetentionTime,
-            long maxRetentionTime,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            long maxRetentionTime) {
         super(
                 config,
                 inputType,
@@ -96,8 +95,9 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 grouping,
                 indexOfCountStar,
                 generateUpdateBefore,
-                "flink:coder:schema:aggregate_function:v1",
-                outputMode);
+                FlinkFnApi.CoderParam.DataType.ROW,
+                FlinkFnApi.CoderParam.DataType.ROW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;

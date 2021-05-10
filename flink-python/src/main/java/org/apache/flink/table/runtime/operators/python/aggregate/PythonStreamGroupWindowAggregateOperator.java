@@ -171,7 +171,8 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 grouping,
                 indexOfCountStar,
                 generateUpdateBefore,
-                "flink:coder:schema:scalar_function:v1",
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
                 FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;

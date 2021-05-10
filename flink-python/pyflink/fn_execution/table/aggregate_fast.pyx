@@ -625,7 +625,7 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
             aggs_handle.set_accumulators(accumulators)
 
             if not first_row and self.generate_update_before:
-                results.append(aggs_handle.emit_value(key, True))
+                results.extend(aggs_handle.emit_value(key, True))
 
             for i in range(start_index, input_rows_num):
                 input_data = input_rows[i]
@@ -641,7 +641,7 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
             accumulators = aggs_handle.get_accumulators()
 
             if not self.record_counter.record_count_is_zero(accumulators):
-                results.append(aggs_handle.emit_value(key, False))
+                results.extend(aggs_handle.emit_value(key, False))
                 accumulator_state.update(accumulators)
             else:
                 # and clear all state

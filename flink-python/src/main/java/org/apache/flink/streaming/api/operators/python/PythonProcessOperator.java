@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
@@ -42,8 +43,6 @@ public class PythonProcessOperator<IN, OUT>
 
     private static final String PROCESS_FUNCTION_URN = "flink:transform:process_function:v1";
 
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
-
     /** Reusable row for normal data runner inputs. */
     private transient Row reusableInput;
 
@@ -59,6 +58,9 @@ public class PythonProcessOperator<IN, OUT>
                 config,
                 Types.ROW(Types.LONG, Types.LONG, inputTypeInfo),
                 outputTypeInfo,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END,
                 pythonFunctionInfo);
     }
 
@@ -101,10 +103,5 @@ public class PythonProcessOperator<IN, OUT>
     @Override
     public String getFunctionUrn() {
         return PROCESS_FUNCTION_URN;
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return FLAT_MAP_CODER_URN;
     }
 }

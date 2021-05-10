@@ -135,7 +135,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
 
+    protected static final String FLINK_CODER_URN = "flink:coder:v1";
+
     protected final FlinkFnApi.CoderParam.OutputMode outputMode;
+
+    protected final FlinkFnApi.CoderParam.DataType inputDataType;
+    protected final FlinkFnApi.CoderParam.DataType outputDataType;
 
     private transient boolean bundleStarted;
 
@@ -208,6 +213,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             @Nullable TypeSerializer namespaceSerializer,
             @Nullable MemoryManager memoryManager,
             double managedMemoryFraction,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
             FlinkFnApi.CoderParam.OutputMode outputMode) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
@@ -219,7 +226,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
-        this.outputMode = outputMode;
+        this.inputDataType = Preconditions.checkNotNull(inputDataType);
+        this.outputDataType = Preconditions.checkNotNull(outputDataType);
+        this.outputMode = Preconditions.checkNotNull(outputMode);
         this.resultTuple = new Tuple2<>();
     }
 

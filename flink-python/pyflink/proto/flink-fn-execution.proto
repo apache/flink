@@ -313,19 +313,29 @@ message Schema {
 // A representation of the coder
 message CoderParam {
   enum DataType {
+    // used in udf/udtf
     FLATTEN_ROW = 0;
+    // used in udaf/udtaf
     ROW = 1;
+    // used in datastream
     RAW = 2;
+    // used pandas udf/udaf
     ARROW = 3;
+    // only used in batch over window
+    // the data consists of [window data][arrow data]
+    OVER_WINDOW_ARROW=4;
   }
 
   enum OutputMode {
+    // output single result
     SINGLE = 0;
+    // output multiple result
     MULTIPLE = 1;
+    // output multiple result and a end message(0x00)
     MULTIPLE_WITH_END = 2;
   }
 
-  oneof data_info {
+  oneof field_type {
     Schema schema = 1;
     TypeInfo type_info = 2;
   }

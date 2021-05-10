@@ -46,7 +46,6 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTableStatelessPyt
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer) {
         super(
@@ -56,11 +55,12 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTableStatelessPyt
                 outputType,
                 functionUrn,
                 userDefinedFunctions,
-                coderUrn,
                 jobOptions,
                 flinkMetricContainer,
                 null,
                 0.0,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
                 FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.buffer = new LinkedList<>();
     }

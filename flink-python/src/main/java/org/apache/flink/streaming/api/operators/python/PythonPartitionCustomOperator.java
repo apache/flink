@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 
 import java.util.HashMap;
@@ -43,8 +44,6 @@ public class PythonPartitionCustomOperator<IN, OUT>
 
     private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
-
     private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
     public PythonPartitionCustomOperator(
@@ -52,7 +51,14 @@ public class PythonPartitionCustomOperator<IN, OUT>
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+        super(
+                config,
+                inputTypeInfo,
+                outputTypeInfo,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE,
+                pythonFunctionInfo);
     }
 
     @Override
@@ -69,11 +75,6 @@ public class PythonPartitionCustomOperator<IN, OUT>
         Map<String, String> internalParameters = new HashMap<>();
         internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
         return internalParameters;
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
     }
 
     public void setNumPartitions(int numPartitions) {
