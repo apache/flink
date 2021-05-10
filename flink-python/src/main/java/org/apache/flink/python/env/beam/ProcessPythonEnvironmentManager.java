@@ -162,7 +162,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     }
 
     @Override
-    public PythonEnvironment createEnvironment() throws IOException {
+    public PythonEnvironment createEnvironment() throws IOException, InterruptedException {
         Map<String, String> env = constructEnvironmentVariables();
 
         if (dependencyInfo.getRequirementsFilePath().isPresent()) {
@@ -216,7 +216,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
      */
     @VisibleForTesting
     Map<String, String> constructEnvironmentVariables()
-            throws IOException, IllegalArgumentException {
+            throws IOException, IllegalArgumentException, InterruptedException {
         Map<String, String> env = new HashMap<>(this.systemEnv);
 
         constructFilesDirectory(env);
@@ -317,7 +317,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
     }
 
-    private void constructArchivesDirectory(Map<String, String> env) throws IOException {
+    private void constructArchivesDirectory(Map<String, String> env) throws IOException, InterruptedException {
         if (!dependencyInfo.getArchives().isEmpty()) {
             // set the archives directory as the working directory, then user could access the
             // content of the archives
