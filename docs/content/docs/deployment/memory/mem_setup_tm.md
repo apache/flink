@@ -174,15 +174,15 @@ then all components are ignored except for the following:
 | :------------------------------------------- | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
 | Task heap                                    | [`taskmanager.memory.task.heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-heap-size)         | infinite                                                                        |
 | Task off-heap                                | [`taskmanager.memory.task.off-heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size) | infinite                                                                        |
-| Managed memory                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128Mb                                                                           |
-| Network memory                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64Mb |
+| Managed memory                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128 Mb                                                                           |
+| Network memory                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64 Mb |
 
 <br/>
 
 All of the components listed above can be but do not have to be explicitly configured for local execution.
 If they are not configured they are set to their default values. [Task heap memory](#task-operator-heap-memory) and
 *task off-heap memory* are considered to be infinite (*Long.MAX_VALUE* bytes) and [managed memory](#managed-memory)
-has a default value of 128Mb only for the local execution mode.
+has a default value of 128 Mb only for the local execution mode.
 
 <span class="label label-info">Note</span> The task heap size is not related in any way to the real heap size in this case.
 It can become relevant for future optimizations coming with next releases. The actual JVM Heap size of the started

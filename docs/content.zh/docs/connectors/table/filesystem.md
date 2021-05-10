@@ -221,7 +221,7 @@ CREATE TABLE MyUserTableWithFilepath (
   <tbody>
     <tr>
         <td><h5>sink.rolling-policy.file-size</h5></td>
-        <td style="word-wrap: break-word;">128MB</td>
+        <td style="word-wrap: break-word;">128 MB</td>
         <td>MemorySize</td>
         <td> 滚动前，part 文件最大大小。</td>
     </tr>
@@ -341,17 +341,17 @@ Flink 提供了两种类型分区提交触发器：
 
 不管分区数据是否完整而只想让下游尽快感知到分区：
 - 'sink.partition-commit.trigger'='process-time' (默认值)
-- 'sink.partition-commit.delay'='0s' (默认值)
+- 'sink.partition-commit.delay'='0 s' (默认值)
   一旦数据进入分区，将立即提交分区。注意：这个分区可能会被提交多次。
 
 如果想让下游只有在分区数据完整时才感知到分区，并且 job 中有 watermark 生成，也能从分区字段的值中提取到时间：
 - 'sink.partition-commit.trigger'='partition-time'
-- 'sink.partition-commit.delay'='1h' (根据分区类型指定，如果是按小时分区可配置为 '1h')
+- 'sink.partition-commit.delay'='1 h' (根据分区类型指定，如果是按小时分区可配置为 '1 h')
   该方式是最精准地提交分区的方式，尽力确保提交分区的数据完整。
 
 如果想让下游系统只有在数据完整时才感知到分区，但是没有 watermark，或者无法从分区字段的值中提取时间：
 - 'sink.partition-commit.trigger'='process-time' (默认值)
-- 'sink.partition-commit.delay'='1h' (根据分区类型指定，如果是按小时分区可配置为 '1h')
+- 'sink.partition-commit.delay'='1 h' (根据分区类型指定，如果是按小时分区可配置为 '1 h')
   该方式尽量精确地提交分区，但是数据延迟或者故障将导致过早提交分区。
 
 延迟数据的处理：延迟的记录会被写入到已经提交的对应分区中，且会再次触发该分区的提交。
@@ -546,7 +546,7 @@ CREATE TABLE fs_table (
   'connector'='filesystem',
   'path'='...',
   'format'='parquet',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.policy.kind'='success-file'
 );
 
@@ -584,7 +584,7 @@ CREATE TABLE fs_table (
   'path'='...',
   'format'='parquet',
   'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.trigger'='partition-time',
   'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- 假设用户配置的时区为 'Asia/Shanghai'
   'sink.partition-commit.policy.kind'='success-file'

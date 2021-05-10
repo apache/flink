@@ -132,7 +132,7 @@ ON myTopic.key = hTable.rowkey;
     <tr>
       <td><h5>sink.buffer-flush.max-size</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">2mb</td>
+      <td style="word-wrap: break-word;">2 mb</td>
       <td>MemorySize</td>
       <td>写入的参数选项。每次写入请求缓存行的最大大小。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。
       </td>
@@ -148,7 +148,7 @@ ON myTopic.key = hTable.rowkey;
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">1s</td>
+      <td style="word-wrap: break-word;">1 s</td>
       <td>Duration</td>
       <td>写入的参数选项。刷写缓存行的间隔。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。注意："sink.buffer-flush.max-size" 和 "sink.buffer-flush.max-rows" 同时设置为 "0"，刷写选项整个异步处理缓存行为。
       </td>

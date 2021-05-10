@@ -190,14 +190,14 @@ Flink 会负责管理网络内存，保证其实际用量不会超过配置大�
 | :------------------------------------------- | :---------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
 | 任务堆内存                                    | [`taskmanager.memory.task.heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-heap-size)         | 无穷大                                                                        |
 | 任务堆外内存                                | [`taskmanager.memory.task.off-heap.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size) | 无穷大                                                                        |
-| 托管内存                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128Mb                                                                           |
-| 网络内存                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64Mb |
+| 托管内存                               | [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)             | 128 Mb                                                                           |
+| 网络内存                               | [`taskmanager.memory.network.min`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) | 64 Mb |
 
 <br/>
 
 本地执行模式下，上面列出的所有内存部分均可以但不是必须进行配置。
 如果未配置，则会采用默认值。
-其中，[任务堆内存](#task-operator-heap-memory)和*任务堆外内存*的默认值无穷大（*Long.MAX_VALUE* 字节），以及[托管内存](#managed-memory)的默认值 128Mb 均只针对本地执行模式。
+其中，[任务堆内存](#task-operator-heap-memory)和*任务堆外内存*的默认值无穷大（*Long.MAX_VALUE* 字节），以及[托管内存](#managed-memory)的默认值 128 Mb 均只针对本地执行模式。
 
 <span class="label label-info">提示</span>
 这种情况下，任务堆内存的大小与实际的堆空间大小无关。

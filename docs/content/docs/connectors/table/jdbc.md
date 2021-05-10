@@ -155,7 +155,7 @@ Connector Options
       <td><h5>connection.max-retry-timeout</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">60s</td>
+      <td style="word-wrap: break-word;">60 s</td>
       <td>Duration</td>
       <td>Maximum timeout between retries. The timeout should be in second granularity and shouldn't be smaller than 1 second.</td>
     </tr>
@@ -255,7 +255,7 @@ Connector Options
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">1s</td>
+      <td style="word-wrap: break-word;">1 s</td>
       <td>Duration</td>
       <td>The flush interval mills, over this time, asynchronous threads will flush data. Can be set to <code>'0'</code> to disable it. Note, <code>'sink.buffer-flush.max-rows'</code> can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.</td>
     </tr>

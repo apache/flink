@@ -153,7 +153,7 @@ ON myTopic.key = MyUserTable.id;
     <tr>
       <td><h5>connection.max-retry-timeout</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">60s</td>
+      <td style="word-wrap: break-word;">60 s</td>
       <td>Duration</td>
       <td>最大重试超时时间，以秒为单位且不应该小于 1 秒。</td>
     </tr>
@@ -241,7 +241,7 @@ ON myTopic.key = MyUserTable.id;
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">1s</td>
+      <td style="word-wrap: break-word;">1 s</td>
       <td>Duration</td>
       <td>flush 间隔时间，超过该时间后异步线程将 flush 数据。可以设置为 <code>'0'</code> 来禁用它。注意, 为了完全异步地处理缓存的 flush 事件，可以将 <code>'sink.buffer-flush.max-rows'</code> 设置为 <code>'0'</code> 并配置适当的 flush 时间间隔。</td>
     </tr>

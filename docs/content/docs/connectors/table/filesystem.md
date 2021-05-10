@@ -217,7 +217,7 @@ a timeout that specifies the maximum duration for which a file can be open.
         <td><h5>sink.rolling-policy.file-size</h5></td>
         <td>optional</td>
         <td>yes</td>
-        <td style="word-wrap: break-word;">128MB</td>
+        <td style="word-wrap: break-word;">128 MB</td>
         <td>MemorySize</td>
         <td>The maximum part file size before rolling.</td>
     </tr>
@@ -350,17 +350,17 @@ hourly partition or daily partition.
 
 If you want to let downstream see the partition as soon as possible, no matter whether its data is complete or not:
 - 'sink.partition-commit.trigger'='process-time' (Default value)
-- 'sink.partition-commit.delay'='0s' (Default value)
+- 'sink.partition-commit.delay'='0 s' (Default value)
 Once there is data in the partition, it will immediately commit. Note: the partition may be committed multiple times.
 
 If you want to let downstream see the partition only when its data is complete, and your job has watermark generation, and you can extract the time from partition values:
 - 'sink.partition-commit.trigger'='partition-time'
-- 'sink.partition-commit.delay'='1h' ('1h' if your partition is hourly partition, depends on your partition type)
+- 'sink.partition-commit.delay'='1 h' ('1 h' if your partition is hourly partition, depends on your partition type)
 This is the most accurate way to commit partition, and it will try to ensure that the committed partitions are as data complete as possible.
 
 If you want to let downstream see the partition only when its data is complete, but there is no watermark, or the time cannot be extracted from partition values:
 - 'sink.partition-commit.trigger'='process-time' (Default value)
-- 'sink.partition-commit.delay'='1h' ('1h' if your partition is hourly partition, depends on your partition type)
+- 'sink.partition-commit.delay'='1 h' ('1 h' if your partition is hourly partition, depends on your partition type)
 Try to commit partition accurately, but data delay or failover will lead to premature partition commit.
 
 Late data processing: The record will be written into its partition when a record is supposed to be

@@ -148,7 +148,7 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.max-size</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">2mb</td>
+      <td style="word-wrap: break-word;">2 mb</td>
       <td>MemorySize</td>
       <td>每个批量请求的缓冲操作在内存中的最大值。单位必须为 MB。
       可以设置为<code>'0'</code>来禁用它。
@@ -157,7 +157,7 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.interval</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">1s</td>
+      <td style="word-wrap: break-word;">1 s</td>
       <td>Duration</td>
       <td>flush 缓冲操作的间隔。
         可以设置为<code>'0'</code>来禁用它。注意，<code>'sink.bulk-flush.max-size'</code>和<code>'sink.bulk-flush.max-actions'</code>都设置为<code>'0'</code>的这种 flush 间隔设置允许对缓冲操作进行完全异步处理。

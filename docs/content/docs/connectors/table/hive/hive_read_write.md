@@ -268,7 +268,7 @@ Using the latest Hive table as a temporal table does not require any additional 
         <td><h5>lookup.join.cache.ttl</h5></td>
         <td style="word-wrap: break-word;">60 min</td>
         <td>Duration</td>
-        <td>The cache TTL (e.g. 10min) for the build table in lookup join. By default the TTL is 60 minutes. NOTES: The option only works when lookup bounded hive table source, if you're using streaming hive source as temporal table, please use 'streaming-source.monitor-interval' to configure the interval of data update.
+        <td>The cache TTL (e.g. 10 min) for the build table in lookup join. By default the TTL is 60 minutes. NOTES: The option only works when lookup bounded hive table source, if you're using streaming hive source as temporal table, please use 'streaming-source.monitor-interval' to configure the interval of data update.
        </td>
     </tr>
   </tbody>

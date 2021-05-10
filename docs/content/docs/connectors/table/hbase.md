@@ -141,7 +141,7 @@ Connector Options
       <td><h5>sink.buffer-flush.max-size</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">2mb</td>
+      <td style="word-wrap: break-word;">2 mb</td>
       <td>MemorySize</td>
       <td>Writing option, maximum size in memory of buffered rows for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
@@ -163,7 +163,7 @@ Connector Options
       <td><h5>sink.buffer-flush.interval</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">1s</td>
+      <td style="word-wrap: break-word;">1 s</td>
       <td>Duration</td>
       <td>Writing option, the interval to flush any buffered rows.
       This can improve performance for writing data to HBase database, but may increase the latency.
