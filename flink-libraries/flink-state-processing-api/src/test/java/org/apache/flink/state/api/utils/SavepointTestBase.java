@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 
+import org.junit.Ignore;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /** A test base that includes utilities for taking a savepoint. */
+@Ignore
 public abstract class SavepointTestBase extends AbstractTestBase {
 
     public <T extends WaitingFunction> String takeSavepoint(
