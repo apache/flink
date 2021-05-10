@@ -79,36 +79,6 @@ public class AlternatingCheckpointsTest {
 
     private final ClockWithDelayedActions clock = new ClockWithDelayedActions();
 
-    @Test
-    public void testChannelUnblockedAfterDifferentBarriers() throws Exception {
-        CheckpointedInputGate gate =
-                new TestCheckpointedInputGateBuilder(
-                                3, getTestBarrierHandlerFactory(new ValidatingCheckpointHandler()))
-                        .build();
-        long barrierId = 1L;
-        long ts = clock.relativeTimeNanos();
-        long timeout = 10;
-
-        send(barrier(barrierId, ts, unaligned(getDefault())), 0, gate);
-
-        TestInputChannel acChannel = (TestInputChannel) gate.getChannel(1);
-        acChannel.setBlocked(true);
-        send(
-                barrier(barrierId, ts, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
-                acChannel.getChannelIndex(),
-                gate);
-        assertFalse(acChannel.isBlocked());
-
-        clock.advanceTime(timeout, TimeUnit.MILLISECONDS);
-        TestInputChannel acChannelWithTimeout = (TestInputChannel) gate.getChannel(2);
-        acChannelWithTimeout.setBlocked(true);
-        send(
-                barrier(barrierId, ts, alignedWithTimeout(getDefault(), timeout)),
-                acChannelWithTimeout.getChannelIndex(),
-                gate);
-        assertFalse(acChannelWithTimeout.isBlocked());
-    }
-
     private TestBarrierHandlerFactory getTestBarrierHandlerFactory(
             ValidatingCheckpointHandler target) {
         return TestBarrierHandlerFactory.forTarget(target)
@@ -507,13 +477,20 @@ public class AlternatingCheckpointsTest {
 
         // we set timer on announcement and test channels do not produce announcements by themselves
         send(EventSerializer.toBuffer(new EventAnnouncement(checkpointBarrier, 0), true), 0, gate);
-        send(checkpointBarrierBuffer, 0, gate);
         // emulate blocking channels on aligned barriers
         ((TestInputChannel) gate.getChannel(0)).setBlocked(true);
+        send(checkpointBarrierBuffer, 0, gate);
 
         clock.advanceTime(alignmentTimeout + 1, TimeUnit.MILLISECONDS);
+        send(EventSerializer.toBuffer(new EventAnnouncement(checkpointBarrier, 0), true), 1, gate);
+        // emulate blocking channels on aligned barriers
+        ((TestInputChannel) gate.getChannel(1)).setBlocked(true);
+        send(checkpointBarrierBuffer, 1, gate);
+
+        assertThat(target.getTriggeredCheckpointOptions().size(), equalTo(1));
         assertThat(target.getTriggeredCheckpointOptions(), contains(unaligned(getDefault())));
         assertFalse(((TestInputChannel) gate.getChannel(0)).isBlocked());
+        assertFalse(((TestInputChannel) gate.getChannel(1)).isBlocked());
     }
 
     @Test
