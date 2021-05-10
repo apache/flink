@@ -736,8 +736,10 @@ class StreamExecutionEnvironment(object):
         :return: The result of the job execution, containing elapsed time and accumulators.
         """
 
+        gateway = get_gateway()
+        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
+            self._j_stream_execution_environment)
         j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
-
         return JobExecutionResult(self._j_stream_execution_environment.execute(j_stream_graph))
 
     def execute_async(self, job_name: str = 'Flink Streaming Job') -> JobClient:
@@ -751,8 +753,10 @@ class StreamExecutionEnvironment(object):
         :return: A JobClient that can be used to communicate with the submitted job, completed on
                  submission succeeded.
         """
+        gateway = get_gateway()
+        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
+            self._j_stream_execution_environment)
         j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
-
         j_job_client = self._j_stream_execution_environment.executeAsync(j_stream_graph)
         return JobClient(j_job_client=j_job_client)
 
@@ -768,8 +772,10 @@ class StreamExecutionEnvironment(object):
 
         :return: The execution plan of the program, as a JSON String.
         """
+        gateway = get_gateway()
+        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
+            self._j_stream_execution_environment)
         j_stream_graph = self._generate_stream_graph(False)
-
         return j_stream_graph.getStreamingPlanAsJSON()
 
     @staticmethod

@@ -15,14 +15,45 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import abc
 from abc import abstractmethod
+from typing import Iterable, Any
 
-from apache_beam.runners.worker.bundle_processor import TimerInfo
+from apache_beam.runners.worker.bundle_processor import TimerInfo, DataOutputOperation
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
+
+
+class OutputProcessor(abc.ABC):
+
+    @abstractmethod
+    def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
+        pass
+
+
+class NetworkOutputProcessor(OutputProcessor):
+
+    def __init__(self, consumer):
+        assert isinstance(consumer, DataOutputOperation)
+        self._consumer = consumer
+        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()
+
+    def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
+        output_stream = self._consumer.output_stream
+        self._value_coder_impl.encode_to_stream(results, output_stream, True)
+        output_stream.maybe_flush()
+
+
+class IntermediateOutputProcessor(OutputProcessor):
+
+    def __init__(self, consumer):
+        self._consumer = consumer
+
+    def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
+        self._consumer.process(windowed_value.with_value(results))
 
 
 class FunctionOperation(Operation):
@@ -33,8 +64,11 @@ class FunctionOperation(Operation):
 
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
-        self.consumer = consumers['output'][0]
-        self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()
+        consumer = consumers['output'][0]
+        if isinstance(consumer, DataOutputOperation):
+            self._output_processor = NetworkOutputProcessor(consumer)
+        else:
+            self._output_processor = IntermediateOutputProcessor(consumer)
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
@@ -81,18 +115,13 @@ class FunctionOperation(Operation):
 
     def process(self, o: WindowedValue):
         with self.scoped_process_state:
-            output_stream = self.consumer.output_stream
             if isinstance(self.operation, BundleOperation):
                 for value in o.value:
                     self.process_element(value)
-                self._value_coder_impl.encode_to_stream(
-                    self.operation.finish_bundle(), output_stream, True)
-                output_stream.maybe_flush()
+                self._output_processor.process_outputs(o, self.operation.finish_bundle())
             else:
                 for value in o.value:
-                    self._value_coder_impl.encode_to_stream(
-                        self.process_element(value), output_stream, True)
-                    output_stream.maybe_flush()
+                    self._output_processor.process_outputs(o, self.process_element(value))
 
     def monitoring_infos(self, transform_id, tag_to_pcollection_id):
         """

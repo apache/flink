@@ -85,13 +85,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.TIMER_CODER_ID;
-import static org.apache.flink.python.Constants.TRANSFORM_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
+import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 
@@ -102,8 +103,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private static final String INPUT_CODER_ID = "input_coder";
     private static final String OUTPUT_CODER_ID = "output_coder";
-
-    private static final String WINDOW_STRATEGY = "windowing_strategy";
 
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
@@ -444,8 +443,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                     WRAPPER_TIMER_CODER_ID, wrapperTimerCoderProto);
                         });
 
-        getTransforms().forEach(componentsBuilder::putTransforms);
-
+        buildTransforms(componentsBuilder);
         RunnerApi.Components components = componentsBuilder.build();
 
         PipelineNode.PCollectionNode input =
@@ -456,9 +454,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         List<UserStateReference> userStates = Collections.EMPTY_LIST;
         List<TimerReference> timers = getTimers(components);
         List<PipelineNode.PTransformNode> transforms =
-                Collections.singletonList(
-                        PipelineNode.pTransform(
-                                TRANSFORM_ID, components.getTransformsOrThrow(TRANSFORM_ID)));
+                components.getTransformsMap().keySet().stream()
+                        .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
+                        .collect(Collectors.toList());
         List<PipelineNode.PCollectionNode> outputs =
                 Collections.singletonList(
                         PipelineNode.pCollection(
@@ -512,7 +510,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 .build();
     }
 
-    protected abstract Map<String, RunnerApi.PTransform> getTransforms();
+    protected abstract void buildTransforms(RunnerApi.Components.Builder componentsBuilder);
 
     protected abstract List<TimerReference> getTimers(RunnerApi.Components components);
 

@@ -28,10 +28,13 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -122,7 +125,7 @@ public enum ProtoUtils {
         return builder.build();
     }
 
-    public static FlinkFnApi.UserDefinedDataStreamFunction getUserDefinedDataStreamFunctionProto(
+    public static FlinkFnApi.UserDefinedDataStreamFunction createUserDefinedDataStreamFunctionProto(
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
             RuntimeContext runtimeContext,
             Map<String, String> internalParameters,
@@ -174,21 +177,60 @@ public enum ProtoUtils {
     }
 
     public static FlinkFnApi.UserDefinedDataStreamFunction
-            getUserDefinedDataStreamStatefulFunctionProto(
+            createReviseOutputDataStreamFunctionProto() {
+        return FlinkFnApi.UserDefinedDataStreamFunction.newBuilder()
+                .setFunctionType(
+                        FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.REVISE_OUTPUT)
+                .build();
+    }
+
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
+            createUserDefinedDataStreamFunctionProtos(
                     DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
-                    TypeInformation keyTypeInfo,
                     boolean inBatchExecutionMode) {
-        FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction =
-                getUserDefinedDataStreamFunctionProto(
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
+
+        Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
+        if (inputs != null && inputs.length > 0) {
+            Preconditions.checkArgument(inputs.length == 1);
+            results.addAll(
+                    createUserDefinedDataStreamFunctionProtos(
+                            (DataStreamPythonFunctionInfo) inputs[0],
+                            runtimeContext,
+                            internalParameters,
+                            inBatchExecutionMode));
+        }
+
+        results.add(
+                createUserDefinedDataStreamFunctionProto(
+                        dataStreamPythonFunctionInfo,
+                        runtimeContext,
+                        internalParameters,
+                        inBatchExecutionMode));
+        return results;
+    }
+
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
+            createUserDefinedDataStreamStatefulFunctionProtos(
+                    DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+                    RuntimeContext runtimeContext,
+                    Map<String, String> internalParameters,
+                    TypeInformation<?> keyTypeInfo,
+                    boolean inBatchExecutionMode) {
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results =
+                createUserDefinedDataStreamFunctionProtos(
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
                         inBatchExecutionMode);
+
+        // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
-        return userDefinedDataStreamFunction.toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build();
+        results.set(0, results.get(0).toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build());
+        return results;
     }
 
     public static RunnerApi.Coder createCoderProto(

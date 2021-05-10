@@ -49,7 +49,8 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
 
 /** KeyedCoProcessOperator. */
 @Internal
-public class PythonKeyedCoProcessOperator<OUT> extends TwoInputPythonFunctionOperator<Row, Row, OUT>
+public class PythonKeyedCoProcessOperator<OUT>
+        extends AbstractTwoInputPythonFunctionOperator<Row, Row, OUT>
         implements Triggerable<Row, VoidNamespace> {
 
     private static final long serialVersionUID = 1L;
@@ -108,7 +109,7 @@ public class PythonKeyedCoProcessOperator<OUT> extends TwoInputPythonFunctionOpe
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATEFUL_FUNCTION_URN,
-                ProtoUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamStatefulFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         Collections.emptyMap(),
@@ -214,5 +215,16 @@ public class PythonKeyedCoProcessOperator<OUT> extends TwoInputPythonFunctionOpe
     @Override
     public Object getCurrentKey() {
         return keyForTimerService;
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonKeyedCoProcessOperator<>(
+                getConfig().getConfig(),
+                pythonFunctionInfo,
+                getLeftInputType(),
+                getRightInputType(),
+                outputTypeInfo);
     }
 }
