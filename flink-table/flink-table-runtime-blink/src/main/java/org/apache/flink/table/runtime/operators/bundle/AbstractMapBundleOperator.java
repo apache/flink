@@ -131,7 +131,7 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT> extends AbstractS
 
     @Override
     public void finishBundle() throws Exception {
-        if (!bundle.isEmpty()) {
+        if (bundle != null && !bundle.isEmpty()) {
             numOfElements = 0;
             function.finishBundle(bundle, collector);
             bundle.clear();
