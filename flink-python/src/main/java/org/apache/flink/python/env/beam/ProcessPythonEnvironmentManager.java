@@ -25,8 +25,7 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
-import org.apache.flink.python.util.TarUtils;
-import org.apache.flink.python.util.ZipUtils;
+import org.apache.flink.python.util.DecompressUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -331,11 +330,11 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 String targetDirPath =
                         String.join(File.separator, archivesDirectory, entry.getValue());
                 if (inFilePath.endsWith(".zip") || inFilePath.endsWith(".jar")) {
-                    ZipUtils.extractZipFileWithPermissions(inFilePath, targetDirPath);
+                    DecompressUtils.extractZipFileWithPermissions(inFilePath, targetDirPath);
                 } else if (inFilePath.endsWith(".tar")
                         || inFilePath.endsWith(".tgz")
                         || inFilePath.endsWith(".tar.gz")) {
-                    TarUtils.unTar(inFilePath, targetDirPath);
+                    DecompressUtils.unTar(inFilePath, targetDirPath);
                 } else {
                     throw new IllegalArgumentException(
                             String.format(
