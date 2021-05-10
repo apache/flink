@@ -484,6 +484,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return chainedSources.get(sourceInput).getSourceOutput();
     }
 
+    public List<Output<StreamRecord<?>>> getChainedSourceOutputs() {
+        return chainedSources.values().stream()
+                .map(ChainedSource::getSourceOutput)
+                .collect(Collectors.toList());
+    }
+
     public StreamTaskSourceInput<?> getSourceTaskInput(SourceInputConfig sourceInput) {
         checkArgument(
                 chainedSources.containsKey(sourceInput),
