@@ -66,14 +66,27 @@ public class TableConfigTest {
 
         assertEquals(ZoneId.of("Asia/Shanghai"), configByMethod.getLocalTimeZone());
         assertEquals(ZoneId.of("Asia/Shanghai"), configByConfiguration.getLocalTimeZone());
+
+        configuration.setString("table.local-time-zone", "GMT-08:00");
+        configByConfiguration.addConfiguration(configuration);
+        configByMethod.setLocalTimeZone(ZoneId.of("GMT-08:00"));
+
+        assertEquals(ZoneId.of("GMT-08:00"), configByMethod.getLocalTimeZone());
+        assertEquals(ZoneId.of("GMT-08:00"), configByConfiguration.getLocalTimeZone());
     }
 
     @Test
     public void testSetInvalidLocalTimeZone() {
         expectedException.expectMessage(
                 "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                        + " or a custom timezone id such as 'GMT-8:00', but configured Zone ID is 'UTC-10:00'.");
+                        + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'UTC-10:00'.");
         configByMethod.setLocalTimeZone(ZoneId.of("UTC-10:00"));
+    }
+
+    @Test
+    public void testInvalidGmtLocalTimeZone() {
+        expectedException.expectMessage("Invalid ID for offset-based ZoneId: GMT-8:00");
+        configByMethod.setLocalTimeZone(ZoneId.of("GMT-8:00"));
     }
 
     @Test
@@ -82,7 +95,7 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         expectedException.expectMessage(
                 "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                        + " or a custom timezone id such as 'GMT-8:00', but configured Zone ID is 'UTC+8'.");
+                        + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'UTC+8'.");
         configByConfiguration.getLocalTimeZone();
     }
 
@@ -92,7 +105,7 @@ public class TableConfigTest {
         configByConfiguration.addConfiguration(configuration);
         expectedException.expectMessage(
                 "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                        + " or a custom timezone id such as 'GMT-8:00', but configured Zone ID is 'PST'.");
+                        + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'PST'.");
         configByConfiguration.getLocalTimeZone();
     }
 

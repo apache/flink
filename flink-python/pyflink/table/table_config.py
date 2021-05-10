@@ -56,7 +56,7 @@ class TableConfig(object):
         """
         Returns the local timezone id for timestamp with local time zone, either an abbreviation
         such as "PST", a full name such as "America/Los_Angeles", or a custom timezone_id such
-        as "GMT-8:00".
+        as "GMT-08:00".
         """
         return self._j_table_config.getLocalTimeZone().getId()
 
@@ -66,7 +66,7 @@ class TableConfig(object):
 
         :param timezone_id: The timezone id, either an abbreviation such as "PST", a full name
                             such as "America/Los_Angeles", or a custom timezone_id such as
-                            "GMT-8:00".
+                            "GMT-08:00".
         """
         if timezone_id is not None and isinstance(timezone_id, str):
             j_timezone = get_gateway().jvm.java.time.ZoneId.of(timezone_id)

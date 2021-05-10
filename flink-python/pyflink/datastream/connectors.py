@@ -573,7 +573,7 @@ class BucketAssigner(object):
         :param format_str: The format string used to determine the bucket id.
         :param timezone_id: The timezone id, either an abbreviation such as "PST", a full name
                             such as "America/Los_Angeles", or a custom timezone_id such as
-                            "GMT-8:00". Th e default time zone will b used if it's None.
+                            "GMT-08:00". Th e default time zone will b used if it's None.
         """
         if timezone_id is not None and isinstance(timezone_id, str):
             j_timezone = get_gateway().jvm.java.time.ZoneId.of(timezone_id)
