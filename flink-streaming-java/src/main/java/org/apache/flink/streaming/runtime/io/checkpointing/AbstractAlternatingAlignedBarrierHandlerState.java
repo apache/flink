@@ -58,8 +58,7 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
         state.blockChannel(channelInfo);
         if (controller.allBarriersReceived()) {
             controller.triggerGlobalCheckpoint(checkpointBarrier);
-            state.unblockAllChannels();
-            return new AlternatingWaitingForFirstBarrier(state.getInputs());
+            return stopCheckpoint();
         } else if (controller.isTimedOut(checkpointBarrier)) {
             return alignmentTimeout(controller, checkpointBarrier)
                     .barrierReceived(controller, channelInfo, checkpointBarrier.asUnaligned());
@@ -72,7 +71,11 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
 
     @Override
     public final BarrierHandlerState abort(long cancelledId) throws IOException {
+        return stopCheckpoint();
+    }
+
+    private BarrierHandlerState stopCheckpoint() throws IOException {
         state.unblockAllChannels();
-        return new AlternatingWaitingForFirstBarrier(state.getInputs());
+        return new AlternatingWaitingForFirstBarrier(state.emptyState());
     }
 }
