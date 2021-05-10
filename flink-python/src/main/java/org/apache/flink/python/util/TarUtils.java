@@ -72,12 +72,12 @@ public class TarUtils {
                 File f = new File(targetDirPath, entry.getName());
                 if (entry.isDirectory()) {
                     if (!f.isDirectory() && !f.mkdirs()) {
-                        throw new IOException("failed to create directory " + f);
+                        throw new IOException("Failed to create directory " + f);
                     }
                 } else {
                     File parent = f.getParentFile();
                     if (!parent.isDirectory() && !parent.mkdirs()) {
-                        throw new IOException("failed to create directory " + parent);
+                        throw new IOException("Failed to create directory " + parent);
                     }
                     OutputStream o = Files.newOutputStream(f.toPath());
                     byte[] buf = new byte[(int) entry.getSize()];
