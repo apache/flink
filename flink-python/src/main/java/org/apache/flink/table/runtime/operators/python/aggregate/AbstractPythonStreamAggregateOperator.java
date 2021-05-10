@@ -63,10 +63,6 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private static final long serialVersionUID = 1L;
 
-    @VisibleForTesting
-    protected static final String FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN =
-            "flink:coder:schema:aggregate_function:v1";
-
     @VisibleForTesting static final byte NORMAL_RECORD = 0;
 
     @VisibleForTesting static final byte TRIGGER_TIMER = 1;
@@ -101,8 +97,13 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private final int mapStateWriteCacheSize;
 
-    private final String coderUrn;
+    /** The Input DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType inputDataType;
 
+    /** The output DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType outputDataType;
+
+    /** The output mode of BaseCoder in Python. */
     private final FlinkFnApi.CoderParam.OutputMode outputMode;
 
     private transient Object keyForTimerService;
@@ -143,7 +144,8 @@ public abstract class AbstractPythonStreamAggregateOperator
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore,
-            String coderUrn,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
             FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
@@ -154,8 +156,9 @@ public abstract class AbstractPythonStreamAggregateOperator
         this.grouping = grouping;
         this.indexOfCountStar = indexOfCountStar;
         this.generateUpdateBefore = generateUpdateBefore;
-        this.coderUrn = coderUrn;
-        this.outputMode = outputMode;
+        this.inputDataType = Preconditions.checkNotNull(inputDataType);
+        this.outputDataType = Preconditions.checkNotNull(outputDataType);
+        this.outputMode = Preconditions.checkNotNull(outputMode);
         this.stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         this.mapStateReadCacheSize = config.get(PythonOptions.MAP_STATE_READ_CACHE_SIZE);
         this.mapStateWriteCacheSize = config.get(PythonOptions.MAP_STATE_WRITE_CACHE_SIZE);
@@ -196,7 +199,6 @@ public abstract class AbstractPythonStreamAggregateOperator
                 userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                coderUrn,
                 jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
@@ -214,6 +216,8 @@ public abstract class AbstractPythonStreamAggregateOperator
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
+                inputDataType,
+                outputDataType,
                 outputMode);
     }
 

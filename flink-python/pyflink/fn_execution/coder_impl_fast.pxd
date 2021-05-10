@@ -33,8 +33,16 @@ cdef class InternalRow:
     cdef bint is_retract_msg(self)
     cdef bint is_accumulate_msg(self)
 
+cdef enum OutputMode:
+    SINGLE = 0
+    MULTIPLE = 1
+    MULTIPLE_WITH_END = 2
+
 cdef class BaseCoderImpl:
+    cdef OutputMode _output_mode
+    cdef char *_end_message
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
+    cdef encode_one_data_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
 cdef unsigned char ROW_KIND_BIT_SIZE
@@ -106,26 +114,15 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef bytes _decode_bytes(self)
     cdef object _decode_field_row(self, RowCoderImpl field_coder)
 
-cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
-    cdef bint _is_row_data
-    cdef bint _is_first_row
-    cdef _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
+cdef class TopRowCoderImpl(FlattenRowCoderImpl):
+    cdef list _field_names
     cdef _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream)
+    cdef InternalRow _decode_field_row(self, RowCoderImpl field_coder)
 
-cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
-    cdef char* _end_message
+cdef class RawCoderImpl(FlattenRowCoderImpl):
+    cdef FieldCoder _field_coder
 
-cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
-    cdef readonly FieldCoder _single_field_coder
-
-cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
-    cdef readonly object _single_field_coder
-    cdef char* _end_message
-
-cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
-    cdef readonly object _single_field_coder
-
-cdef class WindowCoderImpl(BaseCoderImpl):
+cdef class WindowCoderImpl:
     cdef size_t _tmp_output_pos
     cdef size_t _input_pos
     cdef char*_tmp_output_data

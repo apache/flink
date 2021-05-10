@@ -15,21 +15,20 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
 import datetime
 import decimal
-import cloudpickle
 import struct
-from typing import Any, Tuple
-from typing import List
+from abc import ABC, abstractmethod
+from typing import Any, Iterable, List, Tuple
 
+import cloudpickle
 import pyarrow as pa
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
-from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
-from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.common import Row, RowKind
 from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution.ResettableIO import ResettableIO
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 ROW_KIND_BIT_SIZE = 2
@@ -57,9 +56,45 @@ class CountWindowCoderImpl(StreamCoderImpl):
         return CountWindow(id)
 
 
-class FlattenRowCoderImpl(StreamCoderImpl):
+# BaseCoder will be used in Operations and other coders will be the field coder of BaseCoder
+class BaseCoderImpl(ABC, StreamCoderImpl):
 
-    def __init__(self, field_coders, output_mode=CoderParam.SINGLE):
+    def __init__(self, output_mode):
+        self._output_mode = output_mode
+
+    def encode_to_stream(self, value, out_stream, nested):
+        if self._output_mode == CoderParam.SINGLE:
+            self.encode_one_data_to_stream(value, out_stream, nested)
+        elif self._output_mode == CoderParam.MULTIPLE:
+            for item in value:
+                self.encode_one_data_to_stream(item, out_stream, nested)
+        else:
+            if value:
+                if isinstance(value, (tuple, Row)):
+                    self.encode_one_data_to_stream(value, out_stream, nested)
+                else:
+                    for item in value:
+                        self.encode_one_data_to_stream(item, out_stream, nested)
+            out_stream.write_var_int64(1)
+            out_stream.write_byte(0x00)
+
+    def decode_from_stream(self, in_stream, nested):
+        while in_stream.size() > 0:
+            yield self.decode_one_data_from_stream(in_stream.read_var_int64(), in_stream, nested)
+
+    @abstractmethod
+    def encode_one_data_to_stream(self, value, out_stream, nested):
+        pass
+
+    @abstractmethod
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        pass
+
+
+class FlattenRowCoderImpl(BaseCoderImpl):
+
+    def __init__(self, field_coders, output_mode):
+        super(FlattenRowCoderImpl, self).__init__(output_mode)
         self._field_coders = field_coders
         self._field_count = len(field_coders)
         # the row kind uses the first 2 bits of the bitmap, the remaining bits are used for null
@@ -71,11 +106,6 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
         self.row_kind_search_table = [0x00, 0x80, 0x40, 0xC0]
         self.data_out_stream = create_OutputStream()
-        from pyflink.fn_execution import flink_fn_execution_pb2
-        if output_mode == flink_fn_execution_pb2.CoderParam.MULTIPLE:
-            self._single_output = False
-        else:
-            self._single_output = True
 
     @staticmethod
     def generate_null_mask_search_table():
@@ -91,12 +121,14 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
         return tuple(null_mask)
 
-    def encode_to_stream(self, value, out_stream, nested):
-        if self._single_output:
-            self._encode_one_row(value, out_stream, nested)
-        else:
-            for item in value:
-                self._encode_one_row(item, out_stream, nested)
+    def encode_one_data_to_stream(self, value, out_stream, nested):
+        data_out_stream = self.data_out_stream
+        if not isinstance(value, Iterable):
+            value = [value]
+        self._encode_one_row_to_stream(value, data_out_stream, nested)
+        out_stream.write_var_int64(data_out_stream.size())
+        out_stream.write(data_out_stream.get())
+        data_out_stream._clear()
 
     def encode_nested(self, value: List):
         data_out_stream = self.data_out_stream
@@ -105,29 +137,12 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         data_out_stream._clear()
         return result
 
-    def decode_from_stream(self, in_stream, nested):
-        while in_stream.size() > 0:
-            in_stream.read_var_int64()
-            yield self._decode_one_row_from_stream(in_stream, nested)[1]
-
-    def _encode_one_row(self, value, out_stream, nested):
-        field_coders = self._field_coders
-        data_out_stream = self.data_out_stream
-        self._write_mask(value, data_out_stream)
-        for i in range(self._field_count):
-            item = value[i]
-            if item is not None:
-                field_coders[i].encode_to_stream(item, data_out_stream, nested)
-        out_stream.write_var_int64(data_out_stream.size())
-        out_stream.write(data_out_stream.get())
-        data_out_stream._clear()
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        return self._decode_one_row_from_stream(in_stream, nested)[1]
 
     def _encode_one_row_to_stream(self, value, out_stream, nested):
         field_coders = self._field_coders
-        if isinstance(value, Row):
-            self._write_mask(value, out_stream, value.get_row_kind().value)
-        else:
-            self._write_mask(value, out_stream)
+        self._write_mask(value, out_stream)
         for i in range(self._field_count):
             item = value[i]
             if item is not None:
@@ -188,78 +203,141 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         return 'FlattenRowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
-class RowCoderImpl(FlattenRowCoderImpl):
+class TopRowCoderImpl(FlattenRowCoderImpl):
+
+    def __init__(self, field_coders, field_names, output_mode):
+        super(TopRowCoderImpl, self).__init__(field_coders, output_mode)
+        self._field_names = field_names
+
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        row_kind_value, fields = self._decode_one_row_from_stream(in_stream, nested)
+        row = Row(*fields)
+        row.set_field_names(self._field_names)
+        row.set_row_kind(RowKind(row_kind_value))
+        return row
+
+    def _encode_one_row_to_stream(self, value, out_stream, nested):
+        field_coders = self._field_coders
+        self._write_mask(value, out_stream, value.get_row_kind().value)
+        for i in range(self._field_count):
+            item = value[i]
+            if item is not None:
+                field_coders[i].encode_to_stream(item, out_stream, nested)
+
+    def __repr__(self):
+        return 'TopRowCoderImpl[%s, %s, %s]' % \
+               (', '.join(str(c) for c in self._field_coders), self._field_names, self._output_mode)
+
+
+class RawCoderImpl(BaseCoderImpl):
+    def __init__(self, field_coder, output_mode):
+        super(RawCoderImpl, self).__init__(output_mode)
+        self._field_coder = field_coder
+        self.data_out_stream = create_OutputStream()
+
+    def encode_one_data_to_stream(self, value, out_stream, nested):
+        data_out_stream = self.data_out_stream
+        self._field_coder.encode_to_stream(value, data_out_stream, nested)
+        out_stream.write_var_int64(data_out_stream.size())
+        out_stream.write(data_out_stream.get())
+        data_out_stream._clear()
+
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        return self._field_coder.decode_from_stream(in_stream, nested)
+
+    def __repr__(self):
+        return 'RawCoderImpl[%s, %s]' % (self._field_coder, self._output_mode)
+
+
+class ArrowCoderImpl(BaseCoderImpl):
+
+    def __init__(self, schema, row_type, timezone, output_mode):
+        super(ArrowCoderImpl, self).__init__(output_mode)
+        self._schema = schema
+        self._field_types = row_type.field_types()
+        self._timezone = timezone
+        self._resettable_io = ResettableIO()
+        self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
+        self.data_out_stream = create_OutputStream()
+        self._resettable_io.set_output_stream(self.data_out_stream)
+
+    def encode_one_data_to_stream(self, cols, out_stream, nested):
+        data_out_stream = self.data_out_stream
+        batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
+        batch_writer.write_batch(
+            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
+        out_stream.write_var_int64(data_out_stream.size())
+        out_stream.write(data_out_stream.get())
+        data_out_stream._clear()
+
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        data = self._decode_one_batch_from_stream(in_stream, length)
+        return data
+
+    @staticmethod
+    def _load_from_stream(stream):
+        while stream.readable():
+            reader = pa.ipc.open_stream(stream)
+            yield reader.read_next_batch()
+
+    def _decode_one_batch_from_stream(self, in_stream: create_InputStream, size: int) -> List:
+        self._resettable_io.set_input_bytes(in_stream.read(size))
+        # there is only one arrow batch in the underlying input stream
+        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
+
+    def __repr__(self):
+        return 'ArrowCoderImpl[%s]' % self._schema
+
+
+class OverWindowArrowCoderImpl(ArrowCoderImpl):
+    def __init__(self, schema, row_type, timezone, output_mode):
+        super(OverWindowArrowCoderImpl, self).__init__(schema, row_type, timezone, output_mode)
+        self._int_coder = IntCoderImpl()
+
+    def decode_one_data_from_stream(self, length, in_stream, nested):
+        window_num = self._int_coder.decode_from_stream(in_stream, nested)
+        length -= 4
+        window_boundaries_and_arrow_data = []
+        for _ in range(window_num):
+            window_size = self._int_coder.decode_from_stream(in_stream, nested)
+            length -= 4
+            window_boundaries_and_arrow_data.append(
+                [self._int_coder.decode_from_stream(in_stream, nested)
+                 for _ in range(window_size)])
+            length -= 4 * window_size
+        window_boundaries_and_arrow_data.append(
+            self._decode_one_batch_from_stream(in_stream, length))
+        return window_boundaries_and_arrow_data
+
+    def __repr__(self):
+        return 'OverWindowArrowCoderImpl[%s]' % self._schema
+
+
+class RowCoderImpl(TopRowCoderImpl):
 
     def __init__(self, field_coders, field_names):
-        super(RowCoderImpl, self).__init__(field_coders)
-        self.field_names = field_names
+        super(RowCoderImpl, self).__init__(field_coders, field_names, None)
 
     def encode_to_stream(self, value: Row, out_stream, nested):
         self._encode_one_row_to_stream(value, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        row_kind_value, fields = self._decode_one_row_from_stream(in_stream, nested)
-        row = Row(*fields)
-        row.set_field_names(self.field_names)
-        row.set_row_kind(RowKind(row_kind_value))
-        return row
+        return self.decode_one_data_from_stream(0, in_stream, nested)
+
+    def _encode_one_row_to_stream(self, value, out_stream, nested):
+        field_coders = self._field_coders
+        if isinstance(value, Row):
+            self._write_mask(value, out_stream, value.get_row_kind().value)
+        else:
+            self._write_mask(value, out_stream)
+        for i in range(self._field_count):
+            item = value[i]
+            if item is not None:
+                field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def __repr__(self):
-        return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
-
-
-class TableFunctionRowCoderImpl(StreamCoderImpl):
-
-    def __init__(self, flatten_row_coder):
-        self._flatten_row_coder = flatten_row_coder
-        self._field_count = flatten_row_coder._field_count
-
-    def encode_to_stream(self, iter_value, out_stream, nested):
-        is_row_or_tuple = False
-        if iter_value:
-            if isinstance(iter_value, (tuple, Row)):
-                iter_value = [iter_value]
-                is_row_or_tuple = True
-            for value in iter_value:
-                if self._field_count == 1 and not is_row_or_tuple:
-                    value = (value,)
-                self._flatten_row_coder.encode_to_stream(value, out_stream, nested)
-        out_stream.write_var_int64(1)
-        out_stream.write_byte(0x00)
-
-    def decode_from_stream(self, in_stream, nested):
-        return self._flatten_row_coder.decode_from_stream(in_stream, nested)
-
-    def __repr__(self):
-        return 'TableFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
-
-
-class AggregateFunctionRowCoderImpl(StreamCoderImpl):
-    """
-    The aggregate function row coder impl is similar to the table function row coder
-    (one message may produce two more message, e.g. one INSERT message may produce one
-    UPDATE_BEFORE message and one UPDATE_AFTER message). The difference is that this row
-    coder will encode row kind information into the output row and is no need to encode the
-    bytes which represent the end of output.
-    """
-
-    def __init__(self, flatten_row_coder):
-        self._flatten_row_coder = flatten_row_coder
-        self._data_out_stream = create_OutputStream()
-
-    def encode_to_stream(self, iter_value, out_stream, nested):
-        data_out_stream = self._data_out_stream
-        for value in iter_value:
-            self._flatten_row_coder._encode_one_row_to_stream(value, data_out_stream, nested)
-            out_stream.write_var_int64(data_out_stream.size())
-            out_stream.write(data_out_stream.get())
-            data_out_stream._clear()
-
-    def decode_from_stream(self, in_stream, nested):
-        return [[item for item in self._flatten_row_coder.decode_from_stream(in_stream, nested)]]
-
-    def __repr__(self):
-        return 'AggregateFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
+        return 'RowCoderImpl[%s, %s]' % \
+               (', '.join(str(c) for c in self._field_coders), self._field_names)
 
 
 class BasicArrayCoderImpl(StreamCoderImpl):
@@ -323,48 +401,6 @@ class PickledBytesCoderImpl(StreamCoderImpl):
 
     def __repr__(self) -> str:
         return 'PickledBytesCoderImpl[%s]' % str(self.field_coder)
-
-
-class DataStreamMapCoderImpl(StreamCoderImpl):
-
-    def __init__(self, field_coder):
-        self._field_coder = field_coder
-        self.data_out_stream = create_OutputStream()
-
-    def encode_to_stream(self, value, stream,
-                         nested):  # type: (Any, create_OutputStream, bool) -> None
-        data_out_stream = self.data_out_stream
-        self._field_coder.encode_to_stream(value, data_out_stream, nested)
-        stream.write_var_int64(data_out_stream.size())
-        stream.write(data_out_stream.get())
-        data_out_stream._clear()
-
-    def decode_from_stream(self, stream, nested):  # type: (create_InputStream, bool) -> Any
-        while stream.size() > 0:
-            stream.read_var_int64()
-            yield self._field_coder.decode_from_stream(stream, nested)
-
-    def __repr__(self):
-        return 'DataStreamMapCoderImpl[%s]' % repr(self._field_coder)
-
-
-class DataStreamFlatMapCoderImpl(StreamCoderImpl):
-    def __init__(self, field_coder):
-        self._field_coder = field_coder
-
-    def encode_to_stream(self, iter_value, stream,
-                         nested):  # type: (Any, create_OutputStream, bool) -> None
-        if iter_value:
-            for value in iter_value:
-                self._field_coder.encode_to_stream(value, stream, nested)
-        stream.write_var_int64(1)
-        stream.write_byte(0x00)
-
-    def decode_from_stream(self, stream, nested):
-        return self._field_coder.decode_from_stream(stream, nested)
-
-    def __str__(self) -> str:
-        return 'DataStreamFlatMapCoderImpl[%s]' % repr(self._field_coder)
 
 
 class MapCoderImpl(StreamCoderImpl):
@@ -630,74 +666,6 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         return self.timezone.localize(
             super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
                 milliseconds, nanoseconds))
-
-
-class ArrowCoderImpl(StreamCoderImpl):
-
-    def __init__(self, schema, row_type, timezone):
-        self._schema = schema
-        self._field_types = row_type.field_types()
-        self._timezone = timezone
-        self._resettable_io = ResettableIO()
-        self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
-        self.data_out_stream = create_OutputStream()
-        self._resettable_io.set_output_stream(self.data_out_stream)
-
-    def encode_to_stream(self, cols, out_stream, nested):
-        data_out_stream = self.data_out_stream
-        batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
-        batch_writer.write_batch(
-            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
-        out_stream.write_var_int64(data_out_stream.size())
-        out_stream.write(data_out_stream.get())
-        data_out_stream._clear()
-
-    def decode_from_stream(self, in_stream, nested):
-        while in_stream.size() > 0:
-            yield self._decode_one_batch_from_stream(in_stream, in_stream.read_var_int64())
-
-    @staticmethod
-    def _load_from_stream(stream):
-        while stream.readable():
-            reader = pa.ipc.open_stream(stream)
-            yield reader.read_next_batch()
-
-    def _decode_one_batch_from_stream(self, in_stream: create_InputStream, size: int) -> List:
-        self._resettable_io.set_input_bytes(in_stream.read(size))
-        # there is only one arrow batch in the underlying input stream
-        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
-
-    def __repr__(self):
-        return 'ArrowCoderImpl[%s]' % self._schema
-
-
-class OverWindowArrowCoderImpl(StreamCoderImpl):
-    def __init__(self, arrow_coder):
-        self._arrow_coder = arrow_coder
-        self._int_coder = IntCoderImpl()
-
-    def encode_to_stream(self, value, stream, nested):
-        self._arrow_coder.encode_to_stream(value, stream, nested)
-
-    def decode_from_stream(self, in_stream, nested):
-        while in_stream.size():
-            remaining_size = in_stream.read_var_int64()
-            window_num = self._int_coder.decode_from_stream(in_stream, nested)
-            remaining_size -= 4
-            window_boundaries_and_arrow_data = []
-            for _ in range(window_num):
-                window_size = self._int_coder.decode_from_stream(in_stream, nested)
-                remaining_size -= 4
-                window_boundaries_and_arrow_data.append(
-                    [self._int_coder.decode_from_stream(in_stream, nested)
-                     for _ in range(window_size)])
-                remaining_size -= 4 * window_size
-            window_boundaries_and_arrow_data.append(
-                self._arrow_coder._decode_one_batch_from_stream(in_stream, remaining_size))
-            yield window_boundaries_and_arrow_data
-
-    def __repr__(self):
-        return 'OverWindowArrowCoderImpl[%s]' % self._arrow_coder
 
 
 class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):

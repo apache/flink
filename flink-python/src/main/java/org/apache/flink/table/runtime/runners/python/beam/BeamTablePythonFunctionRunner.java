@@ -16,45 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.runners.python.beam;
+package org.apache.flink.table.runtime.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
-import javax.annotation.Nullable;
-
 import java.util.Map;
 
-/**
- * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
- * execute user defined python function.
- */
+import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
+
+/** A {@link BeamTablePythonFunctionRunner} used to execute Python functions in Table API. */
 @Internal
-public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
+public abstract class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
-    private final TypeInformation inputType;
-    private final TypeInformation outputType;
-    private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
+    private final RowType inputType;
+    private final RowType outputType;
 
-    public BeamDataStreamPythonFunctionRunner(
+    BeamTablePythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            TypeInformation inputType,
-            TypeInformation outputType,
+            RowType inputType,
+            RowType outputType,
             String functionUrn,
-            FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
             Map<String, String> jobOptions,
-            @Nullable FlinkMetricContainer flinkMetricContainer,
-            KeyedStateBackend stateBackend,
+            FlinkMetricContainer flinkMetricContainer,
+            KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
             TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
@@ -68,7 +64,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 functionUrn,
                 jobOptions,
                 flinkMetricContainer,
-                stateBackend,
+                keyedStateBackend,
                 keySerializer,
                 namespaceSerializer,
                 memoryManager,
@@ -76,33 +72,28 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 inputDataType,
                 outputDataType,
                 outputMode);
-        this.inputType = inputType;
-        this.outputType = outputType;
-        this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
-    }
-
-    @Override
-    protected byte[] getUserDefinedFunctionsProtoBytes() {
-        return this.userDefinedDataStreamFunction.toByteArray();
+        this.inputType = Preconditions.checkNotNull(inputType);
+        this.outputType = Preconditions.checkNotNull(outputType);
     }
 
     @Override
     protected RunnerApi.Coder getInputCoderProto() {
-        return getInputOutputCoderProto(inputType, inputDataType);
+        return getRowCoderProto(inputType, inputDataType, outputMode);
     }
 
     @Override
     protected RunnerApi.Coder getOutputCoderProto() {
-        return getInputOutputCoderProto(outputType, outputDataType);
+        return getRowCoderProto(outputType, outputDataType, outputMode);
     }
 
-    private RunnerApi.Coder getInputOutputCoderProto(
-            TypeInformation typeInformation, FlinkFnApi.CoderParam.DataType dataType) {
+    private static RunnerApi.Coder getRowCoderProto(
+            RowType rowType,
+            FlinkFnApi.CoderParam.DataType dataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
+        FlinkFnApi.Schema rowSchema = toProtoType(rowType).getRowSchema();
         FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
-        FlinkFnApi.TypeInfo typeinfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
-        coderParamBuilder.setTypeInfo(typeinfo);
         coderParamBuilder.setDataType(dataType);
+        coderParamBuilder.setSchema(rowSchema);
         coderParamBuilder.setOutputMode(outputMode);
         return RunnerApi.Coder.newBuilder()
                 .setSpec(

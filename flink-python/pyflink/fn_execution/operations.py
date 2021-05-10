@@ -19,7 +19,7 @@ import abc
 import time
 from functools import reduce
 from itertools import chain
-from typing import List, Tuple
+from typing import Tuple
 
 from apache_beam.coders import PickleCoder
 
@@ -104,6 +104,11 @@ class Operation(abc.ABC):
 
     def close(self) -> None:
         pass
+
+
+class MapBundleOperation(object):
+    def finish_bundle(self):
+        raise NotImplementedError
 
 
 class TableOperation(Operation):
@@ -369,16 +374,14 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
 
         return self.process_element_or_timer, []
 
-    def process_element_or_timer(self, input_datas: List[Tuple[int, Row, int, Row]]):
+    def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
         # the structure of the input data:
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
-        for input_data in input_datas:
-            if input_data[0] == NORMAL_RECORD:
-                self.group_agg_function.process_element(input_data[1])
-            else:
-                self.group_agg_function.on_timer(input_data[3])
-        return self.group_agg_function.finish_bundle()
+        if input_data[0] == NORMAL_RECORD:
+            self.group_agg_function.process_element(input_data[1])
+        else:
+            self.group_agg_function.on_timer(input_data[3])
 
     @abc.abstractmethod
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
@@ -387,10 +390,13 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
         pass
 
 
-class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation):
+class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, MapBundleOperation):
 
     def __init__(self, spec, keyed_state_backend):
         super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def finish_bundle(self):
+        return self.group_agg_function.finish_bundle()
 
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
                                 distinct_indexes, distinct_view_descriptors, key_selector,
@@ -415,9 +421,12 @@ class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation):
             self.index_of_count_star)
 
 
-class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation):
+class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, MapBundleOperation):
     def __init__(self, spec, keyed_state_backend):
         super(StreamGroupTableAggregateOperation, self).__init__(spec, keyed_state_backend)
+
+    def finish_bundle(self):
+        return self.group_agg_function.finish_bundle()
 
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
                                 distinct_indexes, distinct_view_descriptors, key_selector,

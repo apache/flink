@@ -54,7 +54,6 @@ public class PassThroughStreamTableAggregatePythonFunctionRunner
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
@@ -67,7 +66,6 @@ public class PassThroughStreamTableAggregatePythonFunctionRunner
                 outputType,
                 functionUrn,
                 userDefinedFunctions,
-                coderUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
@@ -75,6 +73,8 @@ public class PassThroughStreamTableAggregatePythonFunctionRunner
                 null,
                 null,
                 0.0,
+                FlinkFnApi.CoderParam.DataType.ROW,
+                FlinkFnApi.CoderParam.DataType.ROW,
                 FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;

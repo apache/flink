@@ -317,6 +317,8 @@ message CoderParam {
     ROW = 1;
     RAW = 2;
     ARROW = 3;
+    // only used in batch over window
+    BATCH_OVER_WINDOW_ARROW=4;
   }
 
   enum OutputMode {

@@ -21,6 +21,7 @@ import logging
 import unittest
 
 from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -38,12 +39,14 @@ class CodersTest(PyFlinkTestCase):
     def check_cython_coder(self, python_field_coders, cython_field_coders, data):
         from apache_beam.coders.coder_impl import create_InputStream, create_OutputStream
         from pyflink.fn_execution.beam.beam_stream import BeamInputStream, BeamOutputStream
-        py_flatten_row_coder = coder_impl.FlattenRowCoderImpl(python_field_coders)
+        py_flatten_row_coder = coder_impl.FlattenRowCoderImpl(
+            python_field_coders, CoderParam.SINGLE)
         internal = py_flatten_row_coder.encode(data)
         beam_input_stream = create_InputStream(internal)
         input_stream = BeamInputStream(beam_input_stream, beam_input_stream.size())
         beam_output_stream = create_OutputStream()
-        cy_flatten_row_coder = coder_impl_fast.FlattenRowCoderImpl(cython_field_coders)
+        cy_flatten_row_coder = coder_impl_fast.FlattenRowCoderImpl(
+            cython_field_coders, CoderParam.SINGLE)
         value = cy_flatten_row_coder.decode_from_stream(input_stream)
         output_stream = BeamOutputStream(beam_output_stream)
         cy_flatten_row_coder.encode_to_stream(value, output_stream)
@@ -248,7 +251,8 @@ class CodersTest(PyFlinkTestCase):
         from pyflink.fn_execution.beam.beam_stream import BeamOutputStream
         data = ['1']
         cython_field_coders = [coder_impl_fast.BigIntCoderImpl() for _ in range(len(data))]
-        cy_flatten_row_coder = coder_impl_fast.FlattenRowCoderImpl(cython_field_coders)
+        cy_flatten_row_coder = coder_impl_fast.FlattenRowCoderImpl(
+            cython_field_coders, CoderParam.SINGLE)
         beam_output_stream = create_OutputStream()
         output_stream = BeamOutputStream(beam_output_stream)
         with self.assertRaises(TypeError) as context:

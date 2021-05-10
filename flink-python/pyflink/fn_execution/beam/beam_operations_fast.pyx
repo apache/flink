@@ -26,6 +26,8 @@ from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
 
+from pyflink.fn_execution.operations import MapBundleOperation
+
 cdef class FunctionOperation(Operation):
     """
     Base class of function operation that will execute StatelessFunction or StatefulFunction for
@@ -79,10 +81,17 @@ cdef class FunctionOperation(Operation):
                 input_stream = input_stream_wrapper._input_stream
                 input_coder = input_stream_wrapper._value_coder
                 output_stream = BeamOutputStream(self.consumer.output_stream)
-                while input_stream.available():
-                    input_data = input_coder.decode_from_stream(input_stream)
-                    result = self.process_element(input_data)
+                if isinstance(self.operation, MapBundleOperation):
+                    while input_stream.available():
+                        input_data = input_coder.decode_from_stream(input_stream)
+                        self.process_element(input_data)
+                    result = self.operation.finish_bundle()
                     self._output_coder.encode_to_stream(result, output_stream)
+                else:
+                    while input_stream.available():
+                        input_data = input_coder.decode_from_stream(input_stream)
+                        result = self.process_element(input_data)
+                        self._output_coder.encode_to_stream(result, output_stream)
                 output_stream.flush()
 
     def progress_metrics(self):

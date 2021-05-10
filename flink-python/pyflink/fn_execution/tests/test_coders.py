@@ -27,6 +27,7 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
     CountWindowCoder
 from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
@@ -147,7 +148,8 @@ class CodersTest(PyFlinkTestCase):
     def test_flatten_row_coder(self):
         field_coder = BigIntCoder()
         field_count = 10
-        coder = FlattenRowCoder([field_coder for _ in range(field_count)]).get_impl()
+        coder = FlattenRowCoder(
+            [field_coder for _ in range(field_count)], CoderParam.SINGLE).get_impl()
         v = [None if i % 2 == 0 else i for i in range(field_count)]
         generator_result = coder.decode(coder.encode(v))
         result = []
