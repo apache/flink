@@ -77,7 +77,18 @@ public class ZipUtils {
                 if (isUnix) {
                     int mode = entry.getUnixMode();
                     if (mode != 0) {
-                        setFilePermission(file, mode);
+                        Path path = Paths.get(file.toURI());
+                        Set<PosixFilePermission> permissions = new HashSet<>();
+                        addIfBitSet(mode, 8, permissions, PosixFilePermission.OWNER_READ);
+                        addIfBitSet(mode, 7, permissions, PosixFilePermission.OWNER_WRITE);
+                        addIfBitSet(mode, 6, permissions, PosixFilePermission.OWNER_EXECUTE);
+                        addIfBitSet(mode, 5, permissions, PosixFilePermission.GROUP_READ);
+                        addIfBitSet(mode, 4, permissions, PosixFilePermission.GROUP_WRITE);
+                        addIfBitSet(mode, 3, permissions, PosixFilePermission.GROUP_EXECUTE);
+                        addIfBitSet(mode, 2, permissions, PosixFilePermission.OTHERS_READ);
+                        addIfBitSet(mode, 1, permissions, PosixFilePermission.OTHERS_WRITE);
+                        addIfBitSet(mode, 0, permissions, PosixFilePermission.OTHERS_EXECUTE);
+                        Files.setPosixFilePermissions(path, permissions);
                     }
                 }
             }
@@ -92,20 +103,5 @@ public class ZipUtils {
         if ((mode & 1L << pos) != 0L) {
             posixFilePermissions.add(posixFilePermissionToAdd);
         }
-    }
-
-    public static void setFilePermission(File file, int mode) throws IOException {
-        Path path = Paths.get(file.toURI());
-        Set<PosixFilePermission> permissions = new HashSet<>();
-        addIfBitSet(mode, 8, permissions, PosixFilePermission.OWNER_READ);
-        addIfBitSet(mode, 7, permissions, PosixFilePermission.OWNER_WRITE);
-        addIfBitSet(mode, 6, permissions, PosixFilePermission.OWNER_EXECUTE);
-        addIfBitSet(mode, 5, permissions, PosixFilePermission.GROUP_READ);
-        addIfBitSet(mode, 4, permissions, PosixFilePermission.GROUP_WRITE);
-        addIfBitSet(mode, 3, permissions, PosixFilePermission.GROUP_EXECUTE);
-        addIfBitSet(mode, 2, permissions, PosixFilePermission.OTHERS_READ);
-        addIfBitSet(mode, 1, permissions, PosixFilePermission.OTHERS_WRITE);
-        addIfBitSet(mode, 0, permissions, PosixFilePermission.OTHERS_EXECUTE);
-        Files.setPosixFilePermissions(path, permissions);
     }
 }
