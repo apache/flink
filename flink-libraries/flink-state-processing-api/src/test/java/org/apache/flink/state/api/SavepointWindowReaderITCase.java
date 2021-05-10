@@ -318,21 +318,17 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
 
-        try {
-            env.addSource(createSource(numbers))
-                    .rebalance()
-                    .assignTimestampsAndWatermarks(
-                            WatermarkStrategy.<Integer>noWatermarks()
-                                    .withTimestampAssigner((event, timestamp) -> 0))
-                    .keyBy(id -> id)
-                    .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                    .evictor(new NoOpEvictor<>())
-                    .apply(new NoOpWindowFunction())
-                    .uid(uid)
-                    .addSink(new DiscardingSink<>());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .apply(new NoOpWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
         String savepointPath = takeSavepoint(env);
 
