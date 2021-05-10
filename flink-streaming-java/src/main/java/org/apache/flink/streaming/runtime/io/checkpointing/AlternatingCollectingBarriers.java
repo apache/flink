@@ -24,6 +24,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 
 import java.io.IOException;
 
+/**
+ * We are performing aligned checkpoints with time out. We have seen at least a single aligned
+ * barrier.
+ */
 final class AlternatingCollectingBarriers extends AbstractAlternatingAlignedBarrierHandlerState {
 
     AlternatingCollectingBarriers(ChannelState context) {
@@ -35,14 +39,13 @@ final class AlternatingCollectingBarriers extends AbstractAlternatingAlignedBarr
             Controller controller, CheckpointBarrier checkpointBarrier)
             throws IOException, CheckpointException {
         state.prioritizeAllAnnouncements();
-        state.unblockAllChannels();
         CheckpointBarrier unalignedBarrier = checkpointBarrier.asUnaligned();
         controller.initInputsCheckpoint(unalignedBarrier);
         for (CheckpointableInput input : state.getInputs()) {
             input.checkpointStarted(unalignedBarrier);
         }
         controller.triggerGlobalCheckpoint(unalignedBarrier);
-        return new CollectingBarriersUnaligned(true, state.getInputs());
+        return new AlternatingCollectingBarriersUnaligned(true, state);
     }
 
     @Override

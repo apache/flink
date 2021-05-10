@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+/** We are performing aligned checkpoints. We have seen at least a single aligned * barrier. */
 final class CollectingBarriers extends AbstractAlignedBarrierHandlerState {
 
     CollectingBarriers(ChannelState context) {
