@@ -644,7 +644,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getFreeResourceOf(instanceID);
     }
 
     @Override
