@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -68,7 +70,7 @@ public class ZooKeeperLeaderElectionDriver
     private final NodeCache cache;
 
     /** ZooKeeper path of the node which stores the current leader information. */
-    private final String leaderPath;
+    private final String connectionInformationPath;
 
     private final ConnectionStateListener listener =
             (client, newState) -> handleStateChange(newState);
@@ -85,29 +87,27 @@ public class ZooKeeperLeaderElectionDriver
      * Creates a ZooKeeperLeaderElectionDriver object.
      *
      * @param client Client which is connected to the ZooKeeper quorum
-     * @param latchPath ZooKeeper node path for the leader election latch
-     * @param leaderPath ZooKeeper node path for the node which stores the current leader
-     *     information
+     * @param path ZooKeeper node path for the leader election
      * @param leaderElectionEventHandler Event handler for processing leader change events
      * @param fatalErrorHandler Fatal error handler
      * @param leaderContenderDescription Leader contender description
      */
     public ZooKeeperLeaderElectionDriver(
             CuratorFramework client,
-            String latchPath,
-            String leaderPath,
+            String path,
             LeaderElectionEventHandler leaderElectionEventHandler,
             FatalErrorHandler fatalErrorHandler,
             String leaderContenderDescription)
             throws Exception {
+        checkNotNull(path);
         this.client = checkNotNull(client);
-        this.leaderPath = checkNotNull(leaderPath);
+        this.connectionInformationPath = ZooKeeperUtils.generateConnectionInformationPath(path);
         this.leaderElectionEventHandler = checkNotNull(leaderElectionEventHandler);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.leaderContenderDescription = checkNotNull(leaderContenderDescription);
 
-        leaderLatch = new LeaderLatch(client, checkNotNull(latchPath));
-        cache = new NodeCache(client, leaderPath);
+        leaderLatch = new LeaderLatch(client, ZooKeeperUtils.generateLeaderLatchPath(path));
+        cache = new NodeCache(client, connectionInformationPath);
 
         client.getUnhandledErrorListenable().addListener(this);
 
@@ -220,7 +220,7 @@ public class ZooKeeperLeaderElectionDriver
             boolean dataWritten = false;
 
             while (!dataWritten && leaderLatch.hasLeadership()) {
-                Stat stat = client.checkExists().forPath(leaderPath);
+                Stat stat = client.checkExists().forPath(connectionInformationPath);
 
                 if (stat != null) {
                     long owner = stat.getEphemeralOwner();
@@ -228,7 +228,7 @@ public class ZooKeeperLeaderElectionDriver
 
                     if (owner == sessionID) {
                         try {
-                            client.setData().forPath(leaderPath, baos.toByteArray());
+                            client.setData().forPath(connectionInformationPath, baos.toByteArray());
 
                             dataWritten = true;
                         } catch (KeeperException.NoNodeException noNode) {
@@ -236,7 +236,7 @@ public class ZooKeeperLeaderElectionDriver
                         }
                     } else {
                         try {
-                            client.delete().forPath(leaderPath);
+                            client.delete().forPath(connectionInformationPath);
                         } catch (KeeperException.NoNodeException noNode) {
                             // node was deleted in the meantime --> try again
                         }
@@ -246,7 +246,7 @@ public class ZooKeeperLeaderElectionDriver
                         client.create()
                                 .creatingParentsIfNeeded()
                                 .withMode(CreateMode.EPHEMERAL)
-                                .forPath(leaderPath, baos.toByteArray());
+                                .forPath(connectionInformationPath, baos.toByteArray());
 
                         dataWritten = true;
                     } catch (KeeperException.NodeExistsException nodeExists) {
@@ -301,6 +301,15 @@ public class ZooKeeperLeaderElectionDriver
 
     @Override
     public String toString() {
-        return "ZooKeeperLeaderElectionDriver{" + "leaderPath='" + leaderPath + '\'' + '}';
+        return "ZooKeeperLeaderElectionDriver{"
+                + "leaderPath='"
+                + connectionInformationPath
+                + '\''
+                + '}';
+    }
+
+    @VisibleForTesting
+    String getConnectionInformationPath() {
+        return connectionInformationPath;
     }
 }

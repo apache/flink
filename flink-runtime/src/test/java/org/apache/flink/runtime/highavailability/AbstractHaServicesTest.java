@@ -240,22 +240,22 @@ public class AbstractHaServicesTest extends TestLogger {
         }
 
         @Override
-        protected String getLeaderNameForResourceManager() {
+        protected String getLeaderPathForResourceManager() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForDispatcher() {
+        protected String getLeaderPathForDispatcher() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForJobManager(JobID jobID) {
+        protected String getLeaderPathForJobManager(JobID jobID) {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
-        protected String getLeaderNameForRestServer() {
+        protected String getLeaderPathForRestServer() {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
     }
