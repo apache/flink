@@ -32,6 +32,7 @@ import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnect
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 
@@ -735,6 +736,86 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
 
         testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
         testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);
+    }
+
+    @Test
+    public void testGetResourceOverview() throws Exception {
+        final TaskExecutorConnection taskExecutorConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection taskExecutorConnection2 = createTaskExecutorConnection();
+        final ResourceID resourceId1 = ResourceID.generate();
+        final ResourceID resourceId2 = ResourceID.generate();
+
+        final SlotID slotId1 = new SlotID(resourceId1, 0);
+        final SlotID slotId2 = new SlotID(resourceId2, 0);
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        final SlotStatus slotStatus1 =
+                new SlotStatus(slotId1, resourceProfile1, new JobID(), new AllocationID());
+        final SlotStatus slotStatus2 =
+                new SlotStatus(slotId2, resourceProfile2, new JobID(), new AllocationID());
+        final SlotReport slotReport1 = new SlotReport(slotStatus1);
+        final SlotReport slotReport2 = new SlotReport(slotStatus2);
+
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final CompletableFuture<Boolean> registerTaskManagerFuture1 =
+                                    new CompletableFuture<>();
+                            final CompletableFuture<Boolean> registerTaskManagerFuture2 =
+                                    new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        registerTaskManagerFuture1.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection1,
+                                                                slotReport1,
+                                                                resourceProfile1.multiply(2),
+                                                                resourceProfile1));
+                                        registerTaskManagerFuture2.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection2,
+                                                                slotReport2,
+                                                                resourceProfile2.multiply(2),
+                                                                resourceProfile2));
+                                    });
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture1),
+                                    is(true));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture2),
+                                    is(true));
+                            assertThat(
+                                    getSlotManager().getFreeResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2));
+                            assertThat(
+                                    getSlotManager().getRegisteredResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2).multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1.multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2.multiply(2)));
+                        });
+            }
+        };
     }
 
     @Test
