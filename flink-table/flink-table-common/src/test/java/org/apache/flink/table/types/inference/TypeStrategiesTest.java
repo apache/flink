@@ -197,7 +197,7 @@ public class TypeStrategiesTest {
                         .expectDataType(DataTypes.DECIMAL(11, 8).notNull()),
                 TestSpec.forStrategy("Find a decimal product", TypeStrategies.DECIMAL_TIMES)
                         .inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
-                        .expectDataType(DataTypes.DECIMAL(8, 6).notNull()),
+                        .expectDataType(DataTypes.DECIMAL(9, 6).notNull()),
                 TestSpec.forStrategy("Find a decimal modulo", TypeStrategies.DECIMAL_MOD)
                         .inputTypes(DataTypes.DECIMAL(5, 4), DataTypes.DECIMAL(3, 2))
                         .expectDataType(DataTypes.DECIMAL(5, 4).notNull()),

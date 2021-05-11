@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -25,13 +26,13 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
@@ -1129,6 +1130,35 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "null,Hello World,8,5",
       "A,Hello World,9,6",
       "B,Hello World,10,7")
+    assertEquals(expected, sink.getAppendResults)
+  }
+
+  @Test
+  def testDecimalSum0(): Unit = {
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(BigDecimal(1.11).bigDecimal))
+    data.+=(Row.of(BigDecimal(2.22).bigDecimal))
+    data.+=(Row.of(BigDecimal(3.33).bigDecimal))
+    data.+=(Row.of(BigDecimal(4.44).bigDecimal))
+
+    env.setParallelism(1)
+    val rowType = new RowTypeInfo(BigDecimalTypeInfo.of(38, 18))
+    val t = failingDataSource(data)(rowType).toTable(tEnv, 'd, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "select sum(d) over (ORDER BY proctime rows between unbounded preceding " +
+      "and current row) from T"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1.110000000000000000",
+      "3.330000000000000000",
+      "6.660000000000000000",
+      "11.100000000000000000")
     assertEquals(expected, sink.getAppendResults)
   }
 }
