@@ -24,8 +24,8 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.python.util.DecompressUtils;
+import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -316,7 +316,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
     }
 
-    private void constructArchivesDirectory(Map<String, String> env) throws IOException, InterruptedException {
+    private void constructArchivesDirectory(Map<String, String> env)
+            throws IOException, InterruptedException {
         if (!dependencyInfo.getArchives().isEmpty()) {
             // set the archives directory as the working directory, then user could access the
             // content of the archives
@@ -429,7 +430,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
     private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
         String lowercaseFilePath = filePath.toLowerCase();
-        for (String suffix: suffixes) {
+        for (String suffix : suffixes) {
             if (lowercaseFilePath.endsWith(suffix)) {
                 return true;
             }
