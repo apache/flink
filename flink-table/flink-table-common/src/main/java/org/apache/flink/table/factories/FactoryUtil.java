@@ -108,6 +108,12 @@ public final class FactoryUtil {
     public static final String FORMAT_SUFFIX = ".format";
 
     /**
+     * The placeholder symbol to be used for keys of options which can be templated. See {@link
+     * Factory} for details.
+     */
+    public static final String PLACEHOLDER_SYMBOL = "#";
+
+    /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
      *
      * <p>It considers {@link Catalog#getFactory()} if provided.
@@ -362,6 +368,9 @@ public final class FactoryUtil {
 
         final List<String> missingRequiredOptions =
                 requiredOptions.stream()
+                        // Templated options will never appear with their template key, so we need
+                        // to ignore them as required properties here
+                        .filter(option -> !option.key().contains(PLACEHOLDER_SYMBOL))
                         .filter(option -> readOption(options, option) == null)
                         .map(ConfigOption::key)
                         .sorted()
@@ -384,7 +393,7 @@ public final class FactoryUtil {
             String factoryIdentifier, Set<String> allOptionKeys, Set<String> consumedOptionKeys) {
         final Set<String> remainingOptionKeys = new HashSet<>(allOptionKeys);
         remainingOptionKeys.removeAll(consumedOptionKeys);
-        if (remainingOptionKeys.size() > 0) {
+        if (!remainingOptionKeys.isEmpty()) {
             throw new ValidationException(
                     String.format(
                             "Unsupported options found for '%s'.\n\n"

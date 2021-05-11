@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -37,9 +40,11 @@ import org.junit.rules.ExpectedException;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
@@ -275,6 +280,14 @@ public class FactoryUtilTest {
                     "Connector 'source-only' can only be used as a source. It cannot be used as a sink.";
             assertThat(e, containsCause(new ValidationException(errorMsg)));
         }
+    }
+
+    @Test
+    public void testRequiredPlaceholderOption() {
+        final Set<ConfigOption<?>> requiredOptions = new HashSet<>();
+        requiredOptions.add(ConfigOptions.key("fields.#.min").intType().noDefaultValue());
+
+        FactoryUtil.validateFactoryOptions(requiredOptions, new HashSet<>(), new Configuration());
     }
 
     @Test
