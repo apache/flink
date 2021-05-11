@@ -329,11 +329,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 String inFilePath = entry.getKey();
                 String targetDirPath =
                         String.join(File.separator, archivesDirectory, entry.getValue());
-                if (inFilePath.endsWith(".zip") || inFilePath.endsWith(".jar")) {
+                if (hasOneOfSuffixes(inFilePath, ".zip", ".jar")) {
                     DecompressUtils.extractZipFileWithPermissions(inFilePath, targetDirPath);
-                } else if (inFilePath.endsWith(".tar")
-                        || inFilePath.endsWith(".tgz")
-                        || inFilePath.endsWith(".tar.gz")) {
+                } else if (hasOneOfSuffixes(inFilePath, ".tar", ".tar.gz", ".tgz")) {
                     DecompressUtils.unTar(inFilePath, targetDirPath);
                 } else {
                     throw new IllegalArgumentException(
@@ -427,5 +425,15 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
+    }
+
+    private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
+        String lowercaseFilePath = filePath.toLowerCase();
+        for (String suffix: suffixes) {
+            if (lowercaseFilePath.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
