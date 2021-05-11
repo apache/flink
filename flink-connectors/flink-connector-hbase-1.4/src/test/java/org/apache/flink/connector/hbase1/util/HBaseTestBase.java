@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.hbase1.util;
 
-import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.table.api.EnvironmentSettings;
 
 import org.apache.hadoop.hbase.TableName;
@@ -80,9 +79,6 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
     protected EnvironmentSettings streamSettings;
     protected EnvironmentSettings batchSettings;
 
-    /** Gets the planner type to execute. */
-    protected abstract PlannerType planner();
-
     @BeforeClass
     public static void activateHBaseCluster() throws IOException {
         prepareTables();
@@ -93,15 +89,8 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
         EnvironmentSettings.Builder streamBuilder =
                 EnvironmentSettings.newInstance().inStreamingMode();
         EnvironmentSettings.Builder batchBuilder = EnvironmentSettings.newInstance().inBatchMode();
-        if (PlannerType.BLINK_PLANNER.equals(planner())) {
-            this.streamSettings = streamBuilder.useBlinkPlanner().build();
-            this.batchSettings = batchBuilder.useBlinkPlanner().build();
-        } else if (PlannerType.OLD_PLANNER.equals(planner())) {
-            this.streamSettings = streamBuilder.useOldPlanner().build();
-            this.batchSettings = batchBuilder.useOldPlanner().build();
-        } else {
-            throw new IllegalArgumentException("Unsupported planner name " + planner());
-        }
+        this.streamSettings = streamBuilder.useBlinkPlanner().build();
+        this.batchSettings = batchBuilder.useBlinkPlanner().build();
     }
 
     private static void prepareTables() throws IOException {
