@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.factories.DataGenOptions;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
@@ -38,9 +39,6 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 
 /** Creates a sequential {@link DataGeneratorContainer} for a particular logical type. */
 @Internal
@@ -65,8 +63,8 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
         this.config = config;
 
-        this.startKeyStr = FIELDS + "." + name + "." + START;
-        this.endKeyStr = FIELDS + "." + name + "." + END;
+        this.startKeyStr = DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.START;
+        this.endKeyStr = DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.END;
 
         ConfigOptions.OptionBuilder startKey = key(startKeyStr);
         ConfigOptions.OptionBuilder endKey = key(endKeyStr);
