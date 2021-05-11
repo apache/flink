@@ -55,6 +55,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
       title: 'Configuration'
     }
   ];
+  checkpointIndexOfNavigation = this.checkpointIndexOfNav();
 
   webCancelEnabled = this.statusService.configuration.features["web-cancel"];
 
@@ -72,6 +73,12 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     jobDetail$.subscribe(data => {
       this.jobDetail = data;
       this.cdr.markForCheck();
+      var index = this.checkpointIndexOfNav();
+      if (data.plan.type == 'STREAMING' && index == -1) {
+        this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {path: 'checkpoints', title: 'Checkpoints'});
+      } else if (data.plan.type == 'BATCH' && index > -1) {
+        this.listOfNavigation.splice(index, 1);
+      }
     });
     jobDetail$.pipe(distinctUntilKeyChanged('state')).subscribe(() => {
       this.statusTips = '';
@@ -81,5 +88,9 @@ export class JobStatusComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  checkpointIndexOfNav() {
+    return this.listOfNavigation.findIndex(item => item.path === 'checkpoints');
   }
 }
