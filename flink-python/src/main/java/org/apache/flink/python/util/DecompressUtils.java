@@ -18,21 +18,18 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipFile;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
-import org.apache.flink.util.OperatingSystem;
-
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -65,7 +62,8 @@ public class DecompressUtils {
     }
 
     // Copy and simplify from hadoop-common package that is used in YARN
-    // See https://github.com/apache/hadoop/blob/7f93349ee74da5f35276b7535781714501ab2457/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/FileUtil.java
+    // See
+    // https://github.com/apache/hadoop/blob/7f93349ee74da5f35276b7535781714501ab2457/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/FileUtil.java
     private static void unTarUsingTar(String inFilePath, String targetDirPath, boolean gzipped)
             throws IOException, InterruptedException {
         inFilePath = makeSecureShellPath(inFilePath);
@@ -107,18 +105,17 @@ public class DecompressUtils {
                     if (!parent.isDirectory() && !parent.mkdirs()) {
                         throw new IOException("Failed to create directory " + parent);
                     }
-                    OutputStream o = Files.newOutputStream(f.toPath());
-                    byte[] buf = new byte[(int) entry.getSize()];
-                    IOUtils.readFully(ai, buf, 0, buf.length);
-                    IOUtils.copyBytes(new ByteArrayInputStream(buf), o);
+                    try (OutputStream o = Files.newOutputStream(f.toPath())) {
+                        IOUtils.copyBytes(ai, o, false);
+                    }
                 }
             }
         }
     }
 
     /**
-     * Convert a os-native filename to a path that works for the shell
-     * and avoids script injection attacks.
+     * Convert a os-native filename to a path that works for the shell and avoids script injection
+     * attacks.
      */
     private static String makeSecureShellPath(String filePath) {
         return filePath.replace("'", "'\\''");
