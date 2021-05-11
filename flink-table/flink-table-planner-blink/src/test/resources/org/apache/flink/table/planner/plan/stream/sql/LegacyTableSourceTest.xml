@@ -227,7 +227,7 @@ LogicalProject(name=[$0], EXPR$1=[TUMBLE_END($1)], EXPR$2=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[name, CAST(w$end) AS EXPR$1, EXPR$2])
+Calc(select=[name, w$end AS EXPR$1, EXPR$2])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w$, proctime, 600000)], properties=[w$start, w$end, w$proctime], select=[name, AVG(val) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[name]])
       +- Calc(select=[val, name, proctime], where=[(val > 100)])

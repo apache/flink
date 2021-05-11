@@ -52,7 +52,7 @@ LogicalProject(symbol=[$0], price=[$2], rowTime=[TUMBLE_ROWTIME($1)], startTime=
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[symbol, price, CAST(w$rowtime) AS rowTime, CAST(w$start) AS startTime])
+Calc(select=[symbol, price, CAST(w$rowtime) AS rowTime, w$start AS startTime])
 +- GroupWindowAggregate(groupBy=[symbol], window=[TumblingGroupWindow('w$, matchRowtime, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, SUM(price) AS price, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[symbol]])
       +- Calc(select=[symbol, matchRowtime, price])
