@@ -79,7 +79,7 @@ Congratulations! You have successfully run a Flink application by deploying Flin
 
 ## Deployment Modes
 
-For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode), as these modes provide a better isolation for the Applications.
+For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode), as this mode provides a better isolation for the Applications.
 
 ### Application Mode
 

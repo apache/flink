@@ -1,5 +1,5 @@
 ---
-title: Native Kubernetes
+title: 原生 Kubernetes
 weight: 3
 type: docs
 aliases:
@@ -25,34 +25,34 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Native Kubernetes
+# 原生 Kubernetes
 
-This page describes how to deploy Flink natively on [Kubernetes](https://kubernetes.io).
+本页面描述了如何在 [Kubernetes](https://kubernetes.io/zh/) 上原生地部署 Flink。
 
-## Getting Started
+## 入门
 
-This *Getting Started* section guides you through setting up a fully functional Flink Cluster on Kubernetes.
+本*入门*部分指导你在 Kubernetes 上设置一个功能完备的 Flink 集群。
 
-### Introduction
+### 简介
 
-Kubernetes is a popular container-orchestration system for automating computer application deployment, scaling, and management.
-Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
-Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
+Kubernetes 是一个流行的容器编排系统，用于自动化计算机应用的部署、扩缩容与管理。
+Flink 的原生 Kubernetes 集成允许你直接在正在运行的 Kubernetes 集群上部署 Flink。
+此外，Flink 能够根据所需地资源动态地分配和回收 TaskManager，因为它可以直接与 Kubernetes 通信。
 
-### Preparation
+### 准备工作
 
-The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
+*入门*部分假设有一个正在运行地 Kubernetes 集群满足以下要求：
 
-- Kubernetes >= 1.9.
-- KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
-- Enabled Kubernetes DNS.
-- `default` service account with [RBAC](#rbac) permissions to create, delete pods.
+- Kubernetes >= 1.9。
+- KubeConfig，具有列出、创建、删除 Pod 和 Service 的权限，可通过 `~/.kube/config` 配置。你可以通过运行 `kubectl auth can-i <list|create|edit|delete> pods` 来验证权限。
+- 启用 Kubernetes DNS。
+- `default` 服务账户具有 [RBAC](#rbac) 权限，可以创建与删除 Pod。
 
-If you have problems setting up a Kubernetes cluster, then take a look at [how to setup a Kubernetes cluster](https://kubernetes.io/docs/setup/).
+如果你在设置 Kubernetes 集群的时候遇到问题，那么请参照[如何设置 Kubernetes 集群](https://kubernetes.io/zh/docs/setup/)。
 
-### Starting a Flink Session on Kubernetes
+### 在 Kubernetes 上启动一个 Flink 会话
 
-Once you have your Kubernetes cluster running and `kubectl` is configured to point to it, you can launch a Flink cluster in [Session Mode]({{< ref "docs/deployment/overview" >}}#session-mode) via
+一旦你的 Kubernetes 集群正在运行，并且 `kubectl` 被配置为指向它，你就可以通过以下命令在 [Session 模式]({{< ref "docs/deployment/overview" >}}#session-mode)中启动 Flink 集群：
 
 ```bash
 # (1) Start Kubernetes session
@@ -70,23 +70,23 @@ $ kubectl delete deployment/my-first-flink-cluster
 ```
 
 {{< hint info >}}
-When using [Minikube](https://minikube.sigs.k8s.io/docs/), you need to call `minikube tunnel` in order to [expose Flink's LoadBalancer service on Minikube](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel).
+当使用 [Minikube](https://minikube.sigs.k8s.io/docs/) 时，你需要调用 `minikube tunnel` 以便[在 Minikube 上暴露 Flink 的 LoadBalancer 服务](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel)。
 {{< /hint >}}
 
-Congratulations! You have successfully run a Flink application by deploying Flink on Kubernetes.
+恭喜你！你已经成功地通过在 Kubernetes 上部署 Flink 运行了一个 Flink 应用。
 
 {{< top >}}
 
-## Deployment Modes
+## 部署模式
 
-For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode), as these modes provide a better isolation for the Applications.
+对于生产使用，我们建议在 [Application 模式]({{< ref "docs/deployment/overview" >}}#application-mode)下部署 Flink Application，因为该模式为 Application 提供了更好的隔离。
 
-### Application Mode
+### Application 模式
 
-The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
-The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
+[Application 模式]({{< ref "docs/deployment/overview" >}}#application-mode)需要将用户代码和 Flink 镜像捆绑在一起，因为它在集群上运行用户代码的 `main()` 方法。
+Application 模式确保所有 Flink 组件在应用终止之后被妥当地清理。
 
-The Flink community provides a [base Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images) which can be used to bundle the user code:
+Flink 社区提供了一个[基础 Docker 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images)可以被用来捆绑用户代码：
 
 ```dockerfile
 FROM flink
@@ -94,7 +94,7 @@ RUN mkdir -p $FLINK_HOME/usrlib
 COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 ```
 
-After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
+以 `custom-image-name` 创建并发布 Docker 镜像后，你可以用以下命令启动一个 Application 集群：
 
 ```bash
 $ ./bin/flink run-application \
@@ -104,14 +104,14 @@ $ ./bin/flink run-application \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 
-<span class="label label-info">Note</span> `local` is the only supported scheme in Application Mode.
+<span class="label label-info">注意</span> `local` 是在 Application 模式下唯一支持的方案。
 
-The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
-If you do not specify this option, then Flink will generate a random name.
+`kubernetes.cluster-id` 选项指定了集群的名称，它必须是唯一的。
+如果你没有指定这个选项，那么 Flink 将生成一个随机的名称。
 
-The `kubernetes.container.image` option specifies the image to start the pods with.
+`kubernetes.container.image` 选项指定了用于启动 Pod 的镜像。
 
-Once the application cluster is deployed you can interact with it:
+一旦应用集群部署完毕你就可以与它进行交互：
 
 ```bash
 # List running job on the cluster
@@ -120,25 +120,25 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
+你可以通过向 `bin/flink` 传递 `-Dkey=value` 键值对来覆盖在 `conf/flink-conf.yaml` 中设置的配置。
 
-### Per-Job Cluster Mode
+### Per-Job 集群模式
 
-Flink on Kubernetes does not support Per-Job Cluster Mode.
+Kubernetes 上的 Flink 不支持 Per-Job 模式。
 
-### Session Mode
+### Session 模式
 
-You have seen the deployment of a Session cluster in the [Getting Started](#getting-started) guide at the top of this page.
+你已经在本页面顶部的[入门](#入门)指南中看到了 Session 集群的部署。
 
-The Session Mode can be executed in two modes:
+Session 模式可以在两种模式下执行：
 
-* **detached mode** (default): The `kubernetes-session.sh` deploys the Flink cluster on Kubernetes and then terminates.
+* **分离模式**（默认）：`kubernetes-session.sh` 在 Kubernetes 上部署 Flink 集群然后终止。
 
-* **attached mode** (`-Dexecution.attached=true`): The `kubernetes-session.sh` stays alive and allows entering commands to control the running Flink cluster.
-  For example, `stop` stops the running Session cluster.
-  Type `help` to list all supported commands.
+* **附加模式**（`-Dexecution.attached=true`）：`kubernetes-session.sh` 保持连接并允许输入命令来控制正在运行的 Flink 集群。
+  例如，`stop` 停止正在运行的 Session 集群。
+  输入 `help` 列出所有支持的命令。
 
-In order to re-attach to a running Session cluster with the cluster id `my-first-flink-cluster` use the following command:
+为了重新附加到一个正在运行的集群 ID 为 `my-first-flink-cluster` 的 Session 集群，可以使用以下命令：
 
 ```bash
 $ ./bin/kubernetes-session.sh \
@@ -146,11 +146,11 @@ $ ./bin/kubernetes-session.sh \
     -Dexecution.attached=true
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
+你可以通过向 `bin/kubernetes-session.sh` 传递 `-Dkey=value` 键值对来覆盖在 `conf/flink-conf.yaml` 中设置的配置。
 
-#### Stop a Running Session Cluster
+#### 停止正在运行的 Session 集群
 
-In order to stop a running Session Cluster with cluster id `my-first-flink-cluster` you can either [delete the Flink deployment](#manual-resource-cleanup) or use:
+为了停止一个正在运行的集群 ID 为 `my-first-flink-cluster` 的 Session 集群，你可以[删除 Flink Deployment](#手动资源清理) 或者使用以下命令：
 
 ```bash
 $ echo 'stop' | ./bin/kubernetes-session.sh \
@@ -160,87 +160,87 @@ $ echo 'stop' | ./bin/kubernetes-session.sh \
 
 {{< top >}}
 
-## Flink on Kubernetes Reference
+## Kubernetes 上的 Flink 参考资料
 
-### Configuring Flink on Kubernetes
+### 配置 Kubernetes 上的 Flink
 
-The Kubernetes-specific configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}#kubernetes).
+Kubernetes 特定的配置选项在[配置页面]({{< ref "docs/deployment/config" >}}#kubernetes)中被列出。
 
-Flink uses [Fabric8 Kubernetes client](https://github.com/fabric8io/kubernetes-client) to communicate with Kubernetes APIServer to create/delete Kubernetes resources(e.g. Deployment, Pod, ConfigMap, Service, etc.), as well as watch the Pods and ConfigMaps.
-Except for the above Flink config options, some [expert options](https://github.com/fabric8io/kubernetes-client#configuring-the-client) of Fabric8 Kubernetes client could be configured via system properties or environment variables.
+Flink 使用 [Fabric8 Kubernetes 客户端](https://github.com/fabric8io/kubernetes-client)与 Kubernetes APIServer 进行通信，以创建或删除 Kubernetes 资源（如 Deployment、Pod、ConfigMap 与 Service 等），同时也对 Pod 与 ConfigMap 进行观测。
+除了上述 Flink 的配置选项，一些 Fabric8 Kubernetes 客户端的[专业选项](https://github.com/fabric8io/kubernetes-client#configuring-the-client)可以通过系统属性或环境变量进行配置。
 
-For example, users could use the following Flink config options to set the concurrent max requests, which allows running more jobs in a session cluster when [Kubernetes HA Services]({{< ref "docs/deployment/ha/kubernetes_ha" >}}) are used.
-Please note that, each Flink job will consume `3` concurrent requests.
+例如，用户可以使用以下 Flink 配置选项来设置最大并发请求数量，它允许在使用 Kubernetes 高可用服务时能够在 Session 集群中运行更多的作业。
+请注意，每个 Flink 作业将消耗 `3` 个并发请求。
 
 ```yaml
 containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
 env.java.opts.jobmanager: "-Dkubernetes.max.concurrent.requests=200"
 ```
 
-### Accessing Flink's Web UI
+### 访问 Flink 的 Web UI
 
-Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) configuration option.
+Flink 的 Web UI 和 REST 端点可以通过 [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) 配置选项以多种方式被暴露。
 
-- **ClusterIP**: Exposes the service on a cluster-internal IP.
-  The Service is only reachable within the cluster.
-  If you want to access the JobManager UI or submit job to the existing session, you need to start a local proxy.
-  You can then use `localhost:8081` to submit a Flink job to the session or view the dashboard.
+- **ClusterIP**：在集群内部 IP 上暴露服务。
+  Service 只能在集群内部可达。
+  如果你想要访问 JobManager UI 或者向现有会话提交任务，你需要启动一个本地代理。
+  然后你可以使用 `localhost:8081` 来向会话提交 Flink 任务或者查看仪表板。
 
 ```bash
 $ kubectl port-forward service/<ServiceName> 8081
 ```
 
-- **NodePort**: Exposes the service on each Node’s IP at a static port (the `NodePort`).
-  `<NodeIP>:<NodePort>` can be used to contact the JobManager service.
-  `NodeIP` can also be replaced with the Kubernetes ApiServer address. 
-  You can find its address in your kube config file.
+- **NodePort**：在每个节点的 IP 上以静态端口（`NodePort`）暴露服务。
+  `<NodeIP>:<NodePort>` 可以用来联系 JobManager 服务。
+  `NodeIP` 也可以用 Kubernetes ApiServer 地址代替。
+  你可以在你的 Kube 配置文件中找到它的地址。
 
-- **LoadBalancer**: Exposes the service externally using a cloud provider’s load balancer.
-  Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
-  You can use `kubectl get services/<cluster-id>-rest` to get EXTERNAL-IP and construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
+- **LoadBalancer**：使用云提供商的负载均衡器向外部暴露服务。
+  由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，你可能会在客户端日志中得到一个 `NodePort` JobManager Web 界面。
+  你可以使用 `kubectl get services/<cluster-id>-rest` 来获取 EXTERNAL-IP 并手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
-Please refer to the official documentation on [publishing services in Kubernetes](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) for more information.
+更多信息请参考[在 Kubernetes 中发布服务](https://kubernetes.io/zh/docs/concepts/services-networking/service/#publishing-services-service-types)的官方文档。
 
 {{< hint warning >}}
-Depending on your environment, starting a Flink cluster with `LoadBalancer` REST service exposed type might make the cluster accessible publicly (usually with the ability to execute arbitrary code).
+根据你的环境，使用 `LoadBalancer` REST 服务暴露类型启动一个 Flink 集群可能会使集群被公开访问（通常具有执行任意代码的能力）。
 {{< /hint >}}
 
-### Logging
+### 日志
 
-The Kubernetes integration exposes `conf/log4j-console.properties` and `conf/logback-console.xml` as a ConfigMap to the pods.
-Changes to these files will be visible to a newly started cluster.
+Kubernetes 的集成将 `conf/log4j-console.properties` 与 `conf/logback-console.xml` 作为 ConfigMap 暴露给 Pod。
+对这些文件的改变将对新启动的集群可见。
 
-#### Accessing the Logs
+#### 访问日志
 
-By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
-The `STDOUT` and `STDERR` output will only be redirected to the console.
-You can access them via
+默认情况下，JobManager 与 TaskManager 将同时把日志输出到控制台与 `/opt/flink/log`。
+`STDOUT` 与 `STDERR` 输出将只被重定向到控制台。
+你可以通过以下方式访问它们
 
 ```bash
 $ kubectl logs <pod-name>
 ```
 
-If the pod is running, you can also use `kubectl exec -it <pod-name> bash` to tunnel in and view the logs or debug the process.
+如果 Pod 正在运行，你也可以使用 `kubectl exec -it <pod-name> bash` 进行连接并查看日志或调试进程。
 
-#### Accessing the Logs of the TaskManagers
+#### 访问 TaskManager 的日志
 
-Flink will automatically de-allocate idling TaskManagers in order to not waste resources.
-This behaviour can make it harder to access the logs of the respective pods.
-You can increase the time before idling TaskManagers are released by configuring [resourcemanager.taskmanager-timeout]({{< ref "docs/deployment/config" >}}#resourcemanager-taskmanager-timeout) so that you have more time to inspect the log files.
+为了不浪费资源，Flink 会自动回收空闲的 TaskManager。
+这种行为可能会使访问相关的 Pod 的日志更加困难。
+你可以通过配置 [resourcemanager.taskmanager-timeout]({{< ref "docs/deployment/config" >}}#resourcemanager-taskmanager-timeout) 来增加空闲的 TaskManager 被释放之前的时间，这样你就有更多的时间来检查日志文件。
 
-#### Changing the Log Level Dynamically
+#### 动态改变日志级别
 
-If you have configured your logger to [detect configuration changes automatically]({{< ref "docs/deployment/advanced/logging" >}}), then you can dynamically adapt the log level by changing the respective ConfigMap (assuming that the cluster id is `my-first-flink-cluster`):
+如果你已经将你的日志记录器配置为[自动检测配置变化]({{< ref "docs/deployment/advanced/logging" >}})，那么你可以通过改变相关的 ConfigMap 来动态调整日志级别（假设集群 ID 为 `my-first-flink-cluster`）：
 
 ```bash
 $ kubectl edit cm flink-config-my-first-flink-cluster
 ```
 
-### Using Plugins
+### 使用插件
 
-In order to use [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}), you must copy them to the correct location in the Flink JobManager/TaskManager pod.
-You can use the [built-in plugins]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-plugins) without mounting a volume or building a custom Docker image.
-For example, use the following command to enable the S3 plugin for your Flink session cluster.
+为了使用[插件]({{< ref "docs/deployment/filesystems/plugins" >}})，你必须把它们复制到 Flink JobManager 或 TaskManager Pod 的正确位置。
+你可以使用[内置插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-plugins)，而无需挂载卷或构建自定义 Docker 镜像。
+例如，使用以下命令为你的 Flink Session 集群启动 S3 插件。
 
 ```bash
 $ ./bin/kubernetes-session.sh
@@ -248,36 +248,36 @@ $ ./bin/kubernetes-session.sh
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}}.jar
 ```
 
-### Custom Docker Image
+### 自定义 Docker 镜像
 
-If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image`.
-The Flink community provides a rich [Flink Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}) which can be a good starting point.
-See [how to customize Flink's Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image) for how to enable plugins, add dependencies and other options.
+如果你想要使用一个自定义的 Docker 镜像，那么你可以通过配置选项 `kubernetes.container.image` 指定它。
+Flink 社区提供了丰富的 [Flink Docker 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}})，可以作为一个很好的起点。
+参照[如何自定义 Flink Docker 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image)了解如何启用插件、添加依赖与其它选项。
 
-### Using Secrets
+### 使用 Secret
 
-[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) is an object that contains a small amount of sensitive data such as a password, a token, or a key.
-Such information might otherwise be put in a pod specification or in an image.
-Flink on Kubernetes can use Secrets in two ways:
+[Kubernetes Secrets](https://kubernetes.io/zh/docs/concepts/configuration/secret/) 是一个包含少量敏感数据的对象，如密码、令牌或密钥。
+这样的信息可能会被放在 Pod 对象规约或镜像中。
+Kubernetes 上的 Flink 可以通过两种方式使用 Secret：
 
-* Using Secrets as files from a pod;
+* 在 Pod 中使用 Secret 文件；
 
-* Using Secrets as environment variables;
+* 以环境变量的形式使用 Secret；
 
-#### Using Secrets as Files From a Pod
+#### 在 Pod 中使用 Secret 文件
 
-The following command will mount the secret `mysecret` under the path `/path/to/secret` in the started pods:
+以下命令将把 Secret `mysecret` 挂载到已启动的 Pod 中的 `/path/to/secret` 路径之下：
 
 ```bash
 $ ./bin/kubernetes-session.sh -Dkubernetes.secrets=mysecret:/path/to/secret
 ```
 
-The username and password of the secret `mysecret` can then be found stored in the files `/path/to/secret/username` and `/path/to/secret/password`.
-For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
+Secret `mysecret` 的用户名与密码可以在文件 `/path/to/secret/username` 与 `/path/to/secret/password` 中找到。
+更多细节请参照 [Kubernetes 官方文档](https://kubernetes.io/zh/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod)。
 
-#### Using Secrets as Environment Variables
+#### 以环境变量的形式使用 Secret
 
-The following command will expose the secret `mysecret` as environment variable in the started pods:
+以下命令将把 Secret `mysecret` 作为环境变量暴露在启动的 Pod 中：
 
 ```bash
 $ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\
@@ -285,122 +285,120 @@ $ ./bin/kubernetes-session.sh -Dkubernetes.env.secretKeyRef=\
     env:SECRET_PASSWORD,secret:mysecret,key:password
 ```
 
-The env variable `SECRET_USERNAME` contains the username and the env variable `SECRET_PASSWORD` contains the password of the secret `mysecret`.
-For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
+环境变量 `SECRET_USERNAME` 包含用户名，环境变量 `SECRET_PASSWORD` 包含 Secret `mysecret` 的密码。
+更多细节请参照 [Kubernetes 官方文档](https://kubernetes.io/zh/docs/concepts/configuration/secret/#using-secrets-as-environment-variables)。
 
-### High-Availability on Kubernetes
+### Kubernetes 上的高可用性
 
-For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
+对于 Kubernetes 上的高可用性，你可以使用[现有的高可用性服务]({{< ref "docs/deployment/ha/overview" >}})。
 
-### Manual Resource Cleanup
+### 手动资源清理
 
-Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to clean up all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, and `Pod`, have the `OwnerReference` being set to `deployment/<cluster-id>`.
-When the deployment is deleted, all related resources will be deleted automatically.
+Flink 使用 [Kubernetes OwnerReference](https://kubernetes.io/zh/docs/concepts/workloads/controllers/garbage-collection/) 来清理所有集群组件。
+所有 Flink 创建的资源，包括 `ConfigMap`、`Service` 与 `Pod`，它们的 `OwnerReference` 都被设置为 `deployment/<cluster-id>`。
+当 Deployment 被删除时，所有相关的资源都会被自动删除。
 
 ```bash
 $ kubectl delete deployment/<cluster-id>
 ```
 
-### Supported Kubernetes Versions
+### 支持的 Kubernetes 版本
 
-Currently, all Kubernetes versions `>= 1.9` are supported.
+目前，所有版本 `>= 1.9` 的 Kubernetes 都被支持。
 
-### Namespaces
+### 名字空间
 
-[Namespaces in Kubernetes](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) divide cluster resources between multiple users via [resource quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/).
-Flink on Kubernetes can use namespaces to launch Flink clusters.
-The namespace can be configured via [kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace).
+[Kubernetes 名字空间](https://kubernetes.io/zh/docs/concepts/overview/working-with-objects/namespaces/)通过[资源配额](https://kubernetes.io/docs/concepts/policy/resource-quotas/)在多个用户之间划分集群资源。
+在 Kubernetes 上的 Flink 可以使用名字空间来启动 Flink 集群。
+名字空间可以通过 [kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace) 进行配置。
 
 ### RBAC
 
-Role-based access control ([RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)) is a method of regulating access to compute or network resources based on the roles of individual users within an enterprise.
-Users can configure RBAC roles and service accounts used by JobManager to access the Kubernetes API server within the Kubernetes cluster.
+基于角色的访问控制（[RBAC](https://kubernetes.io/zh/docs/reference/access-authn-authz/rbac/)）是一种根据企业内部个人用户的角色来调节计算或网络资源的方法。
+用户可以配置 RBAC 角色和 JobManager 使用的服务账户在 Kubernetes 集群中访问 Kubernetes API Server。
 
-Every namespace has a default service account. However, the `default` service account may not have the permission to create or delete pods within the Kubernetes cluster.
-Users may need to update the permission of the `default` service account or specify another service account that has the right role bound.
+每个名字空间都有一个默认的服务账户。然而，`default` 服务账户可能没有权限在 Kubernetes 集群中创建或删除 Pod。
+用户可能需要更新 `default` 服务账户或者指定另外一个具有正确的角色绑定的服务账户。
 
 ```bash
 $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edit --serviceaccount=default:default
 ```
 
-If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
-Then use the config option `-Dkubernetes.service-account=flink-service-account` to make the JobManager pod use the `flink-service-account` service account to create/delete TaskManager pods and leader ConfigMaps. 
-Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
+如果你不想使用 `default` 服务账户，使用以下命令创建一个新的 `flink-service-account` 服务账户并设置角色绑定。
+然后使用配置选项 `-Dkubernetes.service-account=flink-service-account` 使得 JobManager Pod 使用 `flink-service-account` 服务账户来创建或删除 TaskManager Pod 和 Leader ConfigMap。
+这也将允许 TaskManager 观测 Leader ConfigMap 以检索 JobManager 与 ResourceManager 的地址。
 
 ```bash
 $ kubectl create serviceaccount flink-service-account
 $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit --serviceaccount=default:flink-service-account
 ```
 
-Please refer to the official Kubernetes documentation on [RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) for more information.
+请参照 Kubernetes 官方文档的 [RBAC 授权](https://kubernetes.io/zh/docs/reference/access-authn-authz/rbac/)来获取更多信息。
 
-### Pod Template
+### Pod 模板
 
-Flink allows users to define the JobManager and TaskManager pods via template files. This allows to support advanced features
-that are not supported by Flink [Kubernetes config options]({{< ref "docs/deployment/config" >}}#kubernetes) directly.
-Use [`kubernetes.pod-template-file`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file)
-to specify a local file that contains the pod definition. It will be used to initialize the JobManager and TaskManager.
-The main container should be defined with name `flink-main-container`.
-Please refer to the [pod template example](#example-of-pod-template) for more information.
+Flink 允许用户通过模板文件来定义 JobManager 与 TaskManager Pod。这允许支持 Flink [Kubernetes 配置选项]({{< ref "docs/deployment/config" >}}#kubernetes)不直接支持的高级功能。
+使用 [`kubernetes.pod-template-file`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file) 来制定一个包含 Pod 定义的本地文件。它将被用来初始化 JobManager 与 TaskManager。
+请参照 [Pod 模板的例子](#pod-模板的例子)来获取更多信息。
 
-#### Fields Overwritten by Flink
+#### 被 Flink 覆盖的字段
 
-Some fields of the pod template will be overwritten by Flink.
-The mechanism for resolving effective field values can be categorized as follows:
-* **Defined by Flink:** User cannot configure it.
-* **Defined by the user:** User can freely specify this value. Flink framework won't set any additional values and the effective value derives from the config option and the template.
+Pod 模板的一些字段将会被 Flink 覆盖。
+解决有效的字段值的机制可以被分为以下几类：
+* **由 Flink 定义：** 用户不能配置它。
+* **由用户定义：** 用户可以自由指定该值。Flink 框架不会设置任何额外的值，有效值来源于配置选项与模板。
 
-  Precedence order: First an explicit config option value is taken, then the value in pod template and at last the default value of a config option if nothing is specified.
-* **Merged with Flink:** Flink will merge values for a setting with a user defined value (see precedence order for "Defined by the user"). Flink values have precedence in case of same name fields.
+  优先顺序：首先会使用显式的配置选项的值，然后是 Pod 模板中的值，最后如果没有指定的话是配置选项的默认值。
 
-Refer to the following tables for the full list of pod fields that will be overwritten.
-All the fields defined in the pod template that are not listed in the tables will be unaffected.
+* **与 Flink 合并：** Flink 会将设定的值与用户定义的值（参照“由用户定义”的优先顺序）进行合并。在同名字段的情况下 Flink 的值具有优先权。
+
+关于会被覆盖的 Pod 的字段的完整列表请参照以下表格。
+在 Pod 模板中被定义的字段，如果没有在表格中被列出的话将不会受到影响。
 
 **Pod Metadata**
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 10%">Key</th>
-            <th class="text-left" style="width: 20%">Category</th>
-            <th class="text-left" style="width: 30%">Related Config Options</th>
-            <th class="text-left" style="width: 40%">Description</th>
+            <th class="text-left" style="width: 10%">键</th>
+            <th class="text-left" style="width: 20%">分类</th>
+            <th class="text-left" style="width: 30%">相关配置选项</th>
+            <th class="text-left" style="width: 40%">描述</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>name</td>
-            <td>Defined by Flink</td>
+            <td>由 Flink 定义</td>
             <td></td>
-            <td>The JobManager pod name will be overwritten with the deployment which is defined by <a href="{{< ref "docs/deployment/config" >}}#kubernetes-cluster-id">kubernetes.cluster-id</a>.
-                The TaskManager pod names will be overwritten with the pattern <code>&lt;clusterID&gt;-&lt;attempt&gt;-&lt;index&gt;</code> which is generated by Flink ResourceManager.</td>
+            <td>JobManager Pod 名称会被 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-cluster-id">kubernetes.cluster-id</a> 定义的 Deployment 覆盖。
+                TaskManager Pod 名称会以 <code>&lt;clusterID&gt;-&lt;attempt&gt;-&lt;index&gt;</code> 模式被覆盖，由 Flink ResourceManager 生成</td>
         </tr>
         <tr>
             <td>namespace</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-namespace">kubernetes.namespace</a></td>
-            <td>Both the JobManager deployment and TaskManager pods will be created in the user specified namespace.</td>
+            <td>JobManager Deployment 与 TaskManager Pod 都将在用户指定的名字空间中创建。</td>
         </tr>
         <tr>
             <td>ownerReferences</td>
-            <td>Defined by Flink</td>
+            <td>由 Flink 定义</td>
             <td></td>
-            <td>The owner reference of JobManager and TaskManager pods will always be set to the JobManager deployment.
-                Please use <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-owner-reference">kubernetes.jobmanager.owner.reference</a> to control when the deployment is deleted.</td>
+            <td>JobManger 与 TaskManager 的 ownerReference 将始终被设置为 JobManager Deployment。
+                请使用 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-owner-reference">kubernetes.jobmanager.owner.reference</a> 来控制何时删除 Deployment。</td>
         </tr>
         <tr>
             <td>annotations</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-annotations">kubernetes.jobmanager.annotations</a>
                 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-annotations">kubernetes.taskmanager.annotations</a></td>
-            <td>Flink will add additional annotations specified by the Flink configuration options.</td>
+            <td>Flink 将添加由 Flink 配置选项指定的额外注解。</td>
         </tr>
         <tr>
             <td>labels</td>
-            <td>Merged with Flink</td>
+            <td>由 Flink 定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-labels">kubernetes.jobmanager.labels</a>
                 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-labels">kubernetes.taskmanager.labels</a></td>
-            <td>Flink will add some internal labels to the user defined values.</td>
+            <td>Flink 将为用户定义的值添加一些内部标签。</td>
         </tr>
     </tbody>
 </table>
@@ -409,52 +407,52 @@ All the fields defined in the pod template that are not listed in the tables wil
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 10%">Key</th>
-            <th class="text-left" style="width: 20%">Category</th>
-            <th class="text-left" style="width: 30%">Related Config Options</th>
-            <th class="text-left" style="width: 40%">Description</th>
+            <th class="text-left" style="width: 10%">键</th>
+            <th class="text-left" style="width: 20%">分类</th>
+            <th class="text-left" style="width: 30%">相关配置选项</th>
+            <th class="text-left" style="width: 40%">描述</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>imagePullSecrets</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-pull-secrets">kubernetes.container.image.pull-secrets</a></td>
-            <td>Flink will add additional pull secrets specified by the Flink configuration options.</td>
+            <td>Flink 将添加由 Flink 配置选项指定的额外拉取 Secret。</td>
         </tr>
         <tr>
             <td>nodeSelector</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-node-selector">kubernetes.jobmanager.node-selector</a>
                 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-node-selector">kubernetes.taskmanager.node-selector</a></td>
-            <td>Flink will add additional node selectors specified by the Flink configuration options.</td>
+            <td>Flink 将添加由 Flink 配置选项指定的额外节点选择器。</td>
         </tr>
         <tr>
             <td>tolerations</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-tolerations">kubernetes.jobmanager.tolerations</a>
                 <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-tolerations">kubernetes.taskmanager.tolerations</a></td>
-            <td>Flink will add additional tolerations specified by the Flink configuration options.</td>
+            <td>Flink 将添加由 Flink 配置选项指定的额外容忍度。</td>
         </tr>
         <tr>
             <td>restartPolicy</td>
-            <td>Defined by Flink</td>
+            <td>由 Flink 定义</td>
             <td></td>
-            <td>"always" for JobManager pod and "never" for TaskManager pod.
+            <td>对于 JobManager Pod 是“always”，对于 TaskManager Pod 是“never”。
                 <br>
-                The JobManager pod will always be restarted by deployment. And the TaskManager pod should not be restarted.</td>
+                JobManager Pod 将总是被 Deployment 重新启动。而 TaskManager 不应该被重新启动。</td>
         </tr>
         <tr>
             <td>serviceAccount</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-service-account">kubernetes.service-account</a></td>
-            <td>The JobManager and TaskManager pods will be created with the user defined service account.</td>
+            <td>JobManager 与 TaskManager Pod 将以用户定义的服务账户创建。</td>
         </tr>
         <tr>
             <td>volumes</td>
-            <td>Merged with Flink</td>
+            <td>与 Flink 合并</td>
             <td></td>
-            <td>Flink will add some internal ConfigMap volumes(e.g. flink-config-volume, hadoop-config-volume) which is necessary for shipping the Flink configuration and hadoop configuration.</td>
+            <td>Flink 将添加一些内部的 ConfigMap 卷（如 flink-config-volume 与 hadoop-config-volume），这对于运送 Flink 配置与 Hadoop 配置是必要的。</td>
         </tr>
     </tbody>
 </table>
@@ -463,66 +461,67 @@ All the fields defined in the pod template that are not listed in the tables wil
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 10%">Key</th>
-            <th class="text-left" style="width: 20%">Category</th>
-            <th class="text-left" style="width: 30%">Related Config Options</th>
-            <th class="text-left" style="width: 40%">Description</th>
+            <th class="text-left" style="width: 10%">键</th>
+            <th class="text-left" style="width: 20%">分类</th>
+            <th class="text-left" style="width: 30%">相关配置选项</th>
+            <th class="text-left" style="width: 40%">描述</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>env</td>
-            <td>Merged with Flink</td>
+            <td>与 Flink 合并</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#forwarding-environment-variables">containerized.master.env.{ENV_NAME}</a>
                 <a href="{{< ref "docs/deployment/config" >}}#forwarding-environment-variables">containerized.taskmanager.env.{ENV_NAME}</a></td>
-            <td>Flink will add some internal environment variables to the user defined values.</td>
+            <td>Flink 会将一些内部环境变量添加到用户定义的值中。</td>
         </tr>
         <tr>
             <td>image</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image</a></td>
-            <td>The container image will be resolved with respect to the defined precedence order for user defined values.</td>
+            <td>容器镜像将会以用户定义的值根据定义的优先顺序被解析。</td>
         </tr>
         <tr>
             <td>imagePullPolicy</td>
-            <td>Defined by the user</td>
+            <td>由用户定义</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-pull-policy">kubernetes.container.image.pull-policy</a></td>
-            <td>The container image pull policy will be resolved with respect to the defined precedence order for user defined values.</td>
+            <td>容器镜像拉取策略将会以用户定义的值根据定义的优先顺序被解析。</td>
         </tr>
         <tr>
             <td>name</td>
-            <td>Defined by Flink</td>
+            <td>由 Flink 定义</td>
             <td></td>
-            <td>The container name will be overwritten by Flink with "flink-main-container".</td>
+            <td>容器名称将被 Flink 以“flink-main-container”覆盖。</td>
         </tr>
         <tr>
             <td>resources</td>
-            <td>Defined by the user</td>
-            <td>Memory: <br>
+            <td>由用户定义</td>
+            <td>内存：<br>
                     <a href="{{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size">jobmanager.memory.process.size</a>
                     <a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a>
                 <br>
-                CPU: <br>
+                CPU：<br>
                     <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-cpu">kubernetes.jobmanager.cpu</a>
                     <a href="{{< ref "docs/deployment/config" >}}#kubernetes-taskmanager-cpu">kubernetes.taskmanager.cpu</a></td>
-            <td>The memory and cpu resources(including requests and limits) will be overwritten by Flink configuration options. All other resources(e.g. ephemeral-storage) will be retained.</td>
+            <td>内存和 CPU 资源（包括请求与限制）将被 Flink 配置选项覆盖。所有其它的资源（如 ephemeral-storage）将被保留。</td>
         </tr>
         <tr>
             <td>containerPorts</td>
-            <td>Merged with Flink</td>
+            <td>与 Flink 合并</td>
             <td></td>
-            <td>Flink will add some internal container ports(e.g. rest, jobmanager-rpc, blob, taskmanager-rpc).</td>
+            <td>Flink 将添加一些内部容器端口（如 rest、jobmanager-rpc、blob 与 taskmanager-rpc）</td>
         </tr>
         <tr>
             <td>volumeMounts</td>
-            <td>Merged with Flink</td>
+            <td>与 Flink 合并</td>
             <td></td>
-            <td>Flink will add some internal volume mounts(e.g. flink-config-volume, hadoop-config-volume) which is necessary for shipping the Flink configuration and hadoop configuration.</td>
+            <td>Flink 将添加一些卷挂载（如 flink-config-volume 与 hadoop-config-volume），这对于运送 Flink 配置与 Hadoop 配置是必要的。</td>
         </tr>
     </tbody>
 </table>
 
-#### Example of Pod Template
+#### Pod 模板的例子
+
 `pod-template.yaml`
 ```yaml
 apiVersion: v1
