@@ -326,7 +326,7 @@ CREATE TABLE MyTable (
 )
 
 -- Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
--- observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp
+-- observed timestamp so far minus 0.001 second. Rows that have a timestamp bigger or equal to the max timestamp
 -- are not late.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
