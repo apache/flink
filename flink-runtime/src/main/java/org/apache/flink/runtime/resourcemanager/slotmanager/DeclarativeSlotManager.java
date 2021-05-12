@@ -236,9 +236,8 @@ public class DeclarativeSlotManager implements SlotManager {
     @Override
     public void close() throws Exception {
         LOG.info("Closing the slot manager.");
-
-        suspend();
         slotManagerMetricGroup.close();
+        suspend();
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -32,6 +34,10 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -53,6 +59,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import akka.pattern.AskTimeoutException;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -1447,6 +1454,29 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             slotManager.clearResourceRequirements(jobId);
 
             assertThat(resourceTracker.getMissingResources().keySet(), empty());
+        }
+    }
+
+    @Test
+    public void testAccessMetricValueDuringItsUnregister() throws Exception {
+        final MetricRegistry metricRegistry =
+                new NoOpMetricRegistry() {
+
+                    @Override
+                    public void unregister(
+                            Metric metric, String metricName, AbstractMetricGroup group) {
+                        Assert.assertTrue(metric instanceof Gauge);
+                        @SuppressWarnings("unchecked")
+                        final Gauge<Long> gauge = (Gauge<Long>) metric;
+                        gauge.getValue();
+                    }
+                };
+        try (DeclarativeSlotManager ignored =
+                createDeclarativeSlotManagerBuilder()
+                        .setSlotManagerMetricGroup(
+                                SlotManagerMetricGroup.create(metricRegistry, "localhost"))
+                        .buildAndStartWithDirectExec()) {
+            // No-op.
         }
     }
 
