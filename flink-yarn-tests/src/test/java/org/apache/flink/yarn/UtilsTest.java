@@ -115,13 +115,19 @@ public class UtilsTest extends TestLogger {
         File credentialFile = temporaryFolder.newFile("container_tokens");
         final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
         final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
-        final Text service = new Text("test-service");
+        final Text amRmTokenService = new Text("rm-ip:8030");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
         Credentials amCredentials = new Credentials();
         amCredentials.addToken(
-                amRmTokenKind, new Token<>(new byte[4], new byte[4], amRmTokenKind, service));
+                amRmTokenService,
+                new Token<>(new byte[4], new byte[4], amRmTokenKind, amRmTokenService));
         amCredentials.addToken(
-                hdfsDelegationTokenKind,
-                new Token<>(new byte[4], new byte[4], hdfsDelegationTokenKind, service));
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
         amCredentials.writeTokenStorageFile(
                 new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
 
