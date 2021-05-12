@@ -28,7 +28,6 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -39,7 +38,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
@@ -111,6 +109,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     /** Tests that the adaptive scheduler can recover stateful operators. */
     @Test
     public void testGlobalFailoverCanRecoverState() throws Exception {
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
 
@@ -230,43 +229,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final String savepoint =
                 client.stopWithSavepoint(false, savepointDirectory.getAbsolutePath()).get();
         assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
-    }
-
-    @Test
-    public void testCancellationOfJobInRestartLoop() throws Exception {
-        final long timeInRestartingState = 10000L;
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        // configure a high delay between attempts: We'll stay in RESTARTING for 10 seconds.
-        env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, timeInRestartingState));
-        env.addSource(new NotifyOnRunningAndFailingSource()).addSink(new DiscardingSink<>());
-
-        JobClient client = env.executeAsync();
-
-        NotifyOnRunningAndFailingSource.runningLatch.await();
-
-        // wait until we are in RESTARTING state
-        CommonTestUtils.waitUntilCondition(
-                () -> client.getJobStatus().get() == JobStatus.RESTARTING,
-                Deadline.fromNow(Duration.of(timeInRestartingState, ChronoUnit.MILLIS)),
-                5);
-
-        // now cancel while in RESTARTING state
-        client.cancel().get();
-    }
-
-    private static class NotifyOnRunningAndFailingSource implements ParallelSourceFunction<String> {
-        private static final OneShotLatch runningLatch = new OneShotLatch();
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            runningLatch.trigger();
-            throw new RuntimeException();
-        }
-
-        @Override
-        public void cancel() {}
     }
 
     private boolean isDirectoryEmpty(File directory) {
