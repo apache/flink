@@ -22,7 +22,9 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
@@ -109,6 +111,98 @@ public class OrcColumnarRowSplitReaderTest {
         // check that all rows have been read
         assertEquals(1920800, cnt);
         assertEquals(1844737280400L, totalF0);
+    }
+
+    @Test
+    public void testReadFileInSplitsWithNestedType() throws IOException {
+        DataType[] testSchemaNested =
+                new DataType[] {
+                    DataTypes.BOOLEAN(),
+                    DataTypes.TINYINT(),
+                    DataTypes.SMALLINT(),
+                    DataTypes.INT(),
+                    DataTypes.BIGINT(),
+                    DataTypes.FLOAT(),
+                    DataTypes.DOUBLE(),
+                    DataTypes.BYTES(),
+                    DataTypes.STRING(),
+                    DataTypes.ROW(
+                            DataTypes.FIELD(
+                                    "list",
+                                    DataTypes.ARRAY(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("int1", DataTypes.INT()),
+                                                    DataTypes.FIELD(
+                                                            "string1", DataTypes.STRING()))))),
+                    DataTypes.ARRAY(
+                            DataTypes.ROW(
+                                    DataTypes.FIELD("int1", DataTypes.INT()),
+                                    DataTypes.FIELD("string1", DataTypes.STRING()))),
+                    DataTypes.MAP(
+                            DataTypes.STRING(),
+                            DataTypes.ROW(
+                                    DataTypes.FIELD("int1", DataTypes.INT()),
+                                    DataTypes.FIELD("string1", DataTypes.STRING())))
+                };
+        Path testFileNested = new Path(getPath("test-data-nested.orc"));
+        FileInputSplit[] splits = createSplits(testFileNested, 2);
+
+        long cnt = 0;
+        long totalF9RowNestedInt = 0;
+        long totalF10ListNestedInt = 0;
+        long totalF11MapNestedInt = 0;
+        for (FileInputSplit split : splits) {
+
+            try (OrcColumnarRowSplitReader reader =
+                    OrcSplitReaderUtil.genPartColumnarRowReader(
+                            "2.3.0",
+                            new Configuration(),
+                            new String[] {
+                                "boolean1",
+                                "byte1",
+                                "short1",
+                                "int1",
+                                "long1",
+                                "float1",
+                                "double1",
+                                "bytes1",
+                                "string1",
+                                "middle",
+                                "list",
+                                "map"
+                            },
+                            testSchemaNested,
+                            new HashMap<>(),
+                            new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+                            new ArrayList<>(),
+                            BATCH_SIZE,
+                            split.getPath(),
+                            split.getStart(),
+                            split.getLength())) {
+                // read and sum nested int value
+                while (!reader.reachedEnd()) {
+                    RowData row = reader.nextRecord(null);
+                    ArrayData rowF9InnerArr = row.getRow(9, 1).getArray(0);
+                    for (int i = 0; i < rowF9InnerArr.size(); i++) {
+                        totalF9RowNestedInt += rowF9InnerArr.getRow(i, 2).getInt(0);
+                    }
+                    ArrayData arrayF10 = row.getArray(10);
+                    for (int i = 0; i < arrayF10.size(); i++) {
+                        totalF10ListNestedInt += arrayF10.getRow(i, 2).getInt(0);
+                    }
+                    MapData mapF11 = row.getMap(11);
+                    for (int i = 0; i < mapF11.valueArray().size(); i++) {
+                        totalF11MapNestedInt += mapF11.valueArray().getRow(i, 2).getInt(0);
+                    }
+                    cnt++;
+                }
+            }
+        }
+        // check that all rows have been read
+        assertEquals(2, cnt);
+        assertEquals(6, totalF9RowNestedInt);
+        assertEquals(99901241, totalF10ListNestedInt);
+        assertEquals(6, totalF11MapNestedInt);
     }
 
     @Test

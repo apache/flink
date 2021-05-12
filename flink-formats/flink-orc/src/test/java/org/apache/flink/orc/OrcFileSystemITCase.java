@@ -18,6 +18,7 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
 import org.apache.flink.types.Row;
 
@@ -39,6 +40,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+
+import static org.junit.Assert.assertEquals;
 
 /** ITCase for {@link OrcFileFormatFactory}. */
 @RunWith(Parameterized.class)
@@ -163,5 +166,41 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         check(
                 "select x, y from orcFilterTable where g = timestamp '2020-01-01 05:20:00' and x = 'x10'",
                 Collections.singletonList(Row.of("x10", "10")));
+    }
+
+    @Test
+    public void testNestedTypes() throws ExecutionException, InterruptedException {
+        String path =
+                this.getClass().getClassLoader().getResource("test-data-nested.orc").getPath();
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create table orcNestedTypesTable ("
+                                        + "boolean1 boolean,"
+                                        + "byte1 tinyint,"
+                                        + "short1 smallint,"
+                                        + "int1 int,"
+                                        + "long1 bigint,"
+                                        + "float1 float,"
+                                        + "double1 double,"
+                                        + "string1 string,"
+                                        + "middle ROW<list ARRAY<ROW<int1 int,string1 string>>>,"
+                                        + "list ARRAY<ROW<int1 int,string1 string>>,"
+                                        + "map MAP<string,ROW<int1 int,string1 string>>"
+                                        + ") with ("
+                                        + "'connector' = 'filesystem',"
+                                        + "'format' = 'orc',"
+                                        + "'path' = '%s')",
+                                path));
+
+        TableResult tableResult = super.tableEnv().executeSql("SELECT * FROM orcNestedTypesTable");
+        List<Row> rows = new ArrayList<>();
+        tableResult.collect().forEachRemaining(rows::add);
+        assertEquals(
+                "+I[false, 1, 1024, 65536, 9223372036854775807, 1.0, -15.0, hi, +I[[+I[1, bye], +I[2, sigh]]], [+I[3, good], +I[4, bad]], {}]",
+                rows.get(0).toString());
+        assertEquals(
+                "+I[true, 100, 2048, 65536, 9223372036854775807, 2.0, -5.0, bye, +I[[+I[1, bye], +I[2, sigh]]], [+I[100000000, cat], +I[-100000, in], +I[1234, hat]], {chani=+I[5, chani], mauddib=+I[1, mauddib]}]",
+                rows.get(1).toString());
     }
 }
