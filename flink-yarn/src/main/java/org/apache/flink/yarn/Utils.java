@@ -197,13 +197,23 @@ public final class Utils {
     }
 
     public static void setTokensFor(
-            ContainerLaunchContext amContainer, List<Path> paths, Configuration conf)
+            ContainerLaunchContext amContainer,
+            List<Path> paths,
+            Configuration conf,
+            boolean obtainingDelegationTokens)
             throws IOException {
         Credentials credentials = new Credentials();
-        // for HDFS
-        TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-        // for HBase
-        obtainTokenForHBase(credentials, conf);
+
+        if (obtainingDelegationTokens) {
+            LOG.info("Obtaining delegation tokens for HDFS and HBase.");
+            // for HDFS
+            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
+            // for HBase
+            obtainTokenForHBase(credentials, conf);
+        } else {
+            LOG.info("Delegation token retrieval for HDFS and HBase is disabled.");
+        }
+
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
