@@ -166,7 +166,9 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         return DataGeneratorContainer.of(
                 new DecimalDataRandomGenerator(
                         decimalType.getPrecision(), decimalType.getScale(),
-                        config.get(min), config.get(max)));
+                        config.get(min), config.get(max)),
+                min,
+                max);
     }
 
     @Override
