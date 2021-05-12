@@ -25,8 +25,8 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.DefaultJobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -48,7 +48,7 @@ public class MockResourceManagerRuntimeServices {
         this(
                 rpcService,
                 timeout,
-                SlotManagerBuilder.newBuilder()
+                DeclarativeSlotManagerBuilder.newBuilder()
                         .setScheduledExecutor(
                                 new ScheduledExecutorServiceAdapter(
                                         new DirectScheduledExecutorService()))
