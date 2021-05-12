@@ -28,6 +28,8 @@ import org.apache.flink.table.data.vector.DoubleColumnVector;
 import org.apache.flink.table.data.vector.FloatColumnVector;
 import org.apache.flink.table.data.vector.IntColumnVector;
 import org.apache.flink.table.data.vector.LongColumnVector;
+import org.apache.flink.table.data.vector.MapColumnVector;
+import org.apache.flink.table.data.vector.RowColumnVector;
 import org.apache.flink.table.data.vector.ShortColumnVector;
 import org.apache.flink.table.data.vector.TimestampColumnVector;
 
@@ -134,12 +136,12 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
 
     @Override
     public MapData getMap(int pos) {
-        throw new UnsupportedOperationException("Map is not supported.");
+        return ((MapColumnVector) data).getMap(offset + pos);
     }
 
     @Override
     public RowData getRow(int pos, int numFields) {
-        throw new UnsupportedOperationException("Row is not supported.");
+        return ((RowColumnVector) data).getRow(offset + pos);
     }
 
     @Override

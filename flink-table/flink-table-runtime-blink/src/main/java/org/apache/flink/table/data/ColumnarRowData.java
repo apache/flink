@@ -153,7 +153,7 @@ public final class ColumnarRowData implements RowData, TypedSetters {
 
     @Override
     public MapData getMap(int pos) {
-        throw new UnsupportedOperationException("Map is not supported.");
+        return vectorizedColumnBatch.getMap(rowId, pos);
     }
 
     @Override

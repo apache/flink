@@ -20,6 +20,7 @@ package org.apache.flink.table.data.vector;
 
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.vector.BytesColumnVector.Bytes;
@@ -125,5 +126,9 @@ public class VectorizedColumnBatch implements Serializable {
 
     public RowData getRow(int rowId, int colId) {
         return ((RowColumnVector) columns[colId]).getRow(rowId);
+    }
+
+    public MapData getMap(int rowId, int colId) {
+        return ((MapColumnVector) columns[colId]).getMap(rowId);
     }
 }
