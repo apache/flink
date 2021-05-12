@@ -24,23 +24,29 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# 应用程序参数处理
+# 处理应用程序参数
 
-应用程序参数处理
+
+
+处理应用程序参数
 -------------------------------
-几乎所有的批和流的 Flink 应用程序，都依赖于外部配置参数。这些配置参数可以用于指定输入和输出源（如路径或地址）、系统参数（并行度，运行时配置）和特定的应用程序参数（通常使用在用户自定义函数）。
+几乎所有的 Flink 应用程序，包括批处理和流处理，都依赖于外部配置参数。
+它们用于指定输入和输出来源（如路径或地址），系统参数（并行度，运行时配置）和应用程序特定的参数（通常在用户功能内使用）。
 
-为解决以上问题，Flink 提供一个名为 `Parametertool` 的简单公共类，其中包含了一些基本的工具。请注意，这里说的 `Parametertool` 并不是必须使用的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 等其他框架也可以非常好地兼容 Flink。
+Flink 提供了一个名为 `ParameterTool` 的简单实用程序，作为解决这些问题的基本工具。
+请注意，开发者不是必须使用此处描述的 `ParameterTool`。其他框架例如 [Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 也可以与 Flink 一起使用。
 
 ### 用 `ParameterTool` 读取配置值
 
-`ParameterTool` 定义了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易地与你的配置集成在一起。
+### 将你的配置值放入 `ParameterTool`
 
+`ParameterTool` 提供了一些预定义的静态方法来读取配置。该工具内部使用一个 `Map<String, String>`，因此将其与你自己的配置样式集成起来非常容易。
 
 #### 配置值来自 `.properties` 文件
 
-以下方法可以读取 [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) 文件并解析出键/值对：
+#### 从 `.properties` 文件中读取
 
+以下方法将读取一个 [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) 文件并提供键值对：
 ```java
 String propertiesFilePath = "/home/sam/flink/myjob.properties";
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
@@ -54,18 +60,19 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 
 #### 配置值来自命令行
 
-以下方法可以从命令行中获取参数，如 `--input hdfs:///mydata --elements 42`。
+#### 从命令行参数中读取
 
+允许从命令行中获取像 `--input hdfs:///mydata --elements 42` 这样的参数。
 ```java
 public static void main(String[] args) {
     ParameterTool parameter = ParameterTool.fromArgs(args);
-    // .. regular code ..
+    // .. 常规代码 ..
 ```
 
 
-#### 配置值来自系统属性
+#### 从系统属性中读取
 
-启动 JVM 时，可以将系统属性传递给 JVM：`-Dinput=hdfs:///mydata`。你也可以从这些系统属性初始化 `ParameterTool`：
+启动 JVM 时，你可以将系统属性传递给它：`-Dinput=hdfs:///mydata`。你也可以使用系统属性初始化 `ParameterTool`：
 
 ```java
 ParameterTool parameter = ParameterTool.fromSystemProperties();
@@ -73,22 +80,24 @@ ParameterTool parameter = ParameterTool.fromSystemProperties();
 
 ### 在 Flink 程序中使用参数
 
-现在我们已经从某处获取了参数（见上文），可以以各种不同的方式使用它们。
+### 在你的 Flink 程序中使用参数
 
-**直接从 `ParameterTool` 获取**
+现在我们已经获取了参数（见上文），接下来我们可以以各种方式来使用它们。
 
-`ParameterTool` 本身具有访问配置值的方法。
+**直接从 `ParameterTool` 中获取**
 
+`ParameterTool` 自身具有访问值的方法。
 ```java
 ParameterTool parameters = // ...
 parameter.getRequired("input");
 parameter.get("output", "myDefaultValue");
 parameter.getLong("expectedCount", -1L);
 parameter.getNumberOfParameters()
-// .. there are more methods available.
+// .. 还有更多可用方法。
 ```
 
-你可以在提交应用程序时直接在客户端的 `main()` 方法中使用这些方法的返回值。例如，你可以这样设置算子的并行度：
+你可以在提交应用程序的客户端的 `main()` 方法中直接使用这些方法的返回值。
+例如，你可以像这样为算子设置并行度：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -96,29 +105,30 @@ int parallelism = parameters.get("mapParallelism", 2);
 DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 ```
 
-由于 `ParameterTool` 是序列化的，你可以将其传递给函数本身：
+由于 `ParameterTool` 是可序列化的，因此你可以将其传递给函数本身：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
 DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
 ```
 
-然后在函数内使用它以获取命令行的传递的参数。
+然后在函数内部使用它从命令行中获取值。
 
-#### 注册全局参数
+#### 全局注册参数
 
-从 JobManager web 界面和用户定义的所有函数中可以以配置值的方式访问在 `ExecutionConfig` 中注册的全局作业参数。
+可以从 JobManager web 接口以及用户自定义的所有功能中，将在 `ExecutionConfig` 中注册为全局参数的参数作为配置值进行访问。
 
-注册全局参数：
+全局注册参数：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
 
-// set up the execution environment
+// 设置执行环境
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().setGlobalJobParameters(parameters);
 ```
-在任意富函数中访问参数：
+
+可以在任何 rich function 中访问它们：
 
 ```java
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
@@ -128,7 +138,7 @@ public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<S
         ParameterTool parameters = (ParameterTool)
                 getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
         parameters.getRequired("input");
-        // .. do more ..
+        // .. 更多 ..
 ```
 
 {{< top >}}
