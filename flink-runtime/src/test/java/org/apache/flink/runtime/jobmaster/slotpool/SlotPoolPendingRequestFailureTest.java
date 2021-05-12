@@ -41,8 +41,8 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -54,9 +54,7 @@ import java.util.function.Function;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils.createAndSetUpSlotPool;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils.requestNewAllocatedSlot;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -103,18 +101,14 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 
     @Test
     public void testFailingAllocationFailsRemappedPendingSlotRequests() throws Exception {
-        final List<AllocationID> allocations = new ArrayList<>();
-        resourceManagerGateway.setRequestSlotConsumer(
-                slotRequest -> allocations.add(slotRequest.getAllocationId()));
-
         try (SlotPool slotPool = createAndSetUpSlotPool(resourceManagerGateway)) {
             final CompletableFuture<PhysicalSlot> slotFuture1 =
                     requestNewAllocatedSlot(slotPool, new SlotRequestId());
             final CompletableFuture<PhysicalSlot> slotFuture2 =
                     requestNewAllocatedSlot(slotPool, new SlotRequestId());
 
-            final AllocationID allocationId1 = allocations.get(0);
-            final AllocationID allocationId2 = allocations.get(1);
+            final AllocationID allocationId1 = new AllocationID();
+            final AllocationID allocationId2 = new AllocationID();
 
             final TaskManagerLocation location = new LocalTaskManagerLocation();
             final SlotOffer slotOffer = new SlotOffer(allocationId2, 0, ResourceProfile.ANY);
@@ -165,7 +159,18 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
             final CompletableFuture<PhysicalSlot> slotFuture =
                     requestNewAllocatedSlot(slotPool, new SlotRequestId());
 
-            requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
+            final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            slotPool.registerTaskManager(taskManagerLocation.getResourceID());
+
+            final AllocationID lastAllocationId = new AllocationID();
+            final SlotOffer slotOffer = new SlotOffer(lastAllocationId, 0, ResourceProfile.ANY);
+            final Collection<SlotOffer> acceptedSlots =
+                    slotPool.offerSlots(
+                            taskManagerLocation,
+                            new SimpleAckingTaskManagerGateway(),
+                            Collections.singleton(slotOffer));
+
+            assertThat(acceptedSlots, containsInAnyOrder(slotOffer));
 
             try {
                 slotFuture.get();
@@ -173,6 +178,8 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
             } catch (Exception ignored) {
                 // expected
             }
+
+            resourceManagerGateway.cancelSlotRequest(slotFuture.get().getAllocationId());
 
             // check that a failure triggered the slot request cancellation
             // with the correct allocation id

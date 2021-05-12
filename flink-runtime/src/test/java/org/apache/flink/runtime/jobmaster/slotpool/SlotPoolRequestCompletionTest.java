@@ -108,8 +108,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
             slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
             // create a slot offer that is initiated by the last request
-            final AllocationID lastAllocationId =
-                    rmReceivedSlotRequests.get(requestNum - 1).getAllocationId();
+            final AllocationID lastAllocationId = new AllocationID();
             final SlotOffer slotOffer = new SlotOffer(lastAllocationId, 0, ResourceProfile.ANY);
             final Collection<SlotOffer> acceptedSlots =
                     slotPool.offerSlots(
