@@ -45,8 +45,8 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An abstract implementation of {@link SourceReader} which provides some sychronization between the
- * mail box main thread and the SourceReader internal threads. This class allows user to just
+ * An abstract implementation of {@link SourceReader} which provides some synchronization between
+ * the mail box main thread and the SourceReader internal threads. This class allows user to just
  * provide a {@link SplitReader} and snapshot the split state.
  *
  * @param <E> The rich element type that contains information for split state update or timestamp
