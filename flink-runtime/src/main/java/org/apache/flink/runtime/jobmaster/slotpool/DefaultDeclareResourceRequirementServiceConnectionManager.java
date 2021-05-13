@@ -87,7 +87,9 @@ class DefaultDeclareResourceRequirementServiceConnectionManager
                 () -> sendResourceRequirements(resourceRequirementsToSend),
                 new ExponentialBackoffRetryStrategy(
                         Integer.MAX_VALUE, sleepOnError, maxSleepOnError),
-                throwable -> !(throwable instanceof CancellationException),
+                throwable ->
+                        !(throwable instanceof CancellationException)
+                                && !(throwable instanceof UnsupportedOperationException),
                 scheduledExecutor);
     }
 
