@@ -106,6 +106,22 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
         descriptor.putString(NUMBER_OF_ROWS.key(), "10");
 
+        // add min max option for numeric types
+        descriptor.putString("fields.f4.min", "1.0");
+        descriptor.putString("fields.f4.max", "1000.0");
+        descriptor.putString("fields.f5.min", "0");
+        descriptor.putString("fields.f5.max", "127");
+        descriptor.putString("fields.f6.min", "0");
+        descriptor.putString("fields.f6.max", "32767");
+        descriptor.putString("fields.f7.min", "0");
+        descriptor.putString("fields.f7.max", "65535");
+        descriptor.putString("fields.f8.min", "0");
+        descriptor.putString("fields.f8.max", String.valueOf(Long.MAX_VALUE));
+        descriptor.putString("fields.f9.min", "0");
+        descriptor.putString("fields.f9.max", String.valueOf(Float.MAX_VALUE));
+        descriptor.putString("fields.f10.min", "0");
+        descriptor.putString("fields.f10.max", String.valueOf(Double.MAX_VALUE));
+
         List<RowData> results = runGenerator(schema, descriptor);
         Assert.assertEquals("Failed to generate all rows", 10, results.size());
 

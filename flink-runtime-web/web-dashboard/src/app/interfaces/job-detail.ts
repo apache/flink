@@ -61,6 +61,7 @@ export interface JobDetailInterface {
 interface Plan {
   jid: string;
   name: string;
+  type:  string;
   nodes: NodesItemInterface[];
 }
 
@@ -150,6 +151,7 @@ export interface JobDetailCorrectInterface extends JobDetailInterface {
   plan: {
     jid: string;
     name: string;
+    type: string;
     nodes: NodesItemCorrectInterface[];
     links: NodesItemLinkInterface[];
   };

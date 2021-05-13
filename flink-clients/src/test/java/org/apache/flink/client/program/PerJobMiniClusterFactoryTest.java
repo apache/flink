@@ -34,7 +34,9 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.is;
@@ -185,7 +187,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws Exception {
+        public void doInvoke() throws Exception {
             synchronized (lock) {
                 while (running) {
                     lock.wait();
@@ -194,11 +196,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             synchronized (lock) {
                 running = false;
                 lock.notifyAll();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

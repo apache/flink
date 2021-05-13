@@ -55,7 +55,7 @@ A Data Source has three core components: *Splits*, the *SplitEnumerator*, and th
   
 The [Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) class is API entry point that ties the above three components together.
 
-{{< img src="fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
+{{< img src="/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting" width="70%" >}}
 
 
 **Unified Across Streaming and Batch**
@@ -246,7 +246,7 @@ The `SplitFetcherManager` helps create and maintain a pool of `SplitFetcher`s ea
 
 As an example, as illustrated below, a `SplitFetcherManager` may have a fixed number of threads, each fetching from some splits assigned to the `SourceReader`.
 
-{{< img width="70%" src="fig/source_reader.svg" alt="One fetcher per split threading model." >}}
+{{< img width="70%" src="/fig/source_reader.svg" alt="One fetcher per split threading model." >}}
 
 The following code snippet implements this threading model.
 
@@ -378,7 +378,7 @@ Watermark Generators are only active during streaming execution. Batch execution
 
 The data source API supports running watermark generators individually *per split*. That allows Flink to observe the event time progress per split individually, which is important to handle *event time skew* properly and prevent *idle partitions* from holding back the event time progress of the entire application.
 
-{{< img width="80%" src="fig/per_split_watermarks.svg" alt="Watermark Generation in a Source with two Splits." >}}
+{{< img width="80%" src="/fig/per_split_watermarks.svg" alt="Watermark Generation in a Source with two Splits." >}}
 
 When implementing a source connector using the *Split Reader API*, this is automatically handled. All implementations based on the Split Reader API have split-aware watermarks out-of-the-box.
 

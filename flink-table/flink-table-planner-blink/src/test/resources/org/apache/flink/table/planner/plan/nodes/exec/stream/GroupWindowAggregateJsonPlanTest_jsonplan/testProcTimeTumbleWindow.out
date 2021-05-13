@@ -366,14 +366,14 @@
       }, {
         "w$start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
       }, {
         "w$end" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
@@ -397,21 +397,8 @@
         "nullable" : true
       }
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 3,
-        "type" : {
-          "typeName" : "TIMESTAMP",
-          "nullable" : true,
-          "precision" : 3
-        }
-      } ],
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
       "type" : {
         "typeName" : "TIMESTAMP",
         "nullable" : false,
@@ -450,7 +437,7 @@
         "EXPR$2" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "Calc(select=[b, CAST(w$end) AS window_end, EXPR$2])"
+    "description" : "Calc(select=[b, w$end AS window_end, EXPR$2])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

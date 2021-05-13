@@ -53,7 +53,7 @@ public class TimeWindowTest {
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(7, offset, 7), 5);
         Assert.assertEquals(TimeWindow.getWindowStartWithOffset(12, offset, 7), 12);
 
-        // for GMT+8:00
+        // for GMT+08:00
         offset = -TimeUnit.HOURS.toMillis(8);
         long size = TimeUnit.DAYS.toMillis(1);
         Assert.assertEquals(

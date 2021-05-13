@@ -109,7 +109,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                 taskManager.get().getTaskExecutorConnection().getTaskExecutorGateway();
         final ResourceID resourceId = taskManager.get().getTaskExecutorConnection().getResourceID();
 
-        LOG.debug(
+        LOG.info(
                 "Starting allocation of slot {} from {} for job {} with resource profile {}.",
                 allocationId,
                 resourceId,
@@ -198,7 +198,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     public void freeSlot(AllocationID allocationId) {
         Preconditions.checkNotNull(allocationId);
         checkStarted();
-        LOG.debug("Freeing slot {}.", allocationId);
+        LOG.info("Freeing slot {}.", allocationId);
 
         final Optional<TaskManagerSlotInformation> slotOptional =
                 taskManagerTracker.getAllocatedOrPendingSlot(allocationId);
@@ -250,6 +250,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
             // the next slot report or the acknowledgement of the allocation request.
             if (!reportedAllocationIds.contains(slot.getAllocationId())
                     && slot.getState() == SlotState.ALLOCATED) {
+                LOG.info("Freeing slot {} by slot report.", slot.getAllocationId());
                 taskManagerTracker.notifySlotStatus(
                         slot.getAllocationId(),
                         slot.getJobId(),

@@ -138,33 +138,51 @@ END
 
 function debug_copy_and_show_logs {
     echo "Debugging failed YARN Docker test:"
-    echo "\nCurrently running containers"
+    echo -e "\nCurrently running containers"
     docker ps
 
-    echo "\n\nCurrently running JVMs"
+    echo -e "\n\nCurrently running JVMs"
     jps -v
 
-    echo "\n\nHadoop logs:"
-    mkdir -p $TEST_DATA_DIR/logs
-    docker cp master:/var/log/hadoop/ $TEST_DATA_DIR/logs/
-    ls -lisah $TEST_DATA_DIR/logs/hadoop
-    for f in $TEST_DATA_DIR/logs/hadoop/*; do
-        echo "$f:"
-        cat $f
-    done
+    local log_directory="$TEST_DATA_DIR/logs"
+    local yarn_docker_containers="master $(docker ps --format '{{.Names}}' | grep worker)"
 
-    echo "\n\nDocker logs:"
-    docker logs master
+    extract_hadoop_logs ${log_directory} ${yarn_docker_containers}
+    print_logs ${log_directory}
 
-    echo "\n\nFlink logs:"
+    echo -e "\n\n ==== Flink logs ===="
     docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
     docker exec master bash -c "yarn application -list -appStates ALL"
     application_id=`docker exec master bash -c "yarn application -list -appStates ALL" | grep -i "Flink" | grep -i "cluster" | awk '{print \$1}'`
 
-    echo "Application ID: '$application_id'"
+    echo -e "\n\nApplication ID: '$application_id'"
     docker exec master bash -c "yarn logs -applicationId $application_id"
 
     docker exec master bash -c "kdestroy"
+}
+
+function extract_hadoop_logs() {
+    local parent_folder="$1"
+    shift
+    docker_container_aliases="$@"
+
+    for docker_container_alias in $(echo ${docker_container_aliases}); do
+        local target_container_log_folder="${parent_folder}/${docker_container_alias}"
+        echo "Extracting ${docker_container_alias} Hadoop logs into ${target_container_log_folder}"
+        mkdir -p "${target_container_log_folder}"
+        docker cp "${docker_container_alias}:/var/log/hadoop/" "${target_container_log_folder}"
+
+        local target_container_docker_log_file="${target_container_log_folder}/docker-${docker_container_alias}.log"
+        echo "Extracting ${docker_container_alias} Docker logs into ${target_container_docker_log_file}"
+        docker logs "${docker_container_alias}" > "${target_container_docker_log_file}"
+    done
+}
+
+function print_logs() {
+    local parent_folder="$1"
+
+    ls -lisahR "${parent_folder}"
+    find "${parent_folder}" -type f -exec echo -e "\n\nContent of {}:" \; -exec cat {} \;
 }
 
 # expects only one application to be running and waits until this one is in

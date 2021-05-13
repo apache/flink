@@ -304,7 +304,7 @@ $ docker-compose up -d
 
 You can see information on the running job via the [Flink console](http://localhost:8082/).
 
-![Flink Console]({% link /fig/spend-report-console.png %}){:height="400px" width="800px"}
+{{< img src="/fig/spend-report-console.png" height="400px" width="800px" alt="Flink Console">}}
 
 Explore the results from inside MySQL.
 
