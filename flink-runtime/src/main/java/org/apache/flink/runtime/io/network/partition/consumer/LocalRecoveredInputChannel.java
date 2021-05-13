@@ -68,7 +68,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
-                numBytesIn,
+                numBuffersIn,
                 channelStateWriter);
     }
 }
