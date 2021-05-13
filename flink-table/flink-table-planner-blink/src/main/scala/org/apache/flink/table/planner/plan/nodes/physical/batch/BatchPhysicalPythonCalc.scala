@@ -28,6 +28,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
+import scala.collection.JavaConversions._
+
 /**
   * Batch physical RelNode for Python ScalarFunctions.
   */
@@ -49,8 +51,10 @@ class BatchPhysicalPythonCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+
     new BatchExecPythonCalc(
-      getProgram,
+      projection,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
