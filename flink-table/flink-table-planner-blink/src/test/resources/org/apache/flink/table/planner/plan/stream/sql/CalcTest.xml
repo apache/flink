@@ -410,21 +410,21 @@ Calc(select=[ROW(1, _UTF-16LE'Hi', a) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testDecimalArrayWithDifferentPrecision">
-		<Resource name="sql">
-			<![CDATA[SELECT ARRAY[0.12, 0.5, 0.99]]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+  <TestCase name="testDecimalArrayWithDifferentPrecision">
+    <Resource name="sql">
+	  <![CDATA[SELECT ARRAY[0.12, 0.5, 0.99]]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
 LogicalProject(EXPR$0=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2))])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
 Calc(select=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2)) AS EXPR$0])
 +- Values(tuples=[[{ 0 }]])
 ]]>
-		</Resource>
-	</TestCase>
+	</Resource>
+  </TestCase>
 </Root>
