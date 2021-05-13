@@ -90,8 +90,18 @@ public class MetricUtils {
             final MetricRegistry metricRegistry,
             final String hostname,
             final Optional<Time> systemResourceProbeInterval) {
+        return instantiateProcessMetricGroup(metricRegistry,
+                hostname, Optional.empty(), Optional.empty(), systemResourceProbeInterval);
+    }
+
+    public static ProcessMetricGroup instantiateProcessMetricGroup(
+            final MetricRegistry metricRegistry,
+            final String hostname,
+            final Optional<String> jobName,
+            final Optional<String> jobId,
+            final Optional<Time> systemResourceProbeInterval) {
         final ProcessMetricGroup processMetricGroup =
-                ProcessMetricGroup.create(metricRegistry, hostname);
+                ProcessMetricGroup.create(metricRegistry, hostname, jobName, jobId);
 
         createAndInitializeStatusMetricGroup(processMetricGroup);
 

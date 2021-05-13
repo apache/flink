@@ -24,6 +24,7 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base class which imitates the reporting of the existing {@link JobManagerMetricGroup} in order to
@@ -32,16 +33,27 @@ import java.util.Map;
  */
 class AbstractImitatingJobManagerMetricGroup extends AbstractMetricGroup<AbstractMetricGroup<?>> {
     protected final String hostname;
+    protected final Optional<String> jobName;
+    protected final Optional<String> jobId;
 
     AbstractImitatingJobManagerMetricGroup(MetricRegistry registry, String hostname) {
-        super(registry, getScope(registry, hostname), null);
-        this.hostname = hostname;
+        this(registry, hostname, Optional.empty(), Optional.empty());
     }
 
-    private static String[] getScope(MetricRegistry registry, String hostname) {
+    AbstractImitatingJobManagerMetricGroup(MetricRegistry registry,
+                                           String hostname,
+                                           Optional<String> jobName,
+                                           Optional<String> jobId) {
+        super(registry, getScope(registry, hostname, jobName, jobId), null);
+        this.hostname = hostname;
+        this.jobName = jobName;
+        this.jobId = jobId;
+    }
+
+    private static String[] getScope(MetricRegistry registry, String hostname, Optional<String> jobName, Optional<String> jobId) {
         // returning jobmanager scope in order to guarantee backwards compatibility
         // this can be changed once we introduce a proper scope for the process metric group
-        return registry.getScopeFormats().getJobManagerFormat().formatScope(hostname);
+        return registry.getScopeFormats().getJobManagerFormat().formatScope(hostname, jobName.orElse(null), jobId.orElse(null));
     }
 
     @Override
@@ -54,6 +66,8 @@ class AbstractImitatingJobManagerMetricGroup extends AbstractMetricGroup<Abstrac
     @Override
     protected final void putVariables(Map<String, String> variables) {
         variables.put(ScopeFormat.SCOPE_HOST, hostname);
+        jobName.ifPresent(jobName -> variables.put(ScopeFormat.SCOPE_JOB_NAME, jobName));
+        jobId.ifPresent(jobID -> variables.put(ScopeFormat.SCOPE_JOB_ID, jobID));
     }
 
     @Override

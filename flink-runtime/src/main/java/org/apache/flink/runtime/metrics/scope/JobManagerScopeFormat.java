@@ -24,12 +24,18 @@ package org.apache.flink.runtime.metrics.scope;
 public class JobManagerScopeFormat extends ScopeFormat {
 
     public JobManagerScopeFormat(String format) {
-        super(format, null, new String[] {SCOPE_HOST});
+        super(format, null, new String[] {SCOPE_HOST, SCOPE_JOB_NAME, SCOPE_JOB_ID});
     }
 
     public String[] formatScope(String hostname) {
         final String[] template = copyTemplate();
         final String[] values = {hostname};
+        return bindVariables(template, values);
+    }
+
+    public String[] formatScope(String hostname, String jobName, String jobId) {
+        final String[] template = copyTemplate();
+        final String[] values = {hostname, valueOrNull(jobId), valueOrNull(jobName)};
         return bindVariables(template, values);
     }
 }

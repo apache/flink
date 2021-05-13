@@ -43,10 +43,12 @@ import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -69,6 +71,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -83,6 +86,7 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -320,11 +324,25 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
             final String hostname = RpcUtils.getHostname(commonRpcService);
+            FileJobGraphRetriever fileJobGraphRetriever =
+                    FileJobGraphRetriever.createFrom(configuration, null);
+
+            String jobName = null;
+            String jobId = null;
+            try {
+                JobGraph jobGraph = fileJobGraphRetriever.retrieveJobGraph(configuration);
+                jobName = jobGraph.getName();
+                jobId = jobGraph.getJobID().toHexString();
+            } catch (FlinkException e) {
+                LOG.info("Not able to fetch JobGraph");
+            }
 
             processMetricGroup =
                     MetricUtils.instantiateProcessMetricGroup(
                             metricRegistry,
                             hostname,
+                            Optional.ofNullable(jobName),
+                            Optional.ofNullable(jobId),
                             ConfigurationUtils.getSystemResourceMetricsProbingInterval(
                                     configuration));
 
