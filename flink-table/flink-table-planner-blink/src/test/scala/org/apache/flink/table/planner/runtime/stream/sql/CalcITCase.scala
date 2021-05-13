@@ -420,4 +420,17 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("[0.12, 0.50, 0.99]")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testDecimalMapWithDifferentPrecision(): Unit = {
+    val sqlQuery = "SELECT Map['a', 0.12, 'b', 0.5]"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("{a=0.12, b=0.50}")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }

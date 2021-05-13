@@ -175,4 +175,9 @@ class CalcTest extends TableTestBase {
   def testDecimalArrayWithDifferentPrecision(): Unit = {
     util.verifyExecPlan("SELECT ARRAY[0.12, 0.5, 0.99]")
   }
+
+  @Test
+  def testDecimalMapWithDifferentPrecision(): Unit = {
+    util.verifyExecPlan("SELECT MAP['a', 0.12, 'b', 0.5]")
+  }
 }
