@@ -49,8 +49,6 @@ import org.apache.flink.util.FileUtils;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.FrameworkConfig;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
@@ -66,7 +64,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -210,7 +207,7 @@ public class HiveParser extends ParserImpl {
             hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
             return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
         } finally {
-            clearSessionState(hiveConf);
+            clearSessionState();
         }
     }
 
@@ -311,7 +308,7 @@ public class HiveParser extends ParserImpl {
             sessionState.setCurrentDatabase(catalogManager.getCurrentDatabase());
             // some Hive functions needs the timestamp
             setCurrentTimestamp(sessionState);
-            SessionState.start(sessionState);
+            SessionState.setCurrentSessionState(sessionState);
         } catch (LockException e) {
             throw new FlinkHiveException("Failed to init SessionState", e);
         } finally {
@@ -338,18 +335,11 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private void clearSessionState(HiveConf hiveConf) {
+    private void clearSessionState() {
         SessionState sessionState = SessionState.get();
         if (sessionState != null) {
             try {
                 sessionState.close();
-                List<Path> toDelete = new ArrayList<>();
-                toDelete.add(SessionState.getHDFSSessionPath(hiveConf));
-                toDelete.add(SessionState.getLocalSessionPath(hiveConf));
-                for (Path path : toDelete) {
-                    FileSystem fs = path.getFileSystem(hiveConf);
-                    fs.delete(path, true);
-                }
             } catch (Exception e) {
                 LOG.warn("Error closing SessionState", e);
             }
@@ -409,8 +399,8 @@ public class HiveParser extends ParserImpl {
                     new File(getConf().getVar(HiveConf.ConfVars.DOWNLOADED_RESOURCES_DIR));
             LOG.debug("Removing resource dir " + resourceDir);
             FileUtils.deleteDirectoryQuietly(resourceDir);
-            detachSession();
             Hive.closeCurrent();
+            detachSession();
         }
 
         public Timestamp getHiveParserCurrentTS() {

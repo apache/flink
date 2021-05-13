@@ -806,7 +806,12 @@ public class HiveParserCalcitePlanner {
             if (table.isTemporary()) {
                 // Hive creates a temp table for VALUES, we need to convert it to LogicalValues
                 RelNode values =
-                        genValues(tableAlias, table, rowResolver, semanticAnalyzer, cluster);
+                        genValues(
+                                tableAlias,
+                                table,
+                                rowResolver,
+                                cluster,
+                                getQB().getValuesTableToData().get(tableAlias));
                 relToRowResolver.put(values, rowResolver);
                 relToHiveColNameCalcitePosMap.put(values, buildHiveToCalciteColumnMap(rowResolver));
                 return values;
