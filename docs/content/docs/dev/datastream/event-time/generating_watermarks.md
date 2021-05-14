@@ -388,13 +388,13 @@ public class PunctuatedAssigner implements WatermarkGenerator<MyEvent> {
 ```scala
 class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
+    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         if (event.hasWatermarkMarker()) {
             output.emitWatermark(new Watermark(event.getWatermarkTimestamp()))
         }
     }
 
-    override def onPeriodicEmit(): Unit = {
+    override def onPeriodicEmit(output: WatermarkOutput): Unit = {
         // don't need to do anything because we emit in reaction to events above
     }
 }
