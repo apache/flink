@@ -1054,13 +1054,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlAggFunction SINGLE_VALUE = SqlStdOperatorTable.SINGLE_VALUE;
 
     // ARRAY OPERATORS
-    public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR =
-            SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR;
+    public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = new SqlArrayConstructor();
     public static final SqlOperator ELEMENT = SqlStdOperatorTable.ELEMENT;
 
     // MAP OPERATORS
-    public static final SqlOperator MAP_VALUE_CONSTRUCTOR =
-            SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR;
+    public static final SqlOperator MAP_VALUE_CONSTRUCTOR = new SqlMapConstructor();
 
     // ARRAY MAP SHARED OPERATORS
     public static final SqlOperator ITEM = SqlStdOperatorTable.ITEM;
