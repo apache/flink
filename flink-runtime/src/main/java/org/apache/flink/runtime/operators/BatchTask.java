@@ -825,7 +825,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
         this.inputIsAsyncMaterialized = new boolean[numInputs];
         this.materializationMemory = new int[numInputs];
 
-        // set up the local strategies first, such that the can work before any temp barrier is
+        // set up the local strategies first, such that they can work before any temp barrier is
         // created
         for (int i = 0; i < numInputs; i++) {
             initInputLocalStrategy(i);
