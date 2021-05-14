@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,34 +20,21 @@ package org.apache.flink.table.operations.command;
 
 import org.apache.flink.table.operations.Operation;
 
-import javax.annotation.Nullable;
-
-import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/**
- * Operation to represent ADD JAR command. If {@link #getValue()} and {@link #getValue()} are empty,
- * it means show all the configurations. Otherwise, set value to the configuration key.
- */
+/** Operation to describe an ADD JAR statement. */
 public class AddJarOperation implements Operation {
 
-    @Nullable private final String value;
+    private final String path;
 
-    public AddJarOperation(String value) {
-        this.value = checkNotNull(value);
+    public AddJarOperation(String path) {
+        this.path = path;
     }
 
-    public Optional<String> getValue() {
-        return Optional.ofNullable(value);
+    public String getPath() {
+        return path;
     }
 
     @Override
     public String asSummaryString() {
-        if (value == null) {
-            return "ADD JAR";
-        } else {
-            return String.format("ADD JAR %s", value);
-        }
+        return String.format("ADD JAR %s", path);
     }
 }

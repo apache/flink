@@ -77,7 +77,6 @@ import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -85,6 +84,7 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -97,7 +97,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -1416,6 +1415,7 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
+<<<<<<< HEAD
     public void testSqlRichExplainWithSelect() {
         final String sql = "explain plan for select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -1442,6 +1442,20 @@ public class SqlToOperationConverterTest {
         assert operation instanceof AddJarOperation;
         final AddJarOperation addJarOperation = (AddJarOperation) operation;
         assertEquals("ADD JAR a/b/foo.jar", addJarOperation.asSummaryString());
+=======
+    public void testAddJars() {
+        List<String> jarPaths =
+                Arrays.asList(
+                        "./test.\njar",
+                        "file:///path/to/whatever",
+                        "../test-jar.jar",
+                        "/root/test.jar",
+                        "test\\ jar.jar",
+                        "oss://path/helloworld.go");
+        for (String path : jarPaths) {
+            validateJarPath(path, "  ADD   JAR   '%s'");
+        }
+>>>>>>> [FLINK-22064][sql-client] Support ADD JAR in SQL Client
     }
 
     // ~ Tool Methods ----------------------------------------------------------
@@ -1489,6 +1503,12 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
+    }
+
+    private void validateJarPath(String expected, String template) {
+        AddJarOperation operation =
+                (AddJarOperation) parser.parse(String.format(template, expected)).get(0);
+        Assert.assertEquals(expected, operation.getPath());
     }
 
     // ~ Inner Classes ----------------------------------------------------------

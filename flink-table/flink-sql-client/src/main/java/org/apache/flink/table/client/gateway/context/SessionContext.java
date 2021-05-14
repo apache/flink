@@ -21,7 +21,9 @@ package org.apache.flink.table.client.gateway.context;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.catalog.Catalog;
@@ -29,24 +31,28 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.client.config.YamlConfigUtils;
-import org.apache.flink.table.client.gateway.ClassLoaderUtilities;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.apache.flink.core.fs.Path.fromLocalFile;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -64,10 +70,11 @@ public class SessionContext {
     private final Configuration sessionConfiguration;
 
     private final SessionState sessionState;
+    // SafetyNetWrapperClassLoader doesn't override the getURL therefore we need to maintain the
+    // dependencies by ourselves.
+    private Set<URL> dependencies;
     private URLClassLoader classLoader;
     private ExecutionContext executionContext;
-    // store add jar url
-    private Set<URL> jarResourcesSet = new HashSet<>();
 
     private SessionContext(
             DefaultContext defaultContext,
@@ -82,6 +89,7 @@ public class SessionContext {
         this.classLoader = classLoader;
         this.sessionState = sessionState;
         this.executionContext = executionContext;
+        this.dependencies = new HashSet<>(defaultContext.getDependencies());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -104,10 +112,6 @@ public class SessionContext {
         return sessionConfiguration.toMap();
     }
 
-    public Set<URL> getJarResourcesSet() {
-        return this.jarResourcesSet;
-    }
-
     // --------------------------------------------------------------------------------------------
     // Method to execute commands
     // --------------------------------------------------------------------------------------------
@@ -123,7 +127,8 @@ public class SessionContext {
         // If rebuild a new Configuration, it loses control of the SessionState if users wants to
         // modify the configuration
         resetSessionConfigurationToDefault(defaultContext.getFlinkConfig());
-        this.executionContext = new ExecutionContext(executionContext);
+        buildClassLoaderAndUpdateDependencies(defaultContext.getDependencies());
+        executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
     }
 
     /**
@@ -256,24 +261,27 @@ public class SessionContext {
                 executionContext);
     }
 
-    public void addJars(List<URL> urls) {
-        List<URL> addUrls = new ArrayList<>();
-        urls.forEach(
-                url -> {
-                    if (!jarResourcesSet.contains(url)) {
-                        addUrls.add(url);
-                    }
-                });
-        if (addUrls.size() == 0) {
+    public void addJar(String jarPath) {
+        // check the jar path is legal
+        URL jar;
+        try {
+            jar = fromLocalFile(new File(jarPath).getAbsoluteFile()).toUri().toURL();
+            JarUtils.checkJarFile(jar);
+        } catch (IOException e) {
+            throw new SqlExecutionException(
+                    String.format("Failed to get the jar file with specified path: %s.", jarPath));
+        }
+
+        if (dependencies.contains(jar)) {
             return;
         }
-        this.jarResourcesSet.addAll(addUrls);
-        this.classLoader =
-                (URLClassLoader) ClassLoaderUtilities.addToClassPath(this.classLoader, addUrls);
-        // Renew the ExecutionContext to update classloader.
-        this.executionContext =
-                new ExecutionContext(
-                        this.sessionConfiguration, this.classLoader, this.sessionState);
+
+        Set<URL> newDependencies = new HashSet<>(dependencies);
+        newDependencies.add(jar);
+        buildClassLoaderAndUpdateDependencies(newDependencies);
+
+        // renew the execution context
+        executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -306,5 +314,34 @@ public class SessionContext {
             sessionConfiguration.removeConfig(keyToDelete);
         }
         sessionConfiguration.addAll(defaultConf);
+    }
+
+    private void buildClassLoaderAndUpdateDependencies(Collection<URL> newDependencies) {
+        // merge the jar in config with the jar maintained in session
+        Set<URL> jarsInConfig;
+        try {
+            jarsInConfig =
+                    new HashSet<>(
+                            ConfigUtils.decodeListFromConfig(
+                                    sessionConfiguration, PipelineOptions.JARS, URL::new));
+        } catch (MalformedURLException e) {
+            throw new SqlExecutionException(
+                    "Failed to parse the option `JARS` in configuration.", e);
+        }
+        jarsInConfig.addAll(newDependencies);
+        ConfigUtils.encodeCollectionToConfig(
+                sessionConfiguration,
+                PipelineOptions.JARS,
+                new ArrayList<>(jarsInConfig),
+                URL::toString);
+
+        // TODO: update the the classloader in CatalogManager.
+        classLoader =
+                ClientUtils.buildUserCodeClassLoader(
+                        new ArrayList<>(newDependencies),
+                        Collections.emptyList(),
+                        SessionContext.class.getClassLoader(),
+                        sessionConfiguration);
+        dependencies = new HashSet<>(newDependencies);
     }
 }

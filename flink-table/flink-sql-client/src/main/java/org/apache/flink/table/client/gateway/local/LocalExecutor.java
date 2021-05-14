@@ -46,7 +46,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -311,8 +310,8 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
-    public void addJars(String sessionId, List<URL> urls) {
+    public void addJar(String sessionId, String jarUrl) {
         final SessionContext context = getSessionContext(sessionId);
-        context.addJars(urls);
+        context.addJar(jarUrl);
     }
 }

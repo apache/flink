@@ -62,7 +62,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -523,8 +522,8 @@ public class CliClientTest extends TestLogger {
         }
 
         @Override
-        public void addJars(String sessionId, List<URL> jarUrls) {
-            // nothing to do
+        public void addJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
         }
     }
 }

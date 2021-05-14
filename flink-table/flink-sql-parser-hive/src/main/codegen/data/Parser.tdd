@@ -52,6 +52,7 @@
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
     "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
+    "org.apache.flink.sql.parser.ddl.SqlAddJar"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
@@ -128,6 +129,7 @@
     "IF"
     "INPUTFORMAT"
     "ITEMS"
+    "JAR"
     "KEYS"
     "LINES"
     "LOAD"
@@ -539,6 +541,7 @@
     "SqlUnloadModule()"
     "SqlUseModules()"
     "SqlRichExplain()"
+    "SqlAddJar()"
   ]
 
   # List of methods for parsing custom literals.

@@ -27,7 +27,6 @@ import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -141,11 +140,6 @@ public interface Executor {
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
 
-    /**
-     * Add JAR resource to classloader path of current SessionContext.
-     *
-     * @param sessionId
-     * @param jarUrls
-     */
-    void addJars(String sessionId, List<URL> jarUrls);
+    /** Add the JAR resource to into the classloader with specified session. */
+    void addJar(String sessionId, String jarPath);
 }

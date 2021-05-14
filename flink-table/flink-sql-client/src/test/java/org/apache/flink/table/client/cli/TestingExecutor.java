@@ -34,7 +34,6 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -69,8 +68,8 @@ class TestingExecutor implements Executor {
     }
 
     @Override
-    public void addJars(String sessionId, List<URL> jarUrls) {
-        // nothing to do
+    public void addJar(String sessionId, String jarUrl) {
+        throw new UnsupportedOperationException("Not implemented.");
     }
 
     @Override

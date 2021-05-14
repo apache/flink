@@ -106,7 +106,8 @@ public class CliClientITCase extends AbstractTestBase {
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PIPELINE_JARS", udfDependency.toString());
+        replaceVars.put("$VAR_PIPELINE_JARS_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
                 miniClusterResource.getClientConfiguration().get(PORT).toString());
@@ -145,7 +146,7 @@ public class CliClientITCase extends AbstractTestBase {
         DefaultContext defaultContext =
                 new DefaultContext(
                         new Environment(),
-                        Collections.singletonList(udfDependency),
+                        Collections.emptyList(),
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);
