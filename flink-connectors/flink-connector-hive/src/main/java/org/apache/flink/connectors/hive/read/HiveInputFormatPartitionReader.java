@@ -89,7 +89,7 @@ public class HiveInputFormatPartitionReader
 
     @Override
     public RowData read(RowData reuse) throws IOException {
-        while (hasNext()) {
+        if (hasNext()) {
             return hiveTableInputFormat.nextRecord(reuse);
         }
         return null;
@@ -97,19 +97,25 @@ public class HiveInputFormatPartitionReader
 
     private boolean hasNext() throws IOException {
         if (inputSplits.length > 0) {
-            if (hiveTableInputFormat.reachedEnd() && readingSplitId == inputSplits.length - 1) {
-                return false;
-            } else if (hiveTableInputFormat.reachedEnd()) {
-                readingSplitId++;
-                hiveTableInputFormat.open(inputSplits[readingSplitId]);
+            if (hiveTableInputFormat.reachedEnd()) {
+                if (readingSplitId < inputSplits.length - 1) {
+                    // switch to next split
+                    hiveTableInputFormat.close();
+                    readingSplitId++;
+                    hiveTableInputFormat.open(inputSplits[readingSplitId]);
+                    return hasNext();
+                }
+            } else {
+                return true;
             }
-            return true;
         }
         return false;
     }
 
     @Override
     public void close() throws IOException {
-        hiveTableInputFormat.close();
+        if (hiveTableInputFormat != null) {
+            hiveTableInputFormat.close();
+        }
     }
 }
