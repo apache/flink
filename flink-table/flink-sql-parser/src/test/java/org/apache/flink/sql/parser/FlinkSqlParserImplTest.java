@@ -817,6 +817,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testCreateTableWithLikeClauseWithoutColumns() {
+        final String sql =
+                ""
+                        + "create TEMPORARY table source_table (\n"
+                        + "   WATERMARK FOR ts AS ts - INTERVAL '5' SECOND\n"
+                        + ") with (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ") like t_order_course (\n"
+                        + "   OVERWRITING  WATERMARKS\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        final String expected =
+                "CREATE TEMPORARY TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '5' SECOND)\n"
+                        + ") WITH (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ")\n"
+                        + "LIKE `T_ORDER_COURSE` (\n"
+                        + "  OVERWRITING WATERMARKS\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     public void testCreateTemporaryTable() {
         final String sql =
                 "create temporary table source_table(\n"
@@ -845,6 +874,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 "create table source_table with (\n" + "  'x' = 'y',\n" + "  'abc' = 'def'\n" + ")";
         final String expected =
                 "CREATE TABLE `SOURCE_TABLE` WITH (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testCreateTableWithOnlyWaterMark() {
+        final String sql =
+                "create table source_table (\n"
+                        + "  watermark FOR ts AS ts - interval '3' second\n"
+                        + ") with (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ") WITH (\n"
                         + "  'x' = 'y',\n"
                         + "  'abc' = 'def'\n"
                         + ")";
