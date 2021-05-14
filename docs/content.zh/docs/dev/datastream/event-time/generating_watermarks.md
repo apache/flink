@@ -271,7 +271,7 @@ class BoundedOutOfOrdernessGenerator extends WatermarkGenerator[MyEvent] {
 
     var currentMaxTimestamp: Long = _
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
+    override def onEvent(event: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         currentMaxTimestamp = max(eventTimestamp, currentMaxTimestamp)
     }
 
@@ -288,7 +288,7 @@ class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
 
     val maxTimeLag = 5000L // 5 秒
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
+    override def onEvent(event: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         // 处理时间场景下不需要实现
     }
 
@@ -331,7 +331,7 @@ public class PunctuatedAssigner implements WatermarkGenerator<MyEvent> {
 ```scala
 class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
 
-    override def onEvent(element: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
+    override def onEvent(event: MyEvent, eventTimestamp: Long, output: WatermarkOutput): Unit = {
         if (event.hasWatermarkMarker()) {
             output.emitWatermark(new Watermark(event.getWatermarkTimestamp()))
         }
