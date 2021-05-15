@@ -500,15 +500,15 @@ It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream))`.
 - `createTemporaryView(String, DataStream, Schema)`: Registers the stream under a name to access it in SQL.
 It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream, Schema))`.
 
-- `toDataStream(DataStream)`: Converts a table into a stream of insert-only changes. The default
+- `toDataStream(Table)`: Converts a table into a stream of insert-only changes. The default
 stream record type is `org.apache.flink.types.Row`. A single rowtime attribute column is written
 back into the DataStream API's record. Watermarks are propagated as well.
 
-- `toDataStream(DataStream, AbstractDataType)`: Converts a table into a stream of insert-only changes.
+- `toDataStream(Table, AbstractDataType)`: Converts a table into a stream of insert-only changes.
 This method accepts a data type to express the desired stream record type. The planner might insert
 implicit casts and reorders columns to map columns to fields of the (possibly nested) data type.
 
-- `toDataStream(DataStream, Class)`: A shortcut for `toDataStream(DataStream, DataTypes.of(Class))`
+- `toDataStream(Table, Class)`: A shortcut for `toDataStream(Table, DataTypes.of(Class))`
 to quickly create the desired data type reflectively.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
