@@ -18,7 +18,8 @@
 
 package org.apache.flink.fs.gs.writer;
 
-import com.google.cloud.storage.BlobId;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,7 +28,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /** Test recoverable writer serializer. */
 public class GSRecoverableWriterStateSerializerTest {
@@ -41,13 +41,14 @@ public class GSRecoverableWriterStateSerializerTest {
             throws IOException {
 
         // create the state
-        BlobId finalBlobId = BlobId.of(bucketName, objectName);
+        GSBlobIdentifier finalBlobIdentifier = new GSBlobIdentifier(bucketName, objectName);
         List<UUID> componentObjectIds = new ArrayList<>();
         for (int i = 0; i < componentObjectIdCount; i++) {
             componentObjectIds.add(UUID.randomUUID());
         }
         GSRecoverableWriterState state =
-                new GSRecoverableWriterState(finalBlobId, bytesWritten, closed, componentObjectIds);
+                new GSRecoverableWriterState(
+                        finalBlobIdentifier, bytesWritten, closed, componentObjectIds);
 
         // serialize and deserialize
         GSRecoverableWriterStateSerializer serializer = GSRecoverableWriterStateSerializer.INSTANCE;
@@ -57,9 +58,8 @@ public class GSRecoverableWriterStateSerializerTest {
                         serializer.deserialize(serializer.getVersion(), serialized);
 
         // check that states match
-        assertEquals(bucketName, deserializedState.finalBlobId.getBucket());
-        assertEquals(objectName, deserializedState.finalBlobId.getName());
-        assertNull(deserializedState.finalBlobId.getGeneration());
+        assertEquals(bucketName, deserializedState.finalBlobIdentifier.bucketName);
+        assertEquals(objectName, deserializedState.finalBlobIdentifier.objectName);
         assertEquals(bytesWritten, deserializedState.bytesWritten);
         assertEquals(closed, deserializedState.closed);
         assertEquals(componentObjectIdCount, deserializedState.componentObjectIds.size());

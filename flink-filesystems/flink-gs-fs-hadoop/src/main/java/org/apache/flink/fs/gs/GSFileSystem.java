@@ -19,7 +19,7 @@
 package org.apache.flink.fs.gs;
 
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.gs.storage.GSBlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobStorageImpl;
 import org.apache.flink.fs.gs.writer.GSRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;
@@ -47,7 +47,7 @@ class GSFileSystem extends HadoopFileSystem {
         Storage storage = StorageOptions.getDefaultInstance().getService();
 
         // create the GS blob storage wrapper
-        GSBlobStorage blobStorage = new GSBlobStorage(storage);
+        GSBlobStorageImpl blobStorage = new GSBlobStorageImpl(storage);
 
         // construct the recoverable writer with the blob storage wrapper and the options
         return new GSRecoverableWriter(blobStorage, options);

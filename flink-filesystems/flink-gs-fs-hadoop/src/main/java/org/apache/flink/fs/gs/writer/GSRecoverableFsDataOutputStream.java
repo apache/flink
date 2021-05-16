@@ -21,10 +21,9 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
-import org.apache.flink.fs.gs.storage.BlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.util.Preconditions;
-
-import com.google.cloud.storage.BlobId;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,7 +34,7 @@ import java.io.IOException;
 class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
     /** The underlying blob storage. */
-    private final BlobStorage storage;
+    private final GSBlobStorage storage;
 
     /** The GS file system options. */
     private final GSFileSystemOptions options;
@@ -57,7 +56,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
     @Nullable GSChecksumWriteChannel currentWriteChannel;
 
     GSRecoverableFsDataOutputStream(
-            BlobStorage storage,
+            GSBlobStorage storage,
             GSFileSystemOptions options,
             GSRecoverableWriter writer,
             GSRecoverableWriterState state) {
@@ -152,15 +151,15 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
     private GSChecksumWriteChannel createWriteChannel() {
 
         // add a new component blob id for the new channel to write to
-        BlobId blobId = state.createComponentBlobId(options);
+        GSBlobIdentifier blobIdentifier = state.createComponentBlobId(options);
 
         // create the channel and set the chunk size if specified in options
-        BlobStorage.WriteChannel writeChannel = storage.write(blobId, options.writerContentType);
+        GSBlobStorage.WriteChannel writeChannel = storage.writeBlob(blobIdentifier);
         if (options.writerChunkSize > 0) {
             writeChannel.setChunkSize(options.writerChunkSize);
         }
 
-        return new GSChecksumWriteChannel(storage, writeChannel, blobId);
+        return new GSChecksumWriteChannel(storage, writeChannel, blobIdentifier);
     }
 
     private void closeWriteChannelIfExists() throws IOException {

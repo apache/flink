@@ -18,148 +18,100 @@
 
 package org.apache.flink.fs.gs.storage;
 
-import org.apache.flink.util.Preconditions;
-
-import com.google.api.gax.paging.Page;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
-/** BlobStorage implementation for Google storage. */
-public class GSBlobStorage implements BlobStorage {
-
-    /** Blob metadata, wraps Google storage Blob. */
-    static class BlobMetadata implements BlobStorage.BlobMetadata {
-
-        private final Blob blob;
-
-        private BlobMetadata(Blob blob) {
-            this.blob = Preconditions.checkNotNull(blob);
-        }
-
-        @Override
-        public String getChecksum() {
-            return blob.getCrc32c();
-        }
-    }
-
-    /** Blob write channel, wraps Google storage WriteChannel. */
-    static class WriteChannel implements BlobStorage.WriteChannel {
-
-        final com.google.cloud.WriteChannel writeChannel;
-
-        private WriteChannel(com.google.cloud.WriteChannel writeChannel) {
-            this.writeChannel = Preconditions.checkNotNull(writeChannel);
-        }
-
-        @Override
-        public void setChunkSize(int chunkSize) {
-            Preconditions.checkArgument(chunkSize > 0);
-
-            writeChannel.setChunkSize(chunkSize);
-        }
-
-        @Override
-        public int write(byte[] content, int start, int length) throws IOException {
-            Preconditions.checkNotNull(content);
-            Preconditions.checkArgument(start >= 0);
-            Preconditions.checkArgument(length >= 0);
-
-            ByteBuffer byteBuffer = ByteBuffer.wrap(content, start, length);
-            return writeChannel.write(byteBuffer);
-        }
-
-        @Override
-        public void close() throws IOException {
-            writeChannel.close();
-        }
-    }
-
-    /** The wrapped Google Storage instance. */
-    private final Storage storage;
+/** Abstract blob storage, used to simplify interface to Google storage and make it mockable. */
+public interface GSBlobStorage {
 
     /**
-     * Constructs a GSBlobStorage instance.
+     * Creates a write channel.
      *
-     * @param storage The wrapped Google Storage instance.
+     * @param blobIdentifier The blob identifier to which to write
+     * @return The WriteChannel helper
      */
-    public GSBlobStorage(Storage storage) {
-        this.storage = Preconditions.checkNotNull(storage);
+    WriteChannel writeBlob(GSBlobIdentifier blobIdentifier);
+
+    /**
+     * Gets blob metadata.
+     *
+     * @param blobIdentifier The blob identifier
+     * @return The blob metadata, if the blob exists. Empty if the blob doesn't exist.
+     */
+    Optional<BlobMetadata> getMetadata(GSBlobIdentifier blobIdentifier);
+
+    /**
+     * Lists all the blobs in a bucket matching a given prefix.
+     *
+     * @param bucketName The bucket name
+     * @param prefix The object prefix
+     * @return The found blobs ids
+     */
+    List<GSBlobIdentifier> list(String bucketName, String prefix);
+
+    /**
+     * Copies from a source blob id to a target blob id. Does not delete the source blob.
+     *
+     * @param sourceBlobIdentifier The source blob identifier
+     * @param targetBlobIdentifier The target glob identifier
+     */
+    void copy(GSBlobIdentifier sourceBlobIdentifier, GSBlobIdentifier targetBlobIdentifier);
+
+    /**
+     * Composes multiple blobs into one. Does not delete any of the source blobs.
+     *
+     * @param sourceBlobIdentifiers The source blob identifiers to combine, max of 32
+     * @param targetBlobIdentifier The target blob identifier
+     */
+    void compose(
+            List<GSBlobIdentifier> sourceBlobIdentifiers, GSBlobIdentifier targetBlobIdentifier);
+
+    /**
+     * Deletes blobs. Note that this does not fail if blobs don't exist.
+     *
+     * @param blobIdentifiers The blob identifiers to delete
+     * @return The results of each delete operation.
+     */
+    List<Boolean> delete(Iterable<GSBlobIdentifier> blobIdentifiers);
+
+    /** Abstract blob metadata. */
+    interface BlobMetadata {
+
+        /**
+         * The crc32 checksum for the blob.
+         *
+         * @return The checksum
+         */
+        String getChecksum();
     }
 
-    @Override
-    public BlobStorage.WriteChannel write(BlobId blobId, String contentType) {
-        Preconditions.checkNotNull(blobId);
-        Preconditions.checkNotNull(contentType);
+    /** Abstract blob write channel. */
+    interface WriteChannel {
 
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
-        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
-        return new WriteChannel(writeChannel);
-    }
+        /**
+         * Sets the chunk size for upload.
+         *
+         * @param chunkSize The chunk size
+         */
+        void setChunkSize(int chunkSize);
 
-    @Override
-    public Optional<BlobStorage.BlobMetadata> getMetadata(BlobId blobId) {
-        Preconditions.checkNotNull(blobId);
+        /**
+         * Writes data to the channel.
+         *
+         * @param content The data buffer
+         * @param start Start offset in the data buffer
+         * @param length Number of bytes to write
+         * @return The number of bytes written
+         * @throws IOException On underlying failure
+         */
+        int write(byte[] content, int start, int length) throws IOException;
 
-        Blob blob = storage.get(blobId);
-        if (blob == null) {
-            return Optional.empty();
-        } else {
-            return Optional.of(new BlobMetadata(blob));
-        }
-    }
-
-    @Override
-    public List<BlobId> list(String bucketName, String objectPrefix) {
-        Preconditions.checkNotNull(bucketName);
-        Preconditions.checkNotNull(objectPrefix);
-
-        Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(objectPrefix));
-        return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
-                .map(BlobInfo::getBlobId)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public void copy(BlobId sourceBlobId, BlobId targetBlobId) {
-        Preconditions.checkNotNull(sourceBlobId);
-        Preconditions.checkNotNull(targetBlobId);
-
-        storage.get(sourceBlobId).copyTo(targetBlobId).getResult();
-    }
-
-    @Override
-    public void compose(List<BlobId> sourceBlobIds, BlobId targetBlobId, String contentType) {
-        Preconditions.checkNotNull(sourceBlobIds);
-        Preconditions.checkArgument(sourceBlobIds.size() > 0);
-        Preconditions.checkNotNull(targetBlobId);
-        Preconditions.checkNotNull(contentType);
-
-        // build a request to compose all the source blobs into the target blob
-        Storage.ComposeRequest.Builder builder = Storage.ComposeRequest.newBuilder();
-        BlobInfo targetBlobInfo =
-                BlobInfo.newBuilder(targetBlobId).setContentType(contentType).build();
-        builder.setTarget(targetBlobInfo);
-        for (BlobId blobId : sourceBlobIds) {
-            builder.addSource(blobId.getName());
-        }
-
-        Storage.ComposeRequest request = builder.build();
-        storage.compose(request);
-    }
-
-    @Override
-    public List<Boolean> delete(Iterable<BlobId> blobIds) {
-        Preconditions.checkNotNull(blobIds);
-
-        return storage.delete(blobIds);
+        /**
+         * Closes the channel.
+         *
+         * @throws IOException On underlying failure
+         */
+        void close() throws IOException;
     }
 }

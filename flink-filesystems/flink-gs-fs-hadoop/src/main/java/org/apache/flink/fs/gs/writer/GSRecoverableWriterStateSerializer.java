@@ -19,9 +19,8 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.util.Preconditions;
-
-import com.google.cloud.storage.BlobId;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -59,8 +58,8 @@ class GSRecoverableWriterStateSerializer
             try (DataOutputStream dataOutputStream = new DataOutputStream(outputStream)) {
 
                 // finalBlobId
-                dataOutputStream.writeUTF(state.finalBlobId.getBucket());
-                dataOutputStream.writeUTF(state.finalBlobId.getName());
+                dataOutputStream.writeUTF(state.finalBlobIdentifier.bucketName);
+                dataOutputStream.writeUTF(state.finalBlobIdentifier.objectName);
 
                 // bytesWritten
                 dataOutputStream.writeLong(state.bytesWritten);
@@ -94,7 +93,7 @@ class GSRecoverableWriterStateSerializer
                             version, SERIALIZER_VERSION));
         }
 
-        BlobId finalBlobId;
+        GSBlobIdentifier finalBlobId;
         long bytesWritten;
         boolean closed;
         List<UUID> componentObjectIds = new ArrayList<>();
@@ -106,7 +105,7 @@ class GSRecoverableWriterStateSerializer
                 // finalBlobId
                 String finalBucketName = dataInputStream.readUTF();
                 String finalObjectName = dataInputStream.readUTF();
-                finalBlobId = BlobId.of(finalBucketName, finalObjectName);
+                finalBlobId = new GSBlobIdentifier(finalBucketName, finalObjectName);
 
                 // bytesWritten
                 bytesWritten = dataInputStream.readLong();

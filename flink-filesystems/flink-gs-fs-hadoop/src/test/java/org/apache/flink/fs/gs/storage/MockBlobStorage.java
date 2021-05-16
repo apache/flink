@@ -21,7 +21,6 @@ package org.apache.flink.fs.gs.storage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.fs.gs.utils.ChecksumUtils;
 
-import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.StorageException;
 
 import java.io.ByteArrayOutputStream;
@@ -35,22 +34,20 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /** Mock blob storage implementation, using in-memory structures. */
-public class MockBlobStorage implements BlobStorage {
+public class MockBlobStorage implements GSBlobStorage {
 
     /** Mock blob value with metadata. */
     public static class BlobValue {
 
         public final byte[] content;
-        public final String contentType;
 
-        BlobValue(byte[] content, String contentType) {
+        BlobValue(byte[] content) {
             this.content = content;
-            this.contentType = contentType;
         }
     }
 
     /** The mock blob metadata. */
-    static class BlobMetadata implements BlobStorage.BlobMetadata {
+    static class BlobMetadata implements GSBlobStorage.BlobMetadata {
 
         private final BlobValue blobValue;
 
@@ -66,11 +63,9 @@ public class MockBlobStorage implements BlobStorage {
     }
 
     /** The mock write channel, which writes to the memory-based storage. */
-    public class WriteChannel implements BlobStorage.WriteChannel {
+    public class WriteChannel implements GSBlobStorage.WriteChannel {
 
-        private final BlobId blobId;
-
-        private final String contentType;
+        private final GSBlobIdentifier blobIdentifier;
 
         public int chunkSize;
 
@@ -78,9 +73,8 @@ public class MockBlobStorage implements BlobStorage {
 
         private boolean closed;
 
-        WriteChannel(BlobId blobId, String contentType) {
-            this.blobId = blobId;
-            this.contentType = contentType;
+        WriteChannel(GSBlobIdentifier blobIdentifier) {
+            this.blobIdentifier = blobIdentifier;
             this.stream = new ByteArrayOutputStream();
             this.closed = false;
         }
@@ -103,26 +97,26 @@ public class MockBlobStorage implements BlobStorage {
         public void close() throws IOException {
             if (!closed) {
                 stream.close();
-                blobs.put(blobId, new BlobValue(stream.toByteArray(), contentType));
+                blobs.put(blobIdentifier, new BlobValue(stream.toByteArray()));
                 closed = true;
             }
         }
     }
 
-    public final Map<BlobId, BlobValue> blobs;
+    public final Map<GSBlobIdentifier, BlobValue> blobs;
 
     public MockBlobStorage() {
         this.blobs = new HashMap<>();
     }
 
     @Override
-    public BlobStorage.WriteChannel write(BlobId blobId, String contentType) {
-        return new WriteChannel(blobId, contentType);
+    public GSBlobStorage.WriteChannel writeBlob(GSBlobIdentifier blobId) {
+        return new WriteChannel(blobId);
     }
 
     @Override
-    public Optional<BlobStorage.BlobMetadata> getMetadata(BlobId blobId) {
-        BlobValue blobValue = blobs.get(blobId);
+    public Optional<GSBlobStorage.BlobMetadata> getMetadata(GSBlobIdentifier blobIdentifier) {
+        BlobValue blobValue = blobs.get(blobIdentifier);
         if (blobValue != null) {
             return Optional.of(new BlobMetadata(blobValue));
         } else {
@@ -131,36 +125,37 @@ public class MockBlobStorage implements BlobStorage {
     }
 
     @Override
-    public List<BlobId> list(String bucketName, String prefix) {
+    public List<GSBlobIdentifier> list(String bucketName, String prefix) {
         return blobs.keySet().stream()
                 .filter(
                         blobId ->
-                                blobId.getBucket().equals(bucketName)
-                                        && blobId.getName().startsWith(prefix))
+                                blobId.bucketName.equals(bucketName)
+                                        && blobId.objectName.startsWith(prefix))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void copy(BlobId sourceBlobId, BlobId targetBlobId) {
-        BlobValue blobValue = blobs.get(sourceBlobId);
+    public void copy(GSBlobIdentifier sourceBlobIdentifier, GSBlobIdentifier targetBlobIdentifier) {
+        BlobValue blobValue = blobs.get(sourceBlobIdentifier);
         if (blobValue == null) {
             throw new StorageException(404, "Copy source not found");
         }
-        blobs.put(targetBlobId, blobValue);
+        blobs.put(targetBlobIdentifier, blobValue);
     }
 
     @Override
-    public void compose(List<BlobId> sourceBlobIds, BlobId targetBlobId, String contentType) {
+    public void compose(
+            List<GSBlobIdentifier> sourceBlobIdentifiers, GSBlobIdentifier targetBlobIdentifier) {
 
-        if (sourceBlobIds.size() > BlobUtils.COMPOSE_MAX_BLOBS) {
+        if (sourceBlobIdentifiers.size() > BlobUtils.COMPOSE_MAX_BLOBS) {
             throw new UnsupportedOperationException();
         }
 
         try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
 
             // write all the source blobs into the stream
-            for (BlobId blobId : sourceBlobIds) {
-                BlobValue sourceBlobValue = blobs.get(blobId);
+            for (GSBlobIdentifier blobIdentifier : sourceBlobIdentifiers) {
+                BlobValue sourceBlobValue = blobs.get(blobIdentifier);
                 if (sourceBlobValue == null) {
                     throw new StorageException(404, "Compose source not found");
                 }
@@ -168,8 +163,8 @@ public class MockBlobStorage implements BlobStorage {
             }
 
             // write the resulting blob
-            BlobValue targetBlobValue = new BlobValue(stream.toByteArray(), contentType);
-            blobs.put(targetBlobId, targetBlobValue);
+            BlobValue targetBlobValue = new BlobValue(stream.toByteArray());
+            blobs.put(targetBlobIdentifier, targetBlobValue);
 
         } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -177,8 +172,8 @@ public class MockBlobStorage implements BlobStorage {
     }
 
     @Override
-    public List<Boolean> delete(Iterable<BlobId> blobIds) {
-        return StreamSupport.stream(blobIds.spliterator(), false)
+    public List<Boolean> delete(Iterable<GSBlobIdentifier> blobIdentifiers) {
+        return StreamSupport.stream(blobIdentifiers.spliterator(), false)
                 .map(blobId -> blobs.remove(blobId) != null)
                 .collect(Collectors.toList());
     }

@@ -19,13 +19,12 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.fs.gs.storage.BlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.ChecksumUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.hash.Hasher;
-
-import com.google.cloud.storage.BlobId;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -34,13 +33,13 @@ import java.util.Optional;
 class GSChecksumWriteChannel {
 
     /** The blob storage instance. */
-    private final BlobStorage storage;
+    private final GSBlobStorage storage;
 
     /** The write channel. */
-    @VisibleForTesting final BlobStorage.WriteChannel writeChannel;
+    @VisibleForTesting final GSBlobStorage.WriteChannel writeChannel;
 
-    /** The blob id to write. */
-    private final BlobId blobId;
+    /** The blob identifier to write. */
+    private final GSBlobIdentifier blobIdentifier;
 
     /** The hasher used to compute the checksum. */
     private final Hasher hasher;
@@ -50,13 +49,15 @@ class GSChecksumWriteChannel {
      *
      * @param storage The storage instance
      * @param writeChannel The write channel instance
-     * @param blobId The blob id to write
+     * @param blobIdentifier The blob identifier to write
      */
     public GSChecksumWriteChannel(
-            BlobStorage storage, BlobStorage.WriteChannel writeChannel, BlobId blobId) {
+            GSBlobStorage storage,
+            GSBlobStorage.WriteChannel writeChannel,
+            GSBlobIdentifier blobIdentifier) {
         this.storage = Preconditions.checkNotNull(storage);
         this.writeChannel = Preconditions.checkNotNull(writeChannel);
-        this.blobId = Preconditions.checkNotNull(blobId);
+        this.blobIdentifier = Preconditions.checkNotNull(blobIdentifier);
         this.hasher = ChecksumUtils.CRC_HASH_FUNCTION.newHasher();
     }
 
@@ -89,9 +90,10 @@ class GSChecksumWriteChannel {
 
         // close channel and get blob metadata
         writeChannel.close();
-        Optional<BlobStorage.BlobMetadata> blobMetadata = storage.getMetadata(blobId);
+        Optional<GSBlobStorage.BlobMetadata> blobMetadata = storage.getMetadata(blobIdentifier);
         if (!blobMetadata.isPresent()) {
-            throw new IOException(String.format("Failed to read metadata for blob %s", blobId));
+            throw new IOException(
+                    String.format("Failed to read metadata for blob %s", blobIdentifier));
         }
 
         // make sure checksums match
@@ -101,7 +103,7 @@ class GSChecksumWriteChannel {
             throw new IOException(
                     String.format(
                             "Checksum mismatch writing blob %s: expected %s but found %s",
-                            blobId, writeChecksum, blobChecksum));
+                            blobIdentifier, writeChecksum, blobChecksum));
         }
     }
 }

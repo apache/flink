@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
 import org.apache.flink.util.Preconditions;
 
@@ -154,7 +155,6 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(FINAL_BLOB_ID);
         assertNotNull(blobValue);
-        assertEquals(options.writerContentType, blobValue.contentType);
         assertArrayEquals(expectedBlobBytes, blobValue.content);
     }
 
@@ -190,7 +190,6 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(FINAL_BLOB_ID);
         assertNotNull(blobValue);
-        assertEquals(options.writerContentType, blobValue.contentType);
         assertArrayEquals(expectedBlobBytes, blobValue.content);
     }
 
@@ -220,9 +219,9 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         // we expect one blob at this point for each dataset, which should all be in the same bucket
         // as the final blob and with the expected prefix
         assertEquals(dataSets.length, blobStorage.blobs.size());
-        for (BlobId blobId : blobStorage.blobs.keySet()) {
-            assertEquals(temporaryBucketName, blobId.getBucket());
-            assertTrue(blobId.getName().startsWith(temporaryObjectPrefix));
+        for (GSBlobIdentifier blobIdentifier : blobStorage.blobs.keySet()) {
+            assertEquals(temporaryBucketName, blobIdentifier.bucketName);
+            assertTrue(blobIdentifier.objectName.startsWith(temporaryObjectPrefix));
         }
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
@@ -233,7 +232,6 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(FINAL_BLOB_ID);
         assertNotNull(blobValue);
-        assertEquals(options.writerContentType, blobValue.contentType);
         assertArrayEquals(expectedBlobBytes, blobValue.content);
     }
 
@@ -294,9 +292,9 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         // write past the recovery point. all of these should all be in the proper bucket with
         // the expected prefix
         assertEquals(dataSets.length + writePastRecoveryPointCount, blobStorage.blobs.size());
-        for (BlobId blobId : blobStorage.blobs.keySet()) {
-            assertEquals(temporaryBucketName, blobId.getBucket());
-            assertTrue(blobId.getName().startsWith(temporaryObjectPrefix));
+        for (GSBlobIdentifier blobIdentifier : blobStorage.blobs.keySet()) {
+            assertEquals(temporaryBucketName, blobIdentifier.bucketName);
+            assertTrue(blobIdentifier.objectName.startsWith(temporaryObjectPrefix));
         }
 
         // commit the write, which will also clean up the temporary objects. call
@@ -308,7 +306,6 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(FINAL_BLOB_ID);
         assertNotNull(blobValue);
-        assertEquals(options.writerContentType, blobValue.contentType);
         assertArrayEquals(expectedBlobBytes, blobValue.content);
     }
 

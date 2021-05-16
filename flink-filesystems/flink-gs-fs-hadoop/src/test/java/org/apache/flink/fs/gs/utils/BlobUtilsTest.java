@@ -18,31 +18,22 @@
 
 package org.apache.flink.fs.gs.utils;
 
-import com.google.cloud.storage.BlobId;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+
 import org.junit.Test;
 
 import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 /** Test blob utilities. */
 public class BlobUtilsTest {
 
     @Test
-    public void shouldNormalizeBlobId() {
-        BlobId normalizedBlobId = BlobUtils.normalizeBlobId(BlobId.of("bucket", "foo/bar", 12L));
-        assertEquals("bucket", normalizedBlobId.getBucket());
-        assertEquals("foo/bar", normalizedBlobId.getName());
-        assertNull(normalizedBlobId.getGeneration());
-    }
-
-    @Test
     public void shouldParseValidUri() {
-        BlobId blobId = BlobUtils.parseUri(URI.create("gs://bucket/foo/bar"));
-        assertEquals("bucket", blobId.getBucket());
-        assertEquals("foo/bar", blobId.getName());
-        assertNull(blobId.getGeneration());
+        GSBlobIdentifier blobIdentifier = BlobUtils.parseUri(URI.create("gs://bucket/foo/bar"));
+        assertEquals("bucket", blobIdentifier.bucketName);
+        assertEquals("foo/bar", blobIdentifier.objectName);
     }
 
     @Test(expected = IllegalArgumentException.class)

@@ -21,11 +21,10 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
-import org.apache.flink.fs.gs.storage.BlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
-
-import com.google.cloud.storage.BlobId;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,7 +34,7 @@ import java.util.Optional;
 class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Committer {
 
     /** The underlying blob storage. */
-    private final BlobStorage storage;
+    private final GSBlobStorage storage;
 
     /** The GS file system options. */
     private final GSFileSystemOptions options;
@@ -47,7 +46,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
     private final GSRecoverableWriterState state;
 
     GSRecoverableWriterCommitter(
-            BlobStorage storage,
+            GSBlobStorage storage,
             GSFileSystemOptions options,
             GSRecoverableWriter writer,
             GSRecoverableWriterState state) {
@@ -64,23 +63,17 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         // in the same bucket as the final blob id, this can be done directly. otherwise, we must
         // compose to a new temporary blob id in the same bucket as the component blob ids and
         // then copy that blob to the final blob location
-        if (state.finalBlobId.getBucket().equals(state.getTemporaryBucketName(options))) {
+        if (state.finalBlobIdentifier.bucketName.equals(state.getTemporaryBucketName(options))) {
 
             // compose directly to final blob
-            composeBlobs(
-                    state.getComponentBlobIds(options),
-                    state.finalBlobId,
-                    options.writerContentType);
+            composeBlobs(state.getComponentBlobIds(options), state.finalBlobIdentifier);
 
         } else {
 
             // compose to a temporary blob id, then copy to final blob id
-            BlobId intermediateBlobId = state.createTemporaryBlobId(options);
-            composeBlobs(
-                    state.getComponentBlobIds(options),
-                    intermediateBlobId,
-                    options.writerContentType);
-            storage.copy(intermediateBlobId, state.finalBlobId);
+            GSBlobIdentifier intermediateBlobIdentifier = state.createTemporaryBlobId(options);
+            composeBlobs(state.getComponentBlobIds(options), intermediateBlobIdentifier);
+            storage.copy(intermediateBlobIdentifier, state.finalBlobIdentifier);
         }
 
         // clean up after commit
@@ -91,7 +84,8 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
     public void commitAfterRecovery() throws IOException {
 
         // is the final blob present? if so, we have completed the compose step already
-        Optional<BlobStorage.BlobMetadata> blobMetadata = storage.getMetadata(state.finalBlobId);
+        Optional<GSBlobStorage.BlobMetadata> blobMetadata =
+                storage.getMetadata(state.finalBlobIdentifier);
         if (blobMetadata.isPresent()) {
 
             // the final blob is present, so assume the compose succeeded.
@@ -114,37 +108,40 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
      * Helper to compose an arbitrary number of blobs into a final blob, staying under the
      * COMPOSE_MAX_BLOBS limit for any individual compose operation.
      *
-     * @param sourceBlobIds The source blob ids to compose
-     * @param targetBlobId The target blob id for the composed result
-     * @param contentType The content type for the composed result
+     * @param sourceBlobIdentifiers The source blob ids to compose
+     * @param targetBlobIdentifier The target blob id for the composed result
      */
-    private void composeBlobs(List<BlobId> sourceBlobIds, BlobId targetBlobId, String contentType) {
-        Preconditions.checkNotNull(sourceBlobIds);
-        Preconditions.checkArgument(sourceBlobIds.size() > 0);
-        Preconditions.checkNotNull(targetBlobId);
-        Preconditions.checkNotNull(contentType);
+    private void composeBlobs(
+            List<GSBlobIdentifier> sourceBlobIdentifiers, GSBlobIdentifier targetBlobIdentifier) {
+        Preconditions.checkNotNull(sourceBlobIdentifiers);
+        Preconditions.checkArgument(sourceBlobIdentifiers.size() > 0);
+        Preconditions.checkNotNull(targetBlobIdentifier);
 
         // split the source list into two parts; first, the ones we can compose in this operation
         // (up to COMPOSE_MAX_BLOBS), and, second, whichever blobs are left over
-        final int composeToIndex = Math.min(BlobUtils.COMPOSE_MAX_BLOBS, sourceBlobIds.size());
-        List<BlobId> composeBlobIds = sourceBlobIds.subList(0, composeToIndex);
-        List<BlobId> remainingBlobIds = sourceBlobIds.subList(composeToIndex, sourceBlobIds.size());
+        final int composeToIndex =
+                Math.min(BlobUtils.COMPOSE_MAX_BLOBS, sourceBlobIdentifiers.size());
+        List<GSBlobIdentifier> composeBlobIds = sourceBlobIdentifiers.subList(0, composeToIndex);
+        List<GSBlobIdentifier> remainingBlobIds =
+                sourceBlobIdentifiers.subList(composeToIndex, sourceBlobIdentifiers.size());
 
         // determine the resulting blob id for this compose operation. if this is the last compose,
         // i.e. if there are no remaining blob ids, then the composed blob id is the originally
         // specified target blob id. otherwise, we must create an intermediate blob id to hold the
         // result of this compose operation
-        BlobId composedBlobId =
-                remainingBlobIds.isEmpty() ? targetBlobId : state.createTemporaryBlobId(options);
+        GSBlobIdentifier composedBlobId =
+                remainingBlobIds.isEmpty()
+                        ? targetBlobIdentifier
+                        : state.createTemporaryBlobId(options);
 
         // compose the blobs
-        storage.compose(composeBlobIds, composedBlobId, contentType);
+        storage.compose(composeBlobIds, composedBlobId);
 
         // if we have remaining blobs, add the composed blob id to the beginning of the list
         // of remaining blob ids, and recurse
         if (!remainingBlobIds.isEmpty()) {
             remainingBlobIds.add(0, composedBlobId);
-            composeBlobs(remainingBlobIds, targetBlobId, contentType);
+            composeBlobs(remainingBlobIds, targetBlobIdentifier);
         }
     }
 }

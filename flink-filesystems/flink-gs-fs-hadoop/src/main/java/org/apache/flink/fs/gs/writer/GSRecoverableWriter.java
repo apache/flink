@@ -23,11 +23,10 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
-import org.apache.flink.fs.gs.storage.BlobStorage;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
-
-import com.google.cloud.storage.BlobId;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -37,7 +36,7 @@ import java.util.List;
 public class GSRecoverableWriter implements RecoverableWriter {
 
     /** The underlying blob storage. */
-    private final BlobStorage storage;
+    private final GSBlobStorage storage;
 
     /** The GS file system options. */
     private final GSFileSystemOptions options;
@@ -48,7 +47,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
      * @param storage The underlying blob storage instance
      * @param options The GS file system options
      */
-    public GSRecoverableWriter(BlobStorage storage, GSFileSystemOptions options) {
+    public GSRecoverableWriter(GSBlobStorage storage, GSFileSystemOptions options) {
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
     }
@@ -67,7 +66,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
         Preconditions.checkNotNull(path);
 
-        BlobId finalBlobId = BlobUtils.parseUri(path.toUri());
+        GSBlobIdentifier finalBlobId = BlobUtils.parseUri(path.toUri());
         GSRecoverableWriterState state = new GSRecoverableWriterState(finalBlobId);
         return new GSRecoverableFsDataOutputStream(storage, options, this, state);
     }
@@ -90,29 +89,28 @@ public class GSRecoverableWriter implements RecoverableWriter {
         String temporaryObjectPartialName = state.getTemporaryObjectPartialName(options);
 
         // this will hold the set of blob ids that were actually deleted
-        HashSet<BlobId> deletedBlobIds = new HashSet<>();
+        HashSet<GSBlobIdentifier> deletedBlobIdentifiers = new HashSet<>();
 
         // find all the temp blobs by looking for anything that starts with the temporary
-        // object partial name. doing it this way finds any orphaned temp blobs that might
-        // have come about when resuming
-        List<BlobId> foundTempBlobIds =
+        // object partial name. doing it this way finds any orphaned temp blobs as well
+        List<GSBlobIdentifier> foundTempBlobIdentifiers =
                 storage.list(temporaryBucketName, temporaryObjectPartialName);
-        if (!foundTempBlobIds.isEmpty()) {
+        if (!foundTempBlobIdentifiers.isEmpty()) {
 
             // delete all the temp blobs, and populate the set with ones that were actually deleted
             // normalize in case the blob came back with a generation populated
-            List<Boolean> deleteResults = storage.delete(foundTempBlobIds);
+            List<Boolean> deleteResults = storage.delete(foundTempBlobIdentifiers);
             for (int i = 0; i < deleteResults.size(); i++) {
                 if (deleteResults.get(i)) {
-                    deletedBlobIds.add(BlobUtils.normalizeBlobId(foundTempBlobIds.get(i)));
+                    deletedBlobIdentifiers.add(foundTempBlobIdentifiers.get(i));
                 }
             }
         }
 
         // determine if we deleted everything we expected to, by comparing the stored
         // temp blob ids so the ones that were found and deleted
-        for (BlobId componentBlobId : state.getComponentBlobIds(options)) {
-            if (!deletedBlobIds.contains(componentBlobId)) {
+        for (GSBlobIdentifier componentBlobIdentifier : state.getComponentBlobIds(options)) {
+            if (!deletedBlobIdentifiers.contains(componentBlobIdentifier)) {
                 // we expected to delete this blob but did not, so return false
                 return false;
             }

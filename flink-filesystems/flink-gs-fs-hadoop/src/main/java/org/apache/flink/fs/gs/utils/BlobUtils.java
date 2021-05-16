@@ -18,7 +18,7 @@
 
 package org.apache.flink.fs.gs.utils;
 
-import com.google.cloud.storage.BlobId;
+import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 
 import java.net.URI;
 
@@ -29,23 +29,13 @@ public class BlobUtils {
     public static final int COMPOSE_MAX_BLOBS = 32;
 
     /**
-     * Normalizes a blob id, ensuring that the generation is null.
-     *
-     * @param blobId The blob id
-     * @return The blob id with the generation set to null
-     */
-    public static BlobId normalizeBlobId(BlobId blobId) {
-        return BlobId.of(blobId.getBucket(), blobId.getName());
-    }
-
-    /**
      * Parses a blob id from a Google storage uri, i.e. gs://bucket/foo/bar yields a blob with
      * bucket name "bucket" and object name "foo/bar".
      *
      * @param uri The gs uri
      * @return The blob id
      */
-    public static BlobId parseUri(URI uri) {
+    public static GSBlobIdentifier parseUri(URI uri) {
         String finalBucketName = uri.getAuthority();
         if (finalBucketName == null) {
             throw new IllegalArgumentException(String.format("Bucket name in %s is invalid", uri));
@@ -58,6 +48,6 @@ public class BlobUtils {
         if (finalObjectName.isEmpty()) {
             throw new IllegalArgumentException(String.format("Object name in %s is invalid", uri));
         }
-        return BlobId.of(finalBucketName, finalObjectName);
+        return new GSBlobIdentifier(finalBucketName, finalObjectName);
     }
 }
