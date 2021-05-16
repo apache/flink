@@ -25,6 +25,9 @@ import java.net.URI;
 /** Utility functions related to blobs. */
 public class BlobUtils {
 
+    /** The temporary object prefix. */
+    public static final String TEMPORARY_OBJECT_PREFIX = ".inprogress/";
+
     /** The maximum number of blobs that can be composed in a single operation. */
     public static final int COMPOSE_MAX_BLOBS = 32;
 

@@ -30,9 +30,6 @@ public class GSRecoverableWriterWithCustomOptionsAndComplexCompositionTest
      * there will also be a copy step to create the final blob.
      */
     public GSRecoverableWriterWithCustomOptionsAndComplexCompositionTest() {
-        super(
-                8416,
-                70,
-                new GSFileSystemOptions("temporary-bucket", ".incomplete/", "text/plain", 2048));
+        super(8416, 70, new GSFileSystemOptions(getCustomConfiguration()));
     }
 }

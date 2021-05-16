@@ -18,62 +18,63 @@
 
 package org.apache.flink.fs.gs;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Optional;
 
 /** The GS file system options. */
 public class GSFileSystemOptions {
 
-    /**
-     * The default value for the temporary bucket, i.e. empty string which means use same bucket as
-     * the final blob being written
-     */
-    public static final String DEFAULT_WRITER_TEMPORARY_BUCKET_NAME = "";
+    private static final ConfigOption<String> WRITER_TEMPORARY_BUCKET_NAME =
+            ConfigOptions.key("gs.writer.temporary.bucket.name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "This option sets the bucket name used by the recoverable writer to store temporary files. "
+                                    + "If not specified, temporary files are stored in the same bucket as the final file being written.");
 
-    /** The default value for the temporary object prefix. */
-    public static final String DEFAULT_WRITER_TEMPORARY_OBJECT_PREFIX = ".inprogress/";
+    private static final ConfigOption<MemorySize> WRITER_CHUNK_SIZE =
+            ConfigOptions.key("gs.writer.chunk.size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "This option sets the chunk size for writes to the underlying Google storage. If set, this must be a multiple "
+                                    + "of 256KB. If not set, writes will use Google's default chunk size.");
 
-    /** The default value for the content type of blobs written by the recoverable writer. */
-    public static final String DEFAULT_WRITER_CONTENT_TYPE = "application/octet-stream";
-
-    /** The default value for the writer chunk size, i.e. zero which means use Google default * */
-    public static final int DEFAULT_WRITER_CHUNK_SIZE = 0;
-
-    /**
-     * The temporary bucket name to use for recoverable writes. If empty, use the same bucket as the
-     * final blob to write.
-     */
-    public final String writerTemporaryBucketName;
-
-    /** The prefix to be applied to the final object name when generating temporary object names. */
-    public final String writerTemporaryObjectPrefix;
-
-    /** The content type used for files written by the recoverable writer. */
-    public final String writerContentType;
-
-    /**
-     * The chunk size to use for writes on the underlying Google WriteChannel. If zero, then the
-     * chunk size is not set on the underlying channel, and the default value is used.
-     */
-    public final int writerChunkSize;
+    /** The Flink configuration. */
+    private final Configuration flinkConfig;
 
     /**
      * Constructs an options instance.
      *
-     * @param writerTemporaryBucketName The temporary bucket name, if empty use same bucket as final
-     *     blob
-     * @param writerTemporaryObjectPrefix The temporary object prefix
-     * @param writerContentType The content type
-     * @param writerChunkSize The chunk size, if zero this means use Google default
+     * @param flinkConfig The Flink configuration
      */
-    public GSFileSystemOptions(
-            String writerTemporaryBucketName,
-            String writerTemporaryObjectPrefix,
-            String writerContentType,
-            int writerChunkSize) {
-        this.writerTemporaryBucketName = Preconditions.checkNotNull(writerTemporaryBucketName);
-        this.writerTemporaryObjectPrefix = Preconditions.checkNotNull(writerTemporaryObjectPrefix);
-        this.writerContentType = Preconditions.checkNotNull(writerContentType);
-        Preconditions.checkArgument(writerChunkSize >= 0);
-        this.writerChunkSize = writerChunkSize;
+    public GSFileSystemOptions(Configuration flinkConfig) {
+        this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+        this.flinkConfig
+                .getOptional(WRITER_CHUNK_SIZE)
+                .ifPresent(
+                        chunkSize ->
+                                Preconditions.checkArgument(
+                                        chunkSize.getBytes() > 0
+                                                && chunkSize.getBytes() % (256 * 1024) == 0,
+                                        "Writer chunk size must be greater than zero and a multiple of 256KB"));
+    }
+
+    /**
+     * The temporary bucket name to use for recoverable writes, if different from the final bucket
+     * name.
+     */
+    public Optional<String> getWriterTemporaryBucketName() {
+        return flinkConfig.getOptional(WRITER_TEMPORARY_BUCKET_NAME);
+    }
+
+    /** The chunk size to use for writes on the underlying Google WriteChannel. */
+    public Optional<MemorySize> getWriterChunkSize() {
+        return flinkConfig.getOptional(WRITER_CHUNK_SIZE);
     }
 }

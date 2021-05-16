@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.writer;
 
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
@@ -29,6 +30,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /** The data output stream implementation for the GS recoverable writer. */
 class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
@@ -155,9 +157,9 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
         // create the channel and set the chunk size if specified in options
         GSBlobStorage.WriteChannel writeChannel = storage.writeBlob(blobIdentifier);
-        if (options.writerChunkSize > 0) {
-            writeChannel.setChunkSize(options.writerChunkSize);
-        }
+        Optional<MemorySize> writerChunkSize = options.getWriterChunkSize();
+        writerChunkSize.ifPresent(
+                chunkSize -> writeChannel.setChunkSize((int) chunkSize.getBytes()));
 
         return new GSChecksumWriteChannel(storage, writeChannel, blobIdentifier);
     }

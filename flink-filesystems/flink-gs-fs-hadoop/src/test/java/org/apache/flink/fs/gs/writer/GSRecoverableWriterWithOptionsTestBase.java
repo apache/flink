@@ -18,12 +18,15 @@
 
 package org.apache.flink.fs.gs.writer;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
+import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.storage.BlobId;
@@ -33,6 +36,7 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -42,6 +46,17 @@ import static org.junit.Assert.assertTrue;
 
 /** Test recoverable writer. */
 public abstract class GSRecoverableWriterWithOptionsTestBase {
+
+    protected static Configuration getDefaultConfiguration() {
+        return new Configuration();
+    }
+
+    protected static Configuration getCustomConfiguration() {
+        Configuration config = new Configuration();
+        config.setString("gs.writer.temporary.bucket.name", "temporary-bucket");
+        config.setInteger("gs.writer.chunk.size", 2048);
+        return config;
+    }
 
     private static final Random RANDOM = new Random(601289);
 
@@ -61,8 +76,6 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
 
     private final String temporaryBucketName;
 
-    private final String temporaryObjectPrefix;
-
     /**
      * Generate three datasets, each of dataSetSize data chunks of up to size DATA_MAX_LENGTH. We
      * use these sets of data in various ways in the tests.
@@ -76,11 +89,7 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         Preconditions.checkArgument(dataSetCount >= 10);
 
         this.options = options;
-        this.temporaryBucketName =
-                options.writerTemporaryBucketName.isEmpty()
-                        ? FINAL_BUCKET_NAME
-                        : options.writerTemporaryBucketName;
-        this.temporaryObjectPrefix = options.writerTemporaryObjectPrefix;
+        this.temporaryBucketName = options.getWriterTemporaryBucketName().orElse(FINAL_BUCKET_NAME);
 
         // populate the datasets
         this.dataSets = new byte[dataSetCount][][];
@@ -135,7 +144,10 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertNotNull(checksumWriteChannel);
         MockBlobStorage.WriteChannel mockWriteChannel =
                 (MockBlobStorage.WriteChannel) checksumWriteChannel.writeChannel;
-        assertEquals(options.writerChunkSize, mockWriteChannel.chunkSize);
+
+        Optional<MemorySize> writerChunkSize = options.getWriterChunkSize();
+        writerChunkSize.ifPresent(
+                chunkSize -> assertEquals((int) chunkSize.getBytes(), mockWriteChannel.chunkSize));
 
         // get the committer
         RecoverableFsDataOutputStream.Committer committer = stream.closeForCommit();
@@ -145,7 +157,7 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         BlobId blobId = (BlobId) blobStorage.blobs.keySet().toArray()[0];
         assertEquals(temporaryBucketName, blobId.getBucket());
-        assertTrue(blobId.getName().startsWith(temporaryObjectPrefix));
+        assertTrue(blobId.getName().startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
         // commit the write, which will also clean up the temporary objects
@@ -180,7 +192,7 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(1, blobStorage.blobs.size());
         BlobId blobId = (BlobId) blobStorage.blobs.keySet().toArray()[0];
         assertEquals(temporaryBucketName, blobId.getBucket());
-        assertTrue(blobId.getName().startsWith(temporaryObjectPrefix));
+        assertTrue(blobId.getName().startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
         // commit the write, which will also clean up the temporary objects
@@ -221,7 +233,7 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(dataSets.length, blobStorage.blobs.size());
         for (GSBlobIdentifier blobIdentifier : blobStorage.blobs.keySet()) {
             assertEquals(temporaryBucketName, blobIdentifier.bucketName);
-            assertTrue(blobIdentifier.objectName.startsWith(temporaryObjectPrefix));
+            assertTrue(blobIdentifier.objectName.startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         }
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
@@ -294,7 +306,7 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         assertEquals(dataSets.length + writePastRecoveryPointCount, blobStorage.blobs.size());
         for (GSBlobIdentifier blobIdentifier : blobStorage.blobs.keySet()) {
             assertEquals(temporaryBucketName, blobIdentifier.bucketName);
-            assertTrue(blobIdentifier.objectName.startsWith(temporaryObjectPrefix));
+            assertTrue(blobIdentifier.objectName.startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         }
 
         // commit the write, which will also clean up the temporary objects. call

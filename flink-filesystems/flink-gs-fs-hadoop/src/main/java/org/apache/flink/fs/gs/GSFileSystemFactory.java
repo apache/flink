@@ -18,8 +18,6 @@
 
 package org.apache.flink.fs.gs;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
@@ -47,37 +45,6 @@ public class GSFileSystemFactory implements FileSystemFactory {
     private static final String[][] MIRRORED_CONFIG_KEYS = {};
 
     private static final String FLINK_SHADING_PREFIX = "";
-
-    public static final ConfigOption<String> WRITER_TEMPORARY_BUCKET_NAME =
-            ConfigOptions.key("gs.writer.temporary.bucket.name")
-                    .stringType()
-                    .defaultValue(GSFileSystemOptions.DEFAULT_WRITER_TEMPORARY_BUCKET_NAME)
-                    .withDescription(
-                            "This option sets the bucket name used by the recoverable writer to store temporary files. "
-                                    + "If empty, temporary files are stored in the same bucket as the final file being written.");
-
-    public static final ConfigOption<String> WRITER_TEMPORARY_OBJECT_PREFIX =
-            ConfigOptions.key("gs.writer.temporary.object.prefix")
-                    .stringType()
-                    .defaultValue(GSFileSystemOptions.DEFAULT_WRITER_TEMPORARY_OBJECT_PREFIX)
-                    .withDescription(
-                            "This option sets the prefix used by the recoverable writer when writing temporary files. This prefix is applied to the "
-                                    + "final object name to form the base name for temporary files.");
-
-    public static final ConfigOption<String> WRITER_CONTENT_TYPE =
-            ConfigOptions.key("gs.writer.content.type")
-                    .stringType()
-                    .defaultValue(GSFileSystemOptions.DEFAULT_WRITER_CONTENT_TYPE)
-                    .withDescription(
-                            "This option sets the content type applied to files written by the recoverable writer.");
-
-    public static final ConfigOption<Integer> WRITER_CHUNK_SIZE =
-            ConfigOptions.key("gs.writer.chunk.size")
-                    .intType()
-                    .defaultValue(GSFileSystemOptions.DEFAULT_WRITER_CHUNK_SIZE)
-                    .withDescription(
-                            "This option sets the chunk size for writes by the recoverable writer. This value is passed through to the underlying "
-                                    + "Google WriteChannel; if zero, the default WriteChannel value is used.");
 
     private final HadoopConfigLoader hadoopConfigLoader;
 
@@ -119,16 +86,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
         googleHadoopFileSystem.initialize(fsUri, hadoopConfig);
 
         // construct the file system options
-        String writerTemporaryBucketName = flinkConfig.getString(WRITER_TEMPORARY_BUCKET_NAME);
-        String writerTemporaryObjectPrefix = flinkConfig.getString(WRITER_TEMPORARY_OBJECT_PREFIX);
-        String writerContentType = flinkConfig.getString(WRITER_CONTENT_TYPE);
-        int writerChunkSize = flinkConfig.getInteger(WRITER_CHUNK_SIZE);
-        GSFileSystemOptions options =
-                new GSFileSystemOptions(
-                        writerTemporaryBucketName,
-                        writerTemporaryObjectPrefix,
-                        writerContentType,
-                        writerChunkSize);
+        GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
 
         // create the file system wrapper
         return new GSFileSystem(googleHadoopFileSystem, options);

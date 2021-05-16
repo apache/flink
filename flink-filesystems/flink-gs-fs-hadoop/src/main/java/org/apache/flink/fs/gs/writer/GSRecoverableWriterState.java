@@ -21,6 +21,7 @@ package org.apache.flink.fs.gs.writer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -74,9 +75,7 @@ class GSRecoverableWriterState implements RecoverableWriter.ResumeRecoverable, C
      * @return The temporary bucket name
      */
     String getTemporaryBucketName(GSFileSystemOptions options) {
-        return options.writerTemporaryBucketName.isEmpty()
-                ? finalBlobIdentifier.bucketName
-                : options.writerTemporaryBucketName;
+        return options.getWriterTemporaryBucketName().orElse(finalBlobIdentifier.bucketName);
     }
 
     /**
@@ -85,12 +84,11 @@ class GSRecoverableWriterState implements RecoverableWriter.ResumeRecoverable, C
      * object names that start with this partial name are, in fact, temporary files associated with
      * the upload of the associated final blob.
      *
-     * @param options The GS file system options
      * @return The temporary object partial name
      */
-    String getTemporaryObjectPartialName(GSFileSystemOptions options) {
-        String finalObjectName = finalBlobIdentifier.objectName;
-        return String.format("%s%s/", options.writerTemporaryObjectPrefix, finalObjectName);
+    String getTemporaryObjectPartialName() {
+        return String.format(
+                "%s%s/", BlobUtils.TEMPORARY_OBJECT_PREFIX, finalBlobIdentifier.objectName);
     }
 
     /**
@@ -99,11 +97,10 @@ class GSRecoverableWriterState implements RecoverableWriter.ResumeRecoverable, C
      * .inprogress/foo/bar/EjgelvANQ525hLUW2S6DBA for the final blob with object name "foo/bar".
      *
      * @param temporaryObjectId The temporary object id
-     * @param options The GS file system options
      * @return The temporary object name
      */
-    String getTemporaryObjectName(UUID temporaryObjectId, GSFileSystemOptions options) {
-        return getTemporaryObjectPartialName(options) + temporaryObjectId.toString();
+    String getTemporaryObjectName(UUID temporaryObjectId) {
+        return getTemporaryObjectPartialName() + temporaryObjectId.toString();
     }
 
     /**
@@ -116,7 +113,7 @@ class GSRecoverableWriterState implements RecoverableWriter.ResumeRecoverable, C
     private GSBlobIdentifier createTemporaryBlobId(
             UUID temporaryObjectId, GSFileSystemOptions options) {
         String temporaryBucketName = getTemporaryBucketName(options);
-        String temporaryObjectName = getTemporaryObjectName(temporaryObjectId, options);
+        String temporaryObjectName = getTemporaryObjectName(temporaryObjectId);
         return new GSBlobIdentifier(temporaryBucketName, temporaryObjectName);
     }
 
@@ -154,7 +151,7 @@ class GSRecoverableWriterState implements RecoverableWriter.ResumeRecoverable, C
     List<GSBlobIdentifier> getComponentBlobIds(GSFileSystemOptions options) {
         String temporaryBucketName = getTemporaryBucketName(options);
         return componentObjectIds.stream()
-                .map(temporaryObjectId -> getTemporaryObjectName(temporaryObjectId, options))
+                .map(this::getTemporaryObjectName)
                 .map(
                         temporaryObjectName ->
                                 new GSBlobIdentifier(temporaryBucketName, temporaryObjectName))

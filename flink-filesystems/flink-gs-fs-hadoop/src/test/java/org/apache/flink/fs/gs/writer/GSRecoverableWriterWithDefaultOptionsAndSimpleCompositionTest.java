@@ -30,13 +30,6 @@ public class GSRecoverableWriterWithDefaultOptionsAndSimpleCompositionTest
      * will be no copy step to create the final blob.
      */
     public GSRecoverableWriterWithDefaultOptionsAndSimpleCompositionTest() {
-        super(
-                123,
-                10,
-                new GSFileSystemOptions(
-                        "",
-                        GSFileSystemOptions.DEFAULT_WRITER_TEMPORARY_OBJECT_PREFIX,
-                        GSFileSystemOptions.DEFAULT_WRITER_CONTENT_TYPE,
-                        0));
+        super(123, 10, new GSFileSystemOptions(getDefaultConfiguration()));
     }
 }

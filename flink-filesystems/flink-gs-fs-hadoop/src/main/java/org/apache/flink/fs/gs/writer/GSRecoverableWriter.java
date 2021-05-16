@@ -86,7 +86,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
         // determine the partial name for the temporary objects to be deleted
         GSRecoverableWriterState state = (GSRecoverableWriterState) resumable;
         String temporaryBucketName = state.getTemporaryBucketName(options);
-        String temporaryObjectPartialName = state.getTemporaryObjectPartialName(options);
+        String temporaryObjectPartialName = state.getTemporaryObjectPartialName();
 
         // this will hold the set of blob ids that were actually deleted
         HashSet<GSBlobIdentifier> deletedBlobIdentifiers = new HashSet<>();
