@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
@@ -52,6 +53,9 @@ class BatchPhysicalPythonCalc(
 
   override def translateToExecNode(): ExecNode[_] = {
     val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+    if (calcProgram.getCondition != null) {
+      throw new TableException("The condition of BatchPhysicalPythonCalc should be null.")
+    }
 
     new BatchExecPythonCalc(
       projection,

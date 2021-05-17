@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.BooleanPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -62,5 +63,19 @@ public class PythonCalcJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan("insert into MySink select a, pyFunc(b, b) from MyTable");
+    }
+
+    @Test
+    public void testPythonFunctionInWhereClause() {
+        tEnv.createTemporaryFunction("pyFunc", new BooleanPythonScalarFunction("pyFunc"));
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a bigint,\n"
+                        + "  b int\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan("insert into MySink select a, b from MyTable where pyFunc(b, b + 1)");
     }
 }
