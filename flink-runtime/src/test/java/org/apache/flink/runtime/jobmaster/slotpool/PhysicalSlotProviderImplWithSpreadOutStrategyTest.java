@@ -48,19 +48,21 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
     @Test
     public void testSlotAllocationFulfilledWithWorkloadSpreadOut()
             throws InterruptedException, ExecutionException {
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
-
         PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
         PhysicalSlotRequest request1 = physicalSlotProviderResource.createSimpleRequest();
 
-        PhysicalSlotRequest.Result result0 =
-                physicalSlotProviderResource.allocateSlot(request0).get();
-        PhysicalSlotRequest.Result result1 =
-                physicalSlotProviderResource.allocateSlot(request1).get();
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture0 =
+                physicalSlotProviderResource.allocateSlot(request0);
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture1 =
+                physicalSlotProviderResource.allocateSlot(request1);
 
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
+
+        PhysicalSlotRequest.Result result0 = resultCompletableFuture0.get();
+        PhysicalSlotRequest.Result result1 = resultCompletableFuture1.get();
         assertThat(
                 result0.getPhysicalSlot().getTaskManagerLocation(),
                 not(result1.getPhysicalSlot().getTaskManagerLocation()));
@@ -69,11 +71,6 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
     @Test
     public void testSlotAllocationFulfilledWithPreferredInputOverwrittingSpreadOut()
             throws ExecutionException, InterruptedException {
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY);
-
         PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
         PhysicalSlotRequest.Result result0 =
                 physicalSlotProviderResource.allocateSlot(request0).get();
@@ -89,6 +86,11 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
                         false);
         PhysicalSlotRequest.Result result1 =
                 physicalSlotProviderResource.allocateSlot(request1).get();
+
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+                ResourceProfile.ANY, ResourceProfile.ANY);
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
+                ResourceProfile.ANY, ResourceProfile.ANY);
 
         assertThat(
                 result1.getPhysicalSlot().getTaskManagerLocation(),

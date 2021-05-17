@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -36,15 +35,11 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
-import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridge;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPoolFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
@@ -54,7 +49,6 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -80,10 +74,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     private static final JobID TEST_JOB_ID = new JobID();
 
-    private static final Time DEFAULT_IDLE_SLOT_TIME_OUT = Time.seconds(10);
-    private static final Time DEFAULT_RPC_TIME_OUT = Time.seconds(10);
-    private static final Time DEFAULT_BATCH_TIME_OUT = Time.seconds(10);
-
     private ManuallyTriggeredScheduledExecutor taskRestartExecutor;
 
     @Before
@@ -104,18 +94,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
         }
     }
 
-    private SlotPool createSlotPoolImpl() {
-        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
-                new TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPool.builder());
-        DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
-                new DeclarativeSlotPoolBridge(
-                        new JobID(),
-                        declarativeSlotPoolFactory,
-                        SystemClock.getInstance(),
-                        Time.seconds(20),
-                        Time.seconds(20),
-                        Time.seconds(20));
-        return declarativeSlotPoolBridge;
+    private SlotPool createSlotPoolImpl() throws Exception {
+        return new SlotPoolBuilder(mainThreadExecutor)
+                .setJobId(TEST_JOB_ID)
+                .setResourceManagerGateway(new TestingResourceManagerGateway())
+                .build();
     }
 
     @Test
@@ -350,7 +333,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
             SlotPool slotPool, TaskManagerLocation taskManagerLocation, int numSlots)
             throws Exception {
         final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-        setupSlotPool(slotPool);
         PhysicalSlotProvider physicalSlotProvider =
                 new PhysicalSlotProviderImpl(
                         LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
@@ -367,13 +349,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         return SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                 physicalSlotProvider);
-    }
-
-    private static void setupSlotPool(SlotPool slotPool) throws Exception {
-        final String jobManagerAddress = "foobar";
-        final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-        slotPool.start(JobMasterId.generate(), jobManagerAddress, mainThreadExecutor);
-        slotPool.connectToResourceManager(resourceManagerGateway);
     }
 
     private static JobGraph createJobGraph() {

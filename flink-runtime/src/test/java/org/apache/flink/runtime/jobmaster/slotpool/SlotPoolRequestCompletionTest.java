@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -34,7 +33,6 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -87,10 +85,6 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
                     IntStream.range(0, requestNum)
                             .mapToObj(ignored -> new SlotRequestId())
                             .collect(Collectors.toList());
-
-            final List<SlotRequest> rmReceivedSlotRequests = new ArrayList<>(requestNum);
-            resourceManagerGateway.setRequestSlotConsumer(
-                    request -> rmReceivedSlotRequests.add(request));
 
             final List<CompletableFuture<PhysicalSlot>> slotRequests =
                     slotRequestIds.stream()

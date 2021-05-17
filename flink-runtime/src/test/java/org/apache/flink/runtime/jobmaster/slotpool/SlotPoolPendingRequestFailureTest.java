@@ -37,9 +37,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils.*;
+import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils.requestNewAllocatedSlot;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.fail;
 
 /** Tests for the failing of pending slot requests at the {@link SlotPool}. */

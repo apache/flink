@@ -41,7 +41,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -82,8 +81,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     private final AtomicReference<CompletableFuture<Acknowledge>> slotFutureReference;
 
     private volatile Consumer<AllocationID> cancelSlotConsumer;
-
-    private volatile Consumer<SlotRequest> requestSlotConsumer;
 
     private volatile QuadFunction<
                     JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>>
@@ -147,7 +144,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.hostname = Preconditions.checkNotNull(hostname);
         this.slotFutureReference = new AtomicReference<>();
         this.cancelSlotConsumer = null;
-        this.requestSlotConsumer = null;
     }
 
     public ResourceID getOwnResourceId() {
@@ -160,10 +156,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     public void setCancelSlotConsumer(Consumer<AllocationID> cancelSlotConsumer) {
         this.cancelSlotConsumer = cancelSlotConsumer;
-    }
-
-    public void setRequestSlotConsumer(Consumer<SlotRequest> slotRequestConsumer) {
-        this.requestSlotConsumer = slotRequestConsumer;
     }
 
     public void setRegisterJobManagerFunction(
@@ -276,24 +268,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     public JobMasterRegistrationSuccess getJobMasterRegistrationSuccess() {
         return new JobMasterRegistrationSuccess(resourceManagerId, ownResourceId);
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> requestSlot(
-            JobMasterId jobMasterId, SlotRequest slotRequest, Time timeout) {
-        Consumer<SlotRequest> currentRequestSlotConsumer = requestSlotConsumer;
-
-        if (currentRequestSlotConsumer != null) {
-            currentRequestSlotConsumer.accept(slotRequest);
-        }
-
-        CompletableFuture<Acknowledge> slotFuture = slotFutureReference.getAndSet(null);
-
-        if (slotFuture != null) {
-            return slotFuture;
-        } else {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        }
     }
 
     @Override
