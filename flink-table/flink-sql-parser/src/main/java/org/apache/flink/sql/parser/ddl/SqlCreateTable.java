@@ -266,7 +266,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.keyword("IF NOT EXISTS");
         }
         tableName.unparse(writer, leftPrec, rightPrec);
-        if (columnList.size() > 0) {
+        if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
             SqlWriter.Frame frame =
                     writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
             for (SqlNode column : columnList) {
