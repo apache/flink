@@ -61,12 +61,6 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(
-                joinType,
-                (RexCall) invocation,
-                id,
-                inputProperties,
-                outputType,
-                description);
+        super(joinType, (RexCall) invocation, id, inputProperties, outputType, description);
     }
 }
