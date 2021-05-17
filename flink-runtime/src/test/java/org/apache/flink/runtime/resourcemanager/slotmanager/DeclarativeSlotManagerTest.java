@@ -34,6 +34,7 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -55,6 +56,7 @@ import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
@@ -73,6 +75,7 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -1457,27 +1460,70 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         }
     }
 
+    /**
+     * Test for metric group lifecycle.
+     *
+     * <ul>
+     *   <li>Make sure that metrics are un-registered when {@link SlotManager#close()} is called.
+     *   <li>Make sure that actual metric value is still accessible, when it's un-registering, so we
+     *       can for example write the latest value into file.
+     * </ul>
+     */
     @Test
-    public void testAccessMetricValueDuringItsUnregister() throws Exception {
+    public void testAccessMetricValueDuringUnregisterWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    /**
+     * Test for metric group lifecycle.
+     *
+     * <ul>
+     *   <li>Make sure that metrics are un-registered when {@link SlotManager#suspend()} is called.
+     *   <li>Make sure that actual metric value is still accessible, when it's un-registering, so we
+     *       can for example write the latest value into file.
+     * </ul>
+     */
+    @Test
+    public void testAccessMetricValueDuringUnregisterWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final CountDownLatch metricRegistered = new CountDownLatch(1);
+        final CountDownLatch metricUnregistered = new CountDownLatch(1);
         final MetricRegistry metricRegistry =
                 new NoOpMetricRegistry() {
 
                     @Override
+                    public void register(
+                            Metric metric, String metricName, AbstractMetricGroup group) {
+                        if (MetricNames.TASK_SLOTS_AVAILABLE.equals(metricName)) {
+                            metricRegistered.countDown();
+                        }
+                    }
+
+                    @Override
                     public void unregister(
                             Metric metric, String metricName, AbstractMetricGroup group) {
-                        Assert.assertTrue(metric instanceof Gauge);
-                        @SuppressWarnings("unchecked")
-                        final Gauge<Long> gauge = (Gauge<Long>) metric;
-                        gauge.getValue();
+                        if (MetricNames.TASK_SLOTS_AVAILABLE.equals(metricName)) {
+                            Assert.assertTrue(metric instanceof Gauge);
+                            @SuppressWarnings("unchecked")
+                            final Gauge<Long> gauge = (Gauge<Long>) metric;
+                            assertEquals(Long.valueOf(0), gauge.getValue());
+                            metricUnregistered.countDown();
+                        }
                     }
                 };
-        try (DeclarativeSlotManager ignored =
+        final DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
                         .setSlotManagerMetricGroup(
                                 SlotManagerMetricGroup.create(metricRegistry, "localhost"))
-                        .buildAndStartWithDirectExec()) {
-            // No-op.
-        }
+                        .buildAndStartWithDirectExec();
+        assertTrue(metricRegistered.await(100, TimeUnit.MILLISECONDS));
+        assertEquals(1, metricUnregistered.getCount());
+        closeFn.accept(slotManager);
+        assertTrue(metricUnregistered.await(100, TimeUnit.MILLISECONDS));
     }
 
     private static SlotReport createSlotReport(ResourceID taskExecutorResourceId, int numberSlots) {

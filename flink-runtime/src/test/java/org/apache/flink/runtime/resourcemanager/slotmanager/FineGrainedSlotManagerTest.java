@@ -21,12 +21,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -34,7 +41,9 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -43,6 +52,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
@@ -54,6 +65,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests of {@link FineGrainedSlotManager}. */
@@ -863,6 +875,86 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                             .getRegisteredTaskManager(
                                                     taskManagerConnection2.getInstanceID())
                                             .isPresent());
+                        });
+            }
+        };
+    }
+    /**
+     * Test for metric group lifecycle.
+     *
+     * <ul>
+     *   <li>Make sure that metrics are un-registered when {@link SlotManager#close()} is called.
+     *   <li>Make sure that actual metric value is still accessible, when it's un-registering, so we
+     *       can for example write the latest value into file.
+     * </ul>
+     */
+    @Test
+    public void testAccessMetricValueDuringUnregisterWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    /**
+     * Test for metric group lifecycle.
+     *
+     * <ul>
+     *   <li>Make sure that metrics are un-registered when {@link SlotManager#suspend()} is called.
+     *   <li>Make sure that actual metric value is still accessible, when it's un-registering, so we
+     *       can for example write the latest value into file.
+     * </ul>
+     */
+    @Test
+    public void testAccessMetricValueDuringUnregisterWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final CountDownLatch metricRegistered = new CountDownLatch(1);
+        final CountDownLatch metricUnregistered = new CountDownLatch(1);
+        final MetricRegistry metricRegistry =
+                new NoOpMetricRegistry() {
+
+                    @Override
+                    public void register(
+                            Metric metric, String metricName, AbstractMetricGroup group) {
+                        if (MetricNames.TASK_SLOTS_AVAILABLE.equals(metricName)) {
+                            metricRegistered.countDown();
+                        }
+                    }
+
+                    @Override
+                    public void unregister(
+                            Metric metric, String metricName, AbstractMetricGroup group) {
+                        if (MetricNames.TASK_SLOTS_AVAILABLE.equals(metricName)) {
+                            Assert.assertTrue(metric instanceof Gauge);
+                            @SuppressWarnings("unchecked")
+                            final Gauge<Long> gauge = (Gauge<Long>) metric;
+                            assertEquals(Long.valueOf(0), gauge.getValue());
+                            metricUnregistered.countDown();
+                        }
+                    }
+                };
+        new Context() {
+
+            @Override
+            SlotManagerMetricGroup createSlotManagerMetricGroup() {
+                return SlotManagerMetricGroup.create(metricRegistry, "localhost");
+            }
+
+            {
+                runTest(
+                        () -> {
+                            assertTrue(metricRegistered.await(100, TimeUnit.MILLISECONDS));
+                            assertEquals(1, metricUnregistered.getCount());
+                            runInMainThread(
+                                    () -> {
+                                        try {
+                                            closeFn.accept(getSlotManager());
+                                        } catch (Exception e) {
+                                            fail("Error when closing slot manager.");
+                                        }
+                                    });
+                            assertTrue(metricUnregistered.await(100, TimeUnit.MILLISECONDS));
                         });
             }
         };

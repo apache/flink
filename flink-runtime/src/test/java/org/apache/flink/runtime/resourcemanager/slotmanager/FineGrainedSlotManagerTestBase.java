@@ -137,7 +137,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
         private final SlotStatusSyncer slotStatusSyncer =
                 new DefaultSlotStatusSyncer(Time.seconds(10L));
         private final SlotManagerMetricGroup slotManagerMetricGroup =
-                UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
+                createSlotManagerMetricGroup();
         private final ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
         private final Executor mainThreadExecutor = MAIN_THREAD_EXECUTOR;
         private FineGrainedSlotManager slotManager;
@@ -150,6 +150,10 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
                 new TestingResourceActionsBuilder();
         final SlotManagerConfigurationBuilder slotManagerConfigurationBuilder =
                 SlotManagerConfigurationBuilder.newBuilder();
+
+        SlotManagerMetricGroup createSlotManagerMetricGroup() {
+            return UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
+        }
 
         FineGrainedSlotManager getSlotManager() {
             return slotManager;

@@ -218,6 +218,9 @@ public class FineGrainedSlotManager implements SlotManager {
 
         LOG.info("Suspending the slot manager.");
 
+        // un-register metrics
+        slotManagerMetricGroup.close();
+
         // stop the timeout checks for the TaskManagers
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
@@ -247,9 +250,7 @@ public class FineGrainedSlotManager implements SlotManager {
     @Override
     public void close() throws Exception {
         LOG.info("Closing the slot manager.");
-
         suspend();
-        slotManagerMetricGroup.close();
     }
 
     // ---------------------------------------------------------------------------------------------
