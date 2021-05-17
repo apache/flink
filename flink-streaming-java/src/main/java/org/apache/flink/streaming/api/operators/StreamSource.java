@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -57,18 +56,14 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         this.chainingStrategy = ChainingStrategy.HEAD;
     }
 
-    public void run(
-            final Object lockingObject,
-            final StreamStatusMaintainer streamStatusMaintainer,
-            final OperatorChain<?, ?> operatorChain)
+    public void run(final Object lockingObject, final OperatorChain<?, ?> operatorChain)
             throws Exception {
 
-        run(lockingObject, streamStatusMaintainer, output, operatorChain);
+        run(lockingObject, output, operatorChain);
     }
 
     public void run(
             final Object lockingObject,
-            final StreamStatusMaintainer streamStatusMaintainer,
             final Output<StreamRecord<OUT>> collector,
             final OperatorChain<?, ?> operatorChain)
             throws Exception {
@@ -101,7 +96,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                         timeCharacteristic,
                         getProcessingTimeService(),
                         lockingObject,
-                        streamStatusMaintainer,
                         collector,
                         watermarkInterval,
                         -1);

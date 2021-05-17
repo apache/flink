@@ -162,7 +162,6 @@ public class MultipleInputStreamTask<OUT>
                         getEnvironment().getMemoryManager(),
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         setupNumRecordsInCounter(mainOperator),
-                        getStreamStatusMaintainer(),
                         mainOperator,
                         inputWatermarkGauges,
                         getConfiguration(),

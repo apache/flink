@@ -757,11 +757,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     }
 
     @VisibleForTesting
-    public StreamStatus getStreamStatus() {
-        return mockTask.getStreamStatusMaintainer().getStreamStatus();
-    }
-
-    @VisibleForTesting
     public TaskMailbox getTaskMailbox() {
         return taskMailbox;
     }
