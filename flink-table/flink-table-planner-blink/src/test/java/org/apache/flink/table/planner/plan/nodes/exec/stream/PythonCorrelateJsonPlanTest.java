@@ -72,4 +72,21 @@ public class PythonCorrelateJsonPlanTest extends TableTestBase {
                         + "LEFT JOIN LATERAL TABLE(TableFunc(a * a, pyFunc(a, b))) AS T(x, y) ON TRUE";
         util.verifyJsonPlan(sqlQuery);
     }
+
+    @Test
+    public void testJoinWithFilter() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a int,\n"
+                        + "  b int\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+
+        String sqlQuery =
+                "INSERT INTO MySink SELECT x, y FROM MyTable, "
+                        + "LATERAL TABLE(TableFunc(a * a, pyFunc(a, b))) AS T(x, y) WHERE x = a and y + 1 = y * y";
+        util.verifyJsonPlan(sqlQuery);
+    }
 }
