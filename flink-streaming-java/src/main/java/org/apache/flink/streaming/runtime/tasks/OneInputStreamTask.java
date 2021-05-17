@@ -42,6 +42,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
@@ -214,6 +215,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
             operator.processLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            super.emitStreamStatus(streamStatus);
+            operator.emitStreamStatus(streamStatus);
         }
     }
 }

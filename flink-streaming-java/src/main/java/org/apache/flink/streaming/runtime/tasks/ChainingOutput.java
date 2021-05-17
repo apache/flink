@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
 
@@ -150,5 +151,14 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     @Override
     public Gauge<Long> getWatermarkGauge() {
         return watermarkGauge;
+    }
+
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        try {
+            input.emitStreamStatus(streamStatus);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
     }
 }

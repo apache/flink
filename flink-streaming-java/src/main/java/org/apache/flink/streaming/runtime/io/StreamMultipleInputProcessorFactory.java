@@ -319,8 +319,9 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
             streamStatusTracker.setStreamStatus(inputIndex, streamStatus);
+            input.emitStreamStatus(streamStatus);
 
             // check if we need to toggle the task's stream status
             if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
@@ -344,6 +345,7 @@ public class StreamMultipleInputProcessorFactory {
             extends SourceOperatorStreamTask.AsyncDataOutputToOutput {
         private final int inputIndex;
         private final MultiStreamStreamStatusTracker streamStatusTracker;
+        private final Output<StreamRecord<?>> output;
 
         public StreamTaskSourceOutput(
                 Output<StreamRecord<?>> chainedSourceOutput,
@@ -358,11 +360,13 @@ public class StreamMultipleInputProcessorFactory {
                     inputWatermarkGauge);
             this.streamStatusTracker = streamStatusTracker;
             this.inputIndex = inputIndex;
+            this.output = chainedSourceOutput;
         }
 
         @Override
         public void emitStreamStatus(StreamStatus streamStatus) {
             streamStatusTracker.setStreamStatus(inputIndex, streamStatus);
+            output.emitStreamStatus(streamStatus);
 
             // check if we need to toggle the task's stream status
             if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {

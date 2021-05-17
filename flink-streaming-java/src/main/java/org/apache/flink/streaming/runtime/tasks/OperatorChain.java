@@ -384,11 +384,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void toggleStreamStatus(StreamStatus status) {
         if (!status.equals(this.streamStatus)) {
             this.streamStatus = status;
-
-            // try and forward the stream status change to all outgoing connections
-            for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-                streamOutput.emitStreamStatus(status);
-            }
         }
     }
 

@@ -40,7 +40,7 @@ public abstract class AbstractDataOutput<T> implements PushingAsyncDataInput.Dat
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
+    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
         streamStatusMaintainer.toggleStreamStatus(streamStatus);
     }
 }
