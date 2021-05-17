@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning
 import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.abilities.sink.{PartitioningSpec, SinkAbilitySpec}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink
@@ -33,6 +34,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class BatchPhysicalSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
@@ -41,17 +43,24 @@ class BatchPhysicalSinkRule extends ConverterRule(
     "BatchPhysicalSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
-    val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
+    val sink = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
-      sinkNode.tableSink match {
+    var requiredTraitSet = sink.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    val abilitySpecs: mutable.ArrayBuffer[SinkAbilitySpec] =
+      mutable.ArrayBuffer(sink.abilitySpecs: _*)
+    if (sink.catalogTable != null && sink.catalogTable.isPartitioned) {
+      sink.tableSink match {
         case partitionSink: SupportsPartitioning =>
-          partitionSink.applyStaticPartition(sinkNode.staticPartitions)
-          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
-              .filter(!sinkNode.staticPartitions.contains(_))
-          val fieldNames = sinkNode.catalogTable
-            .getSchema
+          if (sink.staticPartitions.nonEmpty) {
+            val partitioningSpec = new PartitioningSpec(sink.staticPartitions)
+            partitioningSpec.apply(partitionSink)
+            abilitySpecs += partitioningSpec
+          }
+
+          val dynamicPartFields = sink.catalogTable.getPartitionKeys
+              .filter(!sink.staticPartitions.contains(_))
+          val fieldNames = sink.catalogTable
+            .getResolvedSchema
             .toPhysicalRowDataType
             .getLogicalType.asInstanceOf[RowType]
             .getFieldNames
@@ -60,7 +69,7 @@ class BatchPhysicalSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(fieldNames.indexOf(_))
 
-            val shuffleEnable = sinkNode
+            val shuffleEnable = sink
                 .catalogTable
                 .getOptions
                 .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
@@ -85,21 +94,23 @@ class BatchPhysicalSinkRule extends ConverterRule(
             }
           }
         case _ => throw new TableException(
-          s"'${sinkNode.tableIdentifier.asSummaryString()}' is a partitioned table, " +
-            s"but the underlying [${sinkNode.tableSink.asSummaryString()}] DynamicTableSink " +
+          s"'${sink.tableIdentifier.asSummaryString()}' is a partitioned table, " +
+            s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
             s"doesn't implement SupportsPartitioning interface.")
       }
     }
 
-    val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
+    val newInput = RelOptRule.convert(sink.getInput, requiredTraitSet)
 
     new BatchPhysicalSink(
       rel.getCluster,
       newTrait,
       newInput,
-      sinkNode.tableIdentifier,
-      sinkNode.catalogTable,
-      sinkNode.tableSink)
+      sink.hints,
+      sink.tableIdentifier,
+      sink.catalogTable,
+      sink.tableSink,
+      abilitySpecs.toArray)
   }
 }
 

@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import java.math.BigDecimal;
 
@@ -72,7 +73,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(isNull(operand(0)), sum, plus(sum, operand(0))),
+            /* sum = */ adjustSumType(ifThenElse(isNull(operand(0)), sum, plus(sum, operand(0)))),
             /* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
         };
     }
@@ -80,7 +81,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(isNull(operand(0)), sum, minus(sum, operand(0))),
+            /* sum = */ adjustSumType(ifThenElse(isNull(operand(0)), sum, minus(sum, operand(0)))),
             /* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
         };
     }
@@ -88,8 +89,13 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ plus(sum, mergeOperand(sum)), /* count = */ plus(count, mergeOperand(count))
+            /* sum = */ adjustSumType(plus(sum, mergeOperand(sum))),
+            /* count = */ plus(count, mergeOperand(count))
         };
+    }
+
+    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
+        return cast(sumExpr, typeLiteral(getSumType()));
     }
 
     /** If all input are nulls, count will be 0 and we will get null after the division. */
@@ -205,13 +211,13 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public DataType getResultType() {
-            DecimalType t = FlinkTypeSystem.inferAggAvgType(type.getScale());
+            DecimalType t = (DecimalType) LogicalTypeMerging.findAvgAggType(type);
             return DataTypes.DECIMAL(t.getPrecision(), t.getScale());
         }
 
         @Override
         public DataType getSumType() {
-            DecimalType t = FlinkTypeSystem.inferAggSumType(type.getScale());
+            DecimalType t = (DecimalType) LogicalTypeMerging.findSumAggType(type);
             return DataTypes.DECIMAL(t.getPrecision(), t.getScale());
         }
 

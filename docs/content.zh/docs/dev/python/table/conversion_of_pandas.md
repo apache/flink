@@ -26,14 +26,14 @@ under the License.
 
 # PyFlink Table 和 Pandas DataFrame 互转
 
-PyFlink支持PyFlink表和Pandas DataFrame之间进行转换。
+PyFlink 支持 PyFlink Table 和 Pandas DataFrame 之间进行互转。
 
-## 将Pandas DataFrame转换为PyFlink表
+## 将 Pandas DataFrame 转换为 PyFlink Table
 
-PyFlink支持将Pandas DataFrame转换成PyFlink表。在内部实现上，会在客户端将Pandas DataFrame序列化成Arrow列存格式，序列化后的数据
-在作业执行期间，在Arrow源中会被反序列化，并进行处理。Arrow源除了可以用在批作业中外，还可以用于流作业，它将正确处理检查点并提供恰好一次的保证。
+PyFlink 支持将 Pandas DataFrame 转换成 PyFlink Table。在内部实现上，会在客户端将 Pandas DataFrame 序列化成 Arrow 列存格式，序列化后的数据
+在作业执行期间，在 Arrow 源中会被反序列化，并进行处理。Arrow 源除了可以用在批作业中外，还可以用于流作业，它将正确处理检查点并提供恰好一次的保证。
 
-以下示例显示如何从Pandas DataFrame创建PyFlink表：
+以下示例显示如何从 Pandas DataFrame 创建 PyFlink Table：
 
 ```python
 import pandas as pd
@@ -57,15 +57,15 @@ table = t_env.from_pandas(pdf,
                                          DataTypes.FIELD("f1", DataTypes.DOUBLE())])
 ```
 
-## 将PyFlink表转换为Pandas DataFrame
+## 将 PyFlink Table 转换为 Pandas DataFrame
 
-除此之外，还支持将PyFlink表转换为Pandas DataFrame。在内部实现上，它将执行表的计算逻辑，得到物化之后的表的执行结果，并
-在客户端将其序列化为Arrow列存格式，最大Arrow批处理大小
+除此之外，还支持将 PyFlink Table 转换为 Pandas DataFrame。在内部实现上，它将执行表的计算逻辑，得到物化之后的表的执行结果，并
+在客户端将其序列化为 Arrow 列存格式，最大 Arrow 批处理大小
 由配置选项[python.fn-execution.arrow.batch.size]({{< ref "docs/dev/python/python_config" >}}#python-fn-execution-arrow-batch-size) 确定。
-序列化后的数据将被转换为Pandas DataFrame。这意味着需要把表的内容收集到客户端，因此在调用此函数之前，请确保表的内容可以容纳在内存中。
-可以通过 Table.limit，设置收集到客户端的数据的条数。
+序列化后的数据将被转换为 Pandas DataFrame。这意味着需要把表的内容收集到客户端，因此在调用此函数之前，请确保表的内容可以容纳在内存中。
+可以通过 {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}，设置收集到客户端的数据的条数。
 
-以下示例显示了如何将PyFlink表转换为Pandas DataFrame：
+以下示例显示了如何将 PyFlink Table 转换为 Pandas DataFrame：
 
 ```python
 import pandas as pd

@@ -75,9 +75,11 @@ public class KafkaSourceReader<T>
     protected void onSplitFinished(Map<String, KafkaPartitionSplitState> finishedSplitIds) {
         finishedSplitIds.forEach(
                 (ignored, splitState) -> {
-                    offsetsOfFinishedSplits.put(
-                            splitState.getTopicPartition(),
-                            new OffsetAndMetadata(splitState.getCurrentOffset()));
+                    if (splitState.getCurrentOffset() >= 0) {
+                        offsetsOfFinishedSplits.put(
+                                splitState.getTopicPartition(),
+                                new OffsetAndMetadata(splitState.getCurrentOffset()));
+                    }
                 });
     }
 
@@ -91,9 +93,13 @@ public class KafkaSourceReader<T>
                     offsetsToCommit.computeIfAbsent(checkpointId, id -> new HashMap<>());
             // Put the offsets of the active splits.
             for (KafkaPartitionSplit split : splits) {
-                offsetsMap.put(
-                        split.getTopicPartition(),
-                        new OffsetAndMetadata(split.getStartingOffset(), null));
+                // If the checkpoint is triggered before the partition starting offsets
+                // is retrieved, do not commit the offsets for those partitions.
+                if (split.getStartingOffset() >= 0) {
+                    offsetsMap.put(
+                            split.getTopicPartition(),
+                            new OffsetAndMetadata(split.getStartingOffset()));
+                }
             }
             // Put offsets of all the finished splits.
             offsetsMap.putAll(offsetsOfFinishedSplits);
@@ -103,11 +109,13 @@ public class KafkaSourceReader<T>
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        LOG.info("Committing offsets for checkpoint {}", checkpointId);
+        LOG.debug("Committing offsets for checkpoint {}", checkpointId);
         ((KafkaSourceFetcherManager<T>) splitFetcherManager)
                 .commitOffsets(
                         offsetsToCommit.get(checkpointId),
                         (ignored, e) -> {
+                            // The offset commit here is needed by the external monitoring. It won't
+                            // break Flink job's correctness if we fail to commit the offset here.
                             if (e != null) {
                                 LOG.warn(
                                         "Failed to commit consumer offsets for checkpoint {}",
@@ -118,7 +126,7 @@ public class KafkaSourceReader<T>
                                         "Successfully committed offsets for checkpoint {}",
                                         checkpointId);
                                 // If the finished topic partition has been committed, we remove it
-                                // from the offsets of finsihed splits map.
+                                // from the offsets of the finished splits map.
                                 Map<TopicPartition, OffsetAndMetadata> committedPartitions =
                                         offsetsToCommit.get(checkpointId);
                                 offsetsOfFinishedSplits

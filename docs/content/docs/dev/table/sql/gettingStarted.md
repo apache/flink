@@ -50,7 +50,7 @@ The [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}) is an interactive clien
 To start the SQL client, run the `sql-client` script from the installation folder.
 
  ```bash
-./bin/sql-client.sh embedded
+./bin/sql-client.sh
  ``` 
 
 ### Hello World

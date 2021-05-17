@@ -18,9 +18,12 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
@@ -31,6 +34,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
@@ -60,6 +64,13 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
             throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
         }
 
+        Map<String, Object> partitionValues =
+                HivePartitionUtils.parsePartitionValues(
+                        split.getHiveTablePartition().getPartitionSpec(),
+                        fieldNames,
+                        fieldTypes,
+                        JobConfUtils.getDefaultPartitionName(jobConf),
+                        HiveShimLoader.loadHiveShim(hiveVersion));
         this.reader =
                 ParquetSplitReaderUtil.genPartColumnarRowReader(
                         hiveVersion.startsWith("3"),
@@ -67,7 +78,7 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
                         conf,
                         fieldNames,
                         fieldTypes,
-                        split.getHiveTablePartition().getPartitionSpec(),
+                        partitionValues,
                         selectedFields,
                         DEFAULT_SIZE,
                         new Path(fileSplit.getPath().toString()),

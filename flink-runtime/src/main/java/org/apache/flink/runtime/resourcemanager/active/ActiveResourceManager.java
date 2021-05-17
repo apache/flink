@@ -50,7 +50,9 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -84,7 +86,12 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     /** Identifiers and worker resource spec of requested not registered workers. */
     private final Map<ResourceID, WorkerResourceSpec> currentAttemptUnregisteredWorkers;
 
+    /** Identifiers of recovered and not registered workers. */
+    private final Set<ResourceID> previousAttemptUnregisteredWorkers;
+
     private final ThresholdMeter startWorkerFailureRater;
+
+    private final Time workerRegistrationTimeout;
 
     /**
      * Incompletion of this future indicates that the max failure rate of start worker is reached
@@ -108,6 +115,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ResourceManagerMetricGroup resourceManagerMetricGroup,
             ThresholdMeter startWorkerFailureRater,
             Duration retryInterval,
+            Duration workerRegistrationTimeout,
             Executor ioExecutor) {
         super(
                 rpcService,
@@ -128,8 +136,11 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.workerNodeMap = new HashMap<>();
         this.pendingWorkerCounter = new PendingWorkerCounter();
         this.currentAttemptUnregisteredWorkers = new HashMap<>();
+        this.previousAttemptUnregisteredWorkers = new HashSet<>();
         this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
         this.startWorkerRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
+        this.workerRegistrationTimeout =
+                Time.of(workerRegistrationTimeout.toMillis(), TimeUnit.MILLISECONDS);
         this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
     }
 
@@ -189,13 +200,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     @Override
     public boolean stopWorker(WorkerType worker) {
-        final ResourceID resourceId = worker.getResourceID();
-        resourceManagerDriver.releaseResource(worker);
-
-        log.info("Stopping worker {}.", resourceId.getStringWithMetadata());
-
-        clearStateForWorker(resourceId);
-
+        internalStopWorker(worker.getResourceID());
         return true;
     }
 
@@ -206,6 +211,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
         final WorkerResourceSpec workerResourceSpec =
                 currentAttemptUnregisteredWorkers.remove(resourceId);
+        previousAttemptUnregisteredWorkers.remove(resourceId);
         if (workerResourceSpec != null) {
             final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
             log.info(
@@ -235,6 +241,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         for (WorkerType worker : recoveredWorkers) {
             final ResourceID resourceId = worker.getResourceID();
             workerNodeMap.put(resourceId, worker);
+            previousAttemptUnregisteredWorkers.add(resourceId);
+            scheduleWorkerRegistrationTimeoutCheck(resourceId);
             log.info(
                     "Worker {} recovered from previous attempt.",
                     resourceId.getStringWithMetadata());
@@ -302,6 +310,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                                 workerNodeMap.put(resourceId, worker);
                                 currentAttemptUnregisteredWorkers.put(
                                         resourceId, workerResourceSpec);
+                                scheduleWorkerRegistrationTimeoutCheck(resourceId);
                                 log.info(
                                         "Requested worker {} with resource spec {}.",
                                         resourceId.getStringWithMetadata(),
@@ -309,6 +318,40 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                             }
                             return null;
                         }));
+    }
+
+    private void scheduleWorkerRegistrationTimeoutCheck(final ResourceID resourceId) {
+        scheduleRunAsync(
+                () -> {
+                    if (currentAttemptUnregisteredWorkers.containsKey(resourceId)
+                            || previousAttemptUnregisteredWorkers.contains(resourceId)) {
+                        log.warn(
+                                "Worker {} did not register in {}, will stop it and request a new one if needed.",
+                                resourceId,
+                                workerRegistrationTimeout);
+                        internalStopWorker(resourceId);
+                        requestWorkerIfRequired();
+                    }
+                },
+                workerRegistrationTimeout);
+    }
+
+    private void internalStopWorker(final ResourceID resourceId) {
+        if (!hasLeadership()) {
+            log.warn(
+                    "Cannot stop worker {}. Does not have leadership.",
+                    resourceId.getStringWithMetadata());
+            return;
+        }
+
+        log.info("Stopping worker {}.", resourceId.getStringWithMetadata());
+
+        final WorkerType worker = workerNodeMap.get(resourceId);
+        if (worker != null) {
+            resourceManagerDriver.releaseResource(worker);
+        }
+
+        clearStateForWorker(resourceId);
     }
 
     /**
@@ -327,6 +370,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
         WorkerResourceSpec workerResourceSpec =
                 currentAttemptUnregisteredWorkers.remove(resourceId);
+        previousAttemptUnregisteredWorkers.remove(resourceId);
         if (workerResourceSpec != null) {
             final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
             log.info(

@@ -1,0 +1,151 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "WatermarkTable"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`c` - INTERVAL '5' SECOND",
+        "disable-lookup" : "true",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.1.data-type" : "INT",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "connector" : "values",
+        "schema.watermark.0.rowtime" : "c",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "enable-watermark-push-down" : "true",
+        "schema.0.name" : "a"
+      },
+      "sourceAbilitySpecs" : [ {
+        "type" : "WatermarkPushDown",
+        "watermarkExpr" : {
+          "kind" : "REX_CALL",
+          "operator" : {
+            "name" : "-",
+            "kind" : "MINUS",
+            "syntax" : "SPECIAL"
+          },
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : {
+              "typeName" : "TIMESTAMP",
+              "nullable" : true,
+              "precision" : 3
+            }
+          }, {
+            "kind" : "LITERAL",
+            "value" : 5000,
+            "type" : {
+              "typeName" : "INTERVAL_SECOND",
+              "nullable" : false,
+              "precision" : 2,
+              "scale" : 6
+            }
+          } ],
+          "type" : {
+            "typeName" : "TIMESTAMP",
+            "nullable" : true,
+            "precision" : 3
+          }
+        },
+        "idleTimeoutMillis" : -1,
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT"
+          }, {
+            "c" : {
+              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+              "nullable" : true,
+              "precision" : 3,
+              "kind" : "ROWTIME"
+            }
+          } ]
+        }
+      } ]
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable, watermark=[-($2, 5000:INTERVAL SECOND)]]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "sink"
+      },
+      "catalogTable" : {
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT"
+      }, {
+        "c" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

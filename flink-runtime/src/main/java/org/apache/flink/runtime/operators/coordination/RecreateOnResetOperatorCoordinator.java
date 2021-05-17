@@ -20,7 +20,6 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -94,6 +93,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        coordinator.applyCall("subtaskReady", c -> c.subtaskReady(subtask, gateway));
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> resultFuture)
             throws Exception {
         coordinator.applyCall(
@@ -158,6 +162,7 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
 
     // ---------------------
 
+    /** The provider for a private RecreateOnResetOperatorCoordinator. */
     public abstract static class Provider implements OperatorCoordinator.Provider {
         private static final long serialVersionUID = 3002837631612629071L;
         private final OperatorID operatorID;
@@ -208,16 +213,6 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         @Override
         public OperatorID getOperatorId() {
             return context.getOperatorId();
-        }
-
-        @Override
-        public synchronized CompletableFuture<Acknowledge> sendEvent(
-                OperatorEvent evt, int targetSubtask) throws TaskNotRunningException {
-            // Do not enter the sending procedure if the context has been quiesced.
-            if (quiesced) {
-                return CompletableFuture.completedFuture(Acknowledge.get());
-            }
-            return context.sendEvent(evt, targetSubtask);
         }
 
         @Override

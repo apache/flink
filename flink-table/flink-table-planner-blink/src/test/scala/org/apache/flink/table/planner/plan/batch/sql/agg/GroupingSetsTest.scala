@@ -75,6 +75,37 @@ class GroupingSetsTest extends TableTestBase {
   }
 
   @Test
+  def testGroupingSetsOutputsNullability(): Unit = {
+    // prepare a source table contains a non-null column
+    val sourceDDL =
+      s"""
+         |create table t1(
+         |  a int,
+         |  b varchar,
+         |  c varchar not null,
+         |  d bigint
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '/to/my/path1',
+         |  'format' = 'testcsv'
+         |)
+      """.stripMargin
+    util.tableEnv.executeSql(sourceDDL)
+
+    val sqlQuery =
+      """
+        |SELECT
+        | a,
+        | b,
+        | coalesce(c, 'empty'),
+        | avg(d)
+        |FROM t1
+        |GROUP BY GROUPING SETS ((a, b), (a, b, c))
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
   def testCube(): Unit = {
     val sqlQuery =
       """

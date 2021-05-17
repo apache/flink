@@ -43,7 +43,7 @@ public abstract class AbstractArrowTableSource<T> implements StreamTableSource<T
 
     @Override
     public TableSchema getTableSchema() {
-        return DataTypeUtils.expandCompositeTypeToSchema(dataType);
+        return TableSchema.fromResolvedSchema(DataTypeUtils.expandCompositeTypeToSchema(dataType));
     }
 
     @Override

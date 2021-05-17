@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSource
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
-import org.apache.flink.table.planner.sources.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
 import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -69,6 +69,7 @@ class StreamPhysicalTableSourceScanRule
     val newScan = new StreamPhysicalTableSourceScan(
       rel.getCluster,
       traitSet,
+      scan.getHints,
       table)
 
     if (isUpsertSource(table.catalogTable, table.tableSource) ||

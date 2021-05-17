@@ -542,13 +542,13 @@ public class StreamExecutionEnvironment {
         return checkpointCfg.isForceCheckpointing();
     }
 
-    /** Returns whether Unaligned Checkpoints are enabled. */
+    /** Returns whether unaligned checkpoints are enabled. */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
         return checkpointCfg.isUnalignedCheckpointsEnabled();
     }
 
-    /** Returns whether Unaligned Checkpoints are force-enabled. */
+    /** Returns whether unaligned checkpoints are force-enabled. */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
         return checkpointCfg.isForceUnalignedCheckpoints();
@@ -1096,12 +1096,7 @@ public class StreamExecutionEnvironment {
         // must not have null elements and mixed elements
         FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
 
-        SourceFunction<OUT> function;
-        try {
-            function = new FromElementsFunction<>(typeInfo.createSerializer(getConfig()), data);
-        } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        SourceFunction<OUT> function = new FromElementsFunction<>(data);
         return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
                 .setParallelism(1);
     }

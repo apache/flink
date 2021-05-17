@@ -22,7 +22,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit
 from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
-from pyflink.util.utils import to_jarray, load_java_class
+from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
@@ -183,21 +183,22 @@ CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
 
 def current_date() -> Expression:
     """
-    Returns the current SQL date in UTC time zone.
+    Returns the current SQL date in local time zone.
     """
     return _leaf_op("currentDate")
 
 
 def current_time() -> Expression:
     """
-    Returns the current SQL time in UTC time zone.
+    Returns the current SQL time in local time zone.
     """
     return _leaf_op("currentTime")
 
 
 def current_timestamp() -> Expression:
     """
-    Returns the current SQL timestamp in UTC time zone.
+    Returns the current SQL timestamp in local time zone,
+    the return type of this expression is TIMESTAMP_LTZ.
     """
     return _leaf_op("currentTimestamp")
 
@@ -211,9 +212,25 @@ def local_time() -> Expression:
 
 def local_timestamp() -> Expression:
     """
-    Returns the current SQL timestamp in local time zone.
+    Returns the current SQL timestamp in local time zone,
+    the return type of this expression s TIMESTAMP.
     """
     return _leaf_op("localTimestamp")
+
+
+def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
+    """
+    Converts a numeric type epoch time to TIMESTAMP_LTZ.
+
+    The supported precision is 0 or 3:
+    0 means the numericEpochTime is in second.
+    3 means the numericEpochTime is in millisecond.
+
+    :param numeric_epoch_time: The epoch time with numeric type
+    :param precision: The precision to indicate the epoch time is in second or millisecond
+    :return: The timestamp value with TIMESTAMP_LTZ type.
+    """
+    return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
 
 
 def temporal_overlaps(left_time_point,
@@ -458,6 +475,20 @@ def log(v, base=None) -> Expression[float]:
         return _unary_op("log", v)
     else:
         return _binary_op("log", base, v)
+
+
+def source_watermark() -> Expression:
+    """
+    Source watermark declaration for schema.
+
+    This is a marker function that doesn't have concrete runtime implementation. It can only
+    be used as a single expression for watermark strategies in schema declarations. The declaration
+    will be pushed down into a table source that implements the `SupportsSourceWatermark`
+    interface. The source will emit system-defined watermarks afterwards.
+
+    Please check the documentation whether the connector supports source watermarks.
+    """
+    return _leaf_op("sourceWatermark")
 
 
 def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) -> Expression:

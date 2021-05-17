@@ -22,13 +22,12 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
-import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -44,27 +43,39 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpressionConverter;
+import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOptionsOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.parse.CalciteParser;
 import org.apache.flink.table.planner.ParserImpl;
 import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -74,6 +85,7 @@ import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -106,18 +118,17 @@ public class SqlToOperationConverterTest {
                     asRootSchema(
                             new CatalogManagerCalciteSchema(catalogManager, tableConfig, false)),
                     new ExpressionBridge<>(PlannerExpressionConverter.INSTANCE()));
+    private final Parser parser =
+            new ParserImpl(
+                    catalogManager,
+                    () -> getPlannerBySqlDialect(SqlDialect.DEFAULT),
+                    () -> getParserBySqlDialect(SqlDialect.DEFAULT));
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Before
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(
-                        new ParserImpl(
-                                catalogManager,
-                                () -> getPlannerBySqlDialect(SqlDialect.DEFAULT),
-                                () -> getParserBySqlDialect(SqlDialect.DEFAULT)),
-                        true));
+        catalogManager.initSchemaResolver(true, getExpressionResolver());
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
         final TableSchema tableSchema =
@@ -261,6 +272,15 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
+    public void testShowFunctions() {
+        final String sql1 = "SHOW FUNCTIONS";
+        assertShowFunctions(sql1, sql1, FunctionScope.ALL);
+
+        final String sql2 = "SHOW USER FUNCTIONS";
+        assertShowFunctions(sql2, sql2, FunctionScope.USER);
+    }
+
+    @Test
     public void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
@@ -314,8 +334,8 @@ public class SqlToOperationConverterTest {
         String sql = "select * from kafka";
         SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
         assert node instanceof SqlSelect;
-        thrown.expectCause(Matchers.isA(UnsupportedOperationException.class));
-        thrown.expectMessage("Computed columns is only supported by the Blink planner");
+        thrown.expectCause(Matchers.isA(ValidationException.class));
+        thrown.expectMessage("Invalid expression for computed column 'b'.");
         SqlToOperationConverter.convert(planner, catalogManager, node);
     }
 
@@ -664,6 +684,39 @@ public class SqlToOperationConverterTest {
         assertEquals(properties, alterTableOptionsOperation.getCatalogTable().getOptions());
     }
 
+    @Test
+    public void testClearCommand() {
+        assertSimpleCommand("ClEaR", instanceOf(ClearOperation.class));
+    }
+
+    @Test
+    public void testHelpCommand() {
+        assertSimpleCommand("hELp", instanceOf(HelpOperation.class));
+    }
+
+    @Test
+    public void testQuitCommand() {
+        assertSimpleCommand("qUIt", instanceOf(QuitOperation.class));
+        assertSimpleCommand("Exit", instanceOf(QuitOperation.class));
+    }
+
+    @Test
+    public void testResetCommand() {
+        assertSimpleCommand("REsEt", instanceOf(ResetOperation.class));
+    }
+
+    @Test
+    public void testSetOperation() {
+        assertSetCommand("   SEt       ");
+        assertSetCommand("SET execution.runtime-type= batch", "execution.runtime-type", "batch");
+        assertSetCommand(
+                "SET pipeline.jars = /path/to/test-_-jar.jar",
+                "pipeline.jars",
+                "/path/to/test-_-jar.jar");
+
+        assertFailedSetCommand("SET execution.runtime-type=");
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {
@@ -678,6 +731,36 @@ public class SqlToOperationConverterTest {
         return testItem;
     }
 
+    private void assertShowFunctions(
+            String sql, String expectedSummary, FunctionScope expectedScope) {
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowFunctionsOperation;
+        final ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
+
+        assertEquals(expectedScope, showFunctionsOperation.getFunctionScope());
+        assertEquals(expectedSummary, showFunctionsOperation.asSummaryString());
+    }
+
+    private void assertSimpleCommand(String statement, Matcher<? super Operation> matcher) {
+        Operation operation = parser.parse(statement).get(0);
+        assertThat(operation, matcher);
+    }
+
+    private void assertSetCommand(String statement, String... operands) {
+        SetOperation operation = (SetOperation) parser.parse(statement).get(0);
+        List<String> actualOperands = new ArrayList<>();
+        operation.getKey().ifPresent(actualOperands::add);
+        operation.getValue().ifPresent(actualOperands::add);
+
+        assertArrayEquals(operands, actualOperands.toArray(new String[0]));
+    }
+
+    private void assertFailedSetCommand(String statement) {
+        thrown.expect(SqlParserException.class);
+
+        parser.parse(statement);
+    }
+
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return planningConfigurationBuilder.createCalciteParser();
@@ -689,10 +772,14 @@ public class SqlToOperationConverterTest {
                 catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
     }
 
+    private ExpressionResolverBuilder getExpressionResolver() {
+        return ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser);
+    }
+
     private Operation parse(String sql, SqlDialect sqlDialect) {
         FlinkPlannerImpl planner = getPlannerBySqlDialect(sqlDialect);
-        final CalciteParser parser = getParserBySqlDialect(sqlDialect);
-        SqlNode node = parser.parse(sql);
+        final CalciteParser calciteParser = getParserBySqlDialect(sqlDialect);
+        SqlNode node = calciteParser.parse(sql);
         return SqlToOperationConverter.convert(planner, catalogManager, node).get();
     }
 

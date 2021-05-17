@@ -23,6 +23,8 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.util.SimpleUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +78,11 @@ public class TestingReaderContext implements SourceReaderContext {
     @Override
     public void sendSourceEventToCoordinator(SourceEvent sourceEvent) {
         sentEvents.add(sourceEvent);
+    }
+
+    @Override
+    public UserCodeClassLoader getUserCodeClassLoader() {
+        return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
     }
 
     // ------------------------------------------------------------------------

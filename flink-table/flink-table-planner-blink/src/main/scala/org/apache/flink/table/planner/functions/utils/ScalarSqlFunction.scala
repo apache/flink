@@ -45,7 +45,7 @@ import scala.collection.JavaConverters._
   */
 class ScalarSqlFunction(
     identifier: FunctionIdentifier,
-    displayName: String,
+    val displayName: String,
     val scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory,
     returnTypeInfer: Option[SqlReturnTypeInference] = None)

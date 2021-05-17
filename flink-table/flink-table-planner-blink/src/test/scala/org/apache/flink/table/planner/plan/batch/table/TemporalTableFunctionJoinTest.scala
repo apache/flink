@@ -37,7 +37,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     "RatesHistory", 'currency, 'rate, 'rowtime)
 
   val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
-  util.addFunction("Rates", rates)
+  util.addTemporarySystemFunction("Rates", rates)
 
   @Test
   def testSimpleJoin(): Unit = {

@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -60,12 +60,15 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -89,7 +92,10 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -136,6 +142,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -154,7 +161,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -187,6 +196,31 @@ public class StreamTaskTest extends TestLogger {
     private static OneShotLatch syncLatch;
 
     @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
+
+    @Test
+    public void testCancellationWaitsForActiveTimers() throws Exception {
+        StreamTaskWithBlockingTimer.reset();
+        ResultPartitionDeploymentDescriptor descriptor =
+                new ResultPartitionDeploymentDescriptor(
+                        PartitionDescriptorBuilder.newBuilder().build(),
+                        NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+                        1,
+                        false);
+        Task task =
+                new TestTaskBuilder(new NettyShuffleEnvironmentBuilder().build())
+                        .setInvokable(StreamTaskWithBlockingTimer.class)
+                        .setResultPartitions(singletonList(descriptor))
+                        .build();
+        task.startTaskThread();
+
+        StreamTaskWithBlockingTimer.timerStarted.join();
+        task.cancelExecution();
+
+        task.getTerminationFuture().join();
+        // explicitly check for exceptions as they are ignored after cancellation
+        StreamTaskWithBlockingTimer.timerFinished.join();
+        checkState(task.getExecutionState() == ExecutionState.CANCELED);
+    }
 
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
@@ -432,8 +466,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testStateBackendLoadingAndClosing() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(
-                CheckpointingOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -473,8 +506,7 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testStateBackendClosingOnFailure() throws Exception {
         Configuration taskManagerConfig = new Configuration();
-        taskManagerConfig.setString(
-                CheckpointingOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
         StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -1528,6 +1560,170 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRestorePerformedOnlyOnce() throws Exception {
+        // given: the operator with empty snapshot result (all state handles are null)
+        OneInputStreamOperator<String, String> statelessOperator =
+                streamOperatorWithSnapshot(new OperatorSnapshotFutures());
+        DummyEnvironment dummyEnvironment = new DummyEnvironment();
+
+        // when: Invoke the restore explicitly before launching the task.
+        RunningTask<MockStreamTask> task =
+                runTask(
+                        () -> {
+                            MockStreamTask mockStreamTask =
+                                    createMockStreamTask(
+                                            dummyEnvironment, operatorChain(statelessOperator));
+
+                            mockStreamTask.restore();
+
+                            return mockStreamTask;
+                        });
+        waitTaskIsRunning(task.streamTask, task.invocationFuture);
+
+        task.streamTask.cancel();
+
+        // then: 'restore' was called only once.
+        assertThat(task.streamTask.restoreInvocationCount, is(1));
+    }
+
+    @Test
+    public void testRestorePerformedFromInvoke() throws Exception {
+        // given: the operator with empty snapshot result (all state handles are null)
+        OneInputStreamOperator<String, String> statelessOperator =
+                streamOperatorWithSnapshot(new OperatorSnapshotFutures());
+        DummyEnvironment dummyEnvironment = new DummyEnvironment();
+
+        // when: Launch the task.
+        RunningTask<MockStreamTask> task =
+                runTask(
+                        () ->
+                                createMockStreamTask(
+                                        dummyEnvironment, operatorChain(statelessOperator)));
+
+        waitTaskIsRunning(task.streamTask, task.invocationFuture);
+
+        task.streamTask.cancel();
+
+        // then: 'restore' was called even without explicit 'restore' invocation.
+        assertThat(task.streamTask.restoreInvocationCount, is(1));
+    }
+
+    @Test
+    public void testTaskAvoidHangingAfterSnapshotStateThrownException() throws Exception {
+        // given: Configured SourceStreamTask with source which fails on checkpoint.
+        Configuration taskManagerConfig = new Configuration();
+        taskManagerConfig.setString(STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
+
+        StreamConfig cfg = new StreamConfig(new Configuration());
+        cfg.setStateKeySerializer(mock(TypeSerializer.class));
+        cfg.setOperatorID(new OperatorID(4712L, 43L));
+
+        FailedSource failedSource = new FailedSource();
+        cfg.setStreamOperator(new TestStreamSource<String, FailedSource>(failedSource));
+        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+        try (NettyShuffleEnvironment shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder().build()) {
+            Task task =
+                    createTask(SourceStreamTask.class, shuffleEnvironment, cfg, taskManagerConfig);
+
+            // when: Task starts
+            task.startTaskThread();
+
+            // wait for the task starts doing the work.
+            failedSource.awaitRunning();
+
+            // and: Checkpoint is triggered which should lead to exception in Source.
+            task.triggerCheckpointBarrier(
+                    42L, 1L, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            // wait for clean termination.
+            task.getExecutingThread().join();
+
+            // then: The task doesn't hang but finished with FAILED state.
+            assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        }
+    }
+
+    @Test
+    public void testCleanUpResourcesWhenFailingDuringInit() throws Exception {
+        // given: Configured SourceStreamTask with source which fails during initialization.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task initializing(restoring).
+            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should throw exception from initialization.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // then: The task should clean up all resources even when it failed on init.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
+    @Test
+    public void testRethrowExceptionFromRestoreInsideOfInvoke() throws Exception {
+        // given: Configured SourceStreamTask with source which fails during initialization.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task invocation without preceded restoring.
+            StreamTaskMailboxTestHarness<Integer> harness =
+                    builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>())
+                            .buildUnrestored();
+
+            harness.streamTask.invoke();
+
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should rethrow exception from initialization.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // and: The task should clean up all resources even when it failed on init.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
+    @Test
+    public void testCleanUpResourcesEvenWhenCancelTaskFails() throws Exception {
+        // given: Configured StreamTask which fails during restoring and then inside of cancelTask.
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                (env) ->
+                                        new OneInputStreamTask<String, Integer>(env) {
+                                            @Override
+                                            protected void cancelTask() {
+                                                throw new RuntimeException("Cancel task exception");
+                                            }
+                                        },
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try {
+            // when: The task initializing(restoring).
+            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
+            fail("The task should fail during the restore");
+        } catch (Exception ex) {
+            // then: The task should throw the original exception about the restore fail.
+            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+                throw ex;
+            }
+        }
+
+        // and: The task should clean up all resources even when cancelTask fails.
+        assertTrue(OpenFailingOperator.wasClosed);
+    }
+
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
@@ -1677,7 +1873,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, final long checkpointId) {
+                ChannelStateWriter channelStateWriter, final long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
@@ -1706,7 +1903,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, final long checkpointId) {
+                ChannelStateWriter channelStateWriter, final long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
@@ -1841,6 +2039,7 @@ public class StreamTaskTest extends TestLogger {
     private static class MockStreamTask extends StreamTask<String, AbstractStreamOperator<String>> {
 
         private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
+        private int restoreInvocationCount = 0;
 
         MockStreamTask(
                 Environment env,
@@ -1849,6 +2048,12 @@ public class StreamTaskTest extends TestLogger {
                 throws Exception {
             super(env, null, uncaughtExceptionHandler);
             this.overrideOperatorChain = operatorChain;
+        }
+
+        @Override
+        public void executeRestore() throws Exception {
+            super.executeRestore();
+            restoreInvocationCount++;
         }
 
         @Override
@@ -1888,7 +2093,8 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public CompletableFuture<Void> prepareSnapshot(
-                ChannelStateWriter channelStateWriter, long checkpointId) {
+                ChannelStateWriter channelStateWriter, long checkpointId)
+                throws CheckpointException {
             return FutureUtils.completedVoidFuture();
         }
 
@@ -2358,6 +2564,168 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             throw new ExpectedTestException();
+        }
+    }
+
+    private static class FailedSource extends RichParallelSourceFunction<String>
+            implements CheckpointedFunction {
+        private static CountDownLatch runningLatch = null;
+
+        private volatile boolean running;
+
+        public FailedSource() {
+            runningLatch = new CountDownLatch(1);
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            running = true;
+        }
+
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            runningLatch.countDown();
+            while (running) {
+                try {
+                    Thread.sleep(Integer.MAX_VALUE);
+                } catch (InterruptedException ignore) {
+                    // ignore
+                }
+            }
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            if (runningLatch.getCount() == 0) {
+                throw new RuntimeException("source failed");
+            }
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
+
+        public void awaitRunning() throws InterruptedException {
+            runningLatch.await();
+        }
+    }
+
+    static class OpenFailingOperator<T> extends AbstractStreamOperator<T>
+            implements OneInputStreamOperator<T, T> {
+        static boolean wasClosed;
+
+        public OpenFailingOperator() {
+            wasClosed = false;
+        }
+
+        @Override
+        public void open() throws Exception {
+            throw new ExpectedTestException();
+        }
+
+        @Override
+        public void dispose() throws Exception {
+            wasClosed = true;
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {}
+    }
+
+    /**
+     * A {@link StreamTask} that register a single timer that waits for a cancellation and then
+     * emits some data. The assumption is that output remains available until the future returned
+     * from {@link AbstractInvokable#cancel()} is completed. Public * access to allow reflection in
+     * {@link Task}.
+     */
+    public static class StreamTaskWithBlockingTimer extends StreamTask {
+        static volatile CompletableFuture<Void> timerStarted;
+        static volatile CompletableFuture<Void> timerFinished;
+        static volatile CompletableFuture<Void> invokableCancelled;
+
+        public static void reset() {
+            timerStarted = new CompletableFuture<>();
+            timerFinished = new CompletableFuture<>();
+            invokableCancelled = new CompletableFuture<>();
+        }
+
+        // public access to allow reflection in Task
+        public StreamTaskWithBlockingTimer(Environment env) throws Exception {
+            super(env);
+            super.inputProcessor = getInputProcessor();
+            getProcessingTimeServiceFactory()
+                    .createProcessingTimeService(mainMailboxExecutor)
+                    .registerTimer(0, unused -> onProcessingTime());
+        }
+
+        @Override
+        protected void cancelTask() throws Exception {
+            super.cancelTask();
+            invokableCancelled.complete(null);
+        }
+
+        private void onProcessingTime() {
+            try {
+                timerStarted.complete(null);
+                waitForCancellation();
+                emit();
+                timerFinished.complete(null);
+            } catch (Throwable e) { // assertion is Error
+                timerFinished.completeExceptionally(e);
+            }
+        }
+
+        private void waitForCancellation() {
+            invokableCancelled.join();
+            // allow network resources to be closed mistakenly
+            for (int i = 0; i < 10; i++) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // ignore: can be interrupted by TaskCanceller/Interrupter
+                }
+            }
+        }
+
+        private void emit() throws IOException {
+            checkState(getEnvironment().getAllWriters().length > 0);
+            for (ResultPartitionWriter writer : getEnvironment().getAllWriters()) {
+                assertFalse(writer.isReleased());
+                assertFalse(writer.isFinished());
+                writer.emitRecord(ByteBuffer.allocate(10), 0);
+            }
+        }
+
+        @Override
+        protected void init() {}
+
+        private static StreamInputProcessor getInputProcessor() {
+            return new StreamInputProcessor() {
+
+                @Override
+                public InputStatus processInput() {
+                    return InputStatus.NOTHING_AVAILABLE;
+                }
+
+                @Override
+                public CompletableFuture<Void> prepareSnapshot(
+                        ChannelStateWriter channelStateWriter, long checkpointId) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public CompletableFuture<?> getAvailableFuture() {
+                    return new CompletableFuture<>();
+                }
+
+                @Override
+                public void close() {}
+            };
         }
     }
 }

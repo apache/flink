@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -39,6 +40,8 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
     private static final MemorySize TASK_OFF_HEAP = MemorySize.ofMebiBytes(2);
     private static final MemorySize NETWORK = MemorySize.ofMebiBytes(3);
     private static final MemorySize MANAGED = MemorySize.ofMebiBytes(4);
+    private static final String EXTERNAL_RESOURCE_NAME = "test";
+    private static final long EXTERNAL_RESOURCE_AMOUNT = 1;
 
     @Test
     public void testResourceSpecFromConfig() {
@@ -49,6 +52,13 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         assertThat(resourceSpec.getTaskOffHeapSize(), is(TASK_OFF_HEAP));
         assertThat(resourceSpec.getNetworkMemSize(), is(NETWORK));
         assertThat(resourceSpec.getManagedMemorySize(), is(MANAGED));
+        assertThat(
+                resourceSpec
+                        .getExtendedResources()
+                        .get(EXTERNAL_RESOURCE_NAME)
+                        .getValue()
+                        .longValue(),
+                is(EXTERNAL_RESOURCE_AMOUNT));
     }
 
     @Test(expected = IllegalConfigurationException.class)
@@ -124,6 +134,11 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, NETWORK);
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, NETWORK);
         configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MANAGED);
+        configuration.setString(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME);
+        configuration.setString(
+                ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME),
+                String.valueOf(EXTERNAL_RESOURCE_AMOUNT));
         return configuration;
     }
 

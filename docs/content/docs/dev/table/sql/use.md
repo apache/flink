@@ -28,7 +28,7 @@ under the License.
 
 
 
-USE statements are used to set the current database or catalog.
+USE statements are used to set the current database or catalog, or change the resolution order and enabled status of module.
 
 
 ## Run a USE statement
@@ -101,6 +101,15 @@ tEnv.executeSql("SHOW DATABASES").print();
 // change default database
 tEnv.executeSql("USE db1");
 
+// change module resolution order and enabled status
+tEnv.executeSql("USE MODULES hive");
+tEnv.executeSql("SHOW FULL MODULES").print();
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -140,6 +149,15 @@ tEnv.executeSql("SHOW DATABASES").print()
 // change default database
 tEnv.executeSql("USE db1")
 
+// change module resolution order and enabled status
+tEnv.executeSql("USE MODULES hive")
+tEnv.executeSql("SHOW FULL MODULES").print()
+// +-------------+-------+
+// | module name |  used |
+// +-------------+-------+
+// |        hive |  true |
+// |        core | false |
+// +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -179,6 +197,15 @@ table_env.execute_sql("SHOW DATABASES").print()
 # change default database
 table_env.execute_sql("USE db1")
 
+# change module resolution order and enabled status
+table_env.execute_sql("USE MODULES hive")
+table_env.execute_sql("SHOW FULL MODULES").print()
+# +-------------+-------+
+# | module name |  used |
+# +-------------+-------+
+# |        hive |  true |
+# |        core | false |
+# +-------------+-------+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -202,6 +229,16 @@ db1
 
 Flink SQL> USE db1;
 
+Flink SQL> USE MODULES hive;
+[INFO] Use modules succeeded!
+Flink SQL> SHOW FULL MODULES;
++-------------+-------+
+| module name |  used |
++-------------+-------+
+|        hive |  true |
+|        core | false |
++-------------+-------+
+2 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -216,6 +253,11 @@ USE CATALOG catalog_name
 
 Set the current catalog. All subsequent commands that do not explicitly specify a catalog will use this one. If the provided catalog does not exist, an exception is thrown. The default current catalog is `default_catalog`.
 
+## USE MODULES
+```sql
+USE MODULES module_name1[, module_name2, ...]
+```
+Set the enabled modules with declared order. All subsequent commands will resolve metadata(functions/user-defined types/rules, *etc.*) within enabled modules and follow resolution order. A module is used by default when it is loaded. Loaded modules will become disabled if not used by `USE MODULES` statement. The default loaded and enabled module is `core`.
 
 ## USE
 

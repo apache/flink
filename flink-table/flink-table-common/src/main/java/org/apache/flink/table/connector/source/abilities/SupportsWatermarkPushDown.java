@@ -58,6 +58,8 @@ import org.apache.flink.table.data.RowData;
  *
  * <p>This interface provides a {@link WatermarkStrategy} that needs to be applied to the runtime
  * implementation. Most built-in Flink sources provide a way of setting the watermark generator.
+ *
+ * @see SupportsSourceWatermark
  */
 @PublicEvolving
 public interface SupportsWatermarkPushDown {

@@ -33,15 +33,13 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
@@ -67,6 +65,7 @@ import java.util.Map;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.apache.flink.connector.jdbc.internal.JdbcTableOutputFormatTest.check;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 
 /** The ITCase for {@link JdbcDynamicTableSink}. */
 public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
@@ -433,17 +432,10 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
         options.put("table-name", OUTPUT_TABLE5);
         options.put("sink.buffer-flush.interval", "0");
 
-        TableSchema sinkTableSchema =
-                TableSchema.builder().field("id", DataTypes.BIGINT().notNull()).build();
+        ResolvedSchema schema =
+                ResolvedSchema.of(Column.physical("id", DataTypes.BIGINT().notNull()));
 
-        DynamicTableSink tableSink =
-                FactoryUtil.createTableSink(
-                        null,
-                        ObjectIdentifier.of("default", "default", "checkpoint_sink"),
-                        new CatalogTableImpl(sinkTableSchema, options, "mock sink"),
-                        new Configuration(),
-                        this.getClass().getClassLoader(),
-                        false);
+        DynamicTableSink tableSink = createTableSink(schema, options);
 
         SinkRuntimeProviderContext context = new SinkRuntimeProviderContext(false);
         SinkFunctionProvider sinkProvider =

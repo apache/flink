@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.expressions.PlannerWindowReference
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerWindowReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
@@ -339,8 +338,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       rowType: RelDataType): LogicalWindow = {
 
     val timeField = getTimeFieldReference(windowExpr.getOperands.get(0), windowExprIdx, rowType)
-    val resultType = Some(fromDataTypeToLogicalType(timeField.getOutputDataType))
-    val windowRef = PlannerWindowReference("w$", resultType)
+    val resultType = fromDataTypeToLogicalType(timeField.getOutputDataType)
+    val windowRef = new PlannerWindowReference("w$", resultType)
     windowExpr.getOperator match {
       case FlinkSqlOperatorTable.TUMBLE_OLD =>
         val interval = getOperandAsLong(windowExpr, 1)

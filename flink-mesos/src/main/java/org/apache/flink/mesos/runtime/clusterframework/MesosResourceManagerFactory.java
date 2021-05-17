@@ -38,7 +38,11 @@ import javax.annotation.Nullable;
 /**
  * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager}
  * with {@link MesosResourceManagerDriver}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class MesosResourceManagerFactory
         extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 

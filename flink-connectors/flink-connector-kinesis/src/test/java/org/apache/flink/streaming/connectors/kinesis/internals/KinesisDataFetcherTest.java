@@ -55,6 +55,7 @@ import org.junit.Test;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -68,12 +69,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -86,28 +84,29 @@ import static org.mockito.Mockito.when;
 /** Tests for the {@link KinesisDataFetcher}. */
 public class KinesisDataFetcherTest extends TestLogger {
 
+    @Test
+    public void testIsRunning() {
+        KinesisDataFetcher<String> fetcher =
+                createTestDataFetcherWithNoShards(10, 2, "test-stream");
+
+        assertTrue(fetcher.isRunning());
+    }
+
+    @Test(timeout = 10000)
+    public void testIsRunningFalseAfterShutDown() throws InterruptedException {
+        KinesisDataFetcher<String> fetcher =
+                createTestDataFetcherWithNoShards(10, 2, "test-stream");
+
+        fetcher.shutdownFetcher();
+        fetcher.awaitTermination();
+
+        assertFalse(fetcher.isRunning());
+    }
+
     @Test(expected = RuntimeException.class)
     public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
-        List<String> fakeStreams = new LinkedList<>();
-        fakeStreams.add("fakeStream1");
-        fakeStreams.add("fakeStream2");
-
-        HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
-                KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(
-                        fakeStreams);
-
-        TestableKinesisDataFetcher<String> fetcher =
-                new TestableKinesisDataFetcher<>(
-                        fakeStreams,
-                        new TestSourceContext<>(),
-                        TestUtils.getStandardProperties(),
-                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
-                        10,
-                        2,
-                        new AtomicReference<>(),
-                        new LinkedList<>(),
-                        subscribedStreamsToLastSeenShardIdsUnderTest,
-                        FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
+        KinesisDataFetcher<String> fetcher =
+                createTestDataFetcherWithNoShards(10, 2, "fakeStream1", "fakeStream2");
 
         fetcher.runFetcher(); // this should throw RuntimeException
     }
@@ -988,19 +987,15 @@ public class KinesisDataFetcherTest extends TestLogger {
                 fetcher.wasInterrupted);
     }
 
-    @Test
-    public void testRecordPublisherFactoryIsTornDown() {
-        Properties config = TestUtils.getStandardProperties();
-        config.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
-        config.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
-
+    @Test(timeout = 1000L)
+    public void testRecordPublisherFactoryIsTornDown() throws InterruptedException {
         KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
 
         TestableKinesisDataFetcher<String> fetcher =
                 new TestableKinesisDataFetcher<String>(
                         singletonList("fakeStream1"),
                         new TestSourceContext<>(),
-                        config,
+                        TestUtils.efoProperties(),
                         new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
                         10,
                         2,
@@ -1012,6 +1007,84 @@ public class KinesisDataFetcherTest extends TestLogger {
 
         fetcher.shutdownFetcher();
 
+        fetcher.awaitTermination();
+    }
+
+    @Test(timeout = 10000)
+    public void testRecordPublisherFactoryIsTornDownWhenDeregisterStreamConsumerThrowsException()
+            throws InterruptedException {
+        KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
+
+        TestableKinesisDataFetcher<String> fetcher =
+                new TestableKinesisDataFetcher<String>(
+                        singletonList("fakeStream1"),
+                        new TestSourceContext<>(),
+                        TestUtils.efoProperties(),
+                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+                        10,
+                        2,
+                        new AtomicReference<>(),
+                        new LinkedList<>(),
+                        new HashMap<>(),
+                        mock(KinesisProxyInterface.class),
+                        kinesisV2) {
+                    @Override
+                    protected void deregisterStreamConsumer() {
+                        throw new RuntimeException();
+                    }
+                };
+
+        fetcher.shutdownFetcher();
+
         verify(kinesisV2).close();
+        fetcher.awaitTermination();
+    }
+
+    @Test(timeout = 10000)
+    public void testExecutorServiceShutDownWhenCloseRecordPublisherFactoryThrowsException()
+            throws InterruptedException {
+        TestableKinesisDataFetcher<String> fetcher =
+                new TestableKinesisDataFetcher<String>(
+                        singletonList("fakeStream1"),
+                        new TestSourceContext<>(),
+                        TestUtils.efoProperties(),
+                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+                        10,
+                        2,
+                        new AtomicReference<>(),
+                        new LinkedList<>(),
+                        new HashMap<>(),
+                        mock(KinesisProxyInterface.class),
+                        mock(KinesisProxyV2Interface.class)) {
+                    @Override
+                    protected void closeRecordPublisherFactory() {
+                        throw new RuntimeException();
+                    }
+                };
+
+        fetcher.shutdownFetcher();
+
+        fetcher.awaitTermination();
+    }
+
+    private KinesisDataFetcher<String> createTestDataFetcherWithNoShards(
+            final int subtaskCount, final int subtaskIndex, final String... streams) {
+        List<String> streamList = Arrays.stream(streams).collect(Collectors.toList());
+
+        HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
+                KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(
+                        streamList);
+
+        return new TestableKinesisDataFetcher<String>(
+                streamList,
+                new TestSourceContext<>(),
+                TestUtils.getStandardProperties(),
+                new KinesisDeserializationSchemaWrapper<String>(new SimpleStringSchema()),
+                subtaskCount,
+                subtaskIndex,
+                new AtomicReference<>(),
+                new LinkedList<>(),
+                subscribedStreamsToLastSeenShardIdsUnderTest,
+                FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
     }
 }

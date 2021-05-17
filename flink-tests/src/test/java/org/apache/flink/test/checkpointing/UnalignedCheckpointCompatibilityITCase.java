@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.checkpointing.utils.AccumulatingIntegerSink;
 import org.apache.flink.test.checkpointing.utils.CancellingIntegerSource;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -39,7 +38,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -47,6 +45,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -72,7 +71,6 @@ import static org.junit.Assert.assertEquals;
  * enabled/disabled).
  */
 @RunWith(Parameterized.class)
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
 public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -209,7 +207,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
-        env.getCheckpointConfig().setAlignmentTimeout(0);
+        env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
         if (checkpointingInterval > 0) {
             env.enableCheckpointing(checkpointingInterval);

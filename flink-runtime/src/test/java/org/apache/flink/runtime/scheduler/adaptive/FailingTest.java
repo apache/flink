@@ -43,11 +43,11 @@ public class FailingTest extends TestLogger {
     @Test
     public void testFailingStateOnEnter() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
 
             createFailingState(ctx, meg);
 
-            assertThat(meg.isFailing(), is(true));
+            assertThat(meg.getState(), is(JobStatus.FAILING));
             ctx.assertNoStateTransition();
         }
     }
@@ -55,19 +55,19 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTransitionToFailedWhenFailingCompletes() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
                             assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
-            meg.completeCancellation(); // transition to FAILED
+            meg.completeTerminationFuture(JobStatus.FAILED);
         }
     }
 
     @Test
     public void testTransitionToCancelingOnCancel() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectCanceling(assertNonNull());
             failing.cancel();
@@ -77,7 +77,7 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTransitionToFinishedOnSuspend() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             ctx.setExpectFinished(
                     archivedExecutionGraph ->
@@ -89,7 +89,7 @@ public class FailingTest extends TestLogger {
     @Test
     public void testIgnoreGlobalFailure() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             failing.handleGlobalFailure(new RuntimeException());
             ctx.assertNoStateTransition();
@@ -99,11 +99,10 @@ public class FailingTest extends TestLogger {
     @Test
     public void testTaskFailuresAreIgnored() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
             // register execution at EG
-            ExecutingTest.MockExecutionJobVertex ejv =
-                    new ExecutingTest.MockExecutionJobVertex(failing.getExecutionGraph());
+            ExecutingTest.MockExecutionJobVertex ejv = new ExecutingTest.MockExecutionJobVertex();
             TaskExecutionStateTransition update =
                     new TaskExecutionStateTransition(
                             new TaskExecutionState(
@@ -120,14 +119,14 @@ public class FailingTest extends TestLogger {
     @Test
     public void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
         try (MockFailingContext ctx = new MockFailingContext()) {
-            MockExecutionGraph meg = new MockExecutionGraph();
+            StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Failing failing = createFailingState(ctx, meg);
 
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
             ctx.setExpectFinished(eg -> {});
 
-            meg.completeCancellation();
+            meg.completeTerminationFuture(JobStatus.FAILED);
 
             // this is just a sanity check for the test
             assertThat(meg.getState(), is(JobStatus.FAILED));
@@ -146,11 +145,7 @@ public class FailingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        executionGraph,
-                        (throwable) -> {
-                            throw new RuntimeException("Error in test", throwable);
-                        });
+                new TestingOperatorCoordinatorHandler();
         executionGraph.transitionToRunning();
         return new Failing(
                 ctx,
@@ -164,10 +159,11 @@ public class FailingTest extends TestLogger {
     private static class MockFailingContext extends MockStateWithExecutionGraphContext
             implements Failing.Context {
 
-        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
-                new StateValidator<>("cancelling");
+        private final StateValidator<ExecutingTest.ExecutingAndCancellingArguments>
+                cancellingStateValidator = new StateValidator<>("cancelling");
 
-        public void setExpectCanceling(Consumer<ExecutingTest.CancellingArguments> asserter) {
+        public void setExpectCanceling(
+                Consumer<ExecutingTest.ExecutingAndCancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
 
@@ -177,7 +173,7 @@ public class FailingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler) {
             cancellingStateValidator.validateInput(
-                    new ExecutingTest.CancellingArguments(
+                    new ExecutingTest.ExecutingAndCancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
             hadStateTransition = true;
         }

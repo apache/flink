@@ -79,7 +79,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -254,7 +254,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> <DATABASE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <DATABASE> { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -273,10 +273,17 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 }
 {
     (
-        <SYSTEM> <FUNCTION>
+        <SYSTEM>
+        {
+            if (!isTemporary){
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
+            }
+        }
+        <FUNCTION>
         ifNotExists = IfNotExistsOpt()
         functionIdentifier = SimpleIdentifier()
-        {  isSystemFunction = true; }
+        { isSystemFunction = true; }
     |
         <FUNCTION>
         ifNotExists = IfNotExistsOpt()
@@ -368,16 +375,23 @@ SqlAlterFunction SqlAlterFunction() :
     }
 }
 
+/**
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
-    SqlIdentifier database = null;
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
-    [database = CompoundIdentifier()]
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, database);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
@@ -409,7 +423,23 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
- * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+* Parse a "Show Create Table" query command.
+*/
+SqlShowCreateTable SqlShowCreateTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <CREATE> <TABLE> { pos = getPos();}
+    tableName = CompoundIdentifier()
+    {
+        return new SqlShowCreateTable(pos, tableName);
+    }
+}
+
+/**
+ * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :
@@ -419,7 +449,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     tableName = CompoundIdentifier()
     {
@@ -1073,8 +1103,10 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
 *
-* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
-* and BYTES is synonym of VARBINARY(INT_MAX).
+* <p>For example:
+*  1. STRING is synonym of VARCHAR(INT_MAX),
+*  2. BYTES is synonym of VARBINARY(INT_MAX),
+*  3. TIMESTAMP_LTZ(precision) is synonym of TIMESTAMP(precision) WITH LOCAL TIME ZONE.
 */
 SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
@@ -1095,6 +1127,16 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
             typeAlias = token.image;
             precision = Integer.MAX_VALUE;
         }
+    |
+       <TIMESTAMP_LTZ>
+       {
+           typeAlias = token.image;
+       }
+       precision = PrecisionOpt()
+       {
+            typeName = SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+            return new SqlTimestampLtzTypeNameSpec(typeAlias, typeName, precision, getPos());
+       }
     )
     {
         return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
@@ -1500,5 +1542,67 @@ SqlUseModules SqlUseModules() :
     ]
     {
         return new SqlUseModules(s.end(this), moduleNames);
+    }
+}
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
+    }
+}
+
+/**
+* Parse a start statement set statement.
+* BEGIN STATEMENT SET;
+*/
+SqlBeginStatementSet SqlBeginStatementSet() :
+{
+}
+{
+    <BEGIN> <STATEMENT> <SET>
+    {
+        return new SqlBeginStatementSet(getPos());
+    }
+}
+
+/**
+* Parse a end statement set statement.
+* END;
+*/
+SqlEndStatementSet SqlEndStatementSet() :
+{
+}
+{
+    <END>
+    {
+        return new SqlEndStatementSet(getPos());
+    }
+}
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    stmt = SqlQueryOrDml() {
+        return new SqlRichExplain(getPos(),stmt);
     }
 }

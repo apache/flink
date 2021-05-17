@@ -167,6 +167,34 @@ Connector Options
       <td>Defines the parallelism of the HBase sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
     <tr>
+      <td><h5>lookup.async</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether async lookup are enabled. If true, the lookup will be async. Note, async only supports hbase-2.2 connector.</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.cache.max-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired. Note, "lookup.cache.max-rows" and "lookup.cache.ttl" options must all be specified if any of them is specified. Lookup cache is disabled by default.</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.cache.ttl</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired. Note, "cache.max-rows" and "cache.ttl" options must all be specified if any of them is specified.Lookup cache is disabled by default.</td>
+    </tr>
+    <tr>
+      <td><h5>lookup.max-retries</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">3</td>
+      <td>Integer</td>
+      <td>The max retry times if lookup database failed.</td>
+    </tr>
+    <tr>
       <td><h5>properties.*</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>

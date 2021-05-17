@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
@@ -44,7 +44,7 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(),
+                                JobGraphTestUtils.emptyJobGraph(),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .build();
         scheduler.startScheduling();

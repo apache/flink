@@ -283,6 +283,30 @@ class PandasUDFITTests(object):
              "1970-01-02 00:00:00.123, [hello, 中文, null], [1970-01-02 00:00:00.123], "
              "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02 00:00:00.123, [1, 2]]]"])
 
+    def test_invalid_pandas_udf(self):
+
+        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        def length_mismatch(i):
+            return i[1:]
+
+        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        def result_type_not_series(i):
+            return i.iloc[0]
+
+        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
+
+        msg = "The result length '0' of Pandas UDF 'length_mismatch' is not equal " \
+              "to the input length '1'"
+        from py4j.protocol import Py4JJavaError
+        with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
+            t.select(length_mismatch(t.a)).to_pandas()
+
+        msg = "The result type of Pandas UDF 'result_type_not_series' must be pandas.Series or " \
+              "pandas.DataFrame, got <class 'numpy.int64'>"
+        from py4j.protocol import Py4JJavaError
+        with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
+            t.select(result_type_not_series(t.a)).to_pandas()
+
 
 class BlinkPandasUDFITTests(object):
 

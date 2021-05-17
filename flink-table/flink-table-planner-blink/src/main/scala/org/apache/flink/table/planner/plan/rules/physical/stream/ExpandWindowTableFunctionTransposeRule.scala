@@ -30,11 +30,9 @@ import org.apache.flink.table.planner.plan.utils.WindowUtil.buildNewProgramWitho
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode, RexProgram}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -136,7 +134,7 @@ class ExpandWindowTableFunctionTransposeRule
         cluster.getRexBuilder,
         calc.getProgram,
         inputRowType,
-        windowTVF.windowing.timeAttribute,
+        windowTVF.windowing.getTimeAttributeIndex,
         windowColumns.toArray)
     val newCalc = new StreamPhysicalCalc(
       cluster,
@@ -156,17 +154,17 @@ class ExpandWindowTableFunctionTransposeRule
     val newOutputType = SqlWindowTableFunction.inferRowType(
       typeFactory,
       newExpand.getRowType,
-      typeFactory.createFieldTypeFromLogicalType(windowTVF.windowing.timeAttributeType))
+      typeFactory.createFieldTypeFromLogicalType(windowTVF.windowing.getTimeAttributeType))
     val timeAttributeOnExpand = if (timeFieldAdded) {
       // the time attribute ref is appended
       newExpand.getRowType.getFieldCount - 1
     } else {
       newTimeField
     }
-    val newWindowing = TimeAttributeWindowingStrategy(
-      timeAttributeOnExpand,
-      windowTVF.windowing.timeAttributeType,
-      windowTVF.windowing.window)
+    val newWindowing = new TimeAttributeWindowingStrategy(
+      windowTVF.windowing.getWindow,
+      windowTVF.windowing.getTimeAttributeType,
+      timeAttributeOnExpand)
     val newWindowTVF = new StreamPhysicalWindowTableFunction(
       cluster,
       windowTVF.getTraitSet,
@@ -207,8 +205,6 @@ class ExpandWindowTableFunctionTransposeRule
     val newInputRowType = newCalc.getRowType
     val expandIdIndex = expand.expandIdIndex
     var newExpandIdIndex = -1
-    val newTypeList = mutable.HashMap[Int, RelDataType]()
-    val newFieldNameList = mutable.HashMap[Int, String]()
     val newProjects = expand.projects.asScala.map { exprs =>
       val newExprs = ArrayBuffer[RexNode]()
       var baseOffset = 0
@@ -219,8 +215,6 @@ class ExpandWindowTableFunctionTransposeRule
           val newInputIndex = inputFieldShifting(ref.getIndex)
           newExprs += RexInputRef.of(newInputIndex, newInputRowType)
           // we only use the type from input ref instead of literal
-          newTypeList(baseOffset) = newInputRowType.getFieldList.get(newInputIndex).getType
-          newFieldNameList(baseOffset) = newInputRowType.getFieldNames.get(newInputIndex)
           baseOffset += 1
         case (lit: RexLiteral, exprIndex) =>
           newExprs += lit
@@ -228,8 +222,6 @@ class ExpandWindowTableFunctionTransposeRule
             // this is the expand id, we should remember the new index of expand id
             // and update type for this expr
             newExpandIdIndex = baseOffset
-            newTypeList(baseOffset) = lit.getType
-            newFieldNameList(baseOffset) = expand.getRowType.getFieldNames.get(expandIdIndex)
           }
           baseOffset += 1
         case exp@_ =>
@@ -239,22 +231,14 @@ class ExpandWindowTableFunctionTransposeRule
       if (timeFieldAdded) {
         // append time attribute reference if needed
         newExprs += RexInputRef.of(newTimeField, newInputRowType)
-        newTypeList(baseOffset) = newInputRowType.getFieldList.get(newTimeField).getType
-        newFieldNameList(baseOffset) = newInputRowType.getFieldNames.get(newTimeField)
       }
       newExprs.asJava
     }
-
-    val typeFactory = expand.getCluster.getTypeFactory
-    val newOutputRowType = typeFactory.createStructType(
-      newTypeList.toList.sortBy(_._1).map(_._2).asJava,
-      newFieldNameList.toList.sortBy(_._1).map(_._2).asJava)
 
     new StreamPhysicalExpand(
       expand.getCluster,
       expand.getTraitSet,
       newCalc,
-      newOutputRowType,
       newProjects.asJava,
       newExpandIdIndex
     )

@@ -33,12 +33,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -55,7 +57,7 @@ import java.util.Collections;
 
 /** Stream {@link ExecNode} for python time-based over operator. */
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonOverAggregate.class);
 
     private static final String
@@ -125,8 +127,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         if (orderKeyType instanceof TimestampType
                 && ((TimestampType) orderKeyType).getKind() == TimestampKind.ROWTIME) {
             rowTimeIdx = orderKey;
-        } else if (orderKeyType instanceof TimestampType
-                && ((TimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
+        } else if (orderKeyType instanceof LocalZonedTimestampType
+                && ((LocalZonedTimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
             rowTimeIdx = -1;
         } else {
             throw new TableException(
@@ -159,10 +161,6 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         tableConfig.getMinIdleStateRetentionTime(),
                         tableConfig.getMaxIdleStateRetentionTime(),
                         config);
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);

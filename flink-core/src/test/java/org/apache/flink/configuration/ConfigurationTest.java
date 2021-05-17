@@ -340,8 +340,7 @@ public class ConfigurationTest extends TestLogger {
 
         assertEquals(listValues, configuration.toMap().get(listConfigOption.key()));
         assertEquals(mapValues, configuration.toMap().get(mapConfigOption.key()));
-        assertEquals(
-                duration.toNanos() + " ns", configuration.toMap().get(durationConfigOption.key()));
+        assertEquals("3 s", configuration.toMap().get(durationConfigOption.key()));
     }
 
     enum TestEnum {

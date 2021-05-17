@@ -20,12 +20,17 @@ package org.apache.flink.streaming.connectors.elasticsearch.table;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
 
@@ -45,10 +50,7 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                         + "\n"
                         + "hosts\n"
                         + "index");
-        sinkFactory.createDynamicTableSink(
-                context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
-                        .build());
+        sinkFactory.createDynamicTableSink(context().build());
     }
 
     @Test
@@ -59,7 +61,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("'index' must not be empty");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption("index", "")
                         .withOption("hosts", "http://localhost:12345")
                         .build());
@@ -73,11 +74,7 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage(
                 "Could not parse host 'wrong-host' in option 'hosts'. It should follow the format 'http://host_name:port'.");
         sinkFactory.createDynamicTableSink(
-                context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
-                        .withOption("index", "MyIndex")
-                        .withOption("hosts", "wrong-host")
-                        .build());
+                context().withOption("index", "MyIndex").withOption("hosts", "wrong-host").build());
     }
 
     @Test
@@ -89,7 +86,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                 "'sink.bulk-flush.max-size' must be in MB granularity. Got: 1024 bytes");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
@@ -105,7 +101,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.backoff.max-retries' must be at least 1. Got: 0");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
@@ -123,7 +118,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.max-actions' must be at least 1. Got: -2");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
@@ -139,7 +133,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         thrown.expectMessage("Invalid value for option 'sink.bulk-flush.backoff.delay'.");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
@@ -161,35 +154,45 @@ public class Elasticsearch7DynamicSinkFactoryTest {
         sinkFactory.createDynamicTableSink(
                 context()
                         .withSchema(
-                                TableSchema.builder()
-                                        .field("a", DataTypes.BIGINT().notNull())
-                                        .field(
-                                                "b",
-                                                DataTypes.ARRAY(DataTypes.BIGINT().notNull())
-                                                        .notNull())
-                                        .field(
-                                                "c",
-                                                DataTypes.MAP(
-                                                                DataTypes.BIGINT(),
-                                                                DataTypes.STRING())
-                                                        .notNull())
-                                        .field(
-                                                "d",
-                                                DataTypes.MULTISET(DataTypes.BIGINT().notNull())
-                                                        .notNull())
-                                        .field(
-                                                "e",
-                                                DataTypes.ROW(
-                                                                DataTypes.FIELD(
-                                                                        "a", DataTypes.BIGINT()))
-                                                        .notNull())
-                                        .field(
-                                                "f",
-                                                DataTypes.RAW(Void.class, VoidSerializer.INSTANCE)
-                                                        .notNull())
-                                        .field("g", DataTypes.BYTES().notNull())
-                                        .primaryKey("a", "b", "c", "d", "e", "f", "g")
-                                        .build())
+                                new ResolvedSchema(
+                                        Arrays.asList(
+                                                Column.physical("a", DataTypes.BIGINT().notNull()),
+                                                Column.physical(
+                                                        "b",
+                                                        DataTypes.ARRAY(
+                                                                        DataTypes.BIGINT()
+                                                                                .notNull())
+                                                                .notNull()),
+                                                Column.physical(
+                                                        "c",
+                                                        DataTypes.MAP(
+                                                                        DataTypes.BIGINT(),
+                                                                        DataTypes.STRING())
+                                                                .notNull()),
+                                                Column.physical(
+                                                        "d",
+                                                        DataTypes.MULTISET(
+                                                                        DataTypes.BIGINT()
+                                                                                .notNull())
+                                                                .notNull()),
+                                                Column.physical(
+                                                        "e",
+                                                        DataTypes.ROW(
+                                                                        DataTypes.FIELD(
+                                                                                "a",
+                                                                                DataTypes.BIGINT()))
+                                                                .notNull()),
+                                                Column.physical(
+                                                        "f",
+                                                        DataTypes.RAW(
+                                                                        Void.class,
+                                                                        VoidSerializer.INSTANCE)
+                                                                .notNull()),
+                                                Column.physical("g", DataTypes.BYTES().notNull())),
+                                        Collections.emptyList(),
+                                        UniqueConstraint.primaryKey(
+                                                "name",
+                                                Arrays.asList("a", "b", "c", "d", "e", "f", "g"))))
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
@@ -207,7 +210,6 @@ public class Elasticsearch7DynamicSinkFactoryTest {
                 "'username' and 'password' must be set at the same time. Got: username 'username' and password ''");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withSchema(TableSchema.builder().field("a", DataTypes.TIME()).build())
                         .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
                                 ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")

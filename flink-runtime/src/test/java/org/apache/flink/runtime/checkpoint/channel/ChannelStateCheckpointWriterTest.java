@@ -17,8 +17,8 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -116,7 +116,7 @@ public class ChannelStateCheckpointWriterTest {
                         checkpointStreamFactory.createCheckpointStateOutputStream(EXCLUSIVE));
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(threshold / 2, null),
+                        MemorySegmentFactory.allocateUnpooledSegment(threshold / 2),
                         FreeingBufferRecycler.INSTANCE);
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
         writer.completeOutput();
@@ -147,7 +147,7 @@ public class ChannelStateCheckpointWriterTest {
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult());
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        HeapMemorySegment.FACTORY.allocateUnpooledSegment(10, null),
+                        MemorySegmentFactory.allocateUnpooledSegment(10, null),
                         FreeingBufferRecycler.INSTANCE);
         writer.writeInput(new InputChannelInfo(1, 2), buffer);
         assertTrue(buffer.isRecycled());
@@ -172,6 +172,7 @@ public class ChannelStateCheckpointWriterTest {
         FlushRecorder dataStream = new FlushRecorder();
         final ChannelStateCheckpointWriter writer =
                 new ChannelStateCheckpointWriter(
+                        "dummy task",
                         0,
                         1L,
                         new ChannelStateWriteResult(),
@@ -252,6 +253,12 @@ public class ChannelStateCheckpointWriterTest {
     private ChannelStateCheckpointWriter createWriter(
             ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
         return new ChannelStateCheckpointWriter(
-                0, 1L, result, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
+                "dummy task",
+                0,
+                1L,
+                result,
+                stream,
+                new ChannelStateSerializerImpl(),
+                NO_OP_RUNNABLE);
     }
 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -39,6 +40,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.BitSet;
 
 /**
@@ -117,7 +119,10 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
         receiver.connectNewDataSetAsInput(
                 sender, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-        return new JobGraph(jobName, sender, receiver);
+        return JobGraphBuilder.newBatchJobGraphBuilder()
+                .setJobName(jobName)
+                .addJobVertices(Arrays.asList(sender, receiver))
+                .build();
     }
 
     /** Sends the subtask index a configurable number of times in a round-robin fashion. */

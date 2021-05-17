@@ -63,18 +63,33 @@ public abstract class EncodingUtils {
         return "`" + escapeBackticks(s) + "`";
     }
 
-    public static String encodeObjectToString(Serializable obj) {
+    public static String encodeObjectToString(Object serializable) {
         try {
-            final byte[] bytes = InstantiationUtil.serializeObject(obj);
+            final byte[] bytes = InstantiationUtil.serializeObject(serializable);
             return new String(BASE64_ENCODER.encode(bytes), UTF_8);
         } catch (Exception e) {
             throw new ValidationException(
                     "Unable to serialize object '"
-                            + obj.toString()
+                            + serializable.toString()
                             + "' of class '"
-                            + obj.getClass().getName()
+                            + serializable.getClass().getName()
                             + "'.",
                     e);
+        }
+    }
+
+    public static String encodeObjectToString(Serializable obj) {
+        return encodeObjectToString((Object) obj);
+    }
+
+    public static <T> T decodeStringToObject(String encodedStr, ClassLoader classLoader)
+            throws IOException {
+        final byte[] bytes = BASE64_DECODER.decode(encodedStr.getBytes(UTF_8));
+        try {
+            return InstantiationUtil.deserializeObject(bytes, classLoader);
+        } catch (ClassNotFoundException e) {
+            throw new ValidationException(
+                    "Unable to deserialize string '" + encodedStr + "' to object.", e);
         }
     }
 

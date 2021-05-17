@@ -95,7 +95,13 @@ final class TestValuesRuntimeFunctions {
     }
 
     static List<Watermark> getWatermarks(String tableName) {
-        return watermarkHistory.getOrDefault(tableName, new ArrayList<>());
+        synchronized (TestValuesTableFactory.class) {
+            if (watermarkHistory.containsKey(tableName)) {
+                return new ArrayList<>(watermarkHistory.get(tableName));
+            } else {
+                return Collections.emptyList();
+            }
+        }
     }
 
     static List<String> getResults(String tableName) {
@@ -122,6 +128,7 @@ final class TestValuesRuntimeFunctions {
             globalRawResult.clear();
             globalUpsertResult.clear();
             globalRetractResult.clear();
+            watermarkHistory.clear();
         }
     }
 
@@ -507,8 +514,10 @@ final class TestValuesRuntimeFunctions {
             assert row != null;
             localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
             if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                row.setKind(RowKind.INSERT);
                 localRetractResult.add(row.toString());
             } else {
+                row.setKind(RowKind.INSERT);
                 boolean contains = localRetractResult.remove(row.toString());
                 if (!contains) {
                     throw new RuntimeException(

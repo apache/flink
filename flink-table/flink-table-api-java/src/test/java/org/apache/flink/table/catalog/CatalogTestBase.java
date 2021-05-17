@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.factories.FactoryUtil;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +34,6 @@ public abstract class CatalogTestBase extends CatalogTest {
                 new HashMap<String, String>() {
                     {
                         put("k1", "v1");
-                        putAll(getGenericFlag(isGeneric()));
                     }
                 },
                 TEST_COMMENT);
@@ -44,7 +45,6 @@ public abstract class CatalogTestBase extends CatalogTest {
                 new HashMap<String, String>() {
                     {
                         put("k2", "v2");
-                        putAll(getGenericFlag(isGeneric()));
                     }
                 },
                 TEST_COMMENT);
@@ -52,40 +52,62 @@ public abstract class CatalogTestBase extends CatalogTest {
 
     @Override
     public CatalogTable createTable() {
-        return new CatalogTableImpl(createTableSchema(), getBatchTableProperties(), TEST_COMMENT);
+        final ResolvedSchema resolvedSchema = createSchema();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        Collections.emptyList(),
+                        getBatchTableProperties());
+        return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createAnotherTable() {
-        return new CatalogTableImpl(
-                createAnotherTableSchema(), getBatchTableProperties(), TEST_COMMENT);
+        final ResolvedSchema resolvedSchema = createAnotherSchema();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        Collections.emptyList(),
+                        getBatchTableProperties());
+        return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createStreamingTable() {
-        Map<String, String> prop = getBatchTableProperties();
-        prop.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
-
-        return new CatalogTableImpl(
-                createTableSchema(), getStreamingTableProperties(), TEST_COMMENT);
+        final ResolvedSchema resolvedSchema = createSchema();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        Collections.emptyList(),
+                        getStreamingTableProperties());
+        return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createPartitionedTable() {
-        return new CatalogTableImpl(
-                createTableSchema(),
-                createPartitionKeys(),
-                getBatchTableProperties(),
-                TEST_COMMENT);
+        final ResolvedSchema resolvedSchema = createSchema();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        createPartitionKeys(),
+                        getBatchTableProperties());
+        return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createAnotherPartitionedTable() {
-        return new CatalogTableImpl(
-                createAnotherTableSchema(),
-                createPartitionKeys(),
-                getBatchTableProperties(),
-                TEST_COMMENT);
+        final ResolvedSchema resolvedSchema = createAnotherSchema();
+        final CatalogTable origin =
+                CatalogTable.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        TEST_COMMENT,
+                        createPartitionKeys(),
+                        getBatchTableProperties());
+        return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
@@ -95,22 +117,30 @@ public abstract class CatalogTestBase extends CatalogTest {
 
     @Override
     public CatalogView createView() {
-        return new CatalogViewImpl(
-                String.format("select * from %s", t1),
-                String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-                createTableSchema(),
-                getBatchTableProperties(),
-                "This is a view");
+        final ResolvedSchema resolvedSchema = createSchema();
+        final CatalogView origin =
+                CatalogView.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        "This is a view",
+                        String.format("select * from %s", t1),
+                        String.format(
+                                "select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+                        getBatchTableProperties());
+        return new ResolvedCatalogView(origin, resolvedSchema);
     }
 
     @Override
     public CatalogView createAnotherView() {
-        return new CatalogViewImpl(
-                String.format("select * from %s", t2),
-                String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-                createAnotherTableSchema(),
-                getBatchTableProperties(),
-                "This is another view");
+        final ResolvedSchema resolvedSchema = createAnotherSchema();
+        final CatalogView origin =
+                CatalogView.of(
+                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
+                        "This is a another view",
+                        String.format("select * from %s", t2),
+                        String.format(
+                                "select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+                        getBatchTableProperties());
+        return new ResolvedCatalogView(origin, resolvedSchema);
     }
 
     protected Map<String, String> getBatchTableProperties() {
@@ -134,7 +164,8 @@ public abstract class CatalogTestBase extends CatalogTest {
     private Map<String, String> getGenericFlag(boolean isGeneric) {
         return new HashMap<String, String>() {
             {
-                put(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
+                String connector = isGeneric ? "COLLECTION" : "hive";
+                put(FactoryUtil.CONNECTOR.key(), connector);
             }
         };
     }

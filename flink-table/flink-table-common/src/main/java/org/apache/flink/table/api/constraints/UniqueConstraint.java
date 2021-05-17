@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.constraints;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.List;
 import java.util.Objects;
@@ -29,7 +30,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A unique key constraint. It can be declared also as a PRIMARY KEY.
  *
  * @see ConstraintType
+ * @deprecated See {@link ResolvedSchema} and {@link
+ *     org.apache.flink.table.catalog.UniqueConstraint}.
  */
+@Deprecated
 @PublicEvolving
 public final class UniqueConstraint extends AbstractConstraint {
     private final List<String> columns;

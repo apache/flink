@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -29,8 +28,10 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -54,19 +54,17 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.net.InetSocketAddress;
-import java.nio.file.NoSuchFileException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -180,23 +178,21 @@ public class BlobsCleanupITCase extends TestLogger {
             jobGraph.addUserJarBlobKey(new PermanentBlobKey());
         }
 
-        final JobSubmissionResult jobSubmissionResult = miniCluster.submitJob(jobGraph).get();
+        final CompletableFuture<JobSubmissionResult> submissionFuture =
+                miniCluster.submitJob(jobGraph);
 
         if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
-            // Wait for submission to fail & check if exception is forwarded
-            Optional<SerializedThrowable> exception =
-                    miniCluster.requestJobResult(jid).get().getSerializedThrowable();
-            assertTrue(exception.isPresent());
-            assertTrue(
-                    ExceptionUtils.findThrowableSerializedAware(
-                                    exception.get(),
-                                    NoSuchFileException.class,
-                                    getClass().getClassLoader())
-                            .isPresent());
-
-            // check job status
-            assertThat(miniCluster.getJobStatus(jid).get(), is(JobStatus.FAILED));
+            try {
+                submissionFuture.get();
+                fail("Expected job submission failure.");
+            } catch (ExecutionException e) {
+                assertThat(
+                        ExceptionUtils.findThrowable(e, JobSubmissionException.class).isPresent(),
+                        is(true));
+            }
         } else {
+            final JobSubmissionResult jobSubmissionResult = submissionFuture.get();
+
             assertThat(jobSubmissionResult.getJobID(), is(jid));
 
             final CompletableFuture<JobResult> resultFuture = miniCluster.requestJobResult(jid);
@@ -254,7 +250,10 @@ public class BlobsCleanupITCase extends TestLogger {
         }
         source.setParallelism(numTasks);
 
-        return new JobGraph(new JobID(0, testCase.ordinal()), "BlobCleanupTest", source);
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .setJobId(new JobID(0, testCase.ordinal()))
+                .addJobVertex(source)
+                .build();
     }
 
     /**

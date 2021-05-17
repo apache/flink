@@ -24,7 +24,8 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
-import org.apache.flink.streaming.api.transformations.{OneInputTransformation, LegacySinkTransformation, TwoInputTransformation}
+import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -34,12 +35,13 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.{TestingStatementSet, TestingTableEnvironment}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.types.Row
+
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Test}
-import java.util
 
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
@@ -586,6 +588,21 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult(
       "select * from l where exists (select * from r where l.a = r.c) and l.a <= 2",
       Seq(row(2, 1.0), row(2, 1.0)))
+  }
+
+  @Test
+  def testCorrelatedExist2(): Unit = {
+    val data: Seq[Row] = Seq(
+      row(0L),
+      row(123456L),
+      row(-123456L),
+      row(2147483647L),
+      row(-2147483647L))
+    registerCollection("t1", data, new RowTypeInfo(LONG_TYPE_INFO), "f1")
+
+    checkResult(
+      "select * from t1 o where exists (select 1 from t1 i where i.f1=o.f1 limit 0)",
+      Seq())
   }
 
   @Test

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
-import org.apache.flink.runtime.executiongraph.ExecutionEdge;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -26,6 +26,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.IterableUtils;
@@ -37,14 +39,12 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
@@ -58,7 +58,7 @@ import static org.junit.Assert.fail;
 /** Unit tests for {@link DefaultExecutionTopology}. */
 public class DefaultExecutionTopologyTest extends TestLogger {
 
-    private ExecutionGraph executionGraph;
+    private DefaultExecutionGraph executionGraph;
 
     private DefaultExecutionTopology adapter;
 
@@ -156,7 +156,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         v2.setSlotSharingGroup(slotSharingGroup);
         v1.setStrictlyCoLocatedWith(v2);
 
-        final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+        final DefaultExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
         DefaultExecutionTopology.fromExecutionGraph(executionGraph);
     }
 
@@ -180,12 +180,17 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
             assertEquals(originalVertex.getID(), adaptedVertex.getId());
 
-            List<IntermediateResultPartition> originalConsumedPartitions =
-                    IntStream.range(0, originalVertex.getNumberOfInputs())
-                            .mapToObj(originalVertex::getInputEdges)
-                            .flatMap(Arrays::stream)
-                            .map(ExecutionEdge::getSource)
-                            .collect(Collectors.toList());
+            List<IntermediateResultPartition> originalConsumedPartitions = new ArrayList<>();
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    originalVertex.getAllConsumedPartitionGroups()) {
+                for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+                    IntermediateResultPartition partition =
+                            originalVertex
+                                    .getExecutionGraphAccessor()
+                                    .getResultPartitionOrThrow(partitionId);
+                    originalConsumedPartitions.add(partition);
+                }
+            }
             Iterable<DefaultResultPartition> adaptedConsumedPartitions =
                     adaptedVertex.getConsumedResults();
 
@@ -227,20 +232,21 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
             assertPartitionEquals(originalPartition, adaptedPartition);
 
-            List<ExecutionVertex> originalConsumers =
-                    originalPartition.getConsumers().stream()
-                            .flatMap(Collection::stream)
-                            .map(ExecutionEdge::getTarget)
-                            .collect(Collectors.toList());
+            List<ExecutionVertexID> originalConsumerIds = new ArrayList<>();
+            for (ConsumerVertexGroup consumerVertexGroup :
+                    originalPartition.getConsumerVertexGroups()) {
+                for (ExecutionVertexID executionVertexId : consumerVertexGroup) {
+                    originalConsumerIds.add(executionVertexId);
+                }
+            }
             Iterable<DefaultExecutionVertex> adaptedConsumers = adaptedPartition.getConsumers();
 
-            for (ExecutionVertex originalConsumer : originalConsumers) {
+            for (ExecutionVertexID originalId : originalConsumerIds) {
                 // it is sufficient to verify that some vertex exists with the correct ID here,
                 // since deep equality is verified later in the main loop
                 // this DOES rely on an implicit assumption that the vertices objects returned by
                 // the topology are
                 // identical to those stored in the partition
-                ExecutionVertexID originalId = originalConsumer.getID();
                 assertTrue(
                         IterableUtils.toStream(adaptedConsumers)
                                 .anyMatch(

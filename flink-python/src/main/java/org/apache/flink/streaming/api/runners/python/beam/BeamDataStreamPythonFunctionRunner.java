@@ -42,7 +42,7 @@ import java.util.Map;
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
     private final TypeInformation inputType;
-    private final TypeInformation outputTupe;
+    private final TypeInformation outputType;
     private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
     private final String coderUrn;
 
@@ -58,6 +58,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             @Nullable FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend stateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction) {
         super(
@@ -68,10 +69,12 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
-                managedMemoryFraction);
+                managedMemoryFraction,
+                null);
         this.inputType = inputType;
-        this.outputTupe = outputType;
+        this.outputType = outputType;
         this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
         this.coderUrn = coderUrn;
     }
@@ -88,7 +91,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 
     @Override
     protected RunnerApi.Coder getOutputCoderProto() {
-        return getInputOutputCoderProto(outputTupe);
+        return getInputOutputCoderProto(outputType);
     }
 
     private RunnerApi.Coder getInputOutputCoderProto(TypeInformation typeInformation) {

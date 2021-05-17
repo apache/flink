@@ -26,14 +26,22 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Stream {@link ExecNode} which matches along with join a Java/Scala user defined table function.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecCorrelate extends CommonExecCorrelate implements StreamExecNode<RowData> {
 
     public StreamExecCorrelate(
@@ -43,13 +51,33 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(
+        this(
                 joinType,
                 invocation,
                 condition,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecCorrelate(
+            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
+            @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
+            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                joinType,
+                (RexCall) invocation,
+                condition,
                 TableStreamOperator.class,
                 true, // retainHeader
-                inputProperty,
+                id,
+                inputProperties,
                 outputType,
                 description);
     }

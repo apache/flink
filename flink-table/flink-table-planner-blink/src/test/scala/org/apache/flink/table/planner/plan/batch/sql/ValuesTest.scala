@@ -46,4 +46,9 @@ class ValuesTest extends TableTestBase {
     util.verifyRelPlanWithType("SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)")
   }
 
+  @Test
+  def testEmptyValuesWithSort(): Unit = {
+    util.verifyExecPlan("SELECT * FROM (VALUES 1, 2, 3) AS T (a) WHERE a = 1 and a = 2 ORDER BY a")
+  }
+
 }

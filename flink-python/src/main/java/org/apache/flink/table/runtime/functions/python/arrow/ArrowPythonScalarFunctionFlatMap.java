@@ -78,7 +78,10 @@ public final class ArrowPythonScalarFunctionFlatMap extends AbstractPythonScalar
         try {
             super.close();
         } finally {
-            arrowSerializer.close();
+            if (arrowSerializer != null) {
+                arrowSerializer.close();
+                arrowSerializer = null;
+            }
         }
     }
 

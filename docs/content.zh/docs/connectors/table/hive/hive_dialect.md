@@ -335,26 +335,85 @@ CREATE FUNCTION function_name AS class_name;
 DROP FUNCTION [IF EXISTS] function_name;
 ```
 
-## DML
+## DML & DQL _`Beta`_
 
-### INSERT
+Hive 方言支持常用的 Hive [DML](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DML)
+和 [DQL](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select) 。 下表列出了一些 Hive 方言支持的语法。
 
-```sql
-INSERT (INTO|OVERWRITE) [TABLE] table_name [PARTITION partition_spec] SELECT ...;
+- [SORT/CLUSTER/DISTRIBUTE BY](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SortBy)
+- [Group By](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy)
+- [Join](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Joins)
+- [Union](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Union)
+- [LATERAL VIEW](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+LateralView)
+- [Window Functions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+WindowingAndAnalytics)
+- [SubQueries](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+SubQueries)
+- [CTE](https://cwiki.apache.org/confluence/display/Hive/Common+Table+Expression)
+- [INSERT INTO dest schema](https://issues.apache.org/jira/browse/HIVE-9481)
+- [Implicit type conversions](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types#LanguageManualTypes-AllowedImplicitConversions)
+
+为了实现更好的语法和语义的兼容，强烈建议使用 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 
+并将其放在 Module 列表的首位，以便在函数解析时优先使用 Hive 内置函数。
+
+Hive 方言不再支持 [Flink SQL 语法]({{< ref "docs/dev/table/sql/queries" >}}) 。 若需使用 Flink 语法，请切换到 `default` 方言。
+
+以下是一个使用 Hive 方言的示例。
+
+```bash
+Flink SQL> create catalog myhive with ('type' = 'hive', 'hive-conf-dir' = '/opt/hive-conf');
+[INFO] Execute statement succeed.
+
+Flink SQL> use catalog myhive;
+[INFO] Execute statement succeed.
+
+Flink SQL> load module hive;
+[INFO] Execute statement succeed.
+
+Flink SQL> use modules hive,core;
+[INFO] Execute statement succeed.
+
+Flink SQL> set table.sql-dialect=hive;
+[INFO] Session property has been set.
+
+Flink SQL> select explode(array(1,2,3)); -- call hive udtf
++-----+
+| col |
++-----+
+|   1 |
+|   2 |
+|   3 |
++-----+
+3 rows in set
+
+Flink SQL> create table tbl (key int,value string);
+[INFO] Execute statement succeed.
+
+Flink SQL> insert overwrite table tbl values (5,'e'),(1,'a'),(1,'a'),(3,'c'),(2,'b'),(3,'c'),(3,'c'),(4,'d');
+[INFO] Submitting SQL update statement to the cluster...
+[INFO] SQL update statement has been successfully submitted to the cluster:
+
+Flink SQL> select * from tbl cluster by key; -- run cluster by
+2021-04-22 16:13:57,005 INFO  org.apache.hadoop.mapred.FileInputFormat                     [] - Total input paths to process : 1
++-----+-------+
+| key | value |
++-----+-------+
+|   1 |     a |
+|   1 |     a |
+|   5 |     e |
+|   2 |     b |
+|   3 |     c |
+|   3 |     c |
+|   3 |     c |
+|   4 |     d |
++-----+-------+
+8 rows in set
 ```
-
-如果指定了 `partition_spec`，可以是完整或者部分分区列。如果是部分指定，则可以省略动态分区的列名。
-
-## DQL
-
-目前，对于DQL语句 Hive 方言和 Flink SQL 支持的语法相同。有关更多详细信息，请参考[Flink SQL 查询]({{< ref "docs/dev/table/sql/queries" >}})。并且建议切换到 `default` 方言来执行 DQL 语句。
 
 ## 注意
 
 以下是使用 Hive 方言的一些注意事项。
 
-- Hive 方言只能用于操作 Hive 表，不能用于一般表。Hive 方言应与[HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}})一起使用。
+- Hive 方言只能用于操作 Hive 对象，并要求当前 Catalog 是一个 [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}) 。
+- Hive 方言只支持 `db.table` 这种两级的标识符，不支持带有 Catalog 名字的标识符。
 - 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的[Hive 版本]({{< ref "docs/connectors/table/hive/overview" >}}#支持的hive版本)。例如，更新数据库位置
  只在 Hive-2.4.0 或更高版本支持。
-- Hive 和 Calcite 有不同的保留关键字集合。例如，`default` 是 Calcite 的保留关键字，却不是 Hive 的保留关键字。即使使用 Hive 方言, 也必须使用反引号 ( ` ) 引用此类关键字才能将其用作标识符。
-- 由于扩展的查询语句的不兼容性，在 Flink 中创建的视图是不能在 Hive 中查询的。
+- 执行 DML 和 DQL 时应该使用 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 。

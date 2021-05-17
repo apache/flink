@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -77,7 +78,8 @@ public class InputProcessorUtilTest {
                             streamTask.getName(),
                             new SyncMailboxExecutor(),
                             inputGates,
-                            Collections.emptyList());
+                            Collections.emptyList(),
+                            new TestProcessingTimeService());
             for (CheckpointedInputGate checkpointedInputGate : checkpointedMultipleInputGate) {
                 registry.registerCloseable(checkpointedInputGate);
             }

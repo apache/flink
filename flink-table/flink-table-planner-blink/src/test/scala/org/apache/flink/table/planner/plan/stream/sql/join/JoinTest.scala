@@ -284,4 +284,19 @@ class JoinTest extends TableTestBase {
   def testRightOuterJoinEquiAndNonEquiPred(): Unit = {
     util.verifyExecPlan("SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z AND b < x")
   }
+
+  @Test
+  def testJoinAndSelectOnPartialCompositePrimaryKey(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE tableWithCompositePk (
+        |  pk1 INT,
+        |  pk2 BIGINT,
+        |  PRIMARY KEY (pk1, pk2) NOT ENFORCED
+        |) WITH (
+        |  'connector'='values'
+        |)
+        |""".stripMargin)
+    util.verifyExecPlan("SELECT A.a1 FROM A LEFT JOIN tableWithCompositePk T ON A.a1 = T.pk1")
+  }
 }

@@ -19,6 +19,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -68,9 +69,12 @@ interface TaskManagerResourceInfoProvider {
     Optional<TaskManagerSlotInformation> getAllocatedOrPendingSlot(AllocationID allocationId);
 
     /**
-     * Get the current {@link ClusterResourceOverview}.
+     * Get all pending task managers with given total and default slot profile.
      *
-     * @return the current {@link ClusterResourceOverview}
+     * @param totalResourceProfile of the pending task manager
+     * @param defaultSlotResourceProfile of the pending task manager
+     * @return Collection of all matching pending task managers
      */
-    ClusterResourceOverview getClusterResourceOverview();
+    Collection<PendingTaskManager> getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+            ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile);
 }

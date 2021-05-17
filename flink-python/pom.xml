@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -284,7 +284,9 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
+								<delete dir="${project.basedir}/apache-flink-libraries/build"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
+								<delete dir="${project.basedir}/apache-flink-libraries/apache_flink_libraries.egg-info"/>
 							</target>
 						</configuration>
 					</execution>
@@ -346,7 +348,6 @@ under the License.
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
-										<exclude>META-INF/maven/org.antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
 									</excludes>
@@ -355,6 +356,7 @@ under the License.
 									<artifact>org.apache.beam:beam-vendor-grpc-1_26_0</artifact>
 									<excludes>
 										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/jboss/**</exclude>
+										<exclude>schema/**</exclude>
 										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/eclipse/jetty/**</exclude>
 									</excludes>
 								</filter>
@@ -436,85 +438,48 @@ under the License.
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
+				<artifactId>maven-antrun-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>testUDF1</id>
+						<id>build-test-jars</id>
+						<phase>package</phase>
 						<goals>
-							<goal>test-jar</goal>
+							<goal>run</goal>
 						</goals>
 						<configuration>
-							<includes>
-								<include>**/TestScalarFunction1.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/func1
-							</outputDirectory>
+							<target>
+								<jar destfile="${project.build.directory}/artifacts/testUdf1.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction1.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testUdf2.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction2.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testJavaDdl.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/PythonFunctionFactoryTest.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testDataStream.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/dummy.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestJob.class">
+									<manifest>
+										<attribute name="Main-Class" value="org.apache.flink.client.cli.TestJob" />
+									</manifest>
+								</jar>
+							</target>
 						</configuration>
 					</execution>
-					<execution>
-						<id>testUDF2</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/TestScalarFunction2.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/func2
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>testJavaDDL</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/PythonFunctionFactoryTest.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/javaDDL
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>data-stream-test</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<includes>
-								<include>**/DataStreamTestCollectSink.class</include>
-								<include>**/MyCustomSourceFunction.class</include>
-								<include>**/PartitionCustomTestMapFunction.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/data-stream-test
-							</outputDirectory>
-						</configuration>
-					</execution>
-					<execution>
-						<id>dummy-job-jar</id>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>org.apache.flink.client.cli.TestJob</mainClass>
-								</manifest>
-							</archive>
-							<includes>
-								<include>**/TestJob.class</include>
-							</includes>
-							<outputDirectory>
-								${project.build.directory}/dummy-job-jar
-							</outputDirectory>
-						</configuration>
-					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
 					<execution>
 						<id>test-jar</id>
 						<goals>

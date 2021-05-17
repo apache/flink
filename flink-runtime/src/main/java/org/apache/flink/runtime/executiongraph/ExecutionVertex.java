@@ -29,11 +29,10 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -62,7 +61,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class ExecutionVertex
         implements AccessExecutionVertex, Archiveable<ArchivedExecutionVertex> {
 
-    private static final Logger LOG = ExecutionGraph.LOG;
+    private static final Logger LOG = DefaultExecutionGraph.LOG;
 
     public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
@@ -71,8 +70,6 @@ public class ExecutionVertex
     private final ExecutionJobVertex jobVertex;
 
     private final Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
-
-    private final ExecutionEdge[][] inputEdges;
 
     private final int subTaskIndex;
 
@@ -100,6 +97,7 @@ public class ExecutionVertex
      *     Execution with.
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
      *     to keep.
+     * @param initialAttemptCount The attempt number of the first execution of this vertex.
      */
     @VisibleForTesting
     public ExecutionVertex(
@@ -108,7 +106,8 @@ public class ExecutionVertex
             IntermediateResult[] producedDataSets,
             Time timeout,
             long createTimestamp,
-            int maxPriorExecutionHistoryLength) {
+            int maxPriorExecutionHistoryLength,
+            int initialAttemptCount) {
 
         this.jobVertex = jobVertex;
         this.subTaskIndex = subTaskIndex;
@@ -124,21 +123,27 @@ public class ExecutionVertex
 
         for (IntermediateResult result : producedDataSets) {
             IntermediateResultPartition irp =
-                    new IntermediateResultPartition(result, this, subTaskIndex);
+                    new IntermediateResultPartition(
+                            result,
+                            this,
+                            subTaskIndex,
+                            getExecutionGraphAccessor().getEdgeManager());
             result.setPartition(subTaskIndex, irp);
 
             resultPartitions.put(irp.getPartitionId(), irp);
         }
 
-        this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
-
         this.priorExecutions = new EvictingBoundedList<>(maxPriorExecutionHistoryLength);
 
         this.currentExecution =
                 new Execution(
-                        getExecutionGraph().getFutureExecutor(), this, 0, createTimestamp, timeout);
+                        getExecutionGraphAccessor().getFutureExecutor(),
+                        this,
+                        initialAttemptCount,
+                        createTimestamp,
+                        timeout);
 
-        getExecutionGraph().registerExecution(currentExecution);
+        getExecutionGraphAccessor().registerExecution(currentExecution);
 
         this.timeout = timeout;
         this.inputSplits = new ArrayList<>();
@@ -199,19 +204,26 @@ public class ExecutionVertex
     }
 
     public int getNumberOfInputs() {
-        return this.inputEdges.length;
+        return getAllConsumedPartitionGroups().size();
     }
 
-    public ExecutionEdge[] getInputEdges(int input) {
-        if (input < 0 || input >= inputEdges.length) {
+    public List<ConsumedPartitionGroup> getAllConsumedPartitionGroups() {
+        return getExecutionGraphAccessor()
+                .getEdgeManager()
+                .getConsumedPartitionGroupsForVertex(executionVertexId);
+    }
+
+    public ConsumedPartitionGroup getConsumedPartitionGroup(int input) {
+        final List<ConsumedPartitionGroup> allConsumedPartitions = getAllConsumedPartitionGroups();
+
+        if (input < 0 || input >= allConsumedPartitions.size()) {
             throw new IllegalArgumentException(
-                    String.format("Input %d is out of range [0..%d)", input, inputEdges.length));
+                    String.format(
+                            "Input %d is out of range [0..%d)",
+                            input, allConsumedPartitions.size()));
         }
-        return inputEdges[input];
-    }
 
-    public ExecutionEdge[][] getAllInputEdges() {
-        return inputEdges;
+        return allConsumedPartitions.get(input);
     }
 
     public InputSplit getNextInputSplit(String host) {
@@ -306,7 +318,7 @@ public class ExecutionVertex
         }
     }
 
-    public ExecutionGraph getExecutionGraph() {
+    public final InternalExecutionGraphAccessor getExecutionGraphAccessor() {
         return this.jobVertex.getGraph();
     }
 
@@ -318,107 +330,11 @@ public class ExecutionVertex
     //  Graph building
     // --------------------------------------------------------------------------------------------
 
-    public void connectSource(
-            int inputNumber, IntermediateResult source, JobEdge edge, int consumerNumber) {
+    public void addConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitions) {
 
-        final DistributionPattern pattern = edge.getDistributionPattern();
-        final IntermediateResultPartition[] sourcePartitions = source.getPartitions();
-
-        ExecutionEdge[] edges;
-
-        switch (pattern) {
-            case POINTWISE:
-                edges = connectPointwise(sourcePartitions, inputNumber);
-                break;
-
-            case ALL_TO_ALL:
-                edges = connectAllToAll(sourcePartitions, inputNumber);
-                break;
-
-            default:
-                throw new RuntimeException("Unrecognized distribution pattern.");
-        }
-
-        inputEdges[inputNumber] = edges;
-
-        // add the consumers to the source
-        // for now (until the receiver initiated handshake is in place), we need to register the
-        // edges as the execution graph
-        for (ExecutionEdge ee : edges) {
-            ee.getSource().addConsumer(ee, consumerNumber);
-        }
-    }
-
-    private ExecutionEdge[] connectAllToAll(
-            IntermediateResultPartition[] sourcePartitions, int inputNumber) {
-        ExecutionEdge[] edges = new ExecutionEdge[sourcePartitions.length];
-
-        for (int i = 0; i < sourcePartitions.length; i++) {
-            IntermediateResultPartition irp = sourcePartitions[i];
-            edges[i] = new ExecutionEdge(irp, this, inputNumber);
-        }
-
-        return edges;
-    }
-
-    private ExecutionEdge[] connectPointwise(
-            IntermediateResultPartition[] sourcePartitions, int inputNumber) {
-        final int numSources = sourcePartitions.length;
-        final int parallelism = getTotalNumberOfParallelSubtasks();
-
-        // simple case same number of sources as targets
-        if (numSources == parallelism) {
-            return new ExecutionEdge[] {
-                new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber)
-            };
-        } else if (numSources < parallelism) {
-
-            int sourcePartition;
-
-            // check if the pattern is regular or irregular
-            // we use int arithmetics for regular, and floating point with rounding for irregular
-            if (parallelism % numSources == 0) {
-                // same number of targets per source
-                int factor = parallelism / numSources;
-                sourcePartition = subTaskIndex / factor;
-            } else {
-                // different number of targets per source
-                float factor = ((float) parallelism) / numSources;
-                sourcePartition = (int) (subTaskIndex / factor);
-            }
-
-            return new ExecutionEdge[] {
-                new ExecutionEdge(sourcePartitions[sourcePartition], this, inputNumber)
-            };
-        } else {
-            if (numSources % parallelism == 0) {
-                // same number of targets per source
-                int factor = numSources / parallelism;
-                int startIndex = subTaskIndex * factor;
-
-                ExecutionEdge[] edges = new ExecutionEdge[factor];
-                for (int i = 0; i < factor; i++) {
-                    edges[i] =
-                            new ExecutionEdge(sourcePartitions[startIndex + i], this, inputNumber);
-                }
-                return edges;
-            } else {
-                float factor = ((float) numSources) / parallelism;
-
-                int start = (int) (subTaskIndex * factor);
-                int end =
-                        (subTaskIndex == getTotalNumberOfParallelSubtasks() - 1)
-                                ? sourcePartitions.length
-                                : (int) ((subTaskIndex + 1) * factor);
-
-                ExecutionEdge[] edges = new ExecutionEdge[end - start];
-                for (int i = 0; i < edges.length; i++) {
-                    edges[i] = new ExecutionEdge(sourcePartitions[start + i], this, inputNumber);
-                }
-
-                return edges;
-            }
-        }
+        getExecutionGraphAccessor()
+                .getEdgeManager()
+                .connectVertexWithConsumedPartitionGroup(executionVertexId, consumedPartitions);
     }
 
     /**
@@ -452,7 +368,7 @@ public class ExecutionVertex
                 // failures and vertex resets
                 // do not release pipelined partitions here to save RPC calls
                 oldExecution.handlePartitionCleanup(false, true);
-                getExecutionGraph()
+                getExecutionGraphAccessor()
                         .getPartitionReleaseStrategy()
                         .vertexUnfinished(executionVertexId);
             }
@@ -461,7 +377,7 @@ public class ExecutionVertex
 
             final Execution newExecution =
                     new Execution(
-                            getExecutionGraph().getFutureExecutor(),
+                            getExecutionGraphAccessor().getFutureExecutor(),
                             this,
                             oldExecution.getAttemptNumber() + 1,
                             timestamp,
@@ -478,12 +394,12 @@ public class ExecutionVertex
             }
 
             // register this execution at the execution graph, to receive call backs
-            getExecutionGraph().registerExecution(newExecution);
+            getExecutionGraphAccessor().registerExecution(newExecution);
 
             // if the execution was 'FINISHED' before, tell the ExecutionGraph that
             // we take one step back on the road to reaching global FINISHED
             if (oldState == FINISHED) {
-                getExecutionGraph().vertexUnFinished();
+                getExecutionGraphAccessor().vertexUnFinished();
             }
 
             // reset the intermediate results
@@ -600,7 +516,7 @@ public class ExecutionVertex
     // --------------------------------------------------------------------------------------------
 
     void executionFinished(Execution execution) {
-        getExecutionGraph().vertexFinished();
+        getExecutionGraphAccessor().vertexFinished();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -611,7 +527,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph()
+            getExecutionGraphAccessor()
                     .getExecutionDeploymentListener()
                     .onStartedDeployment(
                             execution.getAttemptId(),
@@ -623,7 +539,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph()
+            getExecutionGraphAccessor()
                     .getExecutionDeploymentListener()
                     .onCompletedDeployment(execution.getAttemptId());
         }
@@ -634,7 +550,7 @@ public class ExecutionVertex
         // only forward this notification if the execution is still the current execution
         // otherwise we have an outdated execution
         if (isCurrentExecution(execution)) {
-            getExecutionGraph().notifyExecutionChange(execution, newState);
+            getExecutionGraphAccessor().notifyExecutionChange(execution, newState);
         }
     }
 

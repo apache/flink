@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -25,17 +29,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** {@link PartitionSpec} describes how data is partitioned in Rank. */
 public class PartitionSpec {
 
+    public static final String FIELD_NAME_FIELDS = "fields";
+
     /** PartitionSpec makes all data in one partition. */
     public static final PartitionSpec ALL_IN_ONE = new PartitionSpec(new int[0]);
 
     /** 0-based index of field used in partitioning. */
+    @JsonProperty(FIELD_NAME_FIELDS)
     private final int[] fields;
 
-    public PartitionSpec(int[] fields) {
+    @JsonCreator
+    public PartitionSpec(@JsonProperty(FIELD_NAME_FIELDS) int[] fields) {
         this.fields = checkNotNull(fields);
     }
 
     /** Gets field index of all fields in input. */
+    @JsonIgnore
     public int[] getFieldIndices() {
         return fields;
     }

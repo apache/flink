@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -293,6 +294,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                         initTestingSchedulingResultPartitionBuilder()
                                 .withIntermediateDataSetID(intermediateDataSetId)
                                 .withResultPartitionState(resultPartitionState)
+                                .withPartitionNum(idx)
                                 .build();
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
@@ -323,21 +325,51 @@ public class TestingSchedulingTopology implements SchedulingTopology {
             final List<TestingSchedulingResultPartition> resultPartitions = new ArrayList<>();
             final IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 
+            ConsumerVertexGroup consumerVertexGroup =
+                    ConsumerVertexGroup.fromMultipleVertices(
+                            consumers.stream()
+                                    .map(TestingSchedulingExecutionVertex::getId)
+                                    .collect(Collectors.toList()));
+
+            Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById =
+                    consumers.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            TestingSchedulingExecutionVertex::getId,
+                                            Function.identity()));
+
+            TestingSchedulingResultPartition.Builder resultPartitionBuilder =
+                    initTestingSchedulingResultPartitionBuilder()
+                            .withIntermediateDataSetID(intermediateDataSetId)
+                            .withResultPartitionState(resultPartitionState);
+
+            int partitionNum = 0;
+
             for (TestingSchedulingExecutionVertex producer : producers) {
 
                 final TestingSchedulingResultPartition resultPartition =
-                        initTestingSchedulingResultPartitionBuilder()
-                                .withIntermediateDataSetID(intermediateDataSetId)
-                                .withResultPartitionState(resultPartitionState)
-                                .build();
+                        resultPartitionBuilder.withPartitionNum(partitionNum++).build();
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
 
-                for (TestingSchedulingExecutionVertex consumer : consumers) {
-                    consumer.addConsumedPartition(resultPartition);
-                    resultPartition.addConsumer(consumer);
-                }
+                resultPartition.addConsumerGroup(consumerVertexGroup, consumerVertexById);
                 resultPartitions.add(resultPartition);
+            }
+
+            ConsumedPartitionGroup consumedPartitionGroup =
+                    ConsumedPartitionGroup.fromMultiplePartitions(
+                            resultPartitions.stream()
+                                    .map(TestingSchedulingResultPartition::getId)
+                                    .collect(Collectors.toList()));
+            Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                    consumedPartitionById =
+                            resultPartitions.stream()
+                                    .collect(
+                                            Collectors.toMap(
+                                                    TestingSchedulingResultPartition::getId,
+                                                    Function.identity()));
+            for (TestingSchedulingExecutionVertex consumer : consumers) {
+                consumer.addConsumedPartitionGroup(consumedPartitionGroup, consumedPartitionById);
             }
 
             return resultPartitions;

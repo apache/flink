@@ -77,7 +77,7 @@ public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
 
         JavaFunc5.openCalled = false;
         JavaFunc5.closeCalled = false;
-        util.addFunction("myFunc", new JavaFunc5());
+        util.addTemporarySystemFunction("myFunc", new JavaFunc5());
         String ddl3 =
                 "CREATE TABLE UdfTable("
                         + "  a INT,\n"

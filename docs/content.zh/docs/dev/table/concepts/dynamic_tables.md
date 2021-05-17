@@ -75,9 +75,7 @@ DataStream 上的关系查询
 
 下图显示了流、动态表和连续查询之间的关系:
 
-<center>
-<img alt="Dynamic tables" src="{% link /fig/table-streaming/stream-query-stream.png %}" width="80%">
-</center>
+{{< img alt="Dynamic tables" src="/fig/table-streaming/stream-query-stream.png" width="80%">}}
 
 1. 将流转换为动态表。
 2. 在动态表上计算一个连续查询，生成一个新的动态表。
@@ -102,9 +100,7 @@ DataStream 上的关系查询
 
 下图显示了单击事件流(左侧)如何转换为表(右侧)。当插入更多的单击流记录时，结果表将不断增长。
 
-<center>
-<img alt="Append mode" src="{% link /fig/table-streaming/append-mode.png %}" width="60%">
-</center>
+{{< img alt="Append mode" src="/fig/table-streaming/append-mode.png" width="60%">}}
 
 **注意：** 在流上定义的表在内部没有物化。
 
@@ -117,17 +113,13 @@ DataStream 上的关系查询
 
 第一个查询是一个简单的 `GROUP-BY COUNT` 聚合查询。它基于 `user` 字段对 `clicks` 表进行分组，并统计访问的 URL 的数量。下面的图显示了当 `clicks` 表被附加的行更新时，查询是如何被评估的。
 
-<center>
-<img alt="Continuous Non-Windowed Query" src="/fig/table-streaming/query-groupBy-cnt.png" width="90%">
-</center>
+{{< img alt="Continuous Non-Windowed Query" src="/fig/table-streaming/query-groupBy-cnt.png" width="90%">}}
 
 当查询开始，`clicks` 表(左侧)是空的。当第一行数据被插入到 `clicks` 表时，查询开始计算结果表。第一行数据 `[Mary,./home]` 插入后，结果表(右侧，上部)由一行 `[Mary, 1]` 组成。当第二行 `[Bob, ./cart]` 插入到 `clicks` 表时，查询会更新结果表并插入了一行新数据 `[Bob, 1]`。第三行 `[Mary, ./prod?id=1]` 将产生已计算的结果行的更新，`[Mary, 1]` 更新成 `[Mary, 2]`。最后，当第四行数据加入 `clicks` 表时，查询将第三行 `[Liz, 1]` 插入到结果表中。
 
 第二条查询与第一条类似，但是除了用户属性之外，还将 `clicks` 分组至[每小时滚动窗口]({{< ref "docs/dev/table/sql/overview" >}}#group-windows)中，然后计算 url 数量(基于时间的计算，例如基于特定[时间属性](time_attributes.html)的窗口，后面会讨论)。同样，该图显示了不同时间点的输入和输出，以可视化动态表的变化特性。
 
-<center>
-<img alt="Continuous Group-Window Query" src="/fig/table-streaming/query-groupBy-window-cnt.png" width="100%">
-</center>
+{{< img alt="Continuous Group-Window Query" src="/fig/table-streaming/query-groupBy-window-cnt.png" width="100%">}}
 
 与前面一样，左边显示了输入表 `clicks`。查询每小时持续计算结果并更新结果表。clicks表包含四行带有时间戳(`cTime`)的数据，时间戳在 `12:00:00` 和 `12:59:59` 之间。查询从这个输入计算出两个结果行(每个 `user` 一个)，并将它们附加到结果表中。对于 `13:00:00` 和 `13:59:59` 之间的下一个窗口，`clicks` 表包含三行，这将导致另外两行被追加到结果表。随着时间的推移，更多的行被添加到 `click` 中，结果表将被更新。
 

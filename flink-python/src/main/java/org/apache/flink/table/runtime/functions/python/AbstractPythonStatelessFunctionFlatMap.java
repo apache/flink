@@ -298,7 +298,8 @@ public abstract class AbstractPythonStatelessFunctionFlatMap extends RichFlatMap
                 jobOptions,
                 getFlinkMetricContainer(),
                 null,
-                0.0);
+                0.0,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
     }
 
     private Map<String, String> buildJobOptions(Configuration config) {

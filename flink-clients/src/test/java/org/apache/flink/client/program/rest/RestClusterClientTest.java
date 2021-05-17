@@ -35,6 +35,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -181,7 +182,7 @@ public class RestClusterClientTest extends TestLogger {
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory(RestClusterClientTest.class.getSimpleName()));
 
-        jobGraph = new JobGraph("testjob");
+        jobGraph = JobGraphTestUtils.emptyJobGraph();
         jobId = jobGraph.getJobID();
     }
 
@@ -947,10 +948,10 @@ public class RestClusterClientTest extends TestLogger {
                 throws RestHandlerException {
             JobDetails running =
                     new JobDetails(
-                            new JobID(), "job1", 0, 0, 0, JobStatus.RUNNING, 0, new int[9], 0);
+                            new JobID(), "job1", 0, 0, 0, JobStatus.RUNNING, 0, new int[10], 0);
             JobDetails finished =
                     new JobDetails(
-                            new JobID(), "job2", 0, 0, 0, JobStatus.FINISHED, 0, new int[9], 0);
+                            new JobID(), "job2", 0, 0, 0, JobStatus.FINISHED, 0, new int[10], 0);
             return CompletableFuture.completedFuture(
                     new MultipleJobsDetails(Arrays.asList(running, finished)));
         }

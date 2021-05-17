@@ -45,7 +45,7 @@ need, there are two different APIs that can be used in PyFlink:
 
 If you’re interested in playing around with Flink, try one of our tutorials:
 
-* [Intro to PyFlink DataStream API]({{ ref "docs/dev/python/datastream_tutorial" >}})
+* [Intro to PyFlink DataStream API]({{< ref "docs/dev/python/datastream_tutorial" >}})
 * [Intro to PyFlink Table API]({{< ref "docs/dev/python/table_api_tutorial" >}})
 
 <--->
@@ -54,8 +54,8 @@ If you’re interested in playing around with Flink, try one of our tutorials:
 
 The reference documentation covers all the details. Some starting points:
 
-* [PyFlink DataStream API]({{< ref "docs/dev/python/table/table_environment" >}})
-* [PyFlink Table API &amp; SQL]({{< ref "docs/dev/python/datastream/operators" >}})
+* [PyFlink DataStream API]({{< ref "docs/dev/python/datastream/intro_to_datastream_api" >}})
+* [PyFlink Table API &amp; SQL]({{< ref "docs/dev/python/table/intro_to_table_api" >}})
 
 {{< /columns >}}
 

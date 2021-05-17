@@ -20,21 +20,14 @@ package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -48,25 +41,22 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_DATA_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.PHYSICAL_TYPE;
+import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link CsvFormatFactory}. */
 public class CsvFormatFactoryTest extends TestLogger {
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    private static final TableSchema SCHEMA =
-            TableSchema.builder()
-                    .field("a", DataTypes.STRING())
-                    .field("b", DataTypes.INT())
-                    .field("c", DataTypes.BOOLEAN())
-                    .build();
-
-    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
-
     @Test
     public void testSeDeSchema() {
         final CsvRowDataDeserializationSchema expectedDeser =
-                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                new CsvRowDataDeserializationSchema.Builder(
+                                PHYSICAL_TYPE, InternalTypeInfo.of(PHYSICAL_TYPE))
                         .setFieldDelimiter(';')
                         .setQuoteCharacter('\'')
                         .setAllowComments(true)
@@ -80,7 +70,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         assertEquals(expectedDeser, actualDeser);
 
         final CsvRowDataSerializationSchema expectedSer =
-                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
                         .setFieldDelimiter(';')
                         .setQuoteCharacter('\'')
                         .setArrayElementDelimiter("|")
@@ -101,7 +91,8 @@ public class CsvFormatFactoryTest extends TestLogger {
                         });
 
         final CsvRowDataDeserializationSchema expectedDeser =
-                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                new CsvRowDataDeserializationSchema.Builder(
+                                PHYSICAL_TYPE, InternalTypeInfo.of(PHYSICAL_TYPE))
                         .setFieldDelimiter(';')
                         .setAllowComments(true)
                         .setIgnoreParseErrors(true)
@@ -115,7 +106,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         assertEquals(expectedDeser, actualDeser);
 
         final CsvRowDataSerializationSchema expectedSer =
-                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
                         .setFieldDelimiter(';')
                         .setArrayElementDelimiter("|")
                         .setEscapeCharacter('\\')
@@ -138,7 +129,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.disable-quote-character", "true"));
 
-        createTableSink(options);
+        createTableSink(SCHEMA, options);
     }
 
     @Test
@@ -152,13 +143,13 @@ public class CsvFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
 
-        createTableSink(options);
+        createTableSink(SCHEMA, options);
     }
 
     @Test
     public void testEscapedFieldDelimiter() throws IOException {
         final CsvRowDataSerializationSchema expectedSer =
-                new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
+                new CsvRowDataSerializationSchema.Builder(PHYSICAL_TYPE)
                         .setFieldDelimiter('\t')
                         .setQuoteCharacter('\'')
                         .setArrayElementDelimiter("|")
@@ -166,7 +157,8 @@ public class CsvFormatFactoryTest extends TestLogger {
                         .setNullLiteral("n/a")
                         .build();
         final CsvRowDataDeserializationSchema expectedDeser =
-                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                new CsvRowDataDeserializationSchema.Builder(
+                                PHYSICAL_TYPE, InternalTypeInfo.of(PHYSICAL_TYPE))
                         .setFieldDelimiter('\t')
                         .setQuoteCharacter('\'')
                         .setAllowComments(true)
@@ -207,14 +199,14 @@ public class CsvFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.field-delimiter", "\t"));
 
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         DeserializationSchema<RowData> deserializationSchema =
                 sourceMock.valueFormat.createRuntimeDecoder(
-                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                        ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
         RowData expected = GenericRowData.of(fromString("abc"), 123, false);
         RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
         assertEquals(expected, actual);
@@ -232,7 +224,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         final Map<String, String> options =
                 getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
 
-        createTableSink(options);
+        createTableSink(SCHEMA, options);
     }
 
     // ------------------------------------------------------------------------
@@ -270,42 +262,22 @@ public class CsvFormatFactoryTest extends TestLogger {
 
     private static DeserializationSchema<RowData> createDeserializationSchema(
             Map<String, String> options) {
-        final DynamicTableSource actualSource = createTableSource(options);
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
         TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
         return sourceMock.valueFormat.createRuntimeDecoder(
-                ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+                ScanRuntimeProviderContext.INSTANCE, PHYSICAL_DATA_TYPE);
     }
 
     private static SerializationSchema<RowData> createSerializationSchema(
             Map<String, String> options) {
-        final DynamicTableSink actualSink = createTableSink(options);
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
         assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-        return sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
-    }
-
-    private static DynamicTableSource createTableSource(Map<String, String> options) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock source"),
-                new Configuration(),
-                CsvFormatFactoryTest.class.getClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createTableSink(Map<String, String> options) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("default", "default", "t1"),
-                new CatalogTableImpl(SCHEMA, options, "mock sink"),
-                new Configuration(),
-                CsvFormatFactoryTest.class.getClassLoader(),
-                false);
+        return sinkMock.valueFormat.createRuntimeEncoder(null, PHYSICAL_DATA_TYPE);
     }
 }

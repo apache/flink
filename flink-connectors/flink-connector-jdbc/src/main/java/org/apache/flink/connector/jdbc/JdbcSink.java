@@ -30,7 +30,6 @@ import org.apache.flink.util.function.SerializableSupplier;
 
 import javax.sql.XADataSource;
 
-import java.util.Optional;
 import java.util.function.Function;
 
 /** Facade to create JDBC {@link SinkFunction sinks}. */
@@ -96,7 +95,6 @@ public class JdbcSink {
      * @param <T> type of data in {@link
      *     org.apache.flink.streaming.runtime.streamrecord.StreamRecord StreamRecord}.
      * @param executionOptions parameters of execution, such as batch size and maximum retries
-     * @param connectionOptions parameters of connection, such as JDBC URL
      * @param exactlyOnceOptions exactly-once options
      * @param dataSourceSupplier supplies the {@link XADataSource}
      */
@@ -104,15 +102,13 @@ public class JdbcSink {
             String sql,
             JdbcStatementBuilder<T> statementBuilder,
             JdbcExecutionOptions executionOptions,
-            JdbcConnectionOptions connectionOptions,
             JdbcExactlyOnceOptions exactlyOnceOptions,
             SerializableSupplier<XADataSource> dataSourceSupplier) {
         return new JdbcXaSinkFunction<>(
                 sql,
                 statementBuilder,
                 XaFacade.fromXaDataSourceSupplier(
-                        dataSourceSupplier,
-                        Optional.ofNullable(exactlyOnceOptions.getTimeoutSec())),
+                        dataSourceSupplier, exactlyOnceOptions.getTimeoutSec()),
                 executionOptions,
                 exactlyOnceOptions);
     }

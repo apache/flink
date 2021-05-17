@@ -28,10 +28,8 @@ import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.reflections.Reflections
-import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 
-import java.lang.reflect.{Method, Modifier}
+import java.lang.reflect.Method
 import java.util
 
 import scala.collection.JavaConversions._

@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -85,7 +88,10 @@ public class LogicalTypeSerdeTest {
     public void testLogicalTypeSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new Configuration(), Thread.currentThread().getContextClassLoader());
+                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        Thread.currentThread().getContextClassLoader(),
+                        FlinkTypeFactory.INSTANCE(),
+                        FlinkSqlOperatorTable.instance());
         ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
         SimpleModule module = new SimpleModule();
 
@@ -100,6 +106,7 @@ public class LogicalTypeSerdeTest {
         String json = writer.toString();
         LogicalType actual = mapper.readValue(json, LogicalType.class);
         assertEquals(logicalType, actual);
+        assertEquals(logicalType.asSummaryString(), actual.asSummaryString());
     }
 
     @Parameterized.Parameters(name = "{0}")
@@ -115,12 +122,16 @@ public class LogicalTypeSerdeTest {
                         new DoubleType(),
                         new DecimalType(10),
                         new DecimalType(15, 5),
+                        CharType.ofEmptyLiteral(),
                         new CharType(),
                         new CharType(5),
+                        VarCharType.ofEmptyLiteral(),
                         new VarCharType(),
                         new VarCharType(5),
+                        BinaryType.ofEmptyLiteral(),
                         new BinaryType(),
                         new BinaryType(100),
+                        VarBinaryType.ofEmptyLiteral(),
                         new VarBinaryType(),
                         new VarBinaryType(100),
                         new DateType(),
@@ -128,8 +139,15 @@ public class LogicalTypeSerdeTest {
                         new TimeType(3),
                         new TimestampType(),
                         new TimestampType(3),
-                        new TimestampType(false, TimestampKind.PROCTIME, 3),
+                        new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new TimestampType(false, TimestampKind.ROWTIME, 3),
+                        new ZonedTimestampType(),
+                        new ZonedTimestampType(3),
+                        new ZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                        new LocalZonedTimestampType(),
+                        new LocalZonedTimestampType(3),
+                        new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                        new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3),
                         new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR),
                         new DayTimeIntervalType(
                                 false, DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR, 3, 6),
@@ -138,7 +156,6 @@ public class LogicalTypeSerdeTest {
                         new YearMonthIntervalType(
                                 false, YearMonthIntervalType.YearMonthResolution.MONTH, 2),
                         new ZonedTimestampType(),
-                        new ZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new LocalZonedTimestampType(),
                         new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
                         new SymbolType<>(TimeIntervalUnit.class),
@@ -146,14 +163,47 @@ public class LogicalTypeSerdeTest {
                         new TypeInformationRawType<>(Types.STRING),
                         new LegacyTypeInformationType<>(LogicalTypeRoot.RAW, Types.STRING),
                         new ArrayType(new IntType(false)),
+                        new ArrayType(new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new ArrayType(new ZonedTimestampType(false, TimestampKind.ROWTIME, 3)),
+                        new ArrayType(new TimestampType()),
+                        new ArrayType(CharType.ofEmptyLiteral()),
+                        new ArrayType(VarCharType.ofEmptyLiteral()),
+                        new ArrayType(BinaryType.ofEmptyLiteral()),
+                        new ArrayType(VarBinaryType.ofEmptyLiteral()),
                         new MapType(new BigIntType(), new IntType(false)),
+                        new MapType(
+                                new TimestampType(false, TimestampKind.ROWTIME, 3),
+                                new ZonedTimestampType()),
+                        new MapType(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
+                        new MapType(VarCharType.ofEmptyLiteral(), VarCharType.ofEmptyLiteral()),
+                        new MapType(BinaryType.ofEmptyLiteral(), BinaryType.ofEmptyLiteral()),
+                        new MapType(VarBinaryType.ofEmptyLiteral(), VarBinaryType.ofEmptyLiteral()),
                         new MultisetType(new IntType(false)),
+                        new MultisetType(new TimestampType()),
+                        new MultisetType(new TimestampType(true, TimestampKind.ROWTIME, 3)),
+                        new MultisetType(CharType.ofEmptyLiteral()),
+                        new MultisetType(VarCharType.ofEmptyLiteral()),
+                        new MultisetType(BinaryType.ofEmptyLiteral()),
+                        new MultisetType(VarBinaryType.ofEmptyLiteral()),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {
                                     new BigIntType(), new IntType(false), new VarCharType(200)
                                 },
                                 new String[] {"f1", "f2", "f3"}),
+                        RowType.of(
+                                new TimestampType(false, TimestampKind.ROWTIME, 3),
+                                new TimestampType(false, TimestampKind.REGULAR, 3),
+                                new ZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                                new ZonedTimestampType(false, TimestampKind.REGULAR, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.ROWTIME, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3),
+                                new LocalZonedTimestampType(false, TimestampKind.REGULAR, 3)),
+                        RowType.of(
+                                CharType.ofEmptyLiteral(),
+                                VarCharType.ofEmptyLiteral(),
+                                BinaryType.ofEmptyLiteral(),
+                                VarBinaryType.ofEmptyLiteral()),
                         StructuredType.newBuilder(
                                         ObjectIdentifier.of("cat", "db", "structuredType"),
                                         PojoClass.class)

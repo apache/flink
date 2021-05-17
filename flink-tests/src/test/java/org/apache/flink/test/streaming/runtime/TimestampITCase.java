@@ -50,7 +50,6 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -58,13 +57,13 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.test.checkpointing.SavepointITCase.waitUntilAllTasksAreRunning;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -161,7 +160,6 @@ public class TimestampITCase extends TestLogger {
     }
 
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21333
     public void testWatermarkPropagationNoFinalWatermarkOnStop() throws Exception {
 
         // for this test to work, we need to be sure that no other jobs are being executed
@@ -204,6 +202,7 @@ public class TimestampITCase extends TestLogger {
 
                             JobID id = running.get(0);
 
+                            waitUntilAllTasksAreRunning(CLUSTER.getRestAddres(), id);
                             // send stop until the job is stopped
                             do {
                                 try {
@@ -896,10 +895,7 @@ public class TimestampITCase extends TestLogger {
     private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
         Collection<JobStatusMessage> statusMessages = client.listJobs().get();
         return statusMessages.stream()
-                .filter(
-                        status ->
-                                !status.getJobState().isGloballyTerminalState()
-                                        && status.getJobState() != JobStatus.INITIALIZING)
+                .filter(status -> status.getJobState() == JobStatus.RUNNING)
                 .map(JobStatusMessage::getJobId)
                 .collect(Collectors.toList());
     }

@@ -67,13 +67,14 @@ import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import com.sun.istack.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -221,6 +222,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 0,
                 lateReportedMetrics,
                 statsTracker.createSnapshot().getHistory().getCheckpointById(checkpointId));
+    }
+
+    private boolean hasNoSubState(OperatorState s) {
+        return s.getNumberCollectedStates() == 0;
     }
 
     private void assertStatsEqual(
@@ -1061,7 +1066,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     checkpointCoordinator.getSuccessfulCheckpoints().get(0);
             assertEquals(graph.getJobID(), successNew.getJobId());
             assertEquals(checkpointIdNew, successNew.getCheckpointID());
-            assertTrue(successNew.getOperatorStates().isEmpty());
+            assertEquals(2, successNew.getOperatorStates().size());
+            assertTrue(
+                    successNew.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             // validate that the relevant tasks got a confirmation message
             for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
@@ -1228,12 +1235,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
             CompletedCheckpoint sc1 = scs.get(0);
             assertEquals(checkpointId1, sc1.getCheckpointID());
             assertEquals(graph.getJobID(), sc1.getJobId());
-            assertTrue(sc1.getOperatorStates().isEmpty());
+            assertEquals(3, sc1.getOperatorStates().size());
+            assertTrue(sc1.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             CompletedCheckpoint sc2 = scs.get(1);
             assertEquals(checkpointId2, sc2.getCheckpointID());
             assertEquals(graph.getJobID(), sc2.getJobId());
-            assertTrue(sc2.getOperatorStates().isEmpty());
+            assertEquals(3, sc2.getOperatorStates().size());
+            assertTrue(sc2.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
 
             checkpointCoordinator.shutdown();
         } catch (Exception e) {
@@ -1946,7 +1955,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CompletedCheckpoint successNew = checkpointCoordinator.getSuccessfulCheckpoints().get(0);
         assertEquals(graph.getJobID(), successNew.getJobId());
         assertEquals(checkpointIdNew, successNew.getCheckpointID());
-        assertTrue(successNew.getOperatorStates().isEmpty());
+        assertEquals(2, successNew.getOperatorStates().size());
+        assertTrue(successNew.getOperatorStates().values().stream().allMatch(this::hasNoSubState));
         assertNotNull(savepointFuture.get());
 
         // validate that the first savepoint does not discard its private states.
@@ -3351,6 +3361,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
+    public void testResetCalledInRegionRecovery() throws Exception {
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
+
+        TestResetHook hook = new TestResetHook("id");
+
+        checkpointCoordinator.addMasterHook(hook);
+        assertFalse(hook.resetCalled);
+        checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(Collections.emptySet());
+        assertTrue(hook.resetCalled);
+    }
+
+    @Test
     public void testNotifyCheckpointAbortionInOperatorCoordinator() throws Exception {
         JobVertexID jobVertexID = new JobVertexID();
         ExecutionGraph graph =
@@ -3590,6 +3615,44 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         public int getInvokeCounter() {
             return invokeCounter;
+        }
+    }
+
+    private static class TestResetHook implements MasterTriggerRestoreHook<String> {
+
+        private final String id;
+        boolean resetCalled;
+
+        TestResetHook(String id) {
+            this.id = id;
+            this.resetCalled = false;
+        }
+
+        @Override
+        public String getIdentifier() {
+            return id;
+        }
+
+        @Override
+        public void reset() throws Exception {
+            resetCalled = true;
+        }
+
+        @Override
+        public CompletableFuture<String> triggerCheckpoint(
+                long checkpointId, long timestamp, Executor executor) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void restoreCheckpoint(long checkpointId, @Nullable String checkpointData)
+                throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
+            throw new UnsupportedOperationException();
         }
     }
 }

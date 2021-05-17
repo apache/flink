@@ -1,5 +1,5 @@
 ---
-title: Table API用户指南
+title: Table API
 bookCollapseSection: true
 weight: 24
 ---

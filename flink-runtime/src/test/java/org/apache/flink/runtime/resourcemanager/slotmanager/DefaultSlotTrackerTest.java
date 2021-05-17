@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 
@@ -241,11 +242,13 @@ public class DefaultSlotTrackerTest extends TestLogger {
         // move slot2 to PENDING
         tracker.notifyAllocationStart(slotId2, jobId);
 
-        tracker.notifySlotStatus(
+        final List<SlotStatus> slotReport =
                 Arrays.asList(
                         new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
                         new SlotStatus(slotId2, ResourceProfile.ANY, null, new AllocationID()),
-                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID())));
+                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+
+        assertThat(tracker.notifySlotStatus(slotReport), is(true));
 
         // slot1 should now be allocated; slot2 should continue to be in a pending state; slot3
         // should be freed
@@ -253,6 +256,40 @@ public class DefaultSlotTrackerTest extends TestLogger {
 
         // if slot2 is not in a pending state, this will fail with an exception
         tracker.notifyAllocationComplete(slotId2, jobId);
+
+        final List<SlotStatus> idempotentSlotReport =
+                Arrays.asList(
+                        new SlotStatus(slotId1, ResourceProfile.ANY, jobId, new AllocationID()),
+                        new SlotStatus(slotId2, ResourceProfile.ANY, jobId, new AllocationID()),
+                        new SlotStatus(slotId3, ResourceProfile.ANY, null, new AllocationID()));
+
+        assertThat(tracker.notifySlotStatus(idempotentSlotReport), is(false));
+    }
+
+    @Test
+    public void testGetTaskExecutorsWithAllocatedSlotsForJob() {
+        final SlotTracker tracker = new DefaultSlotTracker();
+
+        final JobID jobId = new JobID();
+        final SlotID slotId = new SlotID(TASK_EXECUTOR_CONNECTION.getResourceID(), 0);
+
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+
+        tracker.addSlot(slotId, ResourceProfile.ANY, TASK_EXECUTOR_CONNECTION, null);
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
+
+        tracker.notifyAllocationStart(slotId, jobId);
+        assertThat(
+                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
+                contains(TASK_EXECUTOR_CONNECTION));
+
+        tracker.notifyAllocationComplete(slotId, jobId);
+        assertThat(
+                tracker.getTaskExecutorsWithAllocatedSlotsForJob(jobId),
+                contains(TASK_EXECUTOR_CONNECTION));
+
+        tracker.notifyFree(slotId);
+        assertThat(tracker.getTaskExecutorsWithAllocatedSlotsForJob(new JobID()), empty());
     }
 
     private static class SlotStateTransition {

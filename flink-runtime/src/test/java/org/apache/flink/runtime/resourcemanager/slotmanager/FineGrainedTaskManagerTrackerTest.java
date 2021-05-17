@@ -97,6 +97,12 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                         pendingTaskManager.getPendingTaskManagerId(),
                         Collections.singletonMap(jobId, resourceCounter)));
         assertThat(taskManagerTracker.getPendingTaskManagers().size(), is(1));
+        assertThat(
+                taskManagerTracker
+                        .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                                ResourceProfile.ANY, ResourceProfile.ANY)
+                        .size(),
+                is(1));
 
         // Remove pending task manager
         final Map<JobID, ResourceCounter> records =
@@ -107,6 +113,12 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                 taskManagerTracker
                         .getPendingAllocationsOfPendingTaskManager(
                                 pendingTaskManager.getPendingTaskManagerId())
+                        .size(),
+                is(0));
+        assertThat(
+                taskManagerTracker
+                        .getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                                ResourceProfile.ANY, ResourceProfile.ANY)
                         .size(),
                 is(0));
         assertTrue(records.containsKey(jobId));
@@ -285,7 +297,7 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
     }
 
     @Test
-    public void testGetStatusOverview() {
+    public void testGetStatistics() {
         final FineGrainedTaskManagerTracker taskManagerTracker =
                 new FineGrainedTaskManagerTracker();
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
@@ -307,14 +319,14 @@ public class FineGrainedTaskManagerTrackerTest extends TestLogger {
                 TASK_EXECUTOR_CONNECTION.getInstanceID(),
                 defaultSlotResource,
                 SlotState.ALLOCATED);
-        final ClusterResourceOverview clusterResourceOverview =
-                taskManagerTracker.getClusterResourceOverview();
+        taskManagerTracker.addPendingTaskManager(
+                new PendingTaskManager(ResourceProfile.fromResources(4, 200), 1));
 
+        assertThat(taskManagerTracker.getFreeResource(), is(ResourceProfile.fromResources(6, 700)));
+        assertThat(taskManagerTracker.getRegisteredResource(), is(totalResource));
+        assertThat(taskManagerTracker.getNumberRegisteredSlots(), is(10));
+        assertThat(taskManagerTracker.getNumberFreeSlots(), is(8));
         assertThat(
-                clusterResourceOverview.getFreeResource(),
-                is(ResourceProfile.fromResources(6, 700)));
-        assertThat(clusterResourceOverview.getRegisteredResource(), is(totalResource));
-        assertThat(clusterResourceOverview.getNumberRegisteredSlots(), is(10));
-        assertThat(clusterResourceOverview.getNumberFreeSlots(), is(8));
+                taskManagerTracker.getPendingResource(), is(ResourceProfile.fromResources(4, 200)));
     }
 }

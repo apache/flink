@@ -50,6 +50,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -104,6 +105,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -527,6 +529,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 throw new RuntimeException(
                         "Hadoop security with Kerberos is enabled but the login user "
                                 + "does not have Kerberos credentials or delegation tokens!");
+            }
+
+            final boolean fetchToken =
+                    flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+            final boolean yarnAccessFSEnabled =
+                    !CollectionUtil.isNullOrEmpty(
+                            flinkConfiguration.get(YarnConfigOptions.YARN_ACCESS));
+            if (!fetchToken && yarnAccessFSEnabled) {
+                throw new IllegalConfigurationException(
+                        String.format(
+                                "When %s is disabled, %s must be disabled as well.",
+                                SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN.key(),
+                                YarnConfigOptions.YARN_ACCESS.key()));
             }
         }
 

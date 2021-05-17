@@ -49,7 +49,7 @@ public class JavaUserDefinedScalarFunctions {
 
     /** Concatenate inputs as strings. */
     public static class JavaFunc1 extends ScalarFunction {
-        public String eval(Integer a, int b, TimestampData c) {
+        public String eval(Integer a, int b, @DataTypeHint("TIMESTAMP(3)") TimestampData c) {
             Long ts = (c == null) ? null : c.getMillisecond();
             return a + " and " + b + " and " + ts;
         }
@@ -304,6 +304,19 @@ public class JavaUserDefinedScalarFunctions {
     /** Test for Pandas Python Scalar Function. */
     public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
         public BooleanPandasScalarFunction(String name) {
+            super(name);
+        }
+
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return PythonFunctionKind.PANDAS;
+        }
+    }
+
+    /** Test for Pandas Python Scalar Function. */
+    public static class RowPandasScalarFunction extends RowPythonScalarFunction {
+
+        public RowPandasScalarFunction(String name) {
             super(name);
         }
 

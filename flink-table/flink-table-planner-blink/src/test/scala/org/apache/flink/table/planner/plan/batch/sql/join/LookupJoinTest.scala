@@ -29,6 +29,7 @@ import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assume, Before, Test}
+
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.{Collection => JCollection}
 
@@ -291,7 +292,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |ON true
         |WHERE T.c > 1000
       """.stripMargin
-    testUtil.verifyExecPlan(sql)
+    testUtil.verifyExplain(sql)
   }
 
   @Test

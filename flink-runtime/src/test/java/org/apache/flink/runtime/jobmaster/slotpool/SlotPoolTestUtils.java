@@ -38,7 +38,7 @@ public final class SlotPoolTestUtils {
         throw new UnsupportedOperationException("This class should never be instantiated.");
     }
 
-    static TaskManagerGateway createTaskManagerGateway(
+    public static TaskManagerGateway createTaskManagerGateway(
             @Nullable TaskExecutorGateway taskExecutorGateway) {
         return new RpcTaskManagerGateway(
                 taskExecutorGateway == null
@@ -50,7 +50,15 @@ public final class SlotPoolTestUtils {
     @Nonnull
     public static Collection<SlotOffer> offerSlots(
             DeclarativeSlotPool slotPool, Collection<? extends SlotOffer> slotOffers) {
+        return offerSlots(slotPool, slotOffers, createTaskManagerGateway(null));
+    }
+
+    @Nonnull
+    public static Collection<SlotOffer> offerSlots(
+            DeclarativeSlotPool slotPool,
+            Collection<? extends SlotOffer> slotOffers,
+            TaskManagerGateway taskManagerGateway) {
         return slotPool.offerSlots(
-                slotOffers, new LocalTaskManagerLocation(), createTaskManagerGateway(null), 0);
+                slotOffers, new LocalTaskManagerLocation(), taskManagerGateway, 0);
     }
 }

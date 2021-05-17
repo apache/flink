@@ -21,9 +21,11 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
@@ -120,6 +122,27 @@ public class TaskExecutorProcessUtils {
                 TaskManagerOptions.JVM_OVERHEAD_MAX.key(),
                 taskExecutorProcessSpec.getJvmMetaspaceAndOverhead().getOverhead().getBytes()
                         + "b");
+        configs.put(
+                TaskManagerOptions.NUM_TASK_SLOTS.key(),
+                String.valueOf(taskExecutorProcessSpec.getNumSlots()));
+        if (!taskExecutorProcessSpec.getExtendedResources().isEmpty()) {
+            configs.put(
+                    ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
+                    String.join(";", taskExecutorProcessSpec.getExtendedResources().keySet()));
+            taskExecutorProcessSpec
+                    .getExtendedResources()
+                    .forEach(
+                            (resourceName, resource) ->
+                                    configs.put(
+                                            ExternalResourceOptions
+                                                    .getAmountConfigOptionForResource(resourceName),
+                                            String.valueOf(resource.getValue().longValue())));
+        } else {
+            configs.put(
+                    ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
+                    ExternalResourceOptions.NONE);
+        }
+
         return assembleDynamicConfigsStr(configs);
     }
 
@@ -163,7 +186,11 @@ public class TaskExecutorProcessUtils {
                         config, flinkMemory.getTotalFlinkMemorySize());
 
         return new TaskExecutorProcessSpec(
-                workerResourceSpec.getCpuCores(), flinkMemory, jvmMetaspaceAndOverhead);
+                workerResourceSpec.getCpuCores(),
+                flinkMemory,
+                jvmMetaspaceAndOverhead,
+                workerResourceSpec.getNumSlots(),
+                workerResourceSpec.getExtendedResources().values());
     }
 
     private static TaskExecutorProcessSpec createMemoryProcessSpec(
@@ -173,11 +200,19 @@ public class TaskExecutorProcessUtils {
         JvmMetaspaceAndOverhead jvmMetaspaceAndOverhead =
                 processMemory.getJvmMetaspaceAndOverhead();
         return new TaskExecutorProcessSpec(
-                getCpuCores(config), flinkMemory, jvmMetaspaceAndOverhead);
+                getCpuCores(config),
+                flinkMemory,
+                jvmMetaspaceAndOverhead,
+                getNumSlots(config),
+                ExternalResourceUtils.getExternalResourcesCollection(config));
     }
 
     private static CPUResource getCpuCores(final Configuration config) {
         return getCpuCoresWithFallback(config, -1.0);
+    }
+
+    private static int getNumSlots(final Configuration config) {
+        return config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
     }
 
     public static double getCpuCoresWithFallbackConfigOption(

@@ -36,16 +36,10 @@ public class KafkaSourceOptions {
     public static final ConfigOption<Long> PARTITION_DISCOVERY_INTERVAL_MS =
             ConfigOptions.key("partition.discovery.interval.ms")
                     .longType()
-                    .defaultValue(30000L)
+                    .noDefaultValue()
                     .withDescription(
                             "The interval in milliseconds for the Kafka source to discover "
                                     + "the new partitions. A non-positive value disables the partition discovery.");
-
-    public static final ConfigOption<Long> CLOSE_TIMEOUT_MS =
-            ConfigOptions.key("close.timeout.ms")
-                    .longType()
-                    .defaultValue(10000L)
-                    .withDescription("The max time to wait when closing components.");
 
     @SuppressWarnings("unchecked")
     public static <T> T getOption(

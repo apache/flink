@@ -688,5 +688,22 @@ class RankTest extends TableTestBase {
     util.verifyExecPlan(query)
   }
 
+  @Test
+  def testRankWithAnotherRankAsInput(): Unit = {
+    val sql =
+      """
+        |SELECT CAST(rna AS INT) AS rn1, CAST(rnb AS INT) AS rn2 FROM (
+        |  SELECT *, row_number() over (partition by a order by b desc) AS rnb
+        |  FROM (
+        |    SELECT *, row_number() over (partition by a, c order by b desc) AS rna
+        |    FROM MyTable
+        |  )
+        |  WHERE rna <= 100
+        |)
+        |WHERE rnb <= 200
+        |""".stripMargin
+    util.verifyExecPlan(sql)
+  }
+
   // TODO add tests about multi-sinks and udf
 }

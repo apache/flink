@@ -151,13 +151,13 @@ $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 
 This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
 
-#### Cancel Job with Savepoint
+#### Stopping a Job with Savepoint
 
 ```shell
-$ bin/flink cancel -s [:targetDirectory] :jobId
+$ bin/flink stop --savepointPath [:targetDirectory] :jobId
 ```
 
-This will atomically trigger a savepoint for the job with ID `:jobid` and cancel the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
+This will atomically trigger a savepoint for the job with ID `:jobid` and stop the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
 
 ### Resuming from Savepoints
 

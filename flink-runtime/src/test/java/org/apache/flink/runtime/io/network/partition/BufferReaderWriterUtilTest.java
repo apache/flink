@@ -175,6 +175,21 @@ public class BufferReaderWriterUtilTest {
         }
     }
 
+    @Test
+    public void testBulkWritingLargeNumberOfBuffers() throws Exception {
+        int bufferSize = 1024;
+        int numBuffers = 1025;
+        try (FileChannel fileChannel = tmpFileChannel()) {
+            ByteBuffer[] data = new ByteBuffer[numBuffers];
+            for (int i = 0; i < numBuffers; ++i) {
+                data[i] = ByteBuffer.allocateDirect(bufferSize);
+            }
+            int bytesExpected = bufferSize * numBuffers;
+            BufferReaderWriterUtil.writeBuffers(fileChannel, bytesExpected, data);
+            assertEquals(bytesExpected, fileChannel.size());
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  Mixed
     // ------------------------------------------------------------------------

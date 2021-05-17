@@ -261,7 +261,6 @@ public class CheckpointStorageLoaderTest {
         final Path expectedSavepointsPath = new Path(savepointDir);
         final MemorySize threshold = MemorySize.parse("900kb");
         final int minWriteBufferSize = 1024;
-        final boolean async = !CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue();
 
         // we configure with the explicit string (rather than
         // AbstractStateBackend#X_STATE_BACKEND_NAME)
@@ -272,7 +271,6 @@ public class CheckpointStorageLoaderTest {
         config1.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
         config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
         config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
-        config1.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
         CheckpointStorage storage1 = CheckpointStorageLoader.fromConfig(config1, cl, null).get();
 

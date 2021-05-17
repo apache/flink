@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner
 
 import org.apache.flink.annotation.VisibleForTesting
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -32,6 +35,7 @@ import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, 
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
+import org.apache.flink.table.parse.CalciteParser
 import org.apache.flink.table.plan.StreamOptimizer
 import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
@@ -115,7 +119,7 @@ class StreamPlanner(
     val planner = createDummyPlanner()
     tableOperations.asScala.map { operation =>
       val (ast, updatesAsRetraction) = translateToRel(operation)
-      val optimizedPlan = optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+      val optimizedPlan = optimize(ast, updatesAsRetraction)
       val dataStream = translateToCRow(planner, optimizedPlan)
       dataStream.getTransformation.asInstanceOf[Transformation[_]]
     }.filter(Objects.nonNull).asJava
@@ -147,7 +151,7 @@ class StreamPlanner(
 
     val optimizedNodes = astWithUpdatesAsRetractionTuples.map {
       case (ast, updatesAsRetraction) =>
-        optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+        optimize(ast, updatesAsRetraction)
     }
 
     val planner = createDummyPlanner()
@@ -182,21 +186,14 @@ class StreamPlanner(
     }
   }
 
-  override def getCompletionHints(
-      statement: String,
-      position: Int)
-    : Array[String] = {
-    val planner = getFlinkPlanner
-    planner.getCompletionHints(statement, position)
-  }
-
   private def translateToRel(modifyOperation: ModifyOperation): (RelNode, Boolean) = {
     modifyOperation match {
       case s: UnregisteredSinkModifyOperation[_] =>
         writeToSink(s.getChild, s.getSink, "UnregisteredSink")
 
-      case s: SelectSinkOperation =>
-        val sink = new StreamSelectTableSink(s.getChild.getTableSchema)
+      case s: CollectModifyOperation =>
+        val sink = new StreamSelectTableSink(
+          TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema))
         s.setSelectResultProvider(sink.getSelectResultProvider)
         writeToSink(s.getChild, sink, "collect")
 
@@ -241,7 +238,7 @@ class StreamPlanner(
         }
 
         val tableSink = new DataStreamTableSink(
-          outputConversion.getChild.getTableSchema,
+          TableSchema.fromResolvedSchema(outputConversion.getChild.getResolvedSchema),
           TypeConversions.fromDataTypeToLegacyInfo(outputConversion.getType),
           withChangeFlag)
         val input = getRelBuilder.tableOperation(modifyOperation.getChild).build()
@@ -365,5 +362,22 @@ class StreamPlanner(
   override def translateJsonPlan(jsonPlan: String): util.List[Transformation[_]] = {
     throw new TableException(
       "This method is not supported for legacy planner, please use Blink planner.")
+  }
+
+  private def optimize(ast: RelNode, updatesAsRetraction: Boolean): RelNode = {
+    // different planner in different mode differs in optimization
+    val configuration = config.getConfiguration
+    if (!configuration.get(ExecutionOptions.RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING) ||
+      !configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.OLD)) {
+      throw new IllegalArgumentException(
+        String.format("Mismatch between configured planner and actual planner. " +
+          "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+          "when instantiating the table environment. Subsequent changes are not supported. " +
+          "Please instantiate a new TableEnvironment if necessary."
+        )
+      )
+    }
+
+    optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
   }
 }

@@ -99,9 +99,9 @@ public class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
 
         private final DataType dataType;
 
-        private int length = -1;
+        private final List<T> instances = new ArrayList<>();
 
-        private List<T> instances = new ArrayList<>();
+        private int length = -1;
 
         private TestSpec(DataType dataType) {
             this.dataType = dataType;

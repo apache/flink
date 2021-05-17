@@ -60,6 +60,12 @@ class SpecifiedOffsetsInitializer implements OffsetsInitializer {
             }
         }
         if (!toLookup.isEmpty()) {
+            // First check the committed offsets.
+            Map<TopicPartition, Long> committedOffsets =
+                    partitionOffsetsRetriever.committedOffsets(toLookup);
+            offsets.putAll(committedOffsets);
+            toLookup.removeAll(committedOffsets.keySet());
+
             switch (offsetResetStrategy) {
                 case EARLIEST:
                     offsets.putAll(partitionOffsetsRetriever.beginningOffsets(toLookup));

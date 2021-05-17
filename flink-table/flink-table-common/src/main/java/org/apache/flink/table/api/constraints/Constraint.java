@@ -19,11 +19,15 @@
 package org.apache.flink.table.api.constraints;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 /**
  * Integrity constraints, generally referred to simply as constraints, define the valid states of
  * SQL-data by constraining the values in the base tables.
+ *
+ * @deprecated See {@link ResolvedSchema} and {@link org.apache.flink.table.catalog.Constraint}.
  */
+@Deprecated
 @PublicEvolving
 public interface Constraint {
     String getName();

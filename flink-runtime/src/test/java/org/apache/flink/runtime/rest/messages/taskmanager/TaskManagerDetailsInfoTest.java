@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -38,10 +42,13 @@ public class TaskManagerDetailsInfoTest
 
     @Override
     protected TaskManagerDetailsInfo getTestResponseInstance() throws Exception {
-        final TaskManagerInfo taskManagerInfo = TaskManagerInfoTest.createRandomTaskManagerInfo();
+        final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
+                new TaskManagerInfoWithSlots(
+                        TaskManagerInfoTest.createRandomTaskManagerInfo(),
+                        Collections.singletonList(new SlotInfo(new JobID(), ResourceProfile.ANY)));
         final TaskManagerMetricsInfo taskManagerMetricsInfo = createRandomTaskManagerMetricsInfo();
 
-        return new TaskManagerDetailsInfo(taskManagerInfo, taskManagerMetricsInfo);
+        return new TaskManagerDetailsInfo(taskManagerInfoWithSlots, taskManagerMetricsInfo);
     }
 
     static TaskManagerMetricsInfo createRandomTaskManagerMetricsInfo() {

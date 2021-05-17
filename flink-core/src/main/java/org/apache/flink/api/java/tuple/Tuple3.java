@@ -67,14 +67,14 @@ public class Tuple3<T0, T1, T2> extends Tuple {
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
      */
-    public Tuple3(T0 value0, T1 value1, T2 value2) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
+    public Tuple3(T0 f0, T1 f1, T2 f2) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
     }
 
     @Override
@@ -118,14 +118,14 @@ public class Tuple3<T0, T1, T2> extends Tuple {
     /**
      * Sets new values to all fields of the tuple.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
      */
-    public void setFields(T0 value0, T1 value1, T2 value2) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
+    public void setFields(T0 f0, T1 f1, T2 f2) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -202,7 +202,7 @@ public class Tuple3<T0, T1, T2> extends Tuple {
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <T0, T1, T2> Tuple3<T0, T1, T2> of(T0 value0, T1 value1, T2 value2) {
-        return new Tuple3<>(value0, value1, value2);
+    public static <T0, T1, T2> Tuple3<T0, T1, T2> of(T0 f0, T1 f1, T2 f2) {
+        return new Tuple3<>(f0, f1, f2);
     }
 }

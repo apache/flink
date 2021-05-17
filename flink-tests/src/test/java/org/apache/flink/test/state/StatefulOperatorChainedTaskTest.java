@@ -58,7 +58,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.INCREMENTAL_CHECKPOINTS;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_BACKEND;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.junit.Assert.assertEquals;
 
 /** Test for StatefulOperatorChainedTaskTest. */

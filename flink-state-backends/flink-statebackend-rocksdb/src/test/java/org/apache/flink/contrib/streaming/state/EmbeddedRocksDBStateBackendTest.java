@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -26,8 +27,8 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -487,7 +488,8 @@ public class EmbeddedRocksDBStateBackendTest
 
     @Test
     public void testDisposeDeletesAllDirectories() throws Exception {
-        AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
         Collection<File> allFilesInDbDir =
                 FileUtils.listFilesAndDirs(
                         new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
@@ -521,7 +523,8 @@ public class EmbeddedRocksDBStateBackendTest
     @Test
     public void testSharedIncrementalStateDeRegistration() throws Exception {
         if (enableIncrementalCheckpointing) {
-            AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+            CheckpointableKeyedStateBackend<Integer> backend =
+                    createKeyedBackend(IntSerializer.INSTANCE);
             try {
                 ValueStateDescriptor<String> kvId =
                         new ValueStateDescriptor<>("id", String.class, null);
@@ -570,7 +573,7 @@ public class EmbeddedRocksDBStateBackendTest
                     }
 
                     previousStateHandles.add(stateHandle);
-                    backend.notifyCheckpointComplete(checkpointId);
+                    ((CheckpointListener) backend).notifyCheckpointComplete(checkpointId);
 
                     // -----------------------------------------------------------------
 

@@ -196,6 +196,28 @@ Connector Options
       <td>Integer</td>
       <td>Defines the parallelism of the upsert-kafka sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
+    <tr>
+      <td><h5>sink.buffer-flush.max-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Integer</td>
+      <td>The max size of buffered records before flush.
+       When the sink receives many updates on the same key, the buffer will retain the last record of the same key.
+       This can help to reduce data shuffling and avoid possible tombstone messages to Kafka topic. Can be set to '0' to disable it.
+       By default, this is disabled. Note both <code>'sink.buffer-flush.max-rows'</code> and
+       <code>'sink.buffer-flush.interval'</code> must be set to be greater than zero to enable sink buffer flushing.</td>
+    </tr>
+    <tr>
+      <td><h5>sink.buffer-flush.interval</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Duration</td>
+      <td>The flush interval mills, over this time, asynchronous threads will flush data.
+       When the sink receives many updates on the same key, the buffer will retain the last record of the same key.
+       This can help to reduce data shuffling and avoid possible tombstone messages to Kafka topic. Can be set to '0' to disable it.
+       By default, this is disabled. Note both <code>'sink.buffer-flush.max-rows'</code> and
+       <code>'sink.buffer-flush.interval'</code> must be set to be greater than zero to enable sink buffer flushing.</td>
+    </tr>
     </tbody>
 </table>
 

@@ -28,17 +28,25 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** Base class for all stream operators to execute Python functions. */
 @Internal
@@ -197,6 +205,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // every watermark. So we have implemented 2) below.
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
+            processElementsOfCurrentKeyIfNeeded(null);
             super.processWatermark(mark);
         } else if (isBundleFinished()) {
             // forward the watermark immediately if the bundle is already finished.
@@ -214,6 +223,46 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                                     "Failed to process watermark after finished bundle.", e);
                         }
                     };
+        }
+    }
+
+    @Override
+    public void setCurrentKey(Object key) {
+        processElementsOfCurrentKeyIfNeeded(key);
+        super.setCurrentKey(key);
+    }
+
+    private void processElementsOfCurrentKeyIfNeeded(Object newKey) {
+        // process all the elements belonging to the current key when encountering a new key
+        // for batch operator
+        if (inBatchExecutionMode(getKeyedStateBackend())
+                && !Objects.equals(newKey, getCurrentKey())) {
+            while (!isBundleFinished()) {
+                try {
+                    invokeFinishBundle();
+                    fireAllRegisteredTimers(newKey);
+                } catch (Exception e) {
+                    throw new WrappingRuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private void fireAllRegisteredTimers(Object newKey) throws Exception {
+        Field keySelectionListenersField =
+                BatchExecutionKeyedStateBackend.class.getDeclaredField("keySelectionListeners");
+        keySelectionListenersField.setAccessible(true);
+        List<KeyedStateBackend.KeySelectionListener<Object>> listeners =
+                (List<KeyedStateBackend.KeySelectionListener<Object>>)
+                        keySelectionListenersField.get(getKeyedStateBackend());
+        for (KeyedStateBackend.KeySelectionListener<Object> listener : listeners) {
+            if (listener instanceof BatchExecutionInternalTimeServiceManager) {
+                // fire the registered timers
+                listener.keySelected(newKey);
+
+                // set back the current key
+                listener.keySelected(getCurrentKey());
+            }
         }
     }
 

@@ -454,7 +454,7 @@ public class WindowedStream<T, K, W extends Window> {
     private static <IN, OUT, KEY> TypeInformation<OUT> getWindowFunctionReturnType(
             WindowFunction<IN, OUT, KEY, ?> function, TypeInformation<IN> inType) {
         return TypeExtractor.getUnaryOperatorReturnType(
-                function, WindowFunction.class, 0, 1, new int[] {3, 0}, inType, null, false);
+                function, WindowFunction.class, 0, 1, new int[] {3, 0}, inType, null, true);
     }
 
     private static <IN, OUT, KEY> TypeInformation<OUT> getProcessWindowFunctionReturnType(
@@ -469,7 +469,7 @@ public class WindowedStream<T, K, W extends Window> {
                 TypeExtractor.NO_INDEX,
                 inType,
                 functionName,
-                false);
+                true);
     }
 
     /**

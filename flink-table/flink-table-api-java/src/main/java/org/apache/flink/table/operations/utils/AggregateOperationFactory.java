@@ -27,9 +27,9 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.SessionWithGapOnTimeWithAlias;
 import org.apache.flink.table.api.SlideWithSizeAndSlideOnTimeWithAlias;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.TumbleWithSizeOnTimeWithAlias;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -77,6 +77,7 @@ import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -135,9 +136,8 @@ final class AggregateOperationFactory {
                                                                 p, Arrays.asList(groupNames))))
                         .toArray(String[]::new);
 
-        TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
-
-        return new AggregateQueryOperation(groupings, aggregates, child, tableSchema);
+        return new AggregateQueryOperation(
+                groupings, aggregates, child, ResolvedSchema.physical(fieldNames, fieldTypes));
     }
 
     /**
@@ -184,10 +184,13 @@ final class AggregateOperationFactory {
                                         .map(expr -> extractName(expr).orElseGet(expr::toString)))
                         .toArray(String[]::new);
 
-        TableSchema tableSchema = TableSchema.builder().fields(fieldNames, fieldTypes).build();
-
         return new WindowAggregateQueryOperation(
-                groupings, aggregates, windowProperties, window, child, tableSchema);
+                groupings,
+                aggregates,
+                windowProperties,
+                window,
+                child,
+                ResolvedSchema.physical(fieldNames, fieldTypes));
     }
 
     /**
@@ -311,6 +314,7 @@ final class AggregateOperationFactory {
 
     private void validateBatchTimeAttribute(LogicalType timeFieldType) {
         if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+                || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 || hasRoot(timeFieldType, BIGINT))) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "
@@ -319,7 +323,8 @@ final class AggregateOperationFactory {
     }
 
     private void validateStreamTimeAttribute(LogicalType timeFieldType) {
-        if (!hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+        if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+                        || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE))
                 || !isTimeAttribute(timeFieldType)) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "

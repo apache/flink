@@ -28,7 +28,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ public final class SchedulerUtils {
             Logger log)
             throws JobExecutionException {
         final JobID jobId = jobGraph.getJobID();
-        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
+        if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCompletedCheckpointStore(
                         configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
@@ -96,7 +96,7 @@ public final class SchedulerUtils {
             JobGraph jobGraph, CheckpointRecoveryFactory checkpointRecoveryFactory)
             throws JobExecutionException {
         final JobID jobId = jobGraph.getJobID();
-        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
+        if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCheckpointIdCounter(checkpointRecoveryFactory, jobId);
             } catch (Exception e) {

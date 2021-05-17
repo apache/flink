@@ -308,7 +308,7 @@ public static class OverloadedFunction extends ScalarFunction {
   }
 
   // define a nested data type
-  @DataTypeHint("ROW<s STRING, t TIMESTAMP(3) WITH LOCAL TIME ZONE>")
+  @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
   public Row eval(int i) {
     return Row.of(String.valueOf(i), Instant.ofEpochSecond(i));
   }
@@ -345,7 +345,7 @@ class OverloadedFunction extends ScalarFunction {
   }
 
   // define a nested data type
-  @DataTypeHint("ROW<s STRING, t TIMESTAMP(3) WITH LOCAL TIME ZONE>")
+  @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
   def eval(Int i): Row = {
     Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
   }

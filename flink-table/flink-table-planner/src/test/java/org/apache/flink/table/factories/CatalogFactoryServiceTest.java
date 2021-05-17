@@ -19,22 +19,24 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
-import org.apache.flink.table.factories.utils.TestCatalogFactory;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.factories.utils.TestLegacyCatalogFactory;
 
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.factories.utils.TestCatalogFactory.CATALOG_TYPE_TEST;
+import static org.apache.flink.table.factories.utils.TestLegacyCatalogFactory.CATALOG_TYPE_TEST_LEGACY;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for testing external catalog discovery using {@link TableFactoryService}. The tests assume
  * the catalog factory {@link CatalogFactory} is registered.
+ *
+ * @deprecated These tests are for the legacy factory stack
  */
+@Deprecated
 public class CatalogFactoryServiceTest {
     @Test
     public void testValidProperties() {
@@ -42,25 +44,25 @@ public class CatalogFactoryServiceTest {
 
         assertEquals(
                 TableFactoryService.find(CatalogFactory.class, props).getClass(),
-                TestCatalogFactory.class);
+                TestLegacyCatalogFactory.class);
     }
 
     @Test(expected = NoMatchingTableFactoryException.class)
     public void testInvalidContext() {
         Map<String, String> props = properties();
-        props.put(CATALOG_TYPE, "unknown-catalog-type");
+        props.put(CommonCatalogOptions.CATALOG_TYPE.key(), "unknown-catalog-type");
         TableFactoryService.find(CatalogFactory.class, props);
     }
 
     @Test
     public void testDifferentContextVersion() {
         Map<String, String> props = properties();
-        props.put(CATALOG_PROPERTY_VERSION, "2");
+        props.put(FactoryUtil.PROPERTY_VERSION.key(), "2");
 
         // the catalog should still be found
         assertEquals(
                 TableFactoryService.find(CatalogFactory.class, props).getClass(),
-                TestCatalogFactory.class);
+                TestLegacyCatalogFactory.class);
     }
 
     @Test(expected = NoMatchingTableFactoryException.class)
@@ -73,8 +75,8 @@ public class CatalogFactoryServiceTest {
     private Map<String, String> properties() {
         Map<String, String> properties = new HashMap<>();
 
-        properties.put(CATALOG_TYPE, CATALOG_TYPE_TEST);
-        properties.put(CATALOG_PROPERTY_VERSION, "1");
+        properties.put(CommonCatalogOptions.CATALOG_TYPE.key(), CATALOG_TYPE_TEST_LEGACY);
+        properties.put(FactoryUtil.PROPERTY_VERSION.key(), "1");
         return properties;
     }
 }

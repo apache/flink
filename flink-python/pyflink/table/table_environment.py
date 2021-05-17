@@ -33,7 +33,8 @@ from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Module, Expression, ExplainDetail, TableSink
+from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
+    Module, ModuleEntry, TableSink
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor, \
     ConnectorDescriptor, ConnectTableDescriptor
@@ -47,9 +48,9 @@ from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, D
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     UserDefinedAggregateFunctionWrapper, udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
-from pyflink.util import utils
-from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr
+from pyflink.util import java_utils
+from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
+    to_j_explain_detail_arr, to_jarray
 
 __all__ = [
     'BatchTableEnvironment',
@@ -188,6 +189,18 @@ class TableEnvironment(object):
         .. versionadded:: 1.12.0
         """
         self._j_tenv.unloadModule(module_name)
+
+    def use_modules(self, *module_names: str):
+        """
+        Use an array of :class:`~pyflink.table.Module` with given names.
+        ValidationException is thrown when there is duplicate name or no module with the given name.
+
+        :param module_names: Names of the modules to be used.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_names = to_jarray(get_gateway().jvm.String, module_names)
+        self._j_tenv.useModules(j_module_names)
 
     def create_java_temporary_system_function(self, name: str, function_class_name: str):
         """
@@ -511,7 +524,7 @@ class TableEnvironment(object):
         """
         warnings.warn("Deprecated in 1.10. Use from_path instead.", DeprecationWarning)
         gateway = get_gateway()
-        j_table_paths = utils.to_jarray(gateway.jvm.String, table_path)
+        j_table_paths = java_utils.to_jarray(gateway.jvm.String, table_path)
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table, self)
 
@@ -590,7 +603,7 @@ class TableEnvironment(object):
 
     def list_modules(self) -> List[str]:
         """
-        Gets the names of all modules registered in this environment.
+        Gets the names of all modules used in this environment.
 
         :return: List of module names.
 
@@ -598,6 +611,17 @@ class TableEnvironment(object):
         """
         j_module_name_array = self._j_tenv.listModules()
         return [item for item in j_module_name_array]
+
+    def list_full_modules(self) -> List[ModuleEntry]:
+        """
+        Gets the names and statuses of all modules loaded in this environment.
+
+        :return: List of module names and use statuses.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_entry_array = self._j_tenv.listFullModules()
+        return [ModuleEntry(entry.name(), entry.used()) for entry in j_module_entry_array]
 
     def list_databases(self) -> List[str]:
         """
@@ -1413,7 +1437,7 @@ class TableEnvironment(object):
         serializer = BatchedSerializer(self._serializer)
         try:
             with temp_file:
-                serializer.dump_to_stream(elements, temp_file)
+                serializer.serialize(elements, temp_file)
             row_type_info = _to_java_type(schema)
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
@@ -1506,7 +1530,7 @@ class TableEnvironment(object):
         data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
-                serializer.dump_to_stream(data, temp_file)
+                serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
             data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
@@ -1524,7 +1548,7 @@ class TableEnvironment(object):
 
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
-        j_config = get_j_env_configuration(self)
+        j_config = get_j_env_configuration(self._get_j_env())
         if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
                 and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
@@ -1535,7 +1559,7 @@ class TableEnvironment(object):
         if jar_urls is not None:
             # normalize and remove duplicates
             jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
-            j_configuration = get_j_env_configuration(self)
+            j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
                     jar_urls_set.add(url)
@@ -1773,6 +1797,12 @@ class StreamTableEnvironment(TableEnvironment):
 
 
 class BatchTableEnvironment(TableEnvironment):
+    """
+    .. note:: BatchTableEnvironment will be dropped in Flink 1.14 because it only supports the old
+              planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, which
+              supports both batch and streaming. More advanced operations previously covered by
+              the DataSet API can now use the DataStream API in BATCH execution mode.
+    """
 
     def __init__(self, j_tenv):
         super(BatchTableEnvironment, self).__init__(j_tenv)
@@ -1851,7 +1881,15 @@ class BatchTableEnvironment(TableEnvironment):
                                      selection(flink or blink), optional.
         :return: The BatchTableEnvironment created from given ExecutionEnvironment and
                  configuration.
+
+        .. note:: This part of the API will be dropped in Flink 1.14 because it only supports the
+                  old planner. Use the unified :class:`~pyflink.table.TableEnvironment` instead, it
+                  supports both batch and streaming. For more advanced operations, the new batch
+                  mode of the DataStream API might be useful.
         """
+        warnings.warn(
+            "Deprecated in 1.14. Use the unified TableEnvironment instead.",
+            DeprecationWarning)
         if execution_environment is None and \
                 table_config is None and \
                 environment_settings is None:

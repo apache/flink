@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
-import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -38,15 +37,19 @@ import org.apache.flink.table.planner.calcite.FlinkRexBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.hint.FlinkHintStrategies;
+import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -69,6 +72,8 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -87,6 +92,8 @@ public class PlannerContext {
 
     private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
+    private final SqlExprToRexConverterFactory rexConverterFactory =
+            new DefaultSqlExprToRexConverterFactory();
     private final TableConfig tableConfig;
     private final RelOptCluster cluster;
     private final FlinkContext context;
@@ -104,10 +111,7 @@ public class PlannerContext {
 
         this.context =
                 new FlinkContextImpl(
-                        tableConfig,
-                        functionCatalog,
-                        catalogManager,
-                        this::createSqlExprToRexConverter);
+                        tableConfig, functionCatalog, catalogManager, rexConverterFactory);
 
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
@@ -125,16 +129,11 @@ public class PlannerContext {
         this.cluster = FlinkRelOptClusterFactory.create(planner, new FlinkRexBuilder(typeFactory));
     }
 
-    public SqlExprToRexConverter createSqlExprToRexConverter(RelDataType rowType) {
-        return new SqlExprToRexConverterImpl(
-                checkNotNull(frameworkConfig),
-                checkNotNull(typeFactory),
-                checkNotNull(cluster),
-                checkNotNull(getCalciteSqlDialect()),
-                rowType);
+    public SqlExprToRexConverterFactory getSqlExprToRexConverterFactory() {
+        return rexConverterFactory;
     }
 
-    private FrameworkConfig createFrameworkConfig() {
+    public FrameworkConfig createFrameworkConfig() {
         return Frameworks.newConfigBuilder()
                 .defaultSchema(rootSchema.plus())
                 .parserConfig(getSqlParserConfig())
@@ -152,6 +151,11 @@ public class PlannerContext {
     /** Returns the {@link FlinkTypeFactory} that will be used. */
     public FlinkTypeFactory getTypeFactory() {
         return typeFactory;
+    }
+
+    /** Returns the {@link FlinkContext}. */
+    public FlinkContext getFlinkContext() {
+        return context;
     }
 
     /**
@@ -197,7 +201,7 @@ public class PlannerContext {
         return new CalciteParser(getSqlParserConfig());
     }
 
-    private FlinkCalciteCatalogReader createCatalogReader(
+    public FlinkCalciteCatalogReader createCatalogReader(
             boolean lenientCaseSensitivity, String currentCatalog, String currentDatabase) {
         SqlParser.Config sqlParserConfig = getSqlParserConfig();
         final boolean caseSensitive;
@@ -216,6 +220,10 @@ public class PlannerContext {
                 asList(asList(currentCatalog, currentDatabase), singletonList(currentCatalog)),
                 typeFactory,
                 CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
+    }
+
+    public RelOptCluster getCluster() {
+        return cluster;
     }
 
     private SchemaPlus getRootSchema(SchemaPlus schema) {
@@ -318,5 +326,39 @@ public class PlannerContext {
                         context.getCatalogManager().getDataTypeFactory(),
                         typeFactory),
                 FlinkSqlOperatorTable.instance());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // DefaultSqlExprToRexConverterFactory
+    // --------------------------------------------------------------------------------------------
+
+    private class DefaultSqlExprToRexConverterFactory implements SqlExprToRexConverterFactory {
+
+        @Override
+        public SqlExprToRexConverter create(
+                RelDataType inputRowType, @Nullable RelDataType outputType) {
+            return new SqlExprToRexConverterImpl(
+                    checkNotNull(frameworkConfig),
+                    checkNotNull(typeFactory),
+                    checkNotNull(cluster),
+                    checkNotNull(getCalciteSqlDialect()),
+                    inputRowType,
+                    outputType);
+        }
+
+        @Override
+        public SqlExprToRexConverter create(
+                RowType inputRowType, @Nullable LogicalType outputType) {
+            final RelDataType convertedInputRowType = typeFactory.buildRelNodeRowType(inputRowType);
+
+            final RelDataType convertedOutputType;
+            if (outputType != null) {
+                convertedOutputType = typeFactory.createFieldTypeFromLogicalType(outputType);
+            } else {
+                convertedOutputType = null;
+            }
+
+            return create(convertedInputRowType, convertedOutputType);
+        }
     }
 }

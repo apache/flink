@@ -34,6 +34,8 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.time.ZoneId.SHORT_IDS;
+
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
  * programs.
@@ -75,7 +77,7 @@ public class TableConfig {
     private MathContext decimalContext = MathContext.DECIMAL128;
 
     /** A configuration object to hold all key/value configuration. */
-    private Configuration configuration = new Configuration();
+    private final Configuration configuration = new Configuration();
 
     /** Gives direct access to the underlying key-value map for advanced configuration. */
     public Configuration getConfiguration() {
@@ -113,7 +115,10 @@ public class TableConfig {
      */
     public ZoneId getLocalTimeZone() {
         String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
-        return "default".equals(zone) ? ZoneId.systemDefault() : ZoneId.of(zone);
+        validateTimeZone(zone);
+        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                ? ZoneId.systemDefault()
+                : ZoneId.of(zone);
     }
 
     /**
@@ -164,7 +169,22 @@ public class TableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public void setLocalTimeZone(ZoneId zoneId) {
+        validateTimeZone(zoneId.toString());
         configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
+    }
+
+    /** Validates user configured time zone. */
+    private void validateTimeZone(String zone) {
+        final String zoneId = zone.toUpperCase();
+        if (zoneId.startsWith("UTC+")
+                || zoneId.startsWith("UTC-")
+                || SHORT_IDS.containsKey(zoneId)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
+                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
+                            zone));
+        }
     }
 
     /** Returns the NULL check. If enabled, all fields need to be checked for NULL first. */

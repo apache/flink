@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.Serializable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Delegate class responsible for checkpoints cleaning and counting the number of checkpoints yet to
  * clean.
  */
+@ThreadSafe
 public class CheckpointsCleaner implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointsCleaner.class);
 

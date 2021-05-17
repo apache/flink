@@ -32,13 +32,17 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
 from pyflink.datastream.connectors import FlinkKafkaConsumer
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
-from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
+from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
+    EnvironmentSettings
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
+    invoke_java_object_method
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
@@ -119,6 +123,16 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         parallelism = self.env.get_max_parallelism()
 
         self.assertEqual(parallelism, 12)
+
+    def test_set_runtime_mode(self):
+        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+
+        config = invoke_java_object_method(
+            self.env._j_stream_execution_environment, "getConfiguration")
+        runtime_mode = config.getValue(
+            get_gateway().jvm.org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE)
+
+        self.assertEqual(runtime_mode, "BATCH")
 
     def test_operation_chaining(self):
         self.assertTrue(self.env.is_chaining_enabled())
@@ -325,20 +339,48 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
-        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
+        python_file_path = os.path.join(python_file_dir, "test_dep1.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_two(a):\n    return a + 2")
 
         def plus_two_map(value):
-            from test_stream_dependency_manage_lib import add_two
+            from test_dep1 import add_two
             return add_two(value)
 
+        get_j_env_configuration(self.env._j_stream_execution_environment).\
+            setString("taskmanager.numberOfTaskSlots", "10")
         self.env.add_python_file(python_file_path)
         ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds.map(plus_two_map).add_sink(self.test_sink)
-        self.env.execute("test add python file")
+        ds = ds.map(plus_two_map, Types.LONG()) \
+               .slot_sharing_group("data_stream") \
+               .map(lambda i: i, Types.LONG()) \
+               .slot_sharing_group("table")
+
+        python_file_path = os.path.join(python_file_dir, "test_dep2.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_three(a):\n    return a + 3")
+
+        def plus_three(value):
+            from test_dep2 import add_three
+            return add_three(value)
+
+        t_env = StreamTableEnvironment.create(
+            stream_execution_environment=self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        self.env.add_python_file(python_file_path)
+
+        from pyflink.table.udf import udf
+        from pyflink.table.expressions import col
+        add_three = udf(plus_three, result_type=DataTypes.BIGINT())
+
+        tab = t_env.from_data_stream(ds, 'a') \
+                   .select(add_three(col('a')))
+        t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
+             .map(lambda i: i[0]) \
+             .add_sink(self.test_sink)
+        self.env.execute("test add_python_file")
         result = self.test_sink.get_results(True)
-        expected = ['3', '4', '5', '6', '7']
+        expected = ['6', '7', '8', '9', '10']
         result.sort()
         expected.sort()
         self.assertEqual(expected, result)
@@ -521,7 +563,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                                           type_info=Types.ROW([Types.STRING(),
                                                                                Types.INT()]))
         from_collection_source.name("From Collection")
-        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type_info=Types.INT())
+        keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
         plus_two_map_stream = keyed_stream.map(plus_two_map).name("Plus Two Map").set_parallelism(3)
 
@@ -541,26 +583,25 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         nodes = eval(self.env.get_execution_plan())['nodes']
 
         # The StreamGraph should be as bellow:
-        # Source: From Collection -> _stream_key_by_map_operator -> _keyed_stream_values_operator ->
+        # Source: From Collection -> _stream_key_by_map_operator ->
         # Plus Two Map -> Add From File Map -> Sink: Test Sink.
 
         # Source: From Collection and _stream_key_by_map_operator should have same parallelism.
         self.assertEqual(nodes[0]['parallelism'], nodes[1]['parallelism'])
 
-        # _keyed_stream_values_operator and Plus Two Map should have same parallisim.
-        self.assertEqual(nodes[3]['parallelism'], 3)
-        self.assertEqual(nodes[2]['parallelism'], nodes[3]['parallelism'])
+        # The parallelism of Plus Two Map should be 3
+        self.assertEqual(nodes[2]['parallelism'], 3)
 
-        # The ship_strategy for Source: From Collection and _stream_key_by_map_operator shoule be
+        # The ship_strategy for Source: From Collection and _stream_key_by_map_operator should be
         # FORWARD
         self.assertEqual(nodes[1]['predecessors'][0]['ship_strategy'], "FORWARD")
 
-        # The ship_strategy for _keyed_stream_values_operator and Plus Two Map shoule be
-        # FORWARD
-        self.assertEqual(nodes[3]['predecessors'][0]['ship_strategy'], "FORWARD")
+        # The ship_strategy for _keyed_stream_values_operator and Plus Two Map should be
+        # HASH
+        self.assertEqual(nodes[2]['predecessors'][0]['ship_strategy'], "HASH")
 
         # The parallelism of Sink: Test Sink should be 4
-        self.assertEqual(nodes[5]['parallelism'], 4)
+        self.assertEqual(nodes[4]['parallelism'], 4)
 
         env_config_with_dependencies = dict(get_gateway().jvm.org.apache.flink.python.util
                                             .PythonConfigUtil.getEnvConfigWithDependencies(
@@ -569,18 +610,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
-
-    def test_batch_execution_mode(self):
-        # set the runtime execution mode to BATCH
-        JRuntimeExecutionMode = get_gateway().jvm \
-            .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
-        self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
-        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x) \
-            .add_sink(self.test_sink)
-
-        # Running jobs in Batch mode is not supported yet, it should throw an exception.
-        with self.assertRaises(Exception):
-            self.env.get_execution_plan()
 
     def tearDown(self) -> None:
         self.test_sink.clear()

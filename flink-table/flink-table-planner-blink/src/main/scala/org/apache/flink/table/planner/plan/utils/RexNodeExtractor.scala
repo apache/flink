@@ -21,15 +21,17 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
+import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
-import ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
 
@@ -95,6 +97,28 @@ object RexNodeExtractor extends Logging {
       functionCatalog: FunctionCatalog,
       catalogManager: CatalogManager,
       timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
+    val inputNames = inputFieldNames.asScala.toArray
+    val converter = new RexNodeToExpressionConverter(
+      rexBuilder, inputNames, functionCatalog, catalogManager, timeZone)
+    val (convertibleRexNodes, unconvertedRexNodes) = extractConjunctiveConditions(
+      expr, maxCnfNodeCount, rexBuilder, converter)
+    val convertedExpressions = convertibleRexNodes.map(_.accept(converter).get)
+    (convertedExpressions.toArray, unconvertedRexNodes)
+  }
+
+  /**
+   * Convert rexNode into independent CNF expressions.
+   *
+   * @param expr            The RexNode to analyze
+   * @param rexBuilder      The factory to build CNF expressions
+   * @param converter The function catalog
+   * @return convertible rex nodes and unconverted rex nodes
+   */
+  def extractConjunctiveConditions(
+      expr: RexNode,
+      maxCnfNodeCount: Int,
+      rexBuilder: RexBuilder,
+      converter: RexNodeToExpressionConverter): (Array[RexNode], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
 
@@ -108,18 +132,15 @@ object RexNodeExtractor extends Logging {
     // converts the cnf condition to a list of AND conditions
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
-    val convertedExpressions = new mutable.ArrayBuffer[Expression]
+    val convertibleRexNodes = new mutable.ArrayBuffer[RexNode]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
-    val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(
-      rexBuilder, inputNames, functionCatalog, catalogManager, timeZone)
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
-        case Some(expression) => convertedExpressions += expression
+        case Some(_) => convertibleRexNodes += rex
         case None => unconvertedRexNodes += rex
       }
     })
-    (convertedExpressions.toArray, unconvertedRexNodes.toArray)
+    (convertibleRexNodes.toArray, unconvertedRexNodes.toArray)
   }
 
   @VisibleForTesting
@@ -305,17 +326,23 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
-    def internalVisit(fieldAccess: RexFieldAccess): (Int, List[String]) = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Boolean, Int, List[String]) = {
       fieldAccess.getReferenceExpr match {
         case ref: RexInputRef =>
-          (ref.getIndex, List(fieldAccess.getField.getName))
+          (true, ref.getIndex, List(fieldAccess.getField.getName))
         case fac: RexFieldAccess =>
-          val (i, n) = internalVisit(fac)
-          (i, n :+ fieldAccess.getField.getName)
+          val (success, i, n) = internalVisit(fac)
+          (success, i, if (success) n :+ fieldAccess.getField.getName else null)
+        case expr =>
+          expr.accept(this)
+          (false, -1, null)
       }
     }
 
-    val (index, fullName) = internalVisit(fieldAccess)
+    val (success, index, fullName) = internalVisit(fieldAccess)
+    if (!success) {
+      return
+    }
     val outputIndex = order.getOrElse(index, -1)
     val fields: List[List[String]] = projectedFields(outputIndex)
     projectedFields(outputIndex) = fields :+ fullName
@@ -389,6 +416,16 @@ class RexNodeToExpressionConverter(
         val v = literal.getValueAs(classOf[TimestampString])
         toLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
 
+      case INTERVAL_DAY_TIME =>
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        DayTimeIntervalDurationConverter.INSTANCE.toExternal(v)
+
+      case INTERVAL_YEAR_MONTH =>
+        val v = literal.getValueAs(classOf[java.lang.Integer])
+        YearMonthIntervalPeriodConverter
+          .create(literalType.asInstanceOf[YearMonthIntervalType])
+          .toExternal(v)
+
       case TINYINT =>
         // convert from BigDecimal to Byte
         literal.getValueAs(classOf[java.lang.Byte])
@@ -429,7 +466,12 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
+    val dataType = fromLogicalTypeToDataType(literalType)
+    if (literalValue == null) {
+      Some(valueLiteral(null, dataType.nullable()))
+    } else {
+      Some(valueLiteral(literalValue, dataType.notNull()))
+    }
   }
 
   override def visitCall(oriRexCall: RexCall): Option[ResolvedExpression] = {

@@ -508,6 +508,33 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
     @Test
     public void testHBaseLookupTableSource() {
+        verifyHBaseLookupJoin(false);
+    }
+
+    @Test
+    public void testHBaseAsyncLookupTableSource() {
+        verifyHBaseLookupJoin(true);
+    }
+
+    @Test
+    public void testTableInputFormatOpenClose() throws IOException {
+        HBaseTableSchema tableSchema = new HBaseTableSchema();
+        tableSchema.addColumn(FAMILY1, F1COL1, byte[].class);
+        AbstractTableInputFormat<?> inputFormat;
+        if (isLegacyConnector) {
+            inputFormat = new HBaseRowInputFormat(getConf(), TEST_TABLE_1, tableSchema);
+        } else {
+            inputFormat = new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null");
+        }
+        inputFormat.open(inputFormat.createInputSplits(1)[0]);
+        assertNotNull(inputFormat.getConnection());
+        assertNotNull(inputFormat.getConnection().getTable(TableName.valueOf(TEST_TABLE_1)));
+
+        inputFormat.close();
+        assertNull(inputFormat.getConnection());
+    }
+
+    private void verifyHBaseLookupJoin(boolean async) {
         if (OLD_PLANNER.equals(planner) || isLegacyConnector) {
             // lookup table source is only supported in blink planner, skip for old planner
             // types TIMESTAMP/DATE/TIME/DECIMAL works well in new connector, skip legacy connector
@@ -529,6 +556,9 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                         + " PRIMARY KEY (rowkey) NOT ENFORCED"
                         + ") WITH ("
                         + " 'connector' = 'hbase-2.2',"
+                        + " 'lookup.async' = '"
+                        + async
+                        + "',"
                         + " 'table-name' = '"
                         + TEST_TABLE_1
                         + "',"
@@ -541,7 +571,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         String srcTableName = "src";
         DataStream<Row> srcDs = execEnv.fromCollection(testData).returns(testTypeInfo);
         Table in = tEnv.fromDataStream(srcDs, $("a"), $("b"), $("c"), $("proc").proctime());
-        tEnv.registerTable(srcTableName, in);
+        tEnv.createTemporaryView(srcTableName, in);
 
         // perform a temporal table join query
         String dimJoinQuery =
@@ -579,24 +609,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                 "+I[3, 3, 30, Hello-3, 300, 3.03, false, Welt-3, 2019-08-18T19:02, 2019-08-18, 19:02, 12345678.0003]");
 
         assertEquals(expected, result);
-    }
-
-    @Test
-    public void testTableInputFormatOpenClose() throws IOException {
-        HBaseTableSchema tableSchema = new HBaseTableSchema();
-        tableSchema.addColumn(FAMILY1, F1COL1, byte[].class);
-        AbstractTableInputFormat<?> inputFormat;
-        if (isLegacyConnector) {
-            inputFormat = new HBaseRowInputFormat(getConf(), TEST_TABLE_1, tableSchema);
-        } else {
-            inputFormat = new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null");
-        }
-        inputFormat.open(inputFormat.createInputSplits(1)[0]);
-        assertNotNull(inputFormat.getConnection());
-        assertNotNull(inputFormat.getConnection().getTable(TableName.valueOf(TEST_TABLE_1)));
-
-        inputFormat.close();
-        assertNull(inputFormat.getConnection());
     }
 
     // -------------------------------------------------------------------------------------

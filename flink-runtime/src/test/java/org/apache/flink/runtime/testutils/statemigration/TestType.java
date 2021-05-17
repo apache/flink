@@ -94,6 +94,11 @@ public class TestType
         return 31 * key.hashCode() + value;
     }
 
+    @Override
+    public String toString() {
+        return String.format("TestType(key='%s', value=%d)", key, value);
+    }
+
     /** A serializer that read / writes {@link TestType} in schema version 1. */
     public static class V1TestTypeSerializer extends TestTypeSerializerBase {
         private static final long serialVersionUID = 5053346160938769779L;

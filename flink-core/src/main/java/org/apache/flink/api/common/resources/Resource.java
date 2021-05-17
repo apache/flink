@@ -28,11 +28,17 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Base class for resources one can specify. */
+/**
+ * Base class for resources one can specify. Notice that the scale of value will be limited to
+ * {@link #MAX_VALUE_SCALE} and all the trailing zeros will be stripped for readability.
+ */
 @Internal
-public abstract class Resource implements Serializable {
+public abstract class Resource<T extends Resource<T>>
+        implements Serializable, Comparable<Resource> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final int MAX_VALUE_SCALE = 8;
 
     private final String name;
 
@@ -44,45 +50,48 @@ public abstract class Resource implements Serializable {
 
     protected Resource(String name, BigDecimal value) {
         checkNotNull(value);
+        final BigDecimal valueRoundDown =
+                value.setScale(MAX_VALUE_SCALE, RoundingMode.DOWN).stripTrailingZeros();
         checkArgument(
-                value.compareTo(BigDecimal.ZERO) >= 0, "Resource value must be no less than 0");
+                valueRoundDown.compareTo(BigDecimal.ZERO) >= 0,
+                "Resource value must be no less than 0");
 
         this.name = checkNotNull(name);
-        this.value = value;
+        this.value = valueRoundDown;
     }
 
-    public Resource merge(Resource other) {
+    public T merge(T other) {
         checkNotNull(other, "Cannot merge with null resources");
         checkArgument(getClass() == other.getClass(), "Merge with different resource type");
-        checkArgument(name.equals(other.name), "Merge with different resource name");
+        checkArgument(name.equals(other.getName()), "Merge with different resource name");
 
-        return create(value.add(other.value));
+        return create(value.add(other.getValue()));
     }
 
-    public Resource subtract(Resource other) {
+    public T subtract(T other) {
         checkNotNull(other, "Cannot subtract null resources");
         checkArgument(getClass() == other.getClass(), "Minus with different resource type");
-        checkArgument(name.equals(other.name), "Minus with different resource name");
+        checkArgument(name.equals(other.getName()), "Minus with different resource name");
         checkArgument(
-                value.compareTo(other.value) >= 0,
+                value.compareTo(other.getValue()) >= 0,
                 "Try to subtract a larger resource from this one.");
 
-        return create(value.subtract(other.value));
+        return create(value.subtract(other.getValue()));
     }
 
-    public Resource multiply(BigDecimal multiplier) {
+    public T multiply(BigDecimal multiplier) {
         return create(value.multiply(multiplier));
     }
 
-    public Resource multiply(int multiplier) {
+    public T multiply(int multiplier) {
         return multiply(BigDecimal.valueOf(multiplier));
     }
 
-    public Resource divide(BigDecimal by) {
-        return create(value.divide(by, 16, RoundingMode.DOWN));
+    public T divide(BigDecimal by) {
+        return create(value.divide(by, MAX_VALUE_SCALE, RoundingMode.DOWN));
     }
 
-    public Resource divide(int by) {
+    public T divide(int by) {
         return divide(BigDecimal.valueOf(by));
     }
 
@@ -91,10 +100,11 @@ public abstract class Resource implements Serializable {
         if (this == o) {
             return true;
         } else if (o != null && getClass() == o.getClass()) {
-            Resource other = (Resource) o;
+            @SuppressWarnings("unchecked")
+            T other = (T) o;
 
             // Two Resources are considered equal if the values equals disregarding the scales
-            return name.equals(other.name) && value.compareTo(other.value) == 0;
+            return name.equals(other.getName()) && value.compareTo(other.getValue()) == 0;
         } else {
             return false;
         }
@@ -110,6 +120,12 @@ public abstract class Resource implements Serializable {
     @Override
     public String toString() {
         return String.format("Resource(%s: %s)", name, value);
+    }
+
+    @Override
+    public int compareTo(Resource other) {
+        checkArgument(other != null && getClass() == other.getClass() && name.equals(other.name));
+        return value.compareTo(other.value);
     }
 
     public String getName() {
@@ -130,5 +146,5 @@ public abstract class Resource implements Serializable {
      * @param value The value of the resource
      * @return A new instance of the sub resource
      */
-    protected abstract Resource create(BigDecimal value);
+    protected abstract T create(BigDecimal value);
 }

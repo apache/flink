@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -39,6 +40,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -152,8 +154,8 @@ public class FieldInfoUtils {
             return isRowtimeDefined;
         }
 
-        public TableSchema toTableSchema() {
-            return TableSchema.builder().fields(fieldNames, fieldTypes).build();
+        public ResolvedSchema toResolvedSchema() {
+            return ResolvedSchema.physical(fieldNames, fieldTypes);
         }
     }
 
@@ -754,8 +756,7 @@ public class FieldInfoUtils {
 
     private static boolean isProctimeField(FieldInfo field) {
         DataType type = field.getType();
-        return hasRoot(type.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)
-                && isProctimeAttribute(type.getLogicalType());
+        return isProctimeAttribute(type.getLogicalType());
     }
 
     private static boolean isRowTimeExpression(Expression origExpr) {
@@ -819,8 +820,13 @@ public class FieldInfoUtils {
     }
 
     private static DataType createTimeIndicatorType(TimestampKind kind) {
-        return new AtomicDataType(new TimestampType(true, kind, 3))
-                .bridgedTo(java.sql.Timestamp.class);
+        if (kind == TimestampKind.PROCTIME) {
+            return new AtomicDataType(new LocalZonedTimestampType(true, kind, 3))
+                    .bridgedTo(java.time.Instant.class);
+        } else {
+            return new AtomicDataType(new TimestampType(true, kind, 3))
+                    .bridgedTo(java.sql.Timestamp.class);
+        }
     }
 
     private FieldInfoUtils() {}

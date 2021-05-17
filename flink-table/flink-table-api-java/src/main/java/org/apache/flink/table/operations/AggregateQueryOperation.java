@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
@@ -36,22 +36,22 @@ public class AggregateQueryOperation implements QueryOperation {
     private final List<ResolvedExpression> groupingExpressions;
     private final List<ResolvedExpression> aggregateExpressions;
     private final QueryOperation child;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public AggregateQueryOperation(
             List<ResolvedExpression> groupingExpressions,
             List<ResolvedExpression> aggregateExpressions,
             QueryOperation child,
-            TableSchema tableSchema) {
+            ResolvedSchema resolvedSchema) {
         this.groupingExpressions = groupingExpressions;
         this.aggregateExpressions = aggregateExpressions;
         this.child = child;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

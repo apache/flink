@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 
@@ -202,6 +203,21 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
         @Override
         public DataType getResultType() {
             return DataTypes.TIMESTAMP(type.getPrecision());
+        }
+    }
+
+    /** Built-in TimestampLtz Min aggregate function. */
+    public static class TimestampLtzMinAggFunction extends MinAggFunction {
+
+        private final LocalZonedTimestampType type;
+
+        public TimestampLtzMinAggFunction(LocalZonedTimestampType type) {
+            this.type = type;
+        }
+
+        @Override
+        public DataType getResultType() {
+            return DataTypes.TIMESTAMP_LTZ(type.getPrecision());
         }
     }
 }

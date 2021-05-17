@@ -167,7 +167,13 @@ We have to use `--savepointPath` to specify the savepoint folder if
 If the `--drain` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint 
 barrier. This will make all registered event-time timers fire, thus flushing out any state that 
 is waiting for a specific watermark, e.g. windows. The job will keep running until all sources properly 
-shut down. This allows the job to finish processing all in-flight data.
+shut down. This allows the job to finish processing all in-flight data, which can produce some
+records to process after the savepoint taken while stopping.
+
+{{< hint danger >}}
+Use the `--drain` flag if you want to terminate the job permanently.
+If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
+{{< /hint >}}
 
 #### Cancelling a Job Ungracefully
 
@@ -182,11 +188,11 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 The corresponding job's state will be transitioned from `Running` to `Cancelled`. Any computations 
 will be stopped.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: The <code class="highlighter-rouge">--withSavepoint</code> flag allows creating a 
-    savepoint as part of the job cancellation. This feature is deprecated. Use the 
-    <a href="#stopping-a-job-gracefully-creating-a-final-savepoint">stop</a> action instead.
-</p>
+{{< hint danger >}}
+The `--withSavepoint` flag allows creating a savepoint as part of the job cancellation.
+This feature is deprecated.
+Use the [stop](#stopping-a-job-gracefully-creating-a-final-savepoint) action instead.
+{{< /hint >}}
 
 ### Starting a Job from a Savepoint
 
@@ -346,7 +352,9 @@ pages of the documentation.
 Currently, users are able to submit a PyFlink job via the CLI. It does not require to specify the
 JAR file path or the entry main class, which is different from the Java job submission.
 
-<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
+{{< hint info >}}
+When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.6+.
+{{< /hint >}}
 ```bash
 $ python --version
 # the version printed here must be 3.6+
@@ -413,4 +421,83 @@ $ ./bin/flink run-application \
 To learn more available options, please refer to [Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})
 or [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}) which are described in more detail in the
 Resource Provider section.
+
+Besides `--pyFiles`, `--pyModule` and `--python` mentioned above, there are also some other Python
+related options. Here's an overview of all the Python related options for the actions
+`run` and `run-application` supported by Flink's CLI tool:
+<table class="table table-bordered">
+    <thead>
+        <tr>
+          <th class="text-left" style="width: 25%">Option</th>
+          <th class="text-left" style="width: 50%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code class="highlighter-rouge">-py,--python</code></td>
+            <td>
+                Python script with the program entry. The dependent resources can be configured
+                with the <code class="highlighter-rouge">--pyFiles</code> option.
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pym,--pyModule</code></td>
+            <td>
+                Python module with the program entry point.
+                This option must be used in conjunction with <code class="highlighter-rouge">--pyFiles</code>.
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyfs,--pyFiles</code></td>
+            <td>
+                Attach custom files for job. The standard resource file suffixes such as .py/.egg/.zip/.whl or directory are all supported.
+                These files will be added to the PYTHONPATH of both the local client and the remote python UDF worker.
+                Files suffixed with .zip will be extracted and added to PYTHONPATH.
+                Comma (',') could be used as the separator to specify multiple files
+                (e.g., --pyFiles file:///tmp/myresource.zip,hdfs:///$namenode_address/myresource2.zip).
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyarch,--pyArchives</code></td>
+            <td>
+                Add python archive files for job. The archive files will be extracted to the working directory
+                of python UDF worker. Currently only zip-format is supported. For each archive file, a target directory
+                be specified. If the target directory name is specified, the archive file will be extracted to a
+                directory with the specified name. Otherwise, the archive file will be extracted to a
+                directory with the same name of the archive file. The files uploaded via this option are accessible
+                via relative path. '#' could be used as the separator of the archive file path and the target directory
+                name. Comma (',') could be used as the separator to specify multiple archive files.
+                This option can be used to upload the virtual environment, the data files used in Python UDF
+                (e.g., --pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable
+                py37.zip/py37/bin/python). The data files could be accessed in Python UDF, e.g.:
+                f = open('data/data.txt', 'r').
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyexec,--pyExecutable</code></td>
+            <td>
+                Specify the path of the python interpreter used to execute the python UDF worker
+                (e.g.: --pyExecutable /usr/local/bin/python3).
+                The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0),
+                Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0).
+                Please ensure that the specified environment meets the above requirements.
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyreq,--pyRequirements</code></td>
+            <td>
+                Specify the requirements.txt file which defines the third-party dependencies.
+                These dependencies will be installed and added to the PYTHONPATH of the python UDF worker.
+                A directory which contains the installation packages of these dependencies could be specified
+                optionally. Use '#' as the separator if the optional parameter exists
+                (e.g., --pyRequirements file:///tmp/requirements.txt#file:///tmp/cached_dir).
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+In addition to the command line options during submitting the job, it also supports to specify the
+dependencies via configuration or Python API inside the code. Please refer to the
+[dependency management]({{< ref "docs/dev/python/dependency_management" >}}) for more details.
+
 {{< top >}}

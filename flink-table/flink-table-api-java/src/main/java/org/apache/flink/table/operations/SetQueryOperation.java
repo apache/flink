@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -38,19 +38,19 @@ public class SetQueryOperation implements QueryOperation {
 
     private final SetQueryOperationType type;
     private final boolean all;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public SetQueryOperation(
             QueryOperation leftOperation,
             QueryOperation rightOperation,
             SetQueryOperationType type,
             boolean all,
-            TableSchema tableSchema) {
+            ResolvedSchema resolvedSchema) {
         this.leftOperation = leftOperation;
         this.rightOperation = rightOperation;
         this.type = type;
         this.all = all;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     /**
@@ -70,8 +70,8 @@ public class SetQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.Pod;
 
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** Represent KubernetesPod resource in kubernetes. */
@@ -38,6 +39,17 @@ public class KubernetesPod extends KubernetesResource<Pod> {
         if (getInternalResource().getStatus() != null) {
             return getInternalResource().getStatus().getContainerStatuses().stream()
                     .anyMatch(e -> e.getState() != null && e.getState().getTerminated() != null);
+        }
+        return false;
+    }
+
+    public boolean isScheduled() {
+        if (getInternalResource().getStatus() != null) {
+            return getInternalResource().getStatus().getConditions().stream()
+                    .anyMatch(
+                            e ->
+                                    Objects.equals(e.getType(), "PodScheduled")
+                                            && Objects.equals(e.getStatus(), "True"));
         }
         return false;
     }

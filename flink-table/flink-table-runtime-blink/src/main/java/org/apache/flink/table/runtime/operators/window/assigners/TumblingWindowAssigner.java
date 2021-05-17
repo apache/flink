@@ -27,6 +27,8 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+
 /**
  * A {@link WindowAssigner} that windows elements into fixed-size windows based on the timestamp of
  * the elements. Windows cannot overlap.
@@ -55,7 +57,7 @@ public class TumblingWindowAssigner extends WindowAssigner<TimeWindow>
 
     @Override
     public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
-        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
+        long start = getWindowStartWithOffset(timestamp, offset, size);
         return Collections.singletonList(new TimeWindow(start, start + size));
     }
 
@@ -98,7 +100,7 @@ public class TumblingWindowAssigner extends WindowAssigner<TimeWindow>
      * windows start at 0:15:00,1:15:00,2:15:00,etc.
      *
      * <p>Rather than that,if you are living in somewhere which is not using UTC±00:00 time, such as
-     * China which is using UTC+08:00,and you want a time window with size of one day, and window
+     * China which is using GMT+08:00,and you want a time window with size of one day, and window
      * begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
      * The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than
      * UTC time.

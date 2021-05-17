@@ -27,8 +27,8 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
-import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
@@ -185,14 +185,15 @@ public class ZooKeeperHaServicesTest extends TestLogger {
             final RunningJobsRegistry runningJobsRegistry =
                     zooKeeperHaServices.getRunningJobsRegistry();
 
-            final TestingListener listener = new TestingListener();
+            final LeaderRetrievalUtils.LeaderConnectionInfoListener listener =
+                    new LeaderRetrievalUtils.LeaderConnectionInfoListener();
             resourceManagerLeaderRetriever.start(listener);
             resourceManagerLeaderElectionService.start(
                     new TestingContender("foobar", resourceManagerLeaderElectionService));
             final JobID jobId = new JobID();
             runningJobsRegistry.setJobRunning(jobId);
 
-            listener.waitForNewLeader(2000L);
+            listener.getLeaderConnectionInfoFuture().join();
 
             resourceManagerLeaderRetriever.stop();
             resourceManagerLeaderElectionService.stop();

@@ -18,27 +18,26 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.RowData;
 
 import java.util.Objects;
 
 /**
  * The {@link WindowKey} structure represents a combination of key and window. This is mainly used
- * in the mini-batch window operators where the key is a {@link BinaryRowData} and window is
- * identified by window end timestamp.
+ * in the mini-batch window operators and window is identified by window end timestamp.
  */
 public final class WindowKey {
 
     private long window;
-    private BinaryRowData key;
+    private RowData key;
 
-    public WindowKey(long window, BinaryRowData key) {
+    public WindowKey(long window, RowData key) {
         this.window = window;
         this.key = key;
     }
 
     /** Replace the currently stored key and window by the given new key and new window. */
-    public WindowKey replace(long window, BinaryRowData key) {
+    public WindowKey replace(long window, RowData key) {
         this.window = window;
         this.key = key;
         return this;
@@ -48,7 +47,7 @@ public final class WindowKey {
         return window;
     }
 
-    public BinaryRowData getKey() {
+    public RowData getKey() {
         return key;
     }
 

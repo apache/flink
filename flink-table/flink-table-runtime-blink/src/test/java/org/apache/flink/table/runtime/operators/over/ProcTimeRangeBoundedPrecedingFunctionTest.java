@@ -26,10 +26,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.Test;
 
@@ -53,8 +54,8 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
             };
     private LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
 
-    private BinaryRowDataKeySelector keySelector =
-            new BinaryRowDataKeySelector(new int[] {0}, inputFieldTypes);
+    private RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputFieldTypes);
     private TypeInformation<RowData> keyType = keySelector.getProducedType();
 
     @Test

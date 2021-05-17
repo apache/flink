@@ -70,7 +70,9 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
       Array(1, 1),
       Array(0),
       Array(2, 0, 0, 0),
-      Array(2, 0, 1, 0)
+      Array(2, 0, 1, 0),
+      Array(3, 1, 0),
+      Array(3, 0)
     )
 
     assertArray(actual, expected)
@@ -153,12 +155,18 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
     // $1 = payment ROW<id BIGINT, amount INT>
     // $2 = field ROW<with ROW<deeper ROW<entry ROW<inside ROW<entry VARCHAR>>>,
     //                         deep ROW<entry VARCHAR>>>
+    // $3 = items ROW<outer INT,
+    //                inner ROW<deep_array
+    //                              ROW<MAP<VARCHAR, ROW<val_inner VARCHAR, val_entry VARCHAR>>>
+    //                          ARRAY>>
 
     // new schema:
     // $0 = payment.amount INT
     // $1 = persons ROW<name VARCHAR, age INT, passport ROW<id VARCHAR, status VARCHAR>>
     // $2 = field.with.deep.entry VARCHAR
     // $3 = field.with.deeper.entry ROW<inside ROW<entry VARCHAR>>
+    // $4 = items.outer
+    // $5 = items.inner.deep_array
 
     // mapping
     // $1.amount -> $0
@@ -167,6 +175,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
     // $2.with.deeper.entry.inside.entry -> $3.inside.entry
     // $2.with.deeper.entry -> $3
     // $0 -> $1
+    // $3.inner.deep_array[$3.outer].deep_map['item']
 
     val (exprs, rowType) = buildExprsWithDeepNesting()
     assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
@@ -175,7 +184,8 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
       "$2.with.deep.entry",
       "$2.with.deeper.entry.inside.entry",
       "$2.with.deeper.entry",
-      "$0"
+      "$0",
+      "ITEM(ITEM($3.inner.deep_array, $3.outer).deep_map, _UTF-16LE'item')"
     )))
     val nestedFields = NestedProjectionUtil.build(exprs, rowType)
     val paths = NestedProjectionUtil.convertToIndexArray(nestedFields)
@@ -183,7 +193,9 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
       Array(1, 1),
       Array(0),
       Array(2, 0, 0, 0),
-      Array(2, 0, 1, 0)
+      Array(2, 0, 1, 0),
+      Array(3, 1, 0),
+      Array(3, 0)
     )
     assertArray(paths, orderedPaths)
     val newExprs =
@@ -195,6 +207,7 @@ class NestedProjectionUtilTest extends RexNodeTestBase{
       "$2",
       "$3.inside.entry",
       "$3",
-      "$1")))
+      "$1",
+      "ITEM(ITEM($4, $5).deep_map, _UTF-16LE'item')")))
   }
 }

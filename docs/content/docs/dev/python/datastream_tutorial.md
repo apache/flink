@@ -28,11 +28,9 @@ under the License.
 
 Apache Flink offers a DataStream API for building robust, stateful streaming applications. It provides fine-grained control over state and time, which allows for the implementation of advanced event-driven systems. In this step-by-step guide, you’ll learn how to build a simple streaming application with PyFlink and the DataStream API.
 
-
-
 ## What Will You Be Building? 
 
-In this tutorial, you will learn how to write a simple Python DataStream job.
+In this tutorial, you will learn how to write a simple Python DataStream pipeline.
 The pipeline will read data from a non-empty collection and write the results to the local file system.
 
 ## Prerequisites
@@ -84,7 +82,7 @@ You can now perform transformations on this data stream, or just write the data 
 
 ```python
 ds.add_sink(StreamingFileSink
-    .for_row_format('/tmp/output', SimpleStringEncoder())
+    .for_row_format('/tmp/output', Encoder.simple_string_encoder())
     .build())
 ```
 
@@ -97,7 +95,7 @@ env.execute("tutorial_job")
 The complete code so far:
 
 ```python
-from pyflink.common.serialization import SimpleStringEncoder
+from pyflink.common.serialization import Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import StreamingFileSink
@@ -110,7 +108,7 @@ def tutorial():
         collection=[(1, 'aaa'), (2, 'bbb')],
         type_info=Types.ROW([Types.INT(), Types.STRING()]))
     ds.add_sink(StreamingFileSink
-                .for_row_format('/tmp/output', SimpleStringEncoder())
+                .for_row_format('/tmp/output', Encoder.simple_string_encoder())
                 .build())
     env.execute("tutorial_job")
 
@@ -143,4 +141,4 @@ $ find /tmp/output -type f -exec cat {} \;
 2,bbb
 ```
 
-This walkthrough gives you the foundations to get started writing your own PyFlink DataStream API programs. To learn more about the Python DataStream API, please refer to [Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+This walkthrough gives you the foundations to get started writing your own PyFlink DataStream API programs. To learn more about the Python DataStream API, please refer to {{< pythondoc name="Flink Python API Docs">}} for more details.

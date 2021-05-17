@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -47,6 +47,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -83,16 +84,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         v1.setInvokableClass(AbstractInvokable.class);
         v2.setInvokableClass(AbstractInvokable.class);
 
-        JobGraph jobGraph = new JobGraph(v1, v2);
         ExecutionConfig config = new ExecutionConfig();
 
-        config.setExecutionMode(ExecutionMode.BATCH_FORCED);
         config.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         config.setParallelism(4);
         config.enableObjectReuse();
         config.setGlobalJobParameters(new TestJobParameters());
-
-        jobGraph.setExecutionConfig(config);
 
         CheckpointCoordinatorConfiguration chkConfig =
                 new CheckpointCoordinatorConfiguration(
@@ -107,7 +104,13 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         0);
         JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);
-        jobGraph.setSnapshotSettings(checkpointingSettings);
+
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(v1, v2))
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .setExecutionConfig(config)
+                        .build();
 
         SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
@@ -150,10 +153,35 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         "TestJob",
                         JobStatus.SUSPENDED,
                         new Exception("Test suspension exception"),
+                        null,
                         System.currentTimeMillis());
 
         assertThat(suspendedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
         assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
+    }
+
+    @Test
+    public void testCheckpointSettingsArchiving() {
+        final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                CheckpointCoordinatorConfiguration.builder().build();
+
+        final ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.INITIALIZING,
+                        null,
+                        new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null),
+                        System.currentTimeMillis());
+
+        assertContainsCheckpointSettings(archivedGraph);
+    }
+
+    public static void assertContainsCheckpointSettings(ArchivedExecutionGraph archivedGraph) {
+        assertThat(archivedGraph.getCheckpointCoordinatorConfiguration(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStatsSnapshot(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStorageName().get(), is("Unknown"));
+        assertThat(archivedGraph.getStateBackendName().get(), is("Unknown"));
     }
 
     @Test
@@ -168,7 +196,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
     private static void compareExecutionGraph(
             AccessExecutionGraph runtimeGraph, AccessExecutionGraph archivedGraph)
             throws IOException, ClassNotFoundException {
-        assertTrue(archivedGraph.isArchived());
         // -------------------------------------------------------------------------------------------------------------
         // ExecutionGraph
         // -------------------------------------------------------------------------------------------------------------
@@ -348,6 +375,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 runtimeVertex.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedVertex.getStateTimestamp(ExecutionState.DEPLOYING));
         assertEquals(
+                runtimeVertex.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedVertex.getStateTimestamp(ExecutionState.INITIALIZING));
+        assertEquals(
                 runtimeVertex.getStateTimestamp(ExecutionState.RUNNING),
                 archivedVertex.getStateTimestamp(ExecutionState.RUNNING));
         assertEquals(
@@ -402,6 +432,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedExecution.getStateTimestamp(ExecutionState.DEPLOYING));
+        assertEquals(
+                runtimeExecution.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedExecution.getStateTimestamp(ExecutionState.INITIALIZING));
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.RUNNING),
                 archivedExecution.getStateTimestamp(ExecutionState.RUNNING));

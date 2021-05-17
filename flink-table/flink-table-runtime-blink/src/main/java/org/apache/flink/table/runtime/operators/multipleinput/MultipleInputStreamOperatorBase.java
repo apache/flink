@@ -244,10 +244,13 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
                 if (outputs.length == 1) {
                     output = outputs[0];
                 } else {
+                    // This is the inverse of creating the normal Output.
+                    // In case of object reuse, we need to copy in the broadcast output.
+                    // Because user's operator may change the record passed to it.
                     if (isObjectReuseEnabled) {
-                        output = new BroadcastingOutput(outputs);
-                    } else {
                         output = new CopyingBroadcastingOutput(outputs);
+                    } else {
+                        output = new BroadcastingOutput(outputs);
                     }
                 }
             }

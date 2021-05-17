@@ -61,7 +61,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  *
  * <p>This class is used in the API and catalogs to define an unresolved schema that will be
  * translated to {@link ResolvedSchema}. Some methods of this class perform basic validation,
- * however, the main validation happens during the resolution.
+ * however, the main validation happens during the resolution. Thus, an unresolved schema can be
+ * incomplete and might be enriched or merged with a different schema at a later stage.
  *
  * <p>Since an instance of this class is unresolved, it should not be directly persisted. The {@link
  * #toString()} shows only a summary of the contained objects.
@@ -117,7 +118,7 @@ public final class Schema {
         return components.stream()
                 .map(Objects::toString)
                 .map(s -> "  " + s)
-                .collect(Collectors.joining(", \n", "(\n", "\n)"));
+                .collect(Collectors.joining(",\n", "(\n", "\n)"));
     }
 
     @Override
@@ -185,6 +186,37 @@ public final class Schema {
             final List<String> fieldNames = ((RowType) dataType.getLogicalType()).getFieldNames();
             IntStream.range(0, fieldDataTypes.size())
                     .forEach(i -> column(fieldNames.get(i), fieldDataTypes.get(i)));
+            return this;
+        }
+
+        /** Adopts the given field names and field data types as physical columns of the schema. */
+        public Builder fromFields(String[] fieldNames, AbstractDataType<?>[] fieldDataTypes) {
+            Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
+            Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+            Preconditions.checkArgument(
+                    fieldNames.length == fieldDataTypes.length,
+                    "Field names and field data types must have the same length.");
+            IntStream.range(0, fieldNames.length)
+                    .forEach(i -> column(fieldNames[i], fieldDataTypes[i]));
+            return this;
+        }
+
+        /** Adopts the given field names and field data types as physical columns of the schema. */
+        public Builder fromFields(
+                List<String> fieldNames, List<? extends AbstractDataType<?>> fieldDataTypes) {
+            Preconditions.checkNotNull(fieldNames, "Field names must not be null.");
+            Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.");
+            Preconditions.checkArgument(
+                    fieldNames.size() == fieldDataTypes.size(),
+                    "Field names and field data types must have the same length.");
+            IntStream.range(0, fieldNames.size())
+                    .forEach(i -> column(fieldNames.get(i), fieldDataTypes.get(i)));
+            return this;
+        }
+
+        /** Adopts all columns from the given list. */
+        public Builder fromColumns(List<UnresolvedColumn> unresolvedColumns) {
+            columns.addAll(unresolvedColumns);
             return this;
         }
 
@@ -280,6 +312,43 @@ public final class Schema {
          * column differs from the data type of the metadata field. Of course, this requires that
          * the two data types are compatible.
          *
+         * <p>Note: This method assumes that the metadata key is equal to the column name and the
+         * metadata column can be used for both reading and writing.
+         *
+         * @param columnName column name
+         * @param dataType data type of the column
+         */
+        public Builder columnByMetadata(String columnName, AbstractDataType<?> dataType) {
+            return columnByMetadata(columnName, dataType, null, false);
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>See {@link #column(String, AbstractDataType)} for a detailed explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         */
+        public Builder columnByMetadata(String columnName, String serializableTypeString) {
+            return columnByMetadata(columnName, serializableTypeString, null, false);
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>Metadata columns allow to access connector and/or format specific fields for every row
+         * of a table. For example, a metadata column can be used to read and write the timestamp
+         * from and to Kafka records for time-based operations. The connector and format
+         * documentation lists the available metadata fields for every component.
+         *
+         * <p>Every metadata field is identified by a string-based key and has a documented data
+         * type. For convenience, the runtime will perform an explicit cast if the data type of the
+         * column differs from the data type of the metadata field. Of course, this requires that
+         * the two data types are compatible.
+         *
          * <p>By default, a metadata column can be used for both reading and writing. However, in
          * many cases an external system provides more read-only metadata fields than writable
          * fields. Therefore, it is possible to exclude metadata columns from persisting by setting
@@ -293,10 +362,7 @@ public final class Schema {
          */
         public Builder columnByMetadata(
                 String columnName, AbstractDataType<?> dataType, boolean isVirtual) {
-            Preconditions.checkNotNull(columnName, "Column name must not be null.");
-            Preconditions.checkNotNull(dataType, "Data type must not be null.");
-            columns.add(new UnresolvedMetadataColumn(columnName, dataType, null, isVirtual));
-            return this;
+            return columnByMetadata(columnName, dataType, null, isVirtual);
         }
 
         /**
@@ -323,10 +389,7 @@ public final class Schema {
          */
         public Builder columnByMetadata(
                 String columnName, AbstractDataType<?> dataType, @Nullable String metadataKey) {
-            Preconditions.checkNotNull(columnName, "Column name must not be null.");
-            Preconditions.checkNotNull(dataType, "Data type must not be null.");
-            columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, false));
-            return this;
+            return columnByMetadata(columnName, dataType, metadataKey, false);
         }
 
         /**
@@ -360,16 +423,40 @@ public final class Schema {
                 @Nullable String metadataKey,
                 boolean isVirtual) {
             Preconditions.checkNotNull(columnName, "Column name must not be null.");
+            Preconditions.checkNotNull(dataType, "Data type must not be null.");
             columns.add(new UnresolvedMetadataColumn(columnName, dataType, metadataKey, isVirtual));
             return this;
+        }
+
+        /**
+         * Declares a metadata column that is appended to this schema.
+         *
+         * <p>See {@link #columnByMetadata(String, AbstractDataType, String, boolean)} for a
+         * detailed explanation.
+         *
+         * <p>This method uses a type string that can be easily persisted in a durable catalog.
+         *
+         * @param columnName column name
+         * @param serializableTypeString data type of the column
+         * @param metadataKey identifying metadata key, if null the column name will be used as
+         *     metadata key
+         * @param isVirtual whether the column should be persisted or not
+         */
+        public Builder columnByMetadata(
+                String columnName,
+                String serializableTypeString,
+                @Nullable String metadataKey,
+                boolean isVirtual) {
+            return columnByMetadata(
+                    columnName, DataTypes.of(serializableTypeString), metadataKey, isVirtual);
         }
 
         /**
          * Declares that the given column should serve as an event-time (i.e. rowtime) attribute and
          * specifies a corresponding watermark strategy as an expression.
          *
-         * <p>The column must be of type {@code TIMESTAMP(3)} and be a top-level column in the
-         * schema. It may be a computed column.
+         * <p>The column must be of type {@code TIMESTAMP(3)} or {@code TIMESTAMP_LTZ(3)} and be a
+         * top-level column in the schema. It may be a computed column.
          *
          * <p>The watermark generation expression is evaluated by the framework for every record
          * during runtime. The framework will periodically emit the largest generated watermark. If
@@ -502,7 +589,7 @@ public final class Schema {
                             columnByMetadata(
                                     metadataColumn.getName(),
                                     metadataColumn.getDataType(),
-                                    metadataColumn.getMetadataAlias().orElse(null),
+                                    metadataColumn.getMetadataKey().orElse(null),
                                     metadataColumn.isVirtual());
                         }
                     });

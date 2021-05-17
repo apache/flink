@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -103,7 +103,7 @@ public class ResourceProfileInfo implements ResponseBody, Serializable {
     }
 
     private static Map<String, Double> getExetendedResources(
-            Map<String, Resource> exetendedResources) {
+            Map<String, ExternalResource> exetendedResources) {
         return exetendedResources.entrySet().stream()
                 .collect(
                         Collectors.toMap(

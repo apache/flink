@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
@@ -64,7 +64,7 @@ abstract class BatchPhysicalWindowAggregateBase(
         auxGrouping.nonEmpty)
       .item("window", window)
       .itemIf("properties",
-        namedWindowProperties.map(_.name).mkString(", "), namedWindowProperties.nonEmpty)
+        namedWindowProperties.map(_.getName).mkString(", "), namedWindowProperties.nonEmpty)
       .item("select", RelExplainUtil.windowAggregationToString(
         inputRowType,
         grouping,

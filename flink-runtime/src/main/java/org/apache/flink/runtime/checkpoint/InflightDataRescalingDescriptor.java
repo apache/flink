@@ -17,13 +17,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.io.ObjectStreamException;
 import java.io.Serializable;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.emptySet;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -55,38 +55,41 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * old channels, then there are 6 virtual channels to be demultiplexed.
  */
 public class InflightDataRescalingDescriptor implements Serializable {
-    public static final Set<Integer> NO_SUBTASKS = emptySet();
-    public static final Map<Integer, RescaledChannelsMapping> NO_MAPPINGS = emptyMap();
-    public static final InflightDataRescalingDescriptor NO_RESCALE =
-            new InflightDataRescalingDescriptor(NO_SUBTASKS, NO_MAPPINGS);
+    public static final InflightDataRescalingDescriptor NO_RESCALE = new NoRescalingDescriptor();
 
     private static final long serialVersionUID = -3396674344669796295L;
 
     /** Set when several operator instances are merged into one. */
-    private final Set<Integer> oldSubtaskIndexes;
+    private final int[] oldSubtaskIndexes;
 
     /**
      * Set when channels are merged because the connected operator has been rescaled for each
      * gate/partition.
      */
-    private final Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings;
+    private final RescaleMappings[] rescaledChannelsMappings;
+
+    /** All channels where upstream duplicates data (only valid for downstream mappings). */
+    private final Set<Integer> ambiguousSubtaskIndexes;
 
     public InflightDataRescalingDescriptor(
-            Set<Integer> oldSubtaskIndexes,
-            Map<Integer, RescaledChannelsMapping> rescaledChannelsMappings) {
+            int[] oldSubtaskIndexes,
+            RescaleMappings[] rescaledChannelsMappings,
+            Set<Integer> ambiguousSubtaskIndexes) {
         this.oldSubtaskIndexes = checkNotNull(oldSubtaskIndexes);
         this.rescaledChannelsMappings = checkNotNull(rescaledChannelsMappings);
+        this.ambiguousSubtaskIndexes = checkNotNull(ambiguousSubtaskIndexes);
     }
 
-    public int[] getOldSubtaskIndexes(int defaultSubtask) {
-        return oldSubtaskIndexes.equals(NO_SUBTASKS)
-                ? new int[] {defaultSubtask}
-                : oldSubtaskIndexes.stream().mapToInt(Integer::intValue).toArray();
+    public int[] getOldSubtaskIndexes() {
+        return oldSubtaskIndexes;
     }
 
-    public RescaledChannelsMapping getChannelMapping(int gateOrPartitionIndex) {
-        return rescaledChannelsMappings.getOrDefault(
-                gateOrPartitionIndex, RescaledChannelsMapping.NO_CHANNEL_MAPPING);
+    public RescaleMappings getChannelMapping(int gateOrPartitionIndex) {
+        return rescaledChannelsMappings[gateOrPartitionIndex];
+    }
+
+    public boolean isAmbiguous(int oldSubtaskIndex) {
+        return ambiguousSubtaskIndexes.contains(oldSubtaskIndex);
     }
 
     @Override
@@ -97,13 +100,51 @@ public class InflightDataRescalingDescriptor implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final InflightDataRescalingDescriptor that = (InflightDataRescalingDescriptor) o;
-        return oldSubtaskIndexes.equals(that.oldSubtaskIndexes)
-                && rescaledChannelsMappings.equals(that.rescaledChannelsMappings);
+        InflightDataRescalingDescriptor that = (InflightDataRescalingDescriptor) o;
+        return Arrays.equals(oldSubtaskIndexes, that.oldSubtaskIndexes)
+                && Arrays.equals(rescaledChannelsMappings, that.rescaledChannelsMappings)
+                && Objects.equals(ambiguousSubtaskIndexes, that.ambiguousSubtaskIndexes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(oldSubtaskIndexes, rescaledChannelsMappings);
+        int result = Objects.hash(ambiguousSubtaskIndexes);
+        result = 31 * result + Arrays.hashCode(oldSubtaskIndexes);
+        result = 31 * result + Arrays.hashCode(rescaledChannelsMappings);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "InflightDataRescalingDescriptor{"
+                + "oldSubtaskIndexes="
+                + Arrays.toString(oldSubtaskIndexes)
+                + ", rescaledChannelsMappings="
+                + Arrays.toString(rescaledChannelsMappings)
+                + ", ambiguousSubtaskIndexes="
+                + ambiguousSubtaskIndexes
+                + '}';
+    }
+
+    private static class NoRescalingDescriptor extends InflightDataRescalingDescriptor {
+        private static final long serialVersionUID = -5544173933105855751L;
+
+        public NoRescalingDescriptor() {
+            super(new int[0], new RescaleMappings[0], Collections.emptySet());
+        }
+
+        @Override
+        public RescaleMappings getChannelMapping(int gateOrPartitionIndex) {
+            return RescaleMappings.SYMMETRIC_IDENTITY;
+        }
+
+        private Object readResolve() throws ObjectStreamException {
+            return NO_RESCALE;
+        }
+
+        @Override
+        public String toString() {
+            return "NoRescalingDescriptor";
+        }
     }
 }

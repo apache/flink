@@ -23,7 +23,9 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -232,6 +235,7 @@ public class ExecutionGraphTestUtils {
      */
     public static void switchAllVerticesToRunning(ExecutionGraph eg) {
         for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            vertex.getCurrentExecutionAttempt().switchToRecovering();
             vertex.getCurrentExecutionAttempt().switchToRunning();
         }
     }
@@ -309,30 +313,34 @@ public class ExecutionGraphTestUtils {
     }
 
     /** Creates an execution graph containing the given vertices. */
-    public static ExecutionGraph createSimpleTestGraph(JobVertex... vertices) throws Exception {
+    public static DefaultExecutionGraph createSimpleTestGraph(JobVertex... vertices)
+            throws Exception {
         return createExecutionGraph(TestingUtils.defaultExecutor(), vertices);
     }
 
-    public static ExecutionGraph createExecutionGraph(
+    public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, JobVertex... vertices) throws Exception {
 
         return createExecutionGraph(executor, Time.seconds(10L), vertices);
     }
 
-    public static ExecutionGraph createExecutionGraph(
+    public static DefaultExecutionGraph createExecutionGraph(
             ScheduledExecutorService executor, Time timeout, JobVertex... vertices)
             throws Exception {
 
         checkNotNull(vertices);
         checkNotNull(timeout);
 
-        return TestingExecutionGraphBuilder.newBuilder()
-                .setJobGraph(new JobGraph(vertices))
-                .setFutureExecutor(executor)
-                .setIoExecutor(executor)
-                .setAllocationTimeout(timeout)
-                .setRpcTimeout(timeout)
-                .build();
+        DefaultExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(JobGraphTestUtils.streamingJobGraph(vertices))
+                        .setFutureExecutor(executor)
+                        .setIoExecutor(executor)
+                        .setAllocationTimeout(timeout)
+                        .setRpcTimeout(timeout)
+                        .build();
+        executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        return executionGraph;
     }
 
     public static JobVertex createNoOpVertex(int parallelism) {
@@ -340,9 +348,14 @@ public class ExecutionGraphTestUtils {
     }
 
     public static JobVertex createNoOpVertex(String name, int parallelism) {
+        return createNoOpVertex(name, parallelism, JobVertex.MAX_PARALLELISM_DEFAULT);
+    }
+
+    public static JobVertex createNoOpVertex(String name, int parallelism, int maxParallelism) {
         JobVertex vertex = new JobVertex(name);
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(parallelism);
+        vertex.setMaxParallelism(maxParallelism);
         return vertex;
     }
 
@@ -392,7 +405,7 @@ public class ExecutionGraphTestUtils {
     public static ExecutionJobVertex getExecutionJobVertex(
             JobVertex jobVertex, ScheduledExecutorService executor) throws Exception {
 
-        JobGraph jobGraph = new JobGraph(jobVertex);
+        JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertex);
 
         SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
@@ -494,13 +507,16 @@ public class ExecutionGraphTestUtils {
                 assertEquals(inputJobVertices.size(), ev.getNumberOfInputs());
 
                 for (int i = 0; i < inputJobVertices.size(); i++) {
-                    ExecutionEdge[] inputEdges = ev.getInputEdges(i);
-                    assertEquals(inputJobVertices.get(i).getParallelism(), inputEdges.length);
+                    ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(i);
+                    assertEquals(
+                            inputJobVertices.get(i).getParallelism(),
+                            consumedPartitionGroup.size());
 
                     int expectedPartitionNum = 0;
-                    for (ExecutionEdge inEdge : inputEdges) {
-                        assertEquals(i, inEdge.getInputNum());
-                        assertEquals(expectedPartitionNum, inEdge.getSource().getPartitionNumber());
+                    for (IntermediateResultPartitionID consumedPartitionId :
+                            consumedPartitionGroup) {
+                        assertEquals(
+                                expectedPartitionNum, consumedPartitionId.getPartitionNumber());
 
                         expectedPartitionNum++;
                     }

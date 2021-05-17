@@ -48,6 +48,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -69,13 +70,14 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
-import java.io.IOException
+import java.io.{File, IOException}
+import java.nio.file.{Files, Paths}
 import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
@@ -212,7 +214,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val names = FieldInfoUtils.getFieldNames(typeInfo)
       TableSchema.builder().fields(names, types).build()
     } else {
-      FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toTableSchema
+      TableSchema.fromResolvedSchema(
+        FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toResolvedSchema)
     }
 
     addTableSource(name, new TestTableSource(isBounded, tableSchema))
@@ -730,6 +733,34 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     doVerifyExplain(
       stmtSet.explain(extraDetails: _*),
       extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+  }
+
+  /**
+   * Verify the json plan for the given insert statement.
+   */
+  def verifyJsonPlan(insert: String): Unit = {
+    ExecNodeBase.resetIdCounter()
+    val jsonPlan = getTableEnv.asInstanceOf[TableEnvironmentInternal].getJsonPlan(insert)
+    val jsonPlanWithoutFlinkVersion = TableTestUtil.replaceFlinkVersion(jsonPlan)
+    // add the postfix to the path to avoid conflicts
+    // between the test class name and the result file name
+    val path = test.getClass.getName.replaceAll("\\.", "/") + "_jsonplan"
+    val fileName = test.testName.getMethodName + ".out"
+    val file = new File(s"./src/test/resources/$path/$fileName")
+    if (file.exists()) {
+      val expected = TableTestUtil.readFromResource(s"$path/$fileName")
+      assertEquals(
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(expected)),
+        TableTestUtil.replaceExecNodeId(
+          TableTestUtil.getFormattedJson(jsonPlanWithoutFlinkVersion)))
+    } else {
+      file.getParentFile.mkdirs()
+      assertTrue(file.createNewFile())
+      val prettyJson = TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)
+      Files.write(Paths.get(file.toURI), prettyJson.getBytes)
+      fail(s"$fileName does not exist.")
+    }
   }
 
   /**
@@ -1483,6 +1514,8 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
+    tableConfig.addConfiguration(settings.toConfiguration)
+
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
 
@@ -1583,7 +1616,7 @@ object TableTestUtil {
       ObjectIdentifier.of(tEnv.getCurrentCatalog, tEnv.getCurrentDatabase, name),
       dataStream,
       typeInfoSchema.getIndices,
-      typeInfoSchema.toTableSchema,
+      typeInfoSchema.toResolvedSchema,
       fieldNullables.getOrElse(Array.fill(fieldCnt)(true)),
       statistic.getOrElse(FlinkStatistic.UNKNOWN)
     )
@@ -1604,11 +1637,29 @@ object TableTestUtil {
   }
 
   def readFromResource(path: String): String = {
-    val inputStream = getClass.getResource(path).getFile
-    val source = Source.fromFile(inputStream)
+    val basePath = getClass.getResource("/").getFile
+    val fullPath = if (path.startsWith("/")) {
+      s"$basePath${path.substring(1)}"
+    } else {
+      s"$basePath$path"
+    }
+    val source = Source.fromFile(fullPath)
     val str = source.mkString
     source.close()
     str
+  }
+
+  def readFromFile(path: String): Seq[String] = {
+    val file = new File(path)
+    if (file.isDirectory) {
+      file.listFiles().foldLeft(Seq.empty[String]) {
+        (lines, p) => lines ++ readFromFile(p.getAbsolutePath)
+      }
+    } else if (file.isHidden) {
+      Seq.empty[String]
+    } else {
+      Files.readAllLines(Paths.get(file.toURI)).toSeq
+    }
   }
 
   @throws[IOException]
@@ -1618,8 +1669,11 @@ object TableTestUtil {
     jsonNode.toString
   }
 
-  def readFromResourceAndRemoveLastLinkBreak(path: String): String = {
-    readFromResource(path).stripSuffix("\n")
+  @throws[IOException]
+  def getPrettyJson(json: String): String = {
+    val parser = new ObjectMapper().getFactory.createParser(json)
+    val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
+    jsonNode.toPrettyString
   }
 
   /**
@@ -1642,15 +1696,15 @@ object TableTestUtil {
    * ExecNode {id} is ignored, because id keeps incrementing in test class.
    */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\":\\d+", "\"id\" :")
-      .replaceAll("\"source\":\\d+", "\"source\" :")
-      .replaceAll("\"target\":\\d+", "\"target\" :")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
   }
 
   /**
    * Ignore flink version value.
    */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\":\"\\d+.\\d+(-SNAPSHOT)?\"", "\"flinkVersion\":\"\"")
+    s.replaceAll("\"flinkVersion\":\"[\\w.-]*\"", "\"flinkVersion\":\"\"")
   }
 }

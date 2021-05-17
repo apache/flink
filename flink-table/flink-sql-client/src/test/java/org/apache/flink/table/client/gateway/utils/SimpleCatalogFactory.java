@@ -20,16 +20,19 @@ package org.apache.flink.table.client.gateway.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.descriptors.CatalogDescriptorValidator;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
@@ -37,9 +40,10 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
  * Catalog factory for an in-memory catalog that contains a single non-empty table. The contents of
@@ -47,22 +51,46 @@ import java.util.Map;
  */
 public class SimpleCatalogFactory implements CatalogFactory {
 
-    public static final String CATALOG_TYPE_VALUE = "simple-catalog";
-
-    public static final String TEST_TABLE_NAME = "test-table";
+    public static final String IDENTIFIER = "simple-catalog";
 
     public static final List<Row> TABLE_CONTENTS =
             Arrays.asList(
                     Row.of(1, "Hello"), Row.of(2, "Hello world"), Row.of(3, "Hello world! Hello!"));
 
-    @Override
-    public Catalog createCatalog(String name, Map<String, String> properties) {
-        String database =
-                properties.getOrDefault(
-                        CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, "default_database");
-        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog(name, database);
+    private static final ConfigOption<String> DEFAULT_DATABASE =
+            ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
+                    .stringType()
+                    .defaultValue("default_database");
 
-        String tableName = properties.getOrDefault(TEST_TABLE_NAME, TEST_TABLE_NAME);
+    private static final ConfigOption<String> TABLE_NAME =
+            ConfigOptions.key("test-table").stringType().defaultValue("test-table");
+
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(DEFAULT_DATABASE);
+        options.add(TABLE_NAME);
+        return options;
+    }
+
+    @Override
+    public Catalog createCatalog(Context context) {
+        final Configuration configuration = Configuration.fromMap(context.getOptions());
+        final String database = configuration.getString(DEFAULT_DATABASE);
+        final String tableName = configuration.getString(TABLE_NAME);
+
+        final GenericInMemoryCatalog genericInMemoryCatalog =
+                new GenericInMemoryCatalog(context.getName(), database);
         StreamTableSource<Row> tableSource =
                 new StreamTableSource<Row>() {
                     @Override
@@ -101,17 +129,5 @@ public class SimpleCatalogFactory implements CatalogFactory {
         }
 
         return genericInMemoryCatalog;
-    }
-
-    @Override
-    public Map<String, String> requiredContext() {
-        Map<String, String> context = new HashMap<>();
-        context.put(CatalogDescriptorValidator.CATALOG_TYPE, CATALOG_TYPE_VALUE);
-        return context;
-    }
-
-    @Override
-    public List<String> supportedProperties() {
-        return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_NAME);
     }
 }

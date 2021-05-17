@@ -28,6 +28,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -66,6 +67,10 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     private volatile JobGraphStore jobGraphStore;
 
     private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
+
+    private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
+    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
 
     // ------------------------------------------------------------------------
     //  Setters for mock / testing implementations
@@ -129,6 +134,15 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     public void setJobMasterLeaderRetrieverFunction(
             Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction) {
         this.jobMasterLeaderRetrieverFunction = jobMasterLeaderRetrieverFunction;
+    }
+
+    public void setCloseFuture(CompletableFuture<Void> closeFuture) {
+        this.closeFuture = closeFuture;
+    }
+
+    public void setCloseAndCleanupAllDataFuture(
+            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
+        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -256,11 +270,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     @Override
     public void close() throws Exception {
-        // nothing to do
+        closeFuture.complete(null);
     }
 
     @Override
     public void closeAndCleanupAllData() throws Exception {
-        // nothing to do
+        closeAndCleanupAllDataFuture.complete(null);
     }
 }

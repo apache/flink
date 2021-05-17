@@ -61,6 +61,7 @@ class BatchPhysicalTableSourceScanRule
     new BatchPhysicalTableSourceScan(
       rel.getCluster,
       newTrait,
+      scan.getHints,
       scan.getTable.asInstanceOf[TableSourceTable]
     )
   }

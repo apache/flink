@@ -31,7 +31,6 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkProvider;
@@ -45,7 +44,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.filesystem.FileSystemOptions;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -198,7 +196,11 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
 
         @Override
         public TypeInformation<RowData> getProducedType() {
-            return InternalTypeInfo.ofFields(DataTypes.STRING().getLogicalType());
+            // For ScanTableSource, the output type is determined by the planner,
+            // and the result of this method will not be used.
+            // The purpose of returning null is to verify that the planner can
+            // handle the output type correctly.
+            return null;
         }
     }
 

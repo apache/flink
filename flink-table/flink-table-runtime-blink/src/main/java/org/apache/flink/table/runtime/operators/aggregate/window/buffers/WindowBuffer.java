@@ -19,17 +19,21 @@
 package org.apache.flink.table.runtime.operators.aggregate.window.buffers;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.state.WindowState;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.ZoneId;
 
 /**
  * A buffer that buffers data in memory and flushes many values to state together at a time to avoid
- * frequently accessing state.
+ * frequently accessing state, or flushes to output to reduce shuffling data.
  */
 @Internal
 public interface WindowBuffer {
@@ -46,15 +50,15 @@ public interface WindowBuffer {
      * @throws Exception Thrown, if the element cannot be added to the buffer, or if the flushing
      *     throws an exception.
      */
-    void addElement(BinaryRowData key, long window, RowData element) throws Exception;
+    void addElement(RowData key, long window, RowData element) throws Exception;
 
     /**
      * Advances the progress time, the progress time is watermark if working in event-time mode, or
      * current processing time if working in processing-time mode.
      *
-     * <p>This will potentially flush buffered data into states, because the watermark advancement
-     * may be in a very small step, but we don't need to flush buffered data for every watermark
-     * advancement.
+     * <p>This will potentially flush buffered data into states or to the output stream, because the
+     * watermark advancement may be in a very small step, but we don't need to flush buffered data
+     * for every watermark advancement.
      *
      * @param progress the current progress time
      */
@@ -83,14 +87,50 @@ public interface WindowBuffer {
          * @param operatorOwner the owner of the operator
          * @param memoryManager the manager that governs memory by Flink framework
          * @param memorySize the managed memory size can be used by this operator
-         * @param combineFunction the combine function used to combine buffered data into state
+         * @param runtimeContext the current {@link RuntimeContext}
+         * @param timerService the service to register event-time and processing-time timers
+         * @param stateBackend the state backend to accessing states
+         * @param windowState the window state to flush buffered data into.
+         * @param isEventTime indicates whether the operator works in event-time or processing-time
+         *     mode, used for register corresponding timers.
+         * @param shiftTimeZone the shit timezone of the window
          * @throws IOException thrown if the buffer can't be opened
          */
         WindowBuffer create(
                 Object operatorOwner,
                 MemoryManager memoryManager,
                 long memorySize,
-                WindowCombineFunction combineFunction)
-                throws IOException;
+                RuntimeContext runtimeContext,
+                WindowTimerService<Long> timerService,
+                KeyedStateBackend<RowData> stateBackend,
+                WindowState<Long> windowState,
+                boolean isEventTime,
+                ZoneId shiftTimeZone)
+                throws Exception;
+    }
+
+    /** A factory that creates a {@link WindowBuffer}. */
+    @FunctionalInterface
+    interface LocalFactory extends Serializable {
+
+        /**
+         * Creates a {@link WindowBuffer} for local window that buffers elements in memory before
+         * flushing.
+         *
+         * @param operatorOwner the owner of the operator
+         * @param memoryManager the manager that governs memory by Flink framework
+         * @param memorySize the managed memory size can be used by this operator
+         * @param collector collector to emit records
+         * @param shiftTimeZone the shit timezone of the window
+         * @throws IOException thrown if the buffer can't be opened
+         */
+        WindowBuffer create(
+                Object operatorOwner,
+                MemoryManager memoryManager,
+                long memorySize,
+                RuntimeContext runtimeContext,
+                Collector<RowData> collector,
+                ZoneId shiftTimeZone)
+                throws Exception;
     }
 }

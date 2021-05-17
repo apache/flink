@@ -17,7 +17,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -81,16 +83,6 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testReleaseOnConsumptionForPipelinedPartition() {
-        final ResultPartition resultPartition =
-                createResultPartition(ResultPartitionType.PIPELINED);
-
-        resultPartition.onConsumedSubpartition(0);
-
-        assertTrue(resultPartition.isReleased());
-    }
-
-    @Test
     public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
         final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
@@ -122,6 +114,8 @@ public class ResultPartitionFactoryTest extends TestLogger {
                         manager,
                         fileChannelManager,
                         new NetworkBufferPool(1, SEGMENT_SIZE),
+                        new BatchShuffleReadBufferPool(10 * SEGMENT_SIZE, SEGMENT_SIZE),
+                        Executors.newDirectExecutorService(),
                         BoundedBlockingSubpartitionType.AUTO,
                         1,
                         1,

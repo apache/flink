@@ -41,7 +41,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistic
 import org.apache.flink.runtime.rest.messages.checkpoints.MinMaxAvgStatistics;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -57,7 +57,7 @@ import java.util.concurrent.Executor;
 /** Handler which serves the checkpoint statistics. */
 public class CheckpointingStatisticsHandler
         extends AbstractAccessExecutionGraphHandler<CheckpointingStatistics, JobMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     public CheckpointingStatisticsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,

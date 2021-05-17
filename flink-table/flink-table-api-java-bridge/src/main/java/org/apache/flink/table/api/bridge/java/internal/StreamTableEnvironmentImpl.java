@@ -28,7 +28,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -37,15 +39,21 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ExternalSchemaTranslator;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.factories.ComponentFactoryService;
@@ -54,14 +62,23 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.JavaExternalQueryOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -69,6 +86,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The implementation for a Java {@link StreamTableEnvironment}. This enables conversions from/to
@@ -214,10 +232,216 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
 
     @Override
     public <T> Table fromDataStream(DataStream<T> dataStream) {
-        JavaDataStreamQueryOperation<T> queryOperation =
-                asQueryOperation(dataStream, Optional.empty());
+        return fromStreamInternal(dataStream, null, null, ChangelogMode.insertOnly());
+    }
 
-        return createTable(queryOperation);
+    @Override
+    public <T> Table fromDataStream(DataStream<T> dataStream, Schema schema) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, ChangelogMode.insertOnly());
+    }
+
+    @Override
+    public Table fromChangelogStream(DataStream<Row> dataStream) {
+        return fromStreamInternal(dataStream, null, null, ChangelogMode.all());
+    }
+
+    @Override
+    public Table fromChangelogStream(DataStream<Row> dataStream, Schema schema) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, ChangelogMode.all());
+    }
+
+    @Override
+    public Table fromChangelogStream(
+            DataStream<Row> dataStream, Schema schema, ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, changelogMode);
+    }
+
+    @Override
+    public <T> void createTemporaryView(String path, DataStream<T> dataStream) {
+        createTemporaryView(
+                path, fromStreamInternal(dataStream, null, path, ChangelogMode.insertOnly()));
+    }
+
+    @Override
+    public <T> void createTemporaryView(String path, DataStream<T> dataStream, Schema schema) {
+        createTemporaryView(
+                path, fromStreamInternal(dataStream, schema, path, ChangelogMode.insertOnly()));
+    }
+
+    private <T> Table fromStreamInternal(
+            DataStream<T> dataStream,
+            @Nullable Schema schema,
+            @Nullable String viewPath,
+            ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(dataStream, "Data stream must not be null.");
+        Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
+        final CatalogManager catalogManager = getCatalogManager();
+        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
+        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+
+        final UnresolvedIdentifier unresolvedIdentifier;
+        if (viewPath != null) {
+            unresolvedIdentifier = getParser().parseIdentifier(viewPath);
+        } else {
+            unresolvedIdentifier =
+                    UnresolvedIdentifier.of("Unregistered_DataStream_Source_" + dataStream.getId());
+        }
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        final ExternalSchemaTranslator.InputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromExternal(
+                        catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
+
+        final ResolvedSchema resolvedSchema =
+                schemaTranslationResult.getSchema().resolve(schemaResolver);
+
+        final QueryOperation scanOperation =
+                new JavaExternalQueryOperation<>(
+                        objectIdentifier,
+                        dataStream,
+                        schemaTranslationResult.getPhysicalDataType(),
+                        schemaTranslationResult.isTopLevelRecord(),
+                        changelogMode,
+                        resolvedSchema);
+
+        final List<String> projections = schemaTranslationResult.getProjections();
+        if (projections == null) {
+            return createTable(scanOperation);
+        }
+
+        final QueryOperation projectOperation =
+                operationTreeBuilder.project(
+                        projections.stream()
+                                .map(ApiExpressionUtils::unresolvedRef)
+                                .collect(Collectors.toList()),
+                        scanOperation);
+
+        return createTable(projectOperation);
+    }
+
+    @Override
+    public DataStream<Row> toDataStream(Table table) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        // include all columns of the query (incl. metadata and computed columns)
+        final DataType sourceType = table.getResolvedSchema().toSourceRowDataType();
+        return toDataStream(table, sourceType);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> DataStream<T> toDataStream(Table table, Class<T> targetClass) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetClass, "Target class must not be null.");
+        if (targetClass == Row.class) {
+            // for convenience, we allow the Row class here as well
+            return (DataStream<T>) toDataStream(table);
+        }
+
+        return toDataStream(table, DataTypes.of(targetClass));
+    }
+
+    @Override
+    public <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> targetDataType) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
+
+        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromInternal(
+                        getCatalogManager().getDataTypeFactory(),
+                        table.getResolvedSchema(),
+                        targetDataType);
+
+        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly());
+    }
+
+    @Override
+    public DataStream<Row> toChangelogStream(Table table) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+
+        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), null);
+
+        return toStreamInternal(table, schemaTranslationResult, null);
+    }
+
+    @Override
+    public DataStream<Row> toChangelogStream(Table table, Schema targetSchema) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
+
+        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+
+        return toStreamInternal(table, schemaTranslationResult, null);
+    }
+
+    @Override
+    public DataStream<Row> toChangelogStream(
+            Table table, Schema targetSchema, ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
+        Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
+
+        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
+                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+
+        return toStreamInternal(table, schemaTranslationResult, changelogMode);
+    }
+
+    private <T> DataStream<T> toStreamInternal(
+            Table table,
+            ExternalSchemaTranslator.OutputResult schemaTranslationResult,
+            @Nullable ChangelogMode changelogMode) {
+        final CatalogManager catalogManager = getCatalogManager();
+        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
+        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+
+        final QueryOperation projectOperation =
+                schemaTranslationResult
+                        .getProjections()
+                        .map(
+                                projections ->
+                                        operationTreeBuilder.project(
+                                                projections.stream()
+                                                        .map(ApiExpressionUtils::unresolvedRef)
+                                                        .collect(Collectors.toList()),
+                                                table.getQueryOperation()))
+                        .orElseGet(table::getQueryOperation);
+
+        final ResolvedSchema resolvedSchema =
+                schemaResolver.resolve(schemaTranslationResult.getSchema());
+
+        final UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        "Unregistered_DataStream_Sink_" + ExternalModifyOperation.getUniqueId());
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        final ExternalModifyOperation modifyOperation =
+                new ExternalModifyOperation(
+                        objectIdentifier,
+                        projectOperation,
+                        resolvedSchema,
+                        changelogMode,
+                        schemaTranslationResult
+                                .getPhysicalDataType()
+                                .orElseGet(resolvedSchema::toPhysicalRowDataType));
+
+        return toStreamInternal(table, modifyOperation);
+    }
+
+    private <T> DataStream<T> toStreamInternal(Table table, ModifyOperation modifyOperation) {
+        final List<Transformation<?>> transformations =
+                planner.translate(Collections.singletonList(modifyOperation));
+
+        final Transformation<T> transformation = getTransformation(table, transformations);
+
+        executionEnvironment.addOperator(transformation);
+        return new DataStream<>(executionEnvironment, transformation);
     }
 
     @Override
@@ -237,11 +461,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     @Override
     public <T> void registerDataStream(String name, DataStream<T> dataStream) {
         createTemporaryView(name, dataStream);
-    }
-
-    @Override
-    public <T> void createTemporaryView(String path, DataStream<T> dataStream) {
-        createTemporaryView(path, fromDataStream(dataStream));
     }
 
     @Override
@@ -270,7 +489,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                     identifier,
                     operation.getDataStream(),
                     operation.getFieldIndices(),
-                    operation.getTableSchema());
+                    operation.getResolvedSchema());
         } else {
             return queryOperation;
         }
@@ -289,7 +508,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         table.getQueryOperation(),
                         TypeConversions.fromLegacyInfoToDataType(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.APPEND);
-        return toDataStream(table, modifyOperation);
+        return toStreamInternal(table, modifyOperation);
     }
 
     @Override
@@ -306,7 +525,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         table.getQueryOperation(),
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
-        return toDataStream(table, modifyOperation);
+        return toStreamInternal(table, modifyOperation);
     }
 
     @Override
@@ -326,17 +545,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     /** This method is used for sql client to submit job. */
     public Pipeline getPipeline(String jobName) {
         return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
-    }
-
-    private <T> DataStream<T> toDataStream(
-            Table table, OutputConversionModifyOperation modifyOperation) {
-        List<Transformation<?>> transformations =
-                planner.translate(Collections.singletonList(modifyOperation));
-
-        Transformation<T> transformation = getTransformation(table, transformations);
-
-        executionEnvironment.addOperator(transformation);
-        return new DataStream<>(executionEnvironment, transformation);
     }
 
     @Override
@@ -395,7 +603,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         .orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
 
         return new JavaDataStreamQueryOperation<>(
-                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toTableSchema());
+                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toResolvedSchema());
     }
 
     private void validateTimeCharacteristic(boolean isRowtimeDefined) {

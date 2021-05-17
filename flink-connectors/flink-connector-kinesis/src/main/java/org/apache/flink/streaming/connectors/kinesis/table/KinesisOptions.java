@@ -22,22 +22,27 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.streaming.connectors.kinesis.FixedKinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.RandomKinesisPartitioner;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Options for Kinesis tables supported by the {@code CREATE TABLE ... WITH ...} clause of the Flink
@@ -85,7 +90,7 @@ public class KinesisOptions {
             ConfigOptions.key("stream")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Name of the Kinesis stream backing this table (required)");
+                    .withDescription("Name of the Kinesis stream backing this table.");
 
     // -----------------------------------------------------------------------------------------
     // Sink specific options
@@ -96,26 +101,33 @@ public class KinesisOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Optional output partitioning from Flink's partitions into Kinesis shards. "
-                                    + "Sinks that write to tables defined with the PARTITION BY clause "
-                                    + "always use a field-based partitioner and cannot define this option. "
-                                    + "Valid enumerations are: \n"
-                                    + "\"random\":"
-                                    + " (use a random partition key),\n"
-                                    + "\"fixed\":"
-                                    + " (each Flink partition ends up in at most one Kinesis shard),\n"
-                                    + "\"custom class name\":"
-                                    + " (use a custom "
-                                    + KinesisPartitioner.class.getName()
-                                    + " subclass)");
+                            Description.builder()
+                                    .text(
+                                            "Optional output partitioning from Flink's partitions into Kinesis shards. "
+                                                    + "Sinks that write to tables defined with the %s clause always use a "
+                                                    + "field-based partitioner and cannot define this option.",
+                                            code("PARTITION BY"))
+                                    .linebreak()
+                                    .text("Valid enumerations are")
+                                    .list(
+                                            text("random (use a random partition key)"),
+                                            text(
+                                                    "fixed (each Flink partition ends up in at most one Kinesis shard)"),
+                                            text(
+                                                    "custom class name (use a custom %s subclass)",
+                                                    text(KinesisPartitioner.class.getName())))
+                                    .build());
 
     public static final ConfigOption<String> SINK_PARTITIONER_FIELD_DELIMITER =
             ConfigOptions.key("sink.partitioner-field-delimiter")
                     .stringType()
                     .defaultValue("|")
                     .withDescription(
-                            "Optional field delimiter for fields-based partitioner "
-                                    + "derived from a PARTITION BY clause (\"|\" by default)");
+                            Description.builder()
+                                    .text(
+                                            "Optional field delimiter for fields-based partitioner derived from a %s clause",
+                                            code("PARTITION BY"))
+                                    .build());
 
     // -----------------------------------------------------------------------------------------
     // Option enumerations
@@ -222,15 +234,19 @@ public class KinesisOptions {
      * </ul>
      *
      * @param tableOptions A read-only set of config options that determines the partitioner type.
-     * @param targetTable A catalog version of the table backing the partitioner.
+     * @param physicalType Physical type for partitioning.
+     * @param partitionKeys Partitioning keys in physical type.
      * @param classLoader A {@link ClassLoader} to use for loading user-defined partitioner classes.
      */
     public static KinesisPartitioner<RowData> getKinesisPartitioner(
-            ReadableConfig tableOptions, CatalogTable targetTable, ClassLoader classLoader) {
+            ReadableConfig tableOptions,
+            RowType physicalType,
+            List<String> partitionKeys,
+            ClassLoader classLoader) {
 
-        if (targetTable.isPartitioned()) {
+        if (!partitionKeys.isEmpty()) {
             String delimiter = tableOptions.get(SINK_PARTITIONER_FIELD_DELIMITER);
-            return new RowDataFieldsKinesisPartitioner(targetTable, delimiter);
+            return new RowDataFieldsKinesisPartitioner(physicalType, partitionKeys, delimiter);
         } else if (!tableOptions.getOptional(SINK_PARTITIONER).isPresent()) {
             return new RandomKinesisPartitioner<>();
         } else {

@@ -150,9 +150,7 @@ catalogs:
     type: generic_in_memory
     default-database: mydatabase
   - name: hivecatalog
-    type: hive
-    test: test
+    type: hive-test
     hive-version: 2.3.4
   - name: hivedefaultversion
-    type: hive
-    test: test
+    type: hive-test

@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -27,6 +28,9 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,15 +44,27 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** {@link SlotAllocator} implementation that supports slot sharing. */
-public class SlotSharingSlotAllocator implements SlotAllocator<VertexParallelismWithSlotSharing> {
+public class SlotSharingSlotAllocator implements SlotAllocator {
 
     private final ReserveSlotFunction reserveSlotFunction;
     private final FreeSlotFunction freeSlotFunction;
+    private final IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction;
 
-    public SlotSharingSlotAllocator(
-            ReserveSlotFunction reserveSlot, FreeSlotFunction freeSlotFunction) {
+    private SlotSharingSlotAllocator(
+            ReserveSlotFunction reserveSlot,
+            FreeSlotFunction freeSlotFunction,
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
+        this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
+    }
+
+    public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
+            ReserveSlotFunction reserveSlot,
+            FreeSlotFunction freeSlotFunction,
+            IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction) {
+        return new SlotSharingSlotAllocator(
+                reserveSlot, freeSlotFunction, isSlotAvailableAndFreeFunction);
     }
 
     @Override
@@ -147,25 +163,63 @@ public class SlotSharingSlotAllocator implements SlotAllocator<VertexParallelism
     }
 
     @Override
-    public Map<ExecutionVertexID, LogicalSlot> reserveResources(
-            VertexParallelismWithSlotSharing vertexParallelismWithSlotSharing) {
-        final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
+    public Optional<ReservedSlots> tryReserveResources(VertexParallelism vertexParallelism) {
+        Preconditions.checkArgument(
+                vertexParallelism instanceof VertexParallelismWithSlotSharing,
+                String.format(
+                        "%s expects %s as argument.",
+                        SlotSharingSlotAllocator.class.getSimpleName(),
+                        VertexParallelismWithSlotSharing.class.getSimpleName()));
 
-        for (ExecutionSlotSharingGroupAndSlot executionSlotSharingGroup :
-                vertexParallelismWithSlotSharing.getAssignments()) {
-            final SharedSlot sharedSlot =
-                    reserveSharedSlot(executionSlotSharingGroup.getSlotInfo());
+        final VertexParallelismWithSlotSharing vertexParallelismWithSlotSharing =
+                (VertexParallelismWithSlotSharing) vertexParallelism;
 
-            for (ExecutionVertexID executionVertexId :
-                    executionSlotSharingGroup
-                            .getExecutionSlotSharingGroup()
-                            .getContainedExecutionVertices()) {
-                final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
-                assignedSlots.put(executionVertexId, logicalSlot);
+        final Collection<AllocationID> expectedSlots =
+                calculateExpectedSlots(vertexParallelismWithSlotSharing.getAssignments());
+
+        if (areAllExpectedSlotsAvailableAndFree(expectedSlots)) {
+            final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
+
+            for (ExecutionSlotSharingGroupAndSlot executionSlotSharingGroup :
+                    vertexParallelismWithSlotSharing.getAssignments()) {
+                final SharedSlot sharedSlot =
+                        reserveSharedSlot(executionSlotSharingGroup.getSlotInfo());
+
+                for (ExecutionVertexID executionVertexId :
+                        executionSlotSharingGroup
+                                .getExecutionSlotSharingGroup()
+                                .getContainedExecutionVertices()) {
+                    final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
+                    assignedSlots.put(executionVertexId, logicalSlot);
+                }
+            }
+
+            return Optional.of(ReservedSlots.create(assignedSlots));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Nonnull
+    private Collection<AllocationID> calculateExpectedSlots(
+            Iterable<? extends ExecutionSlotSharingGroupAndSlot> assignments) {
+        final Collection<AllocationID> requiredSlots = new ArrayList<>();
+
+        for (ExecutionSlotSharingGroupAndSlot assignment : assignments) {
+            requiredSlots.add(assignment.getSlotInfo().getAllocationId());
+        }
+        return requiredSlots;
+    }
+
+    private boolean areAllExpectedSlotsAvailableAndFree(
+            Iterable<? extends AllocationID> requiredSlots) {
+        for (AllocationID requiredSlot : requiredSlots) {
+            if (!isSlotAvailableAndFreeFunction.isSlotAvailableAndFree(requiredSlot)) {
+                return false;
             }
         }
 
-        return assignedSlots;
+        return true;
     }
 
     private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {

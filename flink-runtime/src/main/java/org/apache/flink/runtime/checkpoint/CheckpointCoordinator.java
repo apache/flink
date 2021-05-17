@@ -884,7 +884,10 @@ public class CheckpointCoordinator {
                     abortPendingCheckpoint(checkpoint, cause);
                 }
             } else {
-                LOG.warn("Failed to trigger checkpoint for job {}.)", job, throwable);
+                LOG.info(
+                        "Failed to trigger checkpoint for job {} since {}",
+                        job,
+                        throwable.getMessage());
             }
         } finally {
             isTriggering = false;
@@ -1536,13 +1539,13 @@ public class CheckpointCoordinator {
                     throw new IllegalStateException("No completed checkpoint available");
                 }
 
+                LOG.debug("Resetting the master hooks.");
+                MasterHooks.reset(masterHooks.values(), LOG);
+
                 if (operatorCoordinatorRestoreBehavior
                         == OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET) {
                     // we let the JobManager-side components know that there was a recovery,
                     // even if there was no checkpoint to recover from, yet
-                    LOG.debug("Resetting the master hooks.");
-                    MasterHooks.reset(masterHooks.values(), LOG);
-
                     LOG.info("Resetting the Operator Coordinators to an empty state.");
                     restoreStateToCoordinators(
                             OperatorCoordinator.NO_CHECKPOINT, Collections.emptyMap());
@@ -1725,6 +1728,9 @@ public class CheckpointCoordinator {
             if (shutdown) {
                 throw new IllegalArgumentException("Checkpoint coordinator is shut down");
             }
+            Preconditions.checkState(
+                    isPeriodicCheckpointingConfigured(),
+                    "Can not start checkpoint scheduler, if no periodic checkpointing is configured");
 
             // make sure all prior timers are cancelled
             stopCheckpointScheduler();
@@ -1746,6 +1752,10 @@ public class CheckpointCoordinator {
 
             numUnsuccessfulCheckpointsTriggers.set(0);
         }
+    }
+
+    public boolean isPeriodicCheckpointingStarted() {
+        return periodicScheduling;
     }
 
     /**

@@ -25,7 +25,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.utils.OperatorLatch;
 import org.apache.flink.state.api.utils.SavepointTestBase;
+import org.apache.flink.state.api.utils.WaitingFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -58,17 +60,17 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     public void testUserKeyedStateReader() throws Exception {
         String savepointPath =
                 takeSavepoint(
-                        elements,
-                        source -> {
+                        new KeyedStatefulOperator(),
+                        process -> {
                             StreamExecutionEnvironment env =
                                     StreamExecutionEnvironment.getExecutionEnvironment();
                             env.setStateBackend(getStateBackend());
                             env.setParallelism(4);
 
-                            env.addSource(source)
+                            env.addSource(createSource(elements))
                                     .rebalance()
                                     .keyBy(id -> id.key)
-                                    .process(new KeyedStatefulOperator())
+                                    .process(process)
                                     .uid(uid)
                                     .addSink(new DiscardingSink<>());
 
@@ -86,8 +88,9 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
                 "Unexpected results from keyed state", expected, new HashSet<>(results));
     }
 
-    private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
-
+    private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void>
+            implements WaitingFunction {
+        private final OperatorLatch startLatch = new OperatorLatch();
         private transient ValueState<Integer> state;
 
         @Override
@@ -97,11 +100,18 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         @Override
         public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
+            startLatch.trigger();
+
             state.update(value.state);
 
             value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
             value.processingTimeTimer.forEach(
                     timer -> ctx.timerService().registerProcessingTimeTimer(timer));
+        }
+
+        @Override
+        public void await() throws RuntimeException {
+            startLatch.await();
         }
     }
 

@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -52,11 +53,21 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Stream {@link ExecNode} for Rank. */
-public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class StreamExecRank extends ExecNodeBase<RowData>
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     // It is a experimental config, will may be removed later.
     @Experimental
@@ -68,12 +79,33 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                             "TopN operator has a cache which caches partial state contents to reduce"
                                     + " state access. Cache size is the number of records in each TopN task.");
 
+    public static final String FIELD_NAME_RANK_TYPE = "rankType";
+    public static final String FIELD_NAME_PARTITION_SPEC = "partition";
+    public static final String FIELD_NAME_SORT_SPEC = "orderBy";
+    public static final String FIELD_NAME_RANK_RANG = "rankRange";
+    public static final String FIELD_NAME_RANK_STRATEGY = "rankStrategy";
+    public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
+    public static final String FIELD_NAME_OUTPUT_RANK_NUMBER = "outputRowNumber";
+
+    @JsonProperty(FIELD_NAME_RANK_TYPE)
     private final RankType rankType;
+
+    @JsonProperty(FIELD_NAME_PARTITION_SPEC)
     private final PartitionSpec partitionSpec;
+
+    @JsonProperty(FIELD_NAME_SORT_SPEC)
     private final SortSpec sortSpec;
+
+    @JsonProperty(FIELD_NAME_RANK_RANG)
     private final RankRange rankRange;
+
+    @JsonProperty(FIELD_NAME_RANK_STRATEGY)
     private final RankProcessStrategy rankStrategy;
+
+    @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER)
     private final boolean outputRankNumber;
+
+    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
     public StreamExecRank(
@@ -87,12 +119,40 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.rankType = rankType;
-        this.rankRange = rankRange;
-        this.rankStrategy = rankStrategy;
-        this.sortSpec = sortSpec;
-        this.partitionSpec = partitionSpec;
+        this(
+                rankType,
+                partitionSpec,
+                sortSpec,
+                rankRange,
+                rankStrategy,
+                outputRankNumber,
+                generateUpdateBefore,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecRank(
+            @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
+            @JsonProperty(FIELD_NAME_PARTITION_SPEC) PartitionSpec partitionSpec,
+            @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
+            @JsonProperty(FIELD_NAME_RANK_RANG) RankRange rankRange,
+            @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
+            @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER) boolean outputRankNumber,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.rankType = checkNotNull(rankType);
+        this.rankRange = checkNotNull(rankRange);
+        this.rankStrategy = checkNotNull(rankStrategy);
+        this.sortSpec = checkNotNull(sortSpec);
+        this.partitionSpec = checkNotNull(partitionSpec);
         this.outputRankNumber = outputRankNumber;
         this.generateUpdateBefore = generateUpdateBefore;
     }
@@ -229,11 +289,6 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
                         partitionSpec.getFieldIndices(), inputRowTypeInfo);
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
         return transform;
     }
 }

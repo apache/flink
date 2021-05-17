@@ -57,17 +57,11 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         LimitOperator operator = new LimitOperator(isGlobal, limitStart, limitEnd);
-        Transformation<RowData> transformation =
-                new OneInputTransformation<>(
-                        inputTransform,
-                        getDescription(),
-                        SimpleOperatorFactory.of(operator),
-                        inputTransform.getOutputType(),
-                        inputTransform.getParallelism());
-        if (inputsContainSingleton()) {
-            transformation.setParallelism(1);
-            transformation.setMaxParallelism(1);
-        }
-        return transformation;
+        return new OneInputTransformation<>(
+                inputTransform,
+                getDescription(),
+                SimpleOperatorFactory.of(operator),
+                inputTransform.getOutputType(),
+                inputTransform.getParallelism());
     }
 }

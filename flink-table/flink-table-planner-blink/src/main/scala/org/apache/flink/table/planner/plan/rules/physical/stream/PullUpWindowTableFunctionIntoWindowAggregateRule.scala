@@ -85,7 +85,7 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
         cluster.getRexBuilder,
         calc.getProgram,
         inputRowType,
-        windowTVF.windowing.timeAttribute,
+        windowTVF.windowing.getTimeAttributeIndex,
         windowColumns.toArray)
     val newCalc = new StreamPhysicalCalc(
       cluster,
@@ -112,10 +112,10 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     // -----------------------------------------------------------------------------
     //  3. Adjust aggregate arguments index and construct new window aggregate node
     // -----------------------------------------------------------------------------
-    val newWindowing = TimeAttributeWindowingStrategy(
-      timeAttributeIndex,
-      windowTVF.windowing.timeAttributeType,
-      windowTVF.windowing.window)
+    val newWindowing = new TimeAttributeWindowingStrategy(
+      windowTVF.windowing.getWindow,
+      windowTVF.windowing.getTimeAttributeType,
+      timeAttributeIndex)
     val providedTraitSet = windowAgg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newAggCalls = windowAgg.aggCalls.map { call =>
       val newArgList = call.getArgList.map(arg => Int.box(aggInputFieldsShift(arg)))

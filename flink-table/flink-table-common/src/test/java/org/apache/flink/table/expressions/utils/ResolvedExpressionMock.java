@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /** {@link ResolvedExpression} mock for testing purposes. */
@@ -37,6 +38,10 @@ public class ResolvedExpressionMock implements ResolvedExpression {
     public ResolvedExpressionMock(DataType outputDataType, Supplier<String> stringRepresentation) {
         this.outputDataType = outputDataType;
         this.stringRepresentation = stringRepresentation;
+    }
+
+    public static ResolvedExpression of(DataType outputDataType, String stringRepresentation) {
+        return new ResolvedExpressionMock(outputDataType, () -> stringRepresentation);
     }
 
     @Override
@@ -72,5 +77,23 @@ public class ResolvedExpressionMock implements ResolvedExpression {
     @Override
     public String toString() {
         return asSummaryString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ResolvedExpression)) {
+            return false;
+        }
+        ResolvedExpression that = (ResolvedExpression) o;
+        return Objects.equals(outputDataType, that.getOutputDataType())
+                && Objects.equals(stringRepresentation.get(), that.asSerializableString());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(outputDataType, stringRepresentation);
     }
 }

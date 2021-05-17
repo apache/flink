@@ -26,7 +26,7 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
     LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
     CountWindowCoder
-from pyflink.fn_execution.window import TimeWindow, CountWindow
+from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:

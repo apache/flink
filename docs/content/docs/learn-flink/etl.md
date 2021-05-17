@@ -144,7 +144,7 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 ```java
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell);
 ```
 
 Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
@@ -168,13 +168,13 @@ For example, rather than creating a new `EnrichedRide` class with a `startCell` 
 as a key via 
 
 ```java
-keyBy(enrichedRide -> enrichedRide.startCell)
+keyBy(enrichedRide -> enrichedRide.startCell);
 ```
 
 we could do this, instead:
 
 ```java
-keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat))
+keyBy(ride -> GeoUtils.mapToGridCell(ride.startLon, ride.startLat));
 ```
 
 ### Aggregations on Keyed Streams
@@ -375,7 +375,7 @@ in an unbounded way, it's necessary to clear the state for keys that are no long
 done by calling `clear()` on the state object, as in:
 
 ```java
-keyHasBeenSeen.clear()
+keyHasBeenSeen.clear();
 ```
 
 You might want to do this, for example, after a period of inactivity for a given key. You'll see how
@@ -428,7 +428,7 @@ public static void main(String[] args) throws Exception {
         .keyBy(x -> x);
   
     control
-        .connect(datastreamOfWords)
+        .connect(streamOfWords)
         .flatMap(new ControlFunction())
         .print();
 
@@ -473,7 +473,7 @@ The `blocked` Boolean is being used to remember the keys (words, in this case) t
 mentioned on the `control` stream, and those words are being filtered out of the `streamOfWords` stream. This is _keyed_ state, and it is shared between the two streams, which is why the two streams have to share the same keyspace.
 
 `flatMap1` and `flatMap2` are called by the Flink runtime with elements from each of the two
-connected streams -- in our case, elements from the `control` stream are passed into `flatMap1`, and elements from `streamOfWords` are passed into `flatMap2`. This was determined by the order in which the two streams are connected with `control.connect(datastreamOfWords)`. 
+connected streams -- in our case, elements from the `control` stream are passed into `flatMap1`, and elements from `streamOfWords` are passed into `flatMap2`. This was determined by the order in which the two streams are connected with `control.connect(streamOfWords)`. 
 
 It is important to recognize that you have no control over the order in which the `flatMap1` and `flatMap2` callbacks are called. These two input streams are racing against each other, and the Flink runtime will do what it wants to regarding consuming events from one stream or the other. In cases where timing and/or ordering matter, you may find it necessary to buffer events in managed Flink state until your application is ready to process them. (Note: if you are truly desperate, it is possible to exert some limited control over the order in which a two-input operator consumes its inputs by using a custom Operator that implements the `InputSelectable` interface.
 

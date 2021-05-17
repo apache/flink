@@ -18,10 +18,12 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, JoinTypeUtil}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -67,15 +69,23 @@ class StreamPhysicalLookupJoin(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val (projectionOnTemporalTable, filterOnTemporalTable) = calcOnTemporalTable match {
+      case Some(program) =>
+        val (projection, filter) = FlinkRexUtil.expandRexProgram(program)
+        (JavaScalaConversionUtil.toJava(projection), filter.orNull)
+      case _ =>
+        (null, null)
+    }
     new StreamExecLookupJoin(
-        JoinTypeUtil.getFlinkJoinType(joinType),
-        remainingCondition.orNull,
-        temporalTable,
-        calcOnTemporalTable.orNull,
-        allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
-        InputProperty.DEFAULT,
-        FlinkTypeFactory.toLogicalRowType(getRowType),
-        getRelDetailedDescription)
+      JoinTypeUtil.getFlinkJoinType(joinType),
+      remainingCondition.orNull,
+      new TemporalTableSourceSpec(temporalTable, FlinkRelOptUtil.getTableConfigFromContext(this)),
+      allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
+      projectionOnTemporalTable,
+      filterOnTemporalTable,
+      InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 
 }

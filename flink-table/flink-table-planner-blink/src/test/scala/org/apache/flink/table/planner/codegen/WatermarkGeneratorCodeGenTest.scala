@@ -27,9 +27,10 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectId
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkContext, FlinkPlannerImpl, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.delegation.{ParserImpl, PlannerContext}
+import org.apache.flink.table.planner.parse.CalciteParser
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
@@ -59,27 +60,6 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   val config = new TableConfig
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
-  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
-    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
-      createSqlExprToRexConverter(tableRowType)
-  }
-  private val parser: Parser = new ParserImpl(
-    catalogManager,
-    new JSupplier[FlinkPlannerImpl] {
-      override def get(): FlinkPlannerImpl = getPlanner
-    },
-    // we do not cache the parser in order to use the most up to
-    // date configuration. Users might change parser configuration in TableConfig in between
-    // parsing statements
-    new JSupplier[CalciteParser] {
-      override def get(): CalciteParser = plannerContext.createCalciteParser()
-    },
-    new JFunction[TableSchema, SqlExprToRexConverter] {
-      override def apply(t: TableSchema): SqlExprToRexConverter = {
-        sqlExprToRexConverterFactory.create(plannerContext.getTypeFactory.buildRelNodeRowType(t))
-      }
-    }
-  )
   val plannerContext = new PlannerContext(
     config,
     functionCatalog,
@@ -100,9 +80,6 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     GenericRowData.of(TimestampData.fromEpochMillis(4000L), JInt.valueOf(10)),
     GenericRowData.of(TimestampData.fromEpochMillis(6000L), JInt.valueOf(8))
   )
-
-  private def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter =
-    plannerContext.createSqlExprToRexConverter(tableRowType)
 
   @Test
   def testAscendingWatermark(): Unit = {
@@ -201,7 +178,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
         .getContext
         .unwrap(classOf[FlinkContext])
         .getSqlExprToRexConverterFactory
-        .create(tableRowType)
+        .create(tableRowType, null)
     val rexNode = converter.convertToRexNode(expr)
 
     if (useDefinedConstructor) {

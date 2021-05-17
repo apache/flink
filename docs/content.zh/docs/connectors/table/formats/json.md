@@ -99,12 +99,12 @@ Format 参数
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>声明输入和输出的 <code>TIMESTAMP</code> 和 <code>TIMESTAMP WITH LOCAL TIME ZONE</code> 的格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
+      <td>声明输入和输出的 <code>TIMESTAMP</code> 和 <code>TIMESTAMP_LTZ</code> 的格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
       <ul>
         <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析 TIMESTAMP, 例如 "2020-12-30 12:13:14.123"，
-        以 "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP WITH LOCAL TIME ZONE, 例如 "2020-12-30 12:13:14.123Z" 且会以相同的格式输出。</li>
+        以 "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP_LTZ, 例如 "2020-12-30 12:13:14.123Z" 且会以相同的格式输出。</li>
         <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入 TIMESTAMP, 例如 "2020-12-30T12:13:14.123" ，
-        以 "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP WITH LOCAL TIME ZONE, 例如 "2020-12-30T12:13:14.123Z" 且会以相同的格式输出。</li>
+        以 "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP_LTZ, 例如 "2020-12-30T12:13:14.123Z" 且会以相同的格式输出。</li>
       </ul>
       </td>
     </tr>

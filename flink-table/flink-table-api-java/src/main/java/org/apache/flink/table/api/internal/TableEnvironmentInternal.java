@@ -28,6 +28,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
@@ -53,6 +54,9 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     /** Returns a {@link CatalogManager} that deals with all catalog objects. */
     CatalogManager getCatalogManager();
 
+    /** Returns a {@link OperationTreeBuilder} that can create {@link QueryOperation}s. */
+    OperationTreeBuilder getOperationTreeBuilder();
+
     /**
      * Execute the given modify operations and return the execution result.
      *
@@ -62,12 +66,12 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     TableResult executeInternal(List<ModifyOperation> operations);
 
     /**
-     * Execute the given query operation and return the execution result.
+     * Execute the given operation and return the execution result.
      *
-     * @param operation The QueryOperation to be executed.
-     * @return the content of the QueryOperation.
+     * @param operation The operation to be executed.
+     * @return the content of the execution result.
      */
-    TableResult executeInternal(QueryOperation operation);
+    TableResult executeInternal(Operation operation);
 
     /**
      * Returns the AST of this table and the execution plan to compute the result of this table.

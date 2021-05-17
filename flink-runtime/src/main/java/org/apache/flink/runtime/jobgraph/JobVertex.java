@@ -47,6 +47,8 @@ public class JobVertex implements java.io.Serializable {
 
     private static final String DEFAULT_NAME = "(unnamed vertex)";
 
+    public static final int MAX_PARALLELISM_DEFAULT = -1;
+
     // --------------------------------------------------------------------------------------------
     // Members that define the structure / topology of the graph
     // --------------------------------------------------------------------------------------------
@@ -77,7 +79,7 @@ public class JobVertex implements java.io.Serializable {
     private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
     /** Maximum number of subtasks to split this task into a runtime. */
-    private int maxParallelism = -1;
+    private int maxParallelism = MAX_PARALLELISM_DEFAULT;
 
     /** The minimum resource of the vertex. */
     private ResourceSpec minResources = ResourceSpec.DEFAULT;

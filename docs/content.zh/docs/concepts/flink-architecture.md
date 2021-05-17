@@ -71,7 +71,7 @@ _JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的
 
 下图中样例数据流用 5 个 subtask 执行，因此有 5 个并行线程。
 
-<img src="{% link /fig/tasks_chains.svg %}" alt="Operator chaining into Tasks" class="offset" width="80%" />
+{{< img src="/fig/tasks_chains.svg" alt="Operator chaining into Tasks" class="offset" width="80%" >}}
 
 {{< top >}}
 
@@ -83,7 +83,7 @@ _JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的
 
 通过调整 task slot 的数量，用户可以定义 subtask 如何互相隔离。每个 TaskManager 有一个 slot，这意味着每个 task 组都在单独的 JVM 中运行（例如，可以在单独的容器中启动）。具有多个 slot 意味着更多 subtask 共享同一 JVM。同一 JVM 中的 task 共享 TCP 连接（通过多路复用）和心跳信息。它们还可以共享数据集和数据结构，从而减少了每个 task 的开销。
 
-<img src="{% link /fig/tasks_slots.svg %}" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" />
+{{< img src="/fig/tasks_slots.svg" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" >}}
 
 默认情况下，Flink 允许 subtask 共享 slot，即便它们是不同的 task 的 subtask，只要是来自于同一作业即可。结果就是一个 slot 可以持有整个作业管道。允许 *slot 共享*有两个主要优点：
 
@@ -91,7 +91,7 @@ _JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的
 
   - 容易获得更好的资源利用。如果没有 slot 共享，非密集 subtask（*source/map()*）将阻塞和密集型 subtask（*window*） 一样多的资源。通过 slot 共享，我们示例中的基本并行度从 2 增加到 6，可以充分利用分配的资源，同时确保繁重的 subtask 在 TaskManager 之间公平分配。
 
-<img src="{% link /fig/slot_sharing.svg %}" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
+{{< img src="/fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" >}}
 
 ## Flink 应用程序执行
 
@@ -113,7 +113,7 @@ Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集�
 
 ### Flink Job 集群
 
-* **集群生命周期**：在 Flink Job 集群中，可用的集群管理器（例如 YARN 或 Kubernetes）用于为每个提交的作业启动一个集群，并且该集群仅可用于该作业。在这里，客户端首先从集群管理器请求资源启动 JobManager，然后将作业提交给在这个进程中运行的 Dispatcher。然后根据作业的资源请求惰性的分配 TaskManager。一旦作业完成，Flink Job 集群将被拆除。
+* **集群生命周期**：在 Flink Job 集群中，可用的集群管理器（例如 YARN）用于为每个提交的作业启动一个集群，并且该集群仅可用于该作业。在这里，客户端首先从集群管理器请求资源启动 JobManager，然后将作业提交给在这个进程中运行的 Dispatcher。然后根据作业的资源请求惰性的分配 TaskManager。一旦作业完成，Flink Job 集群将被拆除。
 
 * **资源隔离**：JobManager 中的致命错误仅影响在 Flink Job 集群中运行的一个作业。
 
@@ -121,6 +121,9 @@ Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集�
 
 {{< hint info >}}
 以前，Flink Job 集群也被称为<i> job (or per-job) 模式</i>下的 Flink 集群。
+{{< /hint >}}
+{{< hint info >}}
+Kubernetes 不支持 Flink Job 集群。 请参考 [Standalone Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#per-job-cluster-mode) 和 [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#per-job-cluster-mode)。
 {{< /hint >}}
 
 ### Flink Application 集群

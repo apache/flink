@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -59,7 +60,8 @@ import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fro
  * Base {@link ExecNode} to read data from an external source defined by a {@link
  * StreamTableSource}.
  */
-public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowData> {
+public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowData>
+        implements MultipleTransformationTranslator<RowData> {
 
     protected final TableSource<?> tableSource;
     protected final List<String> qualifiedName;

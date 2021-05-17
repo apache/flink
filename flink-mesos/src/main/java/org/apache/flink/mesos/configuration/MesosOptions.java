@@ -24,7 +24,13 @@ import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/** The set of configuration options relating to mesos settings. */
+/**
+ * The set of configuration options relating to mesos settings.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosOptions {
 
     /**

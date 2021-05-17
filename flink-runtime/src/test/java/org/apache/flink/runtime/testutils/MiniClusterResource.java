@@ -95,52 +95,56 @@ public class MiniClusterResource extends ExternalResource {
                         * miniClusterResourceConfiguration.getNumberTaskManagers();
     }
 
+    public void cancelAllJobs() {
+        try {
+            final Deadline jobCancellationDeadline =
+                    Deadline.fromNow(
+                            Duration.ofMillis(
+                                    miniClusterResourceConfiguration
+                                            .getShutdownTimeout()
+                                            .toMilliseconds()));
+
+            final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
+                    miniCluster.listJobs()
+                            .get(
+                                    jobCancellationDeadline.timeLeft().toMillis(),
+                                    TimeUnit.MILLISECONDS)
+                            .stream()
+                            .filter(status -> !status.getJobState().isGloballyTerminalState())
+                            .map(status -> miniCluster.cancelJob(status.getJobId()))
+                            .collect(Collectors.toList());
+
+            FutureUtils.waitForAll(jobCancellationFutures)
+                    .get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        final long unfinishedJobs =
+                                miniCluster.listJobs()
+                                        .get(
+                                                jobCancellationDeadline.timeLeft().toMillis(),
+                                                TimeUnit.MILLISECONDS)
+                                        .stream()
+                                        .filter(
+                                                status ->
+                                                        !status.getJobState()
+                                                                .isGloballyTerminalState())
+                                        .count();
+                        return unfinishedJobs == 0;
+                    },
+                    jobCancellationDeadline);
+        } catch (Exception e) {
+            log.warn("Exception while shutting down remaining jobs.", e);
+        }
+    }
+
     @Override
     public void after() {
         Exception exception = null;
 
         if (miniCluster != null) {
             // try to cancel remaining jobs before shutting down cluster
-            try {
-                final Deadline jobCancellationDeadline =
-                        Deadline.fromNow(
-                                Duration.ofMillis(
-                                        miniClusterResourceConfiguration
-                                                .getShutdownTimeout()
-                                                .toMilliseconds()));
-
-                final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
-                        miniCluster.listJobs()
-                                .get(
-                                        jobCancellationDeadline.timeLeft().toMillis(),
-                                        TimeUnit.MILLISECONDS)
-                                .stream()
-                                .filter(status -> !status.getJobState().isGloballyTerminalState())
-                                .map(status -> miniCluster.cancelJob(status.getJobId()))
-                                .collect(Collectors.toList());
-
-                FutureUtils.waitForAll(jobCancellationFutures)
-                        .get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-                CommonTestUtils.waitUntilCondition(
-                        () -> {
-                            final long unfinishedJobs =
-                                    miniCluster.listJobs()
-                                            .get(
-                                                    jobCancellationDeadline.timeLeft().toMillis(),
-                                                    TimeUnit.MILLISECONDS)
-                                            .stream()
-                                            .filter(
-                                                    status ->
-                                                            !status.getJobState()
-                                                                    .isGloballyTerminalState())
-                                            .count();
-                            return unfinishedJobs == 0;
-                        },
-                        jobCancellationDeadline);
-            } catch (Exception e) {
-                log.warn("Exception while shutting down remaining jobs.", e);
-            }
+            cancelAllJobs();
 
             final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
 

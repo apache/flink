@@ -22,13 +22,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationConfig;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.InjectableValues;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.DeserializerFactory;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Custom JSON {@link DeserializationContext} which wraps a {@link SerdeContext}. */
 public class FlinkDeserializationContext extends DefaultDeserializationContext {
     private static final long serialVersionUID = 1L;
     private final SerdeContext serdeCtx;
+    private ObjectMapper objectMapper;
 
     public FlinkDeserializationContext(DefaultDeserializationContext src, SerdeContext serdeCtx) {
         super(src);
@@ -42,12 +46,21 @@ public class FlinkDeserializationContext extends DefaultDeserializationContext {
             InjectableValues values) {
         super(src, config, jp, values);
         this.serdeCtx = src.serdeCtx;
+        this.objectMapper = src.objectMapper;
     }
 
     protected FlinkDeserializationContext(
             FlinkDeserializationContext src, DeserializerFactory factory) {
         super(src, factory);
         this.serdeCtx = src.serdeCtx;
+        this.objectMapper = src.objectMapper;
+    }
+
+    protected FlinkDeserializationContext(
+            FlinkDeserializationContext src, DeserializationConfig config) {
+        super(src, config);
+        this.serdeCtx = src.serdeCtx;
+        this.objectMapper = src.objectMapper;
     }
 
     @Override
@@ -61,7 +74,20 @@ public class FlinkDeserializationContext extends DefaultDeserializationContext {
         return new FlinkDeserializationContext(this, config, p, values);
     }
 
+    @Override
+    public DefaultDeserializationContext createDummyInstance(DeserializationConfig config) {
+        return new FlinkDeserializationContext(this, config);
+    }
+
     public SerdeContext getSerdeContext() {
         return serdeCtx;
+    }
+
+    public ObjectMapper getObjectMapper() {
+        return checkNotNull(objectMapper);
+    }
+
+    public void setObjectMapper(ObjectMapper mapper) {
+        this.objectMapper = mapper;
     }
 }

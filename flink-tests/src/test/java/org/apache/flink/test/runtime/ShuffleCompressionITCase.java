@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -44,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
@@ -119,14 +120,14 @@ public class ShuffleCompressionITCase {
         sink.setSlotSharingGroup(slotSharingGroup);
 
         sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
-        JobGraph jobGraph = new JobGraph(source, sink);
-        jobGraph.setJobType(JobType.BATCH);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setExecutionMode(executionMode);
-        jobGraph.setExecutionConfig(executionConfig);
 
-        return jobGraph;
+        return JobGraphBuilder.newBatchJobGraphBuilder()
+                .addJobVertices(Arrays.asList(source, sink))
+                .setExecutionConfig(executionConfig)
+                .build();
     }
 
     /** Test source that emits {@link LongValue} to downstream. */

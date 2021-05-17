@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.batch;
 
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
@@ -27,8 +28,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -162,13 +165,14 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
     }
 
     @Test
-    public void testAvroToRow() throws Exception {
+    public void testAvroToRow() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
                 StreamTableEnvironment.create(
                         env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-        Table t = tEnv.fromDataStream(testData(env));
+        DataStream<User> ds = testData(env);
+        Table t = tEnv.fromDataStream(ds, selectFields(ds));
         Table result = t.select($("*"));
 
         List<Row> results =
@@ -202,7 +206,8 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
                 StreamTableEnvironment.create(
                         env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-        Table t = tEnv.fromDataStream(testData(env));
+        DataStream<User> ds = testData(env);
+        Table t = tEnv.fromDataStream(ds, selectFields(ds));
         Table result = t.select($("name"));
         List<Utf8> results =
                 CollectionUtil.iteratorToList(result.execute().collect()).stream()
@@ -214,13 +219,14 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
     }
 
     @Test
-    public void testAvroObjectAccess() throws Exception {
+    public void testAvroObjectAccess() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
                 StreamTableEnvironment.create(
                         env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-        Table t = tEnv.fromDataStream(testData(env));
+        DataStream<User> ds = testData(env);
+        Table t = tEnv.fromDataStream(ds, selectFields(ds));
         Table result =
                 t.filter($("type_nested").isNotNull())
                         .select($("type_nested").flatten())
@@ -234,13 +240,14 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
     }
 
     @Test
-    public void testAvroToAvro() throws Exception {
+    public void testAvroToAvro() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
                 StreamTableEnvironment.create(
                         env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
-        Table t = tEnv.fromDataStream(testData(env));
+        DataStream<User> ds = testData(env);
+        Table t = tEnv.fromDataStream(ds, selectFields(ds));
         Table result = t.select($("*"));
 
         List<User> results =
@@ -252,5 +259,11 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 
     private DataStream<User> testData(StreamExecutionEnvironment env) {
         return env.fromElements(USER_1, USER_2, USER_3);
+    }
+
+    private static <T> Expression[] selectFields(DataStream<T> ds) {
+        return Arrays.stream(((PojoTypeInfo<T>) ds.getType()).getFieldNames())
+                .map(Expressions::$)
+                .toArray(Expression[]::new);
     }
 }

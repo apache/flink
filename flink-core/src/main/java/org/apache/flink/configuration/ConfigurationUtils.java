@@ -210,6 +210,7 @@ public class ConfigurationUtils {
             }
         }
 
+        checkConfigContains(configs, TaskManagerOptions.CPU_CORES.key());
         checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.key());
         checkConfigContains(configs, TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
         checkConfigContains(configs, TaskManagerOptions.TASK_HEAP_MEMORY.key());
@@ -220,6 +221,7 @@ public class ConfigurationUtils {
         checkConfigContains(configs, TaskManagerOptions.JVM_METASPACE.key());
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MIN.key());
         checkConfigContains(configs, TaskManagerOptions.JVM_OVERHEAD_MAX.key());
+        checkConfigContains(configs, TaskManagerOptions.NUM_TASK_SLOTS.key());
 
         return configs;
     }
@@ -387,7 +389,7 @@ public class ConfigurationUtils {
             return (String) o;
         } else if (o.getClass() == Duration.class) {
             Duration duration = (Duration) o;
-            return String.format("%d ns", duration.toNanos());
+            return TimeUtils.formatWithHighestUnit(duration);
         } else if (o instanceof List) {
             return ((List<?>) o)
                     .stream()

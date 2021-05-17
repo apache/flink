@@ -122,8 +122,13 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
                 if (reachLimit()) {
                     return null;
                 }
-                numRead.incrementAndGet();
-                return iterator.next();
+
+                RecordAndPosition<T> ret = iterator.next();
+                if (ret != null) {
+                    numRead.incrementAndGet();
+                }
+
+                return ret;
             }
 
             @Override

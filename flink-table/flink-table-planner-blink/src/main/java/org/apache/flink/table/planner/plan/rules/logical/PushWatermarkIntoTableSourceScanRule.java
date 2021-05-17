@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 
@@ -50,15 +50,14 @@ public class PushWatermarkIntoTableSourceScanRule extends PushWatermarkIntoTable
     public void onMatch(RelOptRuleCall call) {
         FlinkLogicalWatermarkAssigner watermarkAssigner = call.rel(0);
         FlinkLogicalTableSourceScan scan = call.rel(1);
-        FlinkContext context = (FlinkContext) call.getPlanner().getContext();
 
         FlinkLogicalTableSourceScan newScan =
                 getNewScan(
                         watermarkAssigner,
                         watermarkAssigner.watermarkExpr(),
                         scan,
-                        context.getTableConfig(),
-                        true);
+                        ShortcutUtils.unwrapContext(scan).getTableConfig(),
+                        true); // useWatermarkAssignerRowType
 
         call.transformTo(newScan);
     }

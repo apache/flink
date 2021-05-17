@@ -61,6 +61,7 @@ export interface JobDetailInterface {
 interface Plan {
   jid: string;
   name: string;
+  type:  string;
   nodes: NodesItemInterface[];
 }
 
@@ -104,6 +105,7 @@ interface TasksStatus {
   FAILED: number;
   RECONCILING: number;
   CANCELING: number;
+  INITIALIZING: number;
 }
 
 interface MetricsStatus {
@@ -149,6 +151,7 @@ export interface JobDetailCorrectInterface extends JobDetailInterface {
   plan: {
     jid: string;
     name: string;
+    type: string;
     nodes: NodesItemCorrectInterface[];
     links: NodesItemLinkInterface[];
   };

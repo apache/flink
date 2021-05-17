@@ -36,7 +36,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -202,21 +201,27 @@ public final class Utils {
             throws IOException {
         Credentials credentials = new Credentials();
 
-        // obtain tokens from HadoopDelegationTokenProviders
-        HadoopDelegationTokenConfiguration hadoopDelegationTokenConf =
-                new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
-        HadoopDelegationTokenManager delegationTokenManager =
-                new HadoopDelegationTokenManager(hadoopDelegationTokenConf);
-        delegationTokenManager.obtainDelegationTokens(credentials);
+        final boolean fetchToken =
+                flinkConf.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+        if (fetchToken) {
+            // obtain tokens from HadoopDelegationTokenProviders
+            LOG.info("Obtaining delegation tokens...");
+            HadoopDelegationTokenConfiguration conf =
+                    new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+            HadoopDelegationTokenManager delegationTokenManager =
+                    new HadoopDelegationTokenManager(conf);
+            delegationTokenManager.obtainDelegationTokens(credentials);
+        } else {
+            LOG.info("Delegation token retrieval is disabled.");
+        }
 
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
         Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
         for (Token<? extends TokenIdentifier> token : usrTok) {
-            final Text id = new Text(token.getIdentifier());
-            LOG.info("Adding user token " + id + " with " + token);
-            credentials.addToken(id, token);
+            LOG.info("Adding user token " + token.getService() + " with " + token);
+            credentials.addToken(token.getService(), token);
         }
         try (DataOutputBuffer dob = new DataOutputBuffer()) {
             credentials.writeTokenStorageToStream(dob);
@@ -296,7 +301,9 @@ public final class Utils {
      * @param tmParams The TaskExecutor container memory parameters.
      * @param taskManagerDynamicProperties The dynamic configurations to be updated for the
      *     TaskExecutors based on client uploaded Flink config.
-     * @param workingDirectory The current application master container's working directory.
+     * @param workingDirectory The current application 
+     
+     container's working directory.
      * @param taskManagerMainClass The class with the main method.
      * @param log The logger.
      * @return The launch context for the TaskManager processes.
@@ -483,8 +490,7 @@ public final class Utils {
                 Collection<Token<? extends TokenIdentifier>> userTokens = cred.getAllTokens();
                 for (Token<? extends TokenIdentifier> token : userTokens) {
                     if (!token.getKind().equals(AMRMTokenIdentifier.KIND_NAME)) {
-                        final Text id = new Text(token.getIdentifier());
-                        taskManagerCred.addToken(id, token);
+                        taskManagerCred.addToken(token.getService(), token);
                     }
                 }
 

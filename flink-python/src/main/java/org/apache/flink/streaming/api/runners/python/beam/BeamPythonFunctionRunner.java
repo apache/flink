@@ -28,10 +28,12 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -44,9 +46,11 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
@@ -94,16 +98,19 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.setCurrentKeyForStreaming;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
 @Internal
@@ -127,6 +134,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
+
+    protected final FlinkFnApi.CoderParam.OutputMode outputMode;
 
     private transient boolean bundleStarted;
 
@@ -196,17 +205,21 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
             @Nullable TypeSerializer keySerializer,
+            @Nullable TypeSerializer namespaceSerializer,
             @Nullable MemoryManager memoryManager,
-            double managedMemoryFraction) {
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.functionUrn = Preconditions.checkNotNull(functionUrn);
         this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
         this.stateRequestHandler =
-                getStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
+                getStateRequestHandler(
+                        keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
+        this.outputMode = outputMode;
         this.resultTuple = new Tuple2<>();
     }
 
@@ -281,10 +294,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         try {
             if (sharedResources != null) {
-                if (sharedResources.getResourceHandle().release()) {
-                    // release sharedResources iff there are no more Python operators sharing it
-                    sharedResources.close();
-                }
+                sharedResources.close();
             } else {
                 // if sharedResources is not null, the close of environmentManager will be managed
                 // in sharedResources,
@@ -317,8 +327,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @Override
     public void flush() throws Exception {
         if (bundleStarted) {
-            finishBundle();
-            bundleStarted = false;
+            try {
+                finishBundle();
+            } finally {
+                bundleStarted = false;
+            }
         }
     }
 
@@ -543,12 +556,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static StateRequestHandler getStateRequestHandler(
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             Map<String, String> jobOptions) {
         if (keyedStateBackend == null) {
             return StateRequestHandler.unsupported();
         } else {
             assert keySerializer != null;
-            return new SimpleStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
+            return new SimpleStateRequestHandler(
+                    keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         }
     }
 
@@ -592,6 +607,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static class SimpleStateRequestHandler implements StateRequestHandler {
 
         private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
+        private static final String MERGE_NAMESPACES_MARK = "merge_namespaces";
 
         // map state GET request flags
         private static final byte GET_FLAG = 0;
@@ -624,6 +640,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .setData(ByteString.copyFrom(new byte[] {NOT_EMPTY_FLAG}));
 
         private final TypeSerializer keySerializer;
+        private final TypeSerializer namespaceSerializer;
         private final TypeSerializer<byte[]> valueSerializer;
         private final KeyedStateBackend keyedStateBackend;
 
@@ -655,9 +672,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         SimpleStateRequestHandler(
                 KeyedStateBackend keyedStateBackend,
                 TypeSerializer keySerializer,
+                TypeSerializer namespaceSerializer,
                 Map<String, String> config) {
             this.keyedStateBackend = keyedStateBackend;
+            TypeSerializer frameworkKeySerializer = keyedStateBackend.getKeySerializer();
+            if (!(frameworkKeySerializer instanceof AbstractRowDataSerializer
+                    || frameworkKeySerializer instanceof RowSerializer)) {
+                throw new RuntimeException(
+                        "Currently SimpleStateRequestHandler only support row key!");
+            }
             this.keySerializer = keySerializer;
+            this.namespaceSerializer = namespaceSerializer;
             this.valueSerializer =
                     PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
                             new ExecutionConfig());
@@ -713,11 +738,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 bais.setBuffer(keyBytes, 0, keyBytes.length);
                 Object key = keySerializer.deserialize(baisWrapper);
                 if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
-                    keyedStateBackend.setCurrentKey(
+                    setCurrentKeyForStreaming(
+                            keyedStateBackend,
                             ((RowDataSerializer) keyedStateBackend.getKeySerializer())
                                     .toBinaryRow((RowData) key));
                 } else {
-                    keyedStateBackend.setCurrentKey(key);
+                    setCurrentKeyForStreaming(keyedStateBackend, key);
                 }
             } else {
                 throw new RuntimeException("Unsupported bag state request: " + request);
@@ -767,10 +793,29 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 BeamFnApi.StateRequest request) throws Exception {
 
             ListState<byte[]> partitionedState = getListState(request);
-            // get values
-            byte[] valueBytes = request.getAppend().getData().toByteArray();
-            partitionedState.add(valueBytes);
-
+            if (request.getStateKey()
+                    .getBagUserState()
+                    .getTransformId()
+                    .equals(MERGE_NAMESPACES_MARK)) {
+                // get namespaces to merge
+                byte[] namespacesBytes = request.getAppend().getData().toByteArray();
+                bais.setBuffer(namespacesBytes, 0, namespacesBytes.length);
+                int namespaceCount = baisWrapper.readInt();
+                Set<Object> namespaces = new HashSet<>();
+                for (int i = 0; i < namespaceCount; i++) {
+                    namespaces.add(namespaceSerializer.deserialize(baisWrapper));
+                }
+                byte[] targetNamespaceByte =
+                        request.getStateKey().getBagUserState().getWindow().toByteArray();
+                bais.setBuffer(targetNamespaceByte, 0, targetNamespaceByte.length);
+                Object targetNamespace = namespaceSerializer.deserialize(baisWrapper);
+                ((InternalMergingState) partitionedState)
+                        .mergeNamespaces(targetNamespace, namespaces);
+            } else {
+                // get values
+                byte[] valueBytes = request.getAppend().getData().toByteArray();
+                partitionedState.add(valueBytes);
+            }
             return CompletableFuture.completedFuture(
                     BeamFnApi.StateResponse.newBuilder()
                             .setId(request.getId())
@@ -806,12 +851,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         + "'%s' is used both as LIST state and '%s' state at the same time.",
                                 stateName, cachedStateDescriptor.getType()));
             }
-
-            return (ListState<byte[]>)
-                    keyedStateBackend.getPartitionedState(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            listStateDescriptor);
+            byte[] windowBytes = bagUserState.getWindow().toByteArray();
+            if (windowBytes.length != 0) {
+                bais.setBuffer(windowBytes, 0, windowBytes.length);
+                Object namespace = namespaceSerializer.deserialize(baisWrapper);
+                return (ListState<byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                namespace, namespaceSerializer, listStateDescriptor);
+            } else {
+                return (ListState<byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                listStateDescriptor);
+            }
         }
 
         private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapState(
@@ -826,11 +879,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 bais.setBuffer(keyBytes, 0, keyBytes.length);
                 Object key = keySerializer.deserialize(baisWrapper);
                 if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
-                    keyedStateBackend.setCurrentKey(
+                    setCurrentKeyForStreaming(
+                            keyedStateBackend,
                             ((RowDataSerializer) keyedStateBackend.getKeySerializer())
                                     .toBinaryRow((RowData) key));
                 } else {
-                    keyedStateBackend.setCurrentKey(key);
+                    setCurrentKeyForStreaming(keyedStateBackend, key);
                 }
             } else {
                 throw new RuntimeException("Unsupported bag state request: " + request);
@@ -1098,12 +1152,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         + "'%s' is used both as MAP state and '%s' state at the same time.",
                                 stateName, cachedStateDescriptor.getType()));
             }
-
-            return (MapState<ByteArrayWrapper, byte[]>)
-                    keyedStateBackend.getPartitionedState(
-                            VoidNamespace.INSTANCE,
-                            VoidNamespaceSerializer.INSTANCE,
-                            mapStateDescriptor);
+            byte[] windowBytes = mapUserState.getWindow().toByteArray();
+            if (windowBytes.length != 0) {
+                bais.setBuffer(windowBytes, 0, windowBytes.length);
+                Object namespace = namespaceSerializer.deserialize(baisWrapper);
+                return (MapState<ByteArrayWrapper, byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                namespace, namespaceSerializer, mapStateDescriptor);
+            } else {
+                return (MapState<ByteArrayWrapper, byte[]>)
+                        keyedStateBackend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                mapStateDescriptor);
+            }
         }
 
         private BeamFnApi.ProcessBundleRequest.CacheToken createCacheToken() {

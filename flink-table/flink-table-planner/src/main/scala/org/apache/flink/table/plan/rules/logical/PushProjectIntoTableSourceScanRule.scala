@@ -71,7 +71,8 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val physicalFields = expandTimeAttributes(
       source,
       if (LogicalTypeChecks.isCompositeType(source.getProducedDataType.getLogicalType)) {
-        DataTypeUtils.expandCompositeTypeToSchema(source.getProducedDataType)
+        TableSchema.fromResolvedSchema(
+          DataTypeUtils.expandCompositeTypeToSchema(source.getProducedDataType))
       } else {
         null
       },

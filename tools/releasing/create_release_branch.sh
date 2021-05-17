@@ -65,11 +65,11 @@ popd
 
 #change version of documentation
 cd docs
-perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^  Version = .*#  Version = \"${NEW_VERSION}\"#" config.toml
 
 # The version in the title should not contain the bugfix version (e.g. 1.3)
 VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
-perl -pi -e "s#^version_title: .*#version_title: ${VERSION_TITLE}#" _config.yml
+perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${VERSION_TITLE}\"#" config.toml
 cd ..
 
 #change version of pyflink

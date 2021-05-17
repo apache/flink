@@ -58,6 +58,8 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int sortShuffleMinParallelism = Integer.MAX_VALUE;
 
+    private long batchShuffleReadMemoryBytes = 64 * DEFAULT_NETWORK_BUFFER_SIZE;
+
     private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
     private boolean blockingShuffleCompressionEnabled = false;
@@ -130,6 +132,12 @@ public class NettyShuffleEnvironmentBuilder {
         return this;
     }
 
+    public NettyShuffleEnvironmentBuilder setBatchShuffleReadMemoryBytes(
+            long batchShuffleReadMemoryBytes) {
+        this.batchShuffleReadMemoryBytes = batchShuffleReadMemoryBytes;
+        return this;
+    }
+
     public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(
             boolean blockingShuffleCompressionEnabled) {
         this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
@@ -179,6 +187,7 @@ public class NettyShuffleEnvironmentBuilder {
                         blockingShuffleCompressionEnabled,
                         compressionCodec,
                         maxBuffersPerChannel,
+                        batchShuffleReadMemoryBytes,
                         sortShuffleMinBuffers,
                         sortShuffleMinParallelism),
                 taskManagerLocation,

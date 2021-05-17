@@ -100,6 +100,9 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     public void testDescribeDatabase() {
         sql("describe schema db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc schema db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -114,6 +117,10 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe extended tbl").ok("DESCRIBE EXTENDED `TBL`");
         sql("describe formatted tbl").ok("DESCRIBE FORMATTED `TBL`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc extended tbl").ok("DESCRIBE EXTENDED `TBL`");
+        sql("desc formatted tbl").ok("DESCRIBE FORMATTED `TBL`");
     }
 
     @Test
@@ -250,8 +257,8 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testShowFunctions() {
-        // TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
         sql("show functions").ok("SHOW FUNCTIONS");
+        sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test
@@ -279,6 +286,8 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+
+        sql("desc catalog cat").ok("DESCRIBE CATALOG `CAT`");
     }
 
     @Test
@@ -431,8 +440,16 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "ALTER TABLE `TBL`\n"
                                 + "DROP\n"
-                                + "PARTITION (`P1` = 'a', `P2` = 1)\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
                                 + "PARTITION (`P1` = 'b', `P2` = 2)");
+        sql("alter table tbl drop partition (p1='a',p2=1), "
+                        + "partition(p1='b',p2=2), partition(p1='c',p2=3)")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "DROP\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
+                                + "PARTITION (`P1` = 'b', `P2` = 2),\n"
+                                + "PARTITION (`P1` = 'c', `P2` = 3)");
         // TODO: support IGNORE PROTECTION, PURGE
     }
 
@@ -465,5 +482,62 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 
         sql("use modules ^'hive'^")
                 .fails("(?s).*Encountered \"\\\\'hive\\\\'\" at line 1, column 13.\n.*");
+    }
+
+    @Test
+    public void testShowModules() {
+        sql("show modules").ok("SHOW MODULES");
+
+        sql("show full modules").ok("SHOW FULL MODULES");
+    }
+
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // TODO: FLINK-20562
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
     }
 }

@@ -21,11 +21,12 @@ package org.apache.flink.table.runtime.operators.join.temporal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.Test;
 
@@ -43,8 +44,9 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
     private int keyIdx = 0;
     private InternalTypeInfo<RowData> rowType =
             InternalTypeInfo.ofFields(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
-    private BinaryRowDataKeySelector keySelector =
-            new BinaryRowDataKeySelector(new int[] {keyIdx}, rowType.toRowFieldTypes());
+    private RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(
+                    new int[] {keyIdx}, rowType.toRowFieldTypes());
     private TypeInformation<RowData> keyType = keySelector.getProducedType();
     private InternalTypeInfo<RowData> outputRowType =
             InternalTypeInfo.ofFields(

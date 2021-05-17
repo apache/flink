@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -32,6 +34,8 @@ public class SlotManagerConfigurationBuilder {
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
     private int maxSlotNum;
+    private CPUResource maxTotalCpu;
+    private MemorySize maxTotalMem;
     private int redundantTaskManagerNum;
 
     private SlotManagerConfigurationBuilder() {
@@ -42,6 +46,8 @@ public class SlotManagerConfigurationBuilder {
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
         this.numSlotsPerWorker = 1;
         this.maxSlotNum = ResourceManagerOptions.MAX_SLOT_NUM.defaultValue();
+        this.maxTotalCpu = new CPUResource(Double.MAX_VALUE);
+        this.maxTotalMem = MemorySize.MAX_VALUE;
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
     }
@@ -88,6 +94,16 @@ public class SlotManagerConfigurationBuilder {
         return this;
     }
 
+    public SlotManagerConfigurationBuilder setMaxTotalCpu(CPUResource maxTotalCpu) {
+        this.maxTotalCpu = maxTotalCpu;
+        return this;
+    }
+
+    public SlotManagerConfigurationBuilder setMaxTotalMem(MemorySize maxTotalMem) {
+        this.maxTotalMem = maxTotalMem;
+        return this;
+    }
+
     public SlotManagerConfigurationBuilder setRedundantTaskManagerNum(int redundantTaskManagerNum) {
         this.redundantTaskManagerNum = redundantTaskManagerNum;
         return this;
@@ -103,6 +119,8 @@ public class SlotManagerConfigurationBuilder {
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 maxSlotNum,
+                maxTotalCpu,
+                maxTotalMem,
                 redundantTaskManagerNum);
     }
 }

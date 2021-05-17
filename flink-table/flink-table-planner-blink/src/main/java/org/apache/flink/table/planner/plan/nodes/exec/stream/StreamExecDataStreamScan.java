@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
@@ -51,7 +52,7 @@ import static org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STR
 
 /** Stream {@link ExecNode} to connect a given {@link DataStream} and consume data from it. */
 public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     private final DataStream<?> dataStream;
     private final DataType sourceType;
     private final int[] fieldIndexes;

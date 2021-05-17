@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
 /** Base class for stream {@link ExecNode}. */
+@Internal
 public interface StreamExecNode<T> extends ExecNode<T> {}

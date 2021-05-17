@@ -28,6 +28,7 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -109,6 +110,16 @@ public final class BuiltInFunctionDefinitions {
                                     }))
                     .outputTypeStrategy(TypeStrategies.IF_NULL)
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IfNullFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition SOURCE_WATERMARK =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("SOURCE_WATERMARK")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(TypeStrategies.SOURCE_WATERMARK)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -285,70 +296,89 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("avg")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition COUNT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("count")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(ANY)) // COUNT(*) is not supported yet
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT().notNull()))
                     .build();
 
     public static final BuiltInFunctionDefinition MAX =
             BuiltInFunctionDefinition.newBuilder()
                     .name("max")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.of(1), StructuredComparision.FULL))
+                    .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
     public static final BuiltInFunctionDefinition MIN =
             BuiltInFunctionDefinition.newBuilder()
                     .name("min")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.of(1), StructuredComparision.FULL))
+                    .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
     public static final BuiltInFunctionDefinition SUM =
             BuiltInFunctionDefinition.newBuilder()
                     .name("sum")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findSumAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition SUM0 =
             BuiltInFunctionDefinition.newBuilder()
                     .name("sum0")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findSumAggType, false))
                     .build();
 
     public static final BuiltInFunctionDefinition STDDEV_POP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("stddevPop")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition STDDEV_SAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("stddevSamp")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition VAR_POP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("varPop")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition VAR_SAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("varSamp")
                     .kind(AGGREGATE)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(
+                            TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
     public static final BuiltInFunctionDefinition COLLECT =
@@ -1111,6 +1141,13 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
+    public static final BuiltInFunctionDefinition CURRENT_ROW_TIMESTAMP =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("currentRowTimestamp")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
     public static final BuiltInFunctionDefinition LOCAL_TIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("localTime")
@@ -1142,6 +1179,12 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition TIMESTAMP_DIFF =
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+    public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("toTimestampLtz")
                     .kind(SCALAR)
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();

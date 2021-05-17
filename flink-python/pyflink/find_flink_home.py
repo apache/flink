@@ -23,6 +23,14 @@ import sys
 
 
 def _is_flink_home(path):
+    flink_script_file = path + "/bin/flink"
+    if len(glob.glob(flink_script_file)) > 0:
+        return True
+    else:
+        return False
+
+
+def _is_apache_flink_libraries_home(path):
     flink_dist_jar_file = path + "/lib/flink-dist*.jar"
     if len(glob.glob(flink_dist_jar_file)) > 0:
         return True
@@ -46,12 +54,17 @@ def _find_flink_home():
                 os.environ['FLINK_HOME'] = build_target[0]
                 return build_target[0]
 
-            from importlib.util import find_spec
-            module_home = os.path.dirname(find_spec("pyflink").origin)
-
-            if _is_flink_home(module_home):
-                os.environ['FLINK_HOME'] = module_home
-                return module_home
+            FLINK_HOME = None
+            for module_home in __import__('pyflink').__path__:
+                if _is_apache_flink_libraries_home(module_home):
+                    os.environ['FLINK_LIB_DIR'] = os.path.join(module_home, 'lib')
+                    os.environ['FLINK_PLUGINS_DIR'] = os.path.join(module_home, 'plugins')
+                    os.environ['FLINK_OPT_DIR'] = os.path.join(module_home, 'opt')
+                if _is_flink_home(module_home):
+                    FLINK_HOME = module_home
+            if FLINK_HOME is not None:
+                os.environ['FLINK_HOME'] = FLINK_HOME
+                return FLINK_HOME
         except Exception:
             pass
         logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "

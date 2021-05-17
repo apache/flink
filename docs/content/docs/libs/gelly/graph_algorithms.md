@@ -33,7 +33,7 @@ configuration.
 
 ## VertexInDegree
 
-Annoate vertices of a directed graph with the in-degree.
+Annotate vertices of a directed graph with the in-degree.
 
 ```java
 DataSet<Vertex<K, LongValue>> inDegree = graph

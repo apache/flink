@@ -40,8 +40,12 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 
 /** Tool class used to convert from CSV-format {@link JsonNode} to {@link RowData}. * */
 @Internal
@@ -141,9 +145,11 @@ public class CsvToRowDataConverters implements Serializable {
                 return this::convertToDate;
             case TIME_WITHOUT_TIME_ZONE:
                 return convertToTime((TimeType) type);
-            case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return this::convertToTimestamp;
+                return jsonNode -> convertToTimestamp(jsonNode, SQL_TIMESTAMP_FORMAT);
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                return jsonNode ->
+                        convertToTimestamp(jsonNode, SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT);
             case FLOAT:
                 return this::convertToFloat;
             case DOUBLE:
@@ -245,10 +251,10 @@ public class CsvToRowDataConverters implements Serializable {
         };
     }
 
-    private TimestampData convertToTimestamp(JsonNode jsonNode) {
-        // csv currently is using Timestamp.valueOf() to parse timestamp string
-        Timestamp timestamp = Timestamp.valueOf(jsonNode.asText());
-        return TimestampData.fromTimestamp(timestamp);
+    private TimestampData convertToTimestamp(
+            JsonNode jsonNode, DateTimeFormatter dateTimeFormatter) {
+        return TimestampData.fromLocalDateTime(
+                LocalDateTime.parse(jsonNode.asText(), dateTimeFormatter));
     }
 
     private StringData convertToString(JsonNode jsonNode) {

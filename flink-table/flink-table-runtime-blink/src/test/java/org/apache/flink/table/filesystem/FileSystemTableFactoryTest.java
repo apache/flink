@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.filesystem;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -32,6 +30,9 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.junit.Test;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -39,12 +40,11 @@ import static org.junit.Assert.fail;
 /** Tests for {@link FileSystemTableFactory}. */
 public class FileSystemTableFactoryTest {
 
-    private static final TableSchema TEST_SCHEMA =
-            TableSchema.builder()
-                    .field("f0", DataTypes.STRING())
-                    .field("f1", DataTypes.BIGINT())
-                    .field("f2", DataTypes.BIGINT())
-                    .build();
+    private static final ResolvedSchema SCHEMA =
+            ResolvedSchema.of(
+                    Column.physical("f0", DataTypes.STRING()),
+                    Column.physical("f1", DataTypes.BIGINT()),
+                    Column.physical("f2", DataTypes.BIGINT()));
 
     @Test
     public void testSourceSink() {
@@ -56,10 +56,10 @@ public class FileSystemTableFactoryTest {
         // test ignore format options
         descriptor.putString("testcsv.my_option", "my_value");
 
-        DynamicTableSource source = createSource(descriptor);
+        DynamicTableSource source = createTableSource(SCHEMA, descriptor.asMap());
         assertTrue(source instanceof FileSystemTableSource);
 
-        DynamicTableSink sink = createSink(descriptor);
+        DynamicTableSink sink = createTableSink(SCHEMA, descriptor.asMap());
         assertTrue(sink instanceof FileSystemTableSink);
     }
 
@@ -70,7 +70,7 @@ public class FileSystemTableFactoryTest {
         descriptor.putString("path", "/tmp");
 
         try {
-            createSource(descriptor);
+            createTableSource(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
             assertTrue(cause.toString(), cause instanceof ValidationException);
@@ -90,7 +90,7 @@ public class FileSystemTableFactoryTest {
         descriptor.putString("path", "/tmp");
 
         try {
-            createSink(descriptor);
+            createTableSink(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
             assertTrue(cause.toString(), cause instanceof ValidationException);
@@ -112,7 +112,7 @@ public class FileSystemTableFactoryTest {
         descriptor.putString("my_option", "my");
 
         try {
-            createSource(descriptor);
+            createTableSource(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
             assertTrue(cause.toString(), cause instanceof ValidationException);
@@ -134,13 +134,39 @@ public class FileSystemTableFactoryTest {
         descriptor.putString("my_option", "my");
 
         try {
-            createSink(descriptor);
+            createTableSink(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
             assertTrue(cause.toString(), cause instanceof ValidationException);
             assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nmy_option"));
+            return;
+        }
+
+        fail("Should fail by ValidationException.");
+    }
+
+    @Test
+    public void testUnsupportedWatermarkTimeZone() {
+        DescriptorProperties descriptor = new DescriptorProperties();
+        descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
+        descriptor.putString("path", "/tmp");
+        descriptor.putString("format", "csv");
+        descriptor.putString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC+8");
+
+        try {
+            createTableSource(SCHEMA, descriptor.asMap());
+        } catch (ValidationException e) {
+            Throwable cause = e.getCause();
+            assertTrue(cause.toString(), cause instanceof ValidationException);
+            assertTrue(
+                    cause.getMessage(),
+                    cause.getMessage()
+                            .contains(
+                                    "The supported watermark time zone is either a full name such "
+                                            + "as 'America/Los_Angeles', or a custom time zone id such "
+                                            + "as 'GMT-08:00', but configured time zone is 'UTC+8'."));
             return;
         }
 
@@ -159,14 +185,14 @@ public class FileSystemTableFactoryTest {
                         "Could not find any format factory for identifier 'invalid' in the classpath.");
 
         try {
-            createSource(descriptor);
+            createTableSource(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
             assertThat(e.getCause(), containsCause(expected));
         }
 
         try {
-            createSink(descriptor);
+            createTableSink(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
             assertThat(e.getCause(), containsCause(expected));
@@ -187,37 +213,17 @@ public class FileSystemTableFactoryTest {
                                 + "delimiter");
 
         try {
-            createSource(descriptor);
+            createTableSource(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
             assertThat(e.getCause().getCause(), containsCause(expected));
         }
 
         try {
-            createSink(descriptor);
+            createTableSink(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
             assertThat(e.getCause().getCause(), containsCause(expected));
         }
-    }
-
-    private static DynamicTableSource createSource(DescriptorProperties properties) {
-        return FactoryUtil.createTableSource(
-                null,
-                ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-                new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
-                new Configuration(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
-    }
-
-    private static DynamicTableSink createSink(DescriptorProperties properties) {
-        return FactoryUtil.createTableSink(
-                null,
-                ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
-                new CatalogTableImpl(TEST_SCHEMA, properties.asMap(), ""),
-                new Configuration(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
     }
 }

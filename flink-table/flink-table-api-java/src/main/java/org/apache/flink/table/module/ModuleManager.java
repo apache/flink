@@ -173,19 +173,15 @@ public class ModuleManager {
      * @return an optional of {@link FunctionDefinition}
      */
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
-        Optional<String> module =
-                usedModules.stream()
-                        .filter(
-                                n ->
-                                        loadedModules.get(n).listFunctions().stream()
-                                                .anyMatch(e -> e.equalsIgnoreCase(name)))
-                        .findFirst();
-        if (module.isPresent()) {
-            LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, module.get());
-            return loadedModules.get(module.get()).getFunctionDefinition(name);
+        for (String moduleName : usedModules) {
+            if (loadedModules.get(moduleName).listFunctions().stream()
+                    .anyMatch(name::equalsIgnoreCase)) {
+                LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, moduleName);
+                return loadedModules.get(moduleName).getFunctionDefinition(name);
+            }
         }
-        LOG.debug("Cannot find FunctionDefinition '{}' from any loaded modules.", name);
 
+        LOG.debug("Cannot find FunctionDefinition '{}' from any loaded modules.", name);
         return Optional.empty();
     }
 

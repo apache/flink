@@ -37,6 +37,7 @@ import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
@@ -44,6 +45,7 @@ import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -58,9 +60,9 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -73,6 +75,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -91,7 +94,6 @@ import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.StringUtils;
 
@@ -99,9 +101,6 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlExplain;
-import org.apache.calcite.sql.SqlExplainFormat;
-import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -195,8 +194,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertDropFunction((SqlDropFunction) validated));
         } else if (validated instanceof SqlShowFunctions) {
             return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
-        } else if (validated instanceof SqlExplain) {
-            return Optional.of(converter.convertExplain((SqlExplain) validated));
+        } else if (validated instanceof SqlRichExplain) {
+            return Optional.of(converter.convertRichExplain((SqlRichExplain) validated));
         } else if (validated instanceof SqlRichDescribeTable) {
             return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
         } else if (validated instanceof RichSqlInsert) {
@@ -322,13 +321,8 @@ public class SqlToOperationConverter {
                                         options.put(
                                                 ((SqlTableOption) p).getKeyString(),
                                                 ((SqlTableOption) p).getValueString()));
-                CatalogTable catalogTable =
-                        new CatalogTableImpl(
-                                originalCatalogTable.getSchema(),
-                                originalCatalogTable.getPartitionKeys(),
-                                options,
-                                originalCatalogTable.getComment());
-                return new AlterTableOptionsOperation(tableIdentifier, catalogTable);
+                return new AlterTableOptionsOperation(
+                        tableIdentifier, originalCatalogTable.copy(options));
             } else {
                 throw new ValidationException(
                         String.format(
@@ -579,7 +573,8 @@ public class SqlToOperationConverter {
 
     /** Convert SHOW FUNCTIONS statement. */
     private Operation convertShowFunctions(SqlShowFunctions sqlShowFunctions) {
-        return new ShowFunctionsOperation();
+        return new ShowFunctionsOperation(
+                sqlShowFunctions.requireUser() ? FunctionScope.USER : FunctionScope.ALL);
     }
 
     /** Convert CREATE VIEW statement. */
@@ -589,26 +584,26 @@ public class SqlToOperationConverter {
 
         SqlNode validateQuery = flinkPlanner.validate(query);
         PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
-        TableSchema schema = operation.getTableSchema();
+        ResolvedSchema schema = operation.getResolvedSchema();
 
         // the view column list in CREATE VIEW is optional, if it's not empty, we should update
         // the column name with the names in view column list.
         if (!fieldList.getList().isEmpty()) {
             // alias column names
-            String[] inputFieldNames = schema.getFieldNames();
-            String[] aliasFieldNames =
-                    fieldList.getList().stream().map(SqlNode::toString).toArray(String[]::new);
+            List<String> inputFieldNames = schema.getColumnNames();
+            List<String> aliasFieldNames =
+                    fieldList.getList().stream()
+                            .map(SqlNode::toString)
+                            .collect(Collectors.toList());
 
-            if (inputFieldNames.length != aliasFieldNames.length) {
+            if (inputFieldNames.size() != aliasFieldNames.size()) {
                 throw new ValidationException(
                         String.format(
                                 "VIEW definition and input fields not match:\n\tDef fields: %s.\n\tInput fields: %s.",
-                                Arrays.toString(aliasFieldNames),
-                                Arrays.toString(inputFieldNames)));
+                                aliasFieldNames, inputFieldNames));
             }
 
-            DataType[] inputFieldTypes = schema.getFieldDataTypes();
-            schema = TableSchema.builder().fields(aliasFieldNames, inputFieldTypes).build();
+            schema = ResolvedSchema.physical(aliasFieldNames, schema.getColumnDataTypes());
         }
 
         String originalQuery = getQuotedSqlString(query);
@@ -616,8 +611,12 @@ public class SqlToOperationConverter {
         String comment =
                 sqlCreateView.getComment().map(c -> c.getNlsString().getValue()).orElse(null);
         CatalogView catalogView =
-                new CatalogViewImpl(
-                        originalQuery, expandedQuery, schema, Collections.emptyMap(), comment);
+                CatalogView.of(
+                        Schema.newBuilder().fromResolvedSchema(schema).build(),
+                        comment,
+                        originalQuery,
+                        expandedQuery,
+                        Collections.emptyMap());
 
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateView.fullViewName());
@@ -645,16 +644,9 @@ public class SqlToOperationConverter {
         return new ShowViewsOperation();
     }
 
-    /** Convert EXPLAIN statement. */
-    private Operation convertExplain(SqlExplain sqlExplain) {
-        Operation operation = convertSqlQuery(sqlExplain.getExplicandum());
-
-        if (sqlExplain.getDetailLevel() != SqlExplainLevel.EXPPLAN_ATTRIBUTES
-                || sqlExplain.getDepth() != SqlExplain.Depth.PHYSICAL
-                || sqlExplain.getFormat() != SqlExplainFormat.TEXT) {
-            throw new TableException("Only default behavior is supported now, EXPLAIN PLAN FOR xx");
-        }
-
+    /** Convert RICH EXPLAIN statement. */
+    private Operation convertRichExplain(SqlRichExplain sqlExplain) {
+        Operation operation = convertSqlQuery(sqlExplain.getStatement());
         return new ExplainOperation(operation);
     }
 

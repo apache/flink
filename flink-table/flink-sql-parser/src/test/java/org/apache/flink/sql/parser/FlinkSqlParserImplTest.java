@@ -56,6 +56,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+
+        sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
     /**
@@ -151,6 +153,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -177,8 +183,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowFunctions() {
         sql("show functions").ok("SHOW FUNCTIONS");
-        sql("show functions db1").ok("SHOW FUNCTIONS `DB1`");
-        sql("show functions catalog1.db1").ok("SHOW FUNCTIONS `CATALOG1`.`DB1`");
+        sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test
@@ -187,10 +192,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowCreateTable() {
+        sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
+        sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
+    }
+
+    @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
     }
 
     /**
@@ -802,6 +817,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testCreateTableWithLikeClauseWithoutColumns() {
+        final String sql =
+                ""
+                        + "create TEMPORARY table source_table (\n"
+                        + "   WATERMARK FOR ts AS ts - INTERVAL '5' SECOND\n"
+                        + ") with (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ") like t_order_course (\n"
+                        + "   OVERWRITING  WATERMARKS\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        final String expected =
+                "CREATE TEMPORARY TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '5' SECOND)\n"
+                        + ") WITH (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ")\n"
+                        + "LIKE `T_ORDER_COURSE` (\n"
+                        + "  OVERWRITING WATERMARKS\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     public void testCreateTemporaryTable() {
         final String sql =
                 "create temporary table source_table(\n"
@@ -830,6 +874,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 "create table source_table with (\n" + "  'x' = 'y',\n" + "  'abc' = 'def'\n" + ")";
         final String expected =
                 "CREATE TABLE `SOURCE_TABLE` WITH (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testCreateTableWithOnlyWaterMark() {
+        final String sql =
+                "create table source_table (\n"
+                        + "  watermark FOR ts AS ts - interval '3' second\n"
+                        + ") with (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ") WITH (\n"
                         + "  'x' = 'y',\n"
                         + "  'abc' = 'def'\n"
                         + ")";
@@ -1133,9 +1196,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
                 .fails("(?s).*Encountered \".\" at.*");
 
-        // TODO: FLINK-17957: Forbidden syntax "CREATE SYSTEM FUNCTION" for sql parser
-        sql("create system function function1 as 'org.apache.fink.function.function1'")
-                .ok("CREATE SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+        sql("create ^system^ function function1 as 'org.apache.fink.function.function1'")
+                .fails(
+                        "CREATE SYSTEM FUNCTION is not supported, "
+                                + "system functions can only be registered as temporary "
+                                + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
     }
 
     @Test
@@ -1187,6 +1252,73 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("use modules ^'core'^")
                 .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 13.\n.*");
+    }
+
+    @Test
+    public void testShowModules() {
+        sql("show modules").ok("SHOW MODULES");
+
+        sql("show full modules").ok("SHOW FULL MODULES");
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        sql("begin statement set").ok("BEGIN STATEMENT SET");
+    }
+
+    @Test
+    public void testEnd() {
+        sql("end").ok("END");
+    }
+
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // TODO: FLINK-20562
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

@@ -169,10 +169,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         configuration, highAvailabilityServices.createBlobStore(), null);
 
         final ExternalResourceInfoProvider externalResourceInfoProvider =
-                ExternalResourceUtils.createStaticExternalResourceInfoProvider(
-                        ExternalResourceUtils.getExternalResourceAmountMap(configuration),
-                        ExternalResourceUtils.externalResourceDriversFromConfig(
-                                configuration, pluginManager));
+                ExternalResourceUtils.createStaticExternalResourceInfoProviderFromConfig(
+                        configuration, pluginManager);
 
         taskExecutorService =
                 taskExecutorServiceFactory.createTaskExecutor(
@@ -332,7 +330,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     }
 
     private void terminateJVM() {
-        System.exit(FAILURE_EXIT_CODE);
+        FlinkSecurityManager.forceProcessExit(FAILURE_EXIT_CODE);
     }
 
     // --------------------------------------------------------------------------------------------
