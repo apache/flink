@@ -73,7 +73,10 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
             fileSystemsToAccess.forEach(
                     fs -> {
                         try {
-                            LOG.info("Getting FS token for: {} with renewer {}", fs, renewer);
+                            LOG.info(
+                                    "Getting FS token for: {} with renewer {}",
+                                    fs.getUri(),
+                                    renewer);
                             fs.addDelegationTokens(renewer, credentials);
                         } catch (IOException e) {
                             LOG.warn("Failed to get token for {}.", fs);

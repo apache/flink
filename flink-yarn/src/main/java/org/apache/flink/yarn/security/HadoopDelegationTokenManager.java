@@ -59,8 +59,8 @@ public class HadoopDelegationTokenManager {
                     if (provider.delegationTokensRequired()) {
                         provider.obtainDelegationTokens(credentials);
                     } else {
-                        LOG.info(
-                                "Service {} does not need to require a token,",
+                        LOG.debug(
+                                "Service {} does not need to obtain delegation token.",
                                 provider.serviceName());
                     }
                 });
@@ -77,6 +77,9 @@ public class HadoopDelegationTokenManager {
                 provider -> {
                     try {
                         provider.init(hadoopDelegationTokenConf);
+                        LOG.debug(
+                                "Delegation provider {} loaded and initialized",
+                                provider.serviceName());
                     } catch (Throwable throwable) {
                         LOG.info(
                                 "Failed to initialize delegation provider {}, exception: {}",

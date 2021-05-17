@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
@@ -301,9 +302,7 @@ public final class Utils {
      * @param tmParams The TaskExecutor container memory parameters.
      * @param taskManagerDynamicProperties The dynamic configurations to be updated for the
      *     TaskExecutors based on client uploaded Flink config.
-     * @param workingDirectory The current application 
-     
-     container's working directory.
+     * @param workingDirectory The current application master container's working directory.
      * @param taskManagerMainClass The class with the main method.
      * @param log The logger.
      * @return The launch context for the TaskManager processes.
