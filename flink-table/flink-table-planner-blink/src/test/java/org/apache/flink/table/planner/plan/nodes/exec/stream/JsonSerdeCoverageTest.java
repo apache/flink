@@ -44,7 +44,6 @@ public class JsonSerdeCoverageTest {
                     "StreamExecLegacySink",
                     "StreamExecPythonGroupAggregate",
                     "StreamExecWindowTableFunction",
-                    "StreamExecPythonGroupWindowAggregate",
                     "StreamExecGroupTableAggregate",
                     "StreamExecPythonGroupTableAggregate",
                     "StreamExecPythonOverAggregate",
