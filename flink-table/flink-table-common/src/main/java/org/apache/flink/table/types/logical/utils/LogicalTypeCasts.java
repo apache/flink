@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
@@ -315,8 +317,8 @@ public final class LogicalTypeCasts {
         } else if (hasFamily(sourceType, CONSTRUCTED) || hasFamily(targetType, CONSTRUCTED)) {
             return supportsConstructedCasting(sourceType, targetType, allowExplicit);
         } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
-            // inheritance is not supported yet, so structured type must be fully equal
-            return false;
+            return supportsStructuredCasting(
+                    sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
         } else if (sourceRoot == RAW || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
@@ -332,6 +334,51 @@ public final class LogicalTypeCasts {
             return explicitCastingRules.get(targetRoot).contains(sourceRoot);
         }
         return false;
+    }
+
+    private static boolean supportsStructuredCasting(
+            LogicalType sourceType,
+            LogicalType targetType,
+            BiFunction<LogicalType, LogicalType, Boolean> childPredicate) {
+        final LogicalTypeRoot sourceRoot = sourceType.getTypeRoot();
+        final LogicalTypeRoot targetRoot = targetType.getTypeRoot();
+        if (sourceRoot != STRUCTURED_TYPE || targetRoot != STRUCTURED_TYPE) {
+            return false;
+        }
+        final StructuredType sourceStructuredType = (StructuredType) sourceType;
+        final StructuredType targetStructuredType = (StructuredType) targetType;
+        // non-anonymous structured types must be fully equal
+        if (sourceStructuredType.getObjectIdentifier().isPresent()
+                || targetStructuredType.getObjectIdentifier().isPresent()) {
+            return false;
+        }
+        // for anonymous structured types we are a bit more lenient, if they provide similar fields
+        // e.g. this is necessary when structured types derived from type information and
+        // structured types derived within Table API are slightly different
+        final Class<?> sourceClass = sourceStructuredType.getImplementationClass().orElse(null);
+        final Class<?> targetClass = targetStructuredType.getImplementationClass().orElse(null);
+        if (sourceClass != targetClass) {
+            return false;
+        }
+        final List<String> sourceNames =
+                sourceStructuredType.getAttributes().stream()
+                        .map(StructuredType.StructuredAttribute::getName)
+                        .collect(Collectors.toList());
+        final List<String> targetNames =
+                sourceStructuredType.getAttributes().stream()
+                        .map(StructuredType.StructuredAttribute::getName)
+                        .collect(Collectors.toList());
+        if (!sourceNames.equals(targetNames)) {
+            return false;
+        }
+        final List<LogicalType> sourceChildren = sourceType.getChildren();
+        final List<LogicalType> targetChildren = targetType.getChildren();
+        for (int i = 0; i < sourceChildren.size(); i++) {
+            if (!childPredicate.apply(sourceChildren.get(i), targetChildren.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean supportsConstructedCasting(
@@ -493,8 +540,11 @@ public final class LogicalTypeCasts {
                 final List<LogicalType> targetChildren = targetType.getChildren();
                 return supportsAvoidingCast(sourceChildren, targetChildren);
             }
-            // structured types should be equal (modulo nullability)
-            return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+            if (sourceType.equals(targetType) || sourceType.copy(true).equals(targetType)) {
+                return true;
+            }
+            return supportsStructuredCasting(
+                    sourceType, targetType, LogicalTypeCasts::supportsAvoidingCast);
         }
 
         @Override
