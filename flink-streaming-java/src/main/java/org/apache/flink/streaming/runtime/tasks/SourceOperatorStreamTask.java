@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
@@ -191,6 +192,12 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                 inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
             }
             output.emitWatermark(watermark);
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            super.emitStreamStatus(streamStatus);
+            output.emitStreamStatus(streamStatus);
         }
     }
 }

@@ -791,6 +791,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         }
 
         @Override
+        public void emitStreamStatus(StreamStatus streamStatus) {
+            outputList.add(streamStatus);
+        }
+
+        @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {
             outputList.add(latencyMarker);
         }

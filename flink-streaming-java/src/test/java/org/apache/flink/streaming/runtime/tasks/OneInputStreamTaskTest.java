@@ -354,12 +354,20 @@ public class OneInputStreamTaskTest extends TestLogger {
         // the 40 - 60 watermarks should not be forwarded, only the stream status toggle element and
         // records
         expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(StreamStatus.ACTIVE);
         expectedOutput.add(
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
+        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(StreamStatus.ACTIVE);
         expectedOutput.add(new StreamRecord<>("40"));
+        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(StreamStatus.ACTIVE);
         expectedOutput.add(new StreamRecord<>("50"));
+        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(StreamStatus.ACTIVE);
         expectedOutput.add(new StreamRecord<>("60"));
+        expectedOutput.add(StreamStatus.IDLE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 

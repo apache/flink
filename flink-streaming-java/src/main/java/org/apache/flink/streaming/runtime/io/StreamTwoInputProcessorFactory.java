@@ -302,13 +302,15 @@ public class StreamTwoInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
             final StreamStatus anotherStreamStatus;
             if (inputIndex == 0) {
                 statusTracker.setFirstStatus(streamStatus);
+                operator.emitStreamStatus1(streamStatus);
                 anotherStreamStatus = statusTracker.getSecondStatus();
             } else {
                 statusTracker.setSecondStatus(streamStatus);
+                operator.emitStreamStatus2(streamStatus);
                 anotherStreamStatus = statusTracker.getFirstStatus();
             }
 

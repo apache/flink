@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
@@ -47,6 +48,13 @@ public class BroadcastingOutput implements Output<StreamRecord<RowData>> {
     public void emitWatermark(Watermark mark) {
         for (Output<StreamRecord<RowData>> output : outputs) {
             output.emitWatermark(mark);
+        }
+    }
+
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.emitStreamStatus(streamStatus);
         }
     }
 
