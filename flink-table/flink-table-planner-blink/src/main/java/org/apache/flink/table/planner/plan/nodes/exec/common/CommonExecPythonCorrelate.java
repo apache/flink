@@ -58,7 +58,6 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
-    public static final String FIELD_NAME_CONDITION = "condition";
 
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.table.RowDataPythonTableFunctionOperator";
@@ -72,7 +71,6 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     public CommonExecPythonCorrelate(
             FlinkJoinType joinType,
             RexCall invocation,
-            RexNode condition,
             int id,
             List<InputProperty> inputProperties,
             RowType outputType,
@@ -81,10 +79,6 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         checkArgument(inputProperties.size() == 1);
         this.joinType = joinType;
         this.invocation = invocation;
-        if (joinType == FlinkJoinType.LEFT && condition != null) {
-            throw new TableException(
-                    "Currently Python correlate does not support conditions in left join.");
-        }
     }
 
     @SuppressWarnings("unchecked")

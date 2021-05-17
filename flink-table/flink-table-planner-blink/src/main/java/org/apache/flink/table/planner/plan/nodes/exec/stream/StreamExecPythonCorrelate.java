@@ -31,8 +31,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.List;
 
@@ -43,14 +41,12 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
     public StreamExecPythonCorrelate(
             FlinkJoinType joinType,
             RexCall invocation,
-            RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         this(
                 joinType,
                 invocation,
-                condition,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -61,7 +57,6 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
     public StreamExecPythonCorrelate(
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
             @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
-            @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -69,7 +64,6 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
         super(
                 joinType,
                 (RexCall) invocation,
-                condition,
                 id,
                 inputProperties,
                 outputType,
