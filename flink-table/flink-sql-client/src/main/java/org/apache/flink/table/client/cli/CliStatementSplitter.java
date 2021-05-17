@@ -52,7 +52,7 @@ public class CliStatementSplitter {
                 buffer.add(line);
                 statements.add(
                         buffer.stream()
-                                .map(statementsLine -> statementsLine.replaceAll(MASK, ""))
+                                .map(statementLine -> statementLine.replaceAll(MASK, ""))
                                 .collect(Collectors.joining("\n")));
                 buffer.clear();
             } else {
