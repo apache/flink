@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,108 +32,108 @@ import java.io.IOException;
 
 public class VersionedIOWriteableTest {
 
-	@Test
-	public void testReadSameVersion() throws Exception {
+    @Test
+    public void testReadSameVersion() throws Exception {
 
-		String payload = "test";
+        String payload = "test";
 
-		TestWriteable testWriteable = new TestWriteable(1, payload);
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			testWriteable.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
+        TestWriteable testWriteable = new TestWriteable(1, payload);
+        byte[] serialized;
+        try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+            testWriteable.write(new DataOutputViewStreamWrapper(out));
+            serialized = out.toByteArray();
+        }
 
-		testWriteable = new TestWriteable(1);
-		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			testWriteable.read(new DataInputViewStreamWrapper(in));
-		}
+        testWriteable = new TestWriteable(1);
+        try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+            testWriteable.read(new DataInputViewStreamWrapper(in));
+        }
 
-		Assert.assertEquals(payload, testWriteable.getData());
-	}
+        Assert.assertEquals(payload, testWriteable.getData());
+    }
 
-	@Test
-	public void testReadCompatibleVersion() throws Exception {
+    @Test
+    public void testReadCompatibleVersion() throws Exception {
 
-		String payload = "test";
+        String payload = "test";
 
-		TestWriteable testWriteable = new TestWriteable(1, payload);
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			testWriteable.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
+        TestWriteable testWriteable = new TestWriteable(1, payload);
+        byte[] serialized;
+        try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+            testWriteable.write(new DataOutputViewStreamWrapper(out));
+            serialized = out.toByteArray();
+        }
 
-		testWriteable = new TestWriteable(2) {
-			@Override
-			public int[] getCompatibleVersions() {
-				return new int[] {1, 2};
-			}
-		};
-		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			testWriteable.read(new DataInputViewStreamWrapper(in));
-		}
+        testWriteable =
+                new TestWriteable(2) {
+                    @Override
+                    public int[] getCompatibleVersions() {
+                        return new int[] {1, 2};
+                    }
+                };
+        try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+            testWriteable.read(new DataInputViewStreamWrapper(in));
+        }
 
-		Assert.assertEquals(payload, testWriteable.getData());
-	}
+        Assert.assertEquals(payload, testWriteable.getData());
+    }
 
-	@Test
-	public void testReadMismatchVersion() throws Exception {
+    @Test
+    public void testReadMismatchVersion() throws Exception {
 
-		String payload = "test";
+        String payload = "test";
 
-		TestWriteable testWriteable = new TestWriteable(1, payload);
-		byte[] serialized;
-		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
-			testWriteable.write(new DataOutputViewStreamWrapper(out));
-			serialized = out.toByteArray();
-		}
+        TestWriteable testWriteable = new TestWriteable(1, payload);
+        byte[] serialized;
+        try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+            testWriteable.write(new DataOutputViewStreamWrapper(out));
+            serialized = out.toByteArray();
+        }
 
-		testWriteable = new TestWriteable(2);
-		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-			testWriteable.read(new DataInputViewStreamWrapper(in));
-			Assert.fail("Version mismatch expected.");
-		} catch (VersionMismatchException ignored) {
+        testWriteable = new TestWriteable(2);
+        try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+            testWriteable.read(new DataInputViewStreamWrapper(in));
+            Assert.fail("Version mismatch expected.");
+        } catch (VersionMismatchException ignored) {
 
-		}
+        }
 
-		Assert.assertEquals(null, testWriteable.getData());
-	}
+        Assert.assertEquals(null, testWriteable.getData());
+    }
 
-	static class TestWriteable extends VersionedIOReadableWritable {
+    static class TestWriteable extends VersionedIOReadableWritable {
 
-		private final int version;
-		private String data;
+        private final int version;
+        private String data;
 
-		public TestWriteable(int version) {
-			this(version, null);
-		}
+        public TestWriteable(int version) {
+            this(version, null);
+        }
 
-		public TestWriteable(int version, String data) {
-			this.version = version;
-			this.data = data;
-		}
+        public TestWriteable(int version, String data) {
+            this.version = version;
+            this.data = data;
+        }
 
-		@Override
-		public int getVersion() {
-			return version;
-		}
+        @Override
+        public int getVersion() {
+            return version;
+        }
 
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			super.write(out);
-			out.writeUTF(data);
-		}
+        @Override
+        public void write(DataOutputView out) throws IOException {
+            super.write(out);
+            out.writeUTF(data);
+        }
 
-		@Override
-		public void read(DataInputView in) throws IOException {
-			super.read(in);
-			this.data = in.readUTF();
-		}
+        @Override
+        public void read(DataInputView in) throws IOException {
+            super.read(in);
+            this.data = in.readUTF();
+        }
 
-		public String getData() {
-			return data;
-		}
-	}
-
+        public String getData() {
+            return data;
+        }
+    }
 }

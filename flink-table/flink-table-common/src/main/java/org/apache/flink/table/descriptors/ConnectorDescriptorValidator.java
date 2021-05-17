@@ -20,37 +20,31 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Validator for {@link ConnectorDescriptor}.
- */
+/** Validator for {@link ConnectorDescriptor}. */
 @Internal
 public abstract class ConnectorDescriptorValidator implements DescriptorValidator {
 
-	/**
-	 * Prefix for connector-related properties.
-	 */
-	public static final String CONNECTOR = "connector";
+    /** Prefix for connector-related properties. */
+    public static final String CONNECTOR = "connector";
 
-	/**
-	 * Key for describing the type of the connector. Usually used for factory discovery.
-	 */
-	public static final String CONNECTOR_TYPE = "connector.type";
+    /** Key for describing the type of the connector. Usually used for factory discovery. */
+    public static final String CONNECTOR_TYPE = "connector.type";
 
-	/**
-	 * Key for describing the property version. This property can be used for backwards
-	 * compatibility in case the property format changes.
-	 */
-	public static final String CONNECTOR_PROPERTY_VERSION = "connector.property-version";
+    /**
+     * Key for describing the property version. This property can be used for backwards
+     * compatibility in case the property format changes.
+     */
+    public static final String CONNECTOR_PROPERTY_VERSION = "connector.property-version";
 
-	/**
-	 * Key for describing the version of the connector. This property can be used for different
-	 * connector versions (e.g. Kafka 0.10 or Kafka 0.11).
-	 */
-	public static final String CONNECTOR_VERSION = "connector.version";
+    /**
+     * Key for describing the version of the connector. This property can be used for different
+     * connector versions (e.g. Kafka 0.10 or Kafka 0.11).
+     */
+    public static final String CONNECTOR_VERSION = "connector.version";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		properties.validateString(CONNECTOR_TYPE, false, 1);
-		properties.validateInt(CONNECTOR_PROPERTY_VERSION, true, 0);
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        properties.validateString(CONNECTOR_TYPE, false, 1);
+        properties.validateInt(CONNECTOR_PROPERTY_VERSION, true, 0);
+    }
 }

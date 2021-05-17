@@ -24,11 +24,10 @@ import org.apache.flink.runtime.jobmaster.JobMasterOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
 
-/**
- * A test / mock implementation of the {@link JobMasterOperatorEventGateway}.
- */
+/** A test / mock implementation of the {@link JobMasterOperatorEventGateway}. */
 public class NoOpTaskOperatorEventGateway implements TaskOperatorEventGateway {
 
-	@Override
-	public void sendOperatorEventToCoordinator(OperatorID operatorID, SerializedValue<OperatorEvent> event) {}
+    @Override
+    public void sendOperatorEventToCoordinator(
+            OperatorID operatorID, SerializedValue<OperatorEvent> event) {}
 }

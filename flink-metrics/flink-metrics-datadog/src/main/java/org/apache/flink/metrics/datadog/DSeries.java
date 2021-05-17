@@ -18,40 +18,33 @@
 
 package org.apache.flink.metrics.datadog;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Json serialization between Flink and Datadog.
- */
+/** Json serialization between Flink and Datadog. */
 public class DSeries {
-	/**
-	 * Names of series field and its getters must not be changed
-	 * since they are mapped to json objects in a Datadog-defined format.
-	 */
-	private final List<DMetric> series;
+    @VisibleForTesting static final String FIELD_NAME_SERIES = "series";
 
-	public DSeries() {
-		series = new ArrayList<>();
-	}
+    private final List<DMetric> series;
 
-	public DSeries(List<DMetric> series) {
-		this.series = series;
-	}
+    public DSeries() {
+        series = new ArrayList<>();
+    }
 
-	public void addGauge(DGauge gauge) {
-		series.add(gauge);
-	}
+    public DSeries(List<DMetric> series) {
+        this.series = series;
+    }
 
-	public void addCounter(DCounter counter) {
-		series.add(counter);
-	}
+    public void add(DMetric metric) {
+        series.add(metric);
+    }
 
-	public void addMeter(DMeter meter) {
-		series.add(meter);
-	}
-
-	public List<DMetric> getSeries() {
-		return series;
-	}
+    @JsonGetter(FIELD_NAME_SERIES)
+    public List<DMetric> getSeries() {
+        return series;
+    }
 }

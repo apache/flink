@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
@@ -58,196 +59,202 @@ import java.util.concurrent.Future;
 
 public class DummyEnvironment implements Environment {
 
-	private final JobID jobId = new JobID();
-	private final JobVertexID jobVertexId = new JobVertexID();
-	private final ExecutionAttemptID executionId = new ExecutionAttemptID();
-	private final ExecutionConfig executionConfig = new ExecutionConfig();
-	private final TaskInfo taskInfo;
-	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
-	private TaskStateManager taskStateManager;
-	private final GlobalAggregateManager aggregateManager;
-	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
-	private UserCodeClassLoader userClassLoader;
+    private final JobID jobId = new JobID();
+    private final JobVertexID jobVertexId = new JobVertexID();
+    private final ExecutionAttemptID executionId = new ExecutionAttemptID();
+    private final ExecutionConfig executionConfig = new ExecutionConfig();
+    private final TaskInfo taskInfo;
+    private KvStateRegistry kvStateRegistry = new KvStateRegistry();
+    private TaskStateManager taskStateManager;
+    private final GlobalAggregateManager aggregateManager;
+    private final AccumulatorRegistry accumulatorRegistry =
+            new AccumulatorRegistry(jobId, executionId);
+    private UserCodeClassLoader userClassLoader;
 
-	public DummyEnvironment() {
-		this("Test Job", 1, 0, 1);
-	}
+    public DummyEnvironment() {
+        this("Test Job", 1, 0, 1);
+    }
 
-	public DummyEnvironment(ClassLoader userClassLoader) {
-		this("Test Job", 1, 0, 1);
-		this.userClassLoader = TestingUserCodeClassLoader.newBuilder().setClassLoader(userClassLoader).build();
-	}
+    public DummyEnvironment(ClassLoader userClassLoader) {
+        this("Test Job", 1, 0, 1);
+        this.userClassLoader =
+                TestingUserCodeClassLoader.newBuilder().setClassLoader(userClassLoader).build();
+    }
 
-	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
-		this(taskName, numSubTasks, subTaskIndex, numSubTasks);
-	}
+    public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
+        this(taskName, numSubTasks, subTaskIndex, numSubTasks);
+    }
 
-	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
-		this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
-		this.taskStateManager = new TestTaskStateManager();
-		this.aggregateManager = new TestGlobalAggregateManager();
-	}
+    public DummyEnvironment(
+            String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
+        this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
+        this.taskStateManager = new TestTaskStateManager();
+        this.aggregateManager = new TestGlobalAggregateManager();
+    }
 
-	public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
-		this.kvStateRegistry = kvStateRegistry;
-	}
+    public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
+        this.kvStateRegistry = kvStateRegistry;
+    }
 
-	public KvStateRegistry getKvStateRegistry() {
-		return kvStateRegistry;
-	}
+    public KvStateRegistry getKvStateRegistry() {
+        return kvStateRegistry;
+    }
 
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
-	}
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return executionConfig;
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-	@Override
-	public JobVertexID getJobVertexId() {
-		return jobVertexId;
-	}
+    @Override
+    public JobVertexID getJobVertexId() {
+        return jobVertexId;
+    }
 
-	@Override
-	public ExecutionAttemptID getExecutionId() {
-		return executionId;
-	}
+    @Override
+    public ExecutionAttemptID getExecutionId() {
+        return executionId;
+    }
 
-	@Override
-	public Configuration getTaskConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    public Configuration getTaskConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TestingTaskManagerRuntimeInfo();
-	}
+    @Override
+    public TaskManagerRuntimeInfo getTaskManagerInfo() {
+        return new TestingTaskManagerRuntimeInfo();
+    }
 
-	@Override
-	public TaskMetricGroup getMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-	}
+    @Override
+    public TaskMetricGroup getMetricGroup() {
+        return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+    }
 
-	@Override
-	public Configuration getJobConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    public Configuration getJobConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	public TaskInfo getTaskInfo() {
-		return taskInfo;
-	}
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
+    }
 
-	@Override
-	public InputSplitProvider getInputSplitProvider() {
-		return null;
-	}
+    @Override
+    public InputSplitProvider getInputSplitProvider() {
+        return null;
+    }
 
-	@Override
-	public IOManager getIOManager() {
-		return null;
-	}
+    @Override
+    public IOManager getIOManager() {
+        return null;
+    }
 
-	@Override
-	public MemoryManager getMemoryManager() {
-		return null;
-	}
+    @Override
+    public MemoryManager getMemoryManager() {
+        return null;
+    }
 
-	@Override
-	public UserCodeClassLoader getUserCodeClassLoader() {
-		if (userClassLoader == null) {
-			return TestingUserCodeClassLoader.newBuilder().build();
-		} else {
-			return userClassLoader;
-		}
-	}
+    @Override
+    public UserCodeClassLoader getUserCodeClassLoader() {
+        if (userClassLoader == null) {
+            return TestingUserCodeClassLoader.newBuilder().build();
+        } else {
+            return userClassLoader;
+        }
+    }
 
-	@Override
-	public Map<String, Future<Path>> getDistributedCacheEntries() {
-		return Collections.emptyMap();
-	}
+    @Override
+    public Map<String, Future<Path>> getDistributedCacheEntries() {
+        return Collections.emptyMap();
+    }
 
-	@Override
-	public BroadcastVariableManager getBroadcastVariableManager() {
-		return null;
-	}
+    @Override
+    public BroadcastVariableManager getBroadcastVariableManager() {
+        return null;
+    }
 
-	@Override
-	public TaskStateManager getTaskStateManager() {
-		return taskStateManager;
-	}
+    @Override
+    public TaskStateManager getTaskStateManager() {
+        return taskStateManager;
+    }
 
-	@Override
-	public GlobalAggregateManager getGlobalAggregateManager() {
-		return aggregateManager;
-	}
+    @Override
+    public GlobalAggregateManager getGlobalAggregateManager() {
+        return aggregateManager;
+    }
 
-	@Override
-	public AccumulatorRegistry getAccumulatorRegistry() {
-		return accumulatorRegistry;
-	}
+    @Override
+    public AccumulatorRegistry getAccumulatorRegistry() {
+        return accumulatorRegistry;
+    }
 
-	@Override
-	public TaskKvStateRegistry getTaskKvStateRegistry() {
-		return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
-	}
+    @Override
+    public TaskKvStateRegistry getTaskKvStateRegistry() {
+        return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+    }
 
-	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {
-	}
+    @Override
+    public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {}
 
-	@Override
-	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
-		return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
-	}
+    @Override
+    public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+        return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    }
 
-	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-	}
+    @Override
+    public void acknowledgeCheckpoint(
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics,
+            TaskStateSnapshot subtaskState) {}
 
-	@Override
-	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void declineCheckpoint(long checkpointId, CheckpointException cause) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void failExternally(Throwable cause) {
-		throw new UnsupportedOperationException("DummyEnvironment does not support external task failure.");
-	}
+    @Override
+    public void failExternally(Throwable cause) {
+        throw new UnsupportedOperationException(
+                "DummyEnvironment does not support external task failure.");
+    }
 
-	@Override
-	public ResultPartitionWriter getWriter(int index) {
-		return null;
-	}
+    @Override
+    public ResultPartitionWriter getWriter(int index) {
+        return null;
+    }
 
-	@Override
-	public ResultPartitionWriter[] getAllWriters() {
-		return new ResultPartitionWriter[0];
-	}
+    @Override
+    public ResultPartitionWriter[] getAllWriters() {
+        return new ResultPartitionWriter[0];
+    }
 
-	@Override
-	public IndexedInputGate getInputGate(int index) {
-		throw new ArrayIndexOutOfBoundsException(0);
-	}
+    @Override
+    public IndexedInputGate getInputGate(int index) {
+        throw new ArrayIndexOutOfBoundsException(0);
+    }
 
-	@Override
-	public IndexedInputGate[] getAllInputGates() {
-		return new IndexedInputGate[0];
-	}
+    @Override
+    public IndexedInputGate[] getAllInputGates() {
+        return new IndexedInputGate[0];
+    }
 
-	@Override
-	public TaskEventDispatcher getTaskEventDispatcher() {
-		throw new UnsupportedOperationException();
-	}
-	public void setTaskStateManager(TaskStateManager taskStateManager) {
-		this.taskStateManager = taskStateManager;
-	}
+    @Override
+    public TaskEventDispatcher getTaskEventDispatcher() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
-		return new NoOpTaskOperatorEventGateway();
-	}
+    public void setTaskStateManager(TaskStateManager taskStateManager) {
+        this.taskStateManager = taskStateManager;
+    }
+
+    @Override
+    public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
+        return new NoOpTaskOperatorEventGateway();
+    }
 }

@@ -20,13 +20,19 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+
+import org.junit.Rule
 
 class TableProgramsTestBase(
     mode: TestExecutionMode,
     tableConfigMode: TableConfigMode)
   extends MultipleProgramsTestBase(mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   def config: TableConfig = {
     val conf = new TableConfig

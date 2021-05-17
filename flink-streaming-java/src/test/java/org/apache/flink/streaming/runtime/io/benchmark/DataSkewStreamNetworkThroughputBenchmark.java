@@ -25,41 +25,42 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Network throughput benchmarks for data skew scenario executed by the external
- * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
+ * Network throughput benchmarks for data skew scenario executed by the external <a
+ * href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class DataSkewStreamNetworkThroughputBenchmark extends StreamNetworkThroughputBenchmark {
 
-	@Override
-	protected void setChannelSelector(RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
-		checkArgument(!broadcastMode, "Combining broadcasting with data skew doesn't make sense");
-		recordWriterBuilder.setChannelSelector(new DataSkewChannelSelector());
-	}
+    @Override
+    protected void setChannelSelector(
+            RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
+        checkArgument(!broadcastMode, "Combining broadcasting with data skew doesn't make sense");
+        recordWriterBuilder.setChannelSelector(new DataSkewChannelSelector());
+    }
 
-	/**
-	 * A {@link ChannelSelector} which selects channel 0 for nearly all records. And all other channels
-	 * except for channel 0 will be only selected at most once.
-	 */
-	private static class DataSkewChannelSelector implements ChannelSelector {
-		private int numberOfChannels;
-		private int channelIndex = 0;
+    /**
+     * A {@link ChannelSelector} which selects channel 0 for nearly all records. And all other
+     * channels except for channel 0 will be only selected at most once.
+     */
+    private static class DataSkewChannelSelector implements ChannelSelector {
+        private int numberOfChannels;
+        private int channelIndex = 0;
 
-		@Override
-		public void setup(int numberOfChannels) {
-			this.numberOfChannels = numberOfChannels;
-		}
+        @Override
+        public void setup(int numberOfChannels) {
+            this.numberOfChannels = numberOfChannels;
+        }
 
-		@Override
-		public int selectChannel(IOReadableWritable record) {
-			if (channelIndex >= numberOfChannels) {
-				return 0;
-			}
-			return channelIndex++;
-		}
+        @Override
+        public int selectChannel(IOReadableWritable record) {
+            if (channelIndex >= numberOfChannels) {
+                return 0;
+            }
+            return channelIndex++;
+        }
 
-		@Override
-		public boolean isBroadcast() {
-			return false;
-		}
-	}
+        @Override
+        public boolean isBroadcast() {
+            return false;
+        }
+    }
 }

@@ -20,26 +20,39 @@ package org.apache.flink.connector.base.source.reader.mocks;
 
 import org.apache.flink.api.connector.source.SourceSplit;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link SourceSplit} that only has an ID.
- */
+/** A {@link SourceSplit} that only has an ID. */
 public class TestingSourceSplit implements SourceSplit {
 
-	private final String splitId;
+    private final String splitId;
 
-	public TestingSourceSplit(String splitId) {
-		this.splitId = checkNotNull(splitId);
-	}
+    public TestingSourceSplit(String splitId) {
+        this.splitId = checkNotNull(splitId);
+    }
 
-	@Override
-	public String splitId() {
-		return splitId;
-	}
+    @Override
+    public String splitId() {
+        return splitId;
+    }
 
-	@Override
-	public String toString() {
-		return splitId;
-	}
+    @Override
+    public String toString() {
+        return splitId;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(splitId);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof TestingSourceSplit)) {
+            return false;
+        }
+        return this.splitId.equals(((TestingSourceSplit) obj).splitId);
+    }
 }

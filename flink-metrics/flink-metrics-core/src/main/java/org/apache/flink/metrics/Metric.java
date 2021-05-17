@@ -18,8 +18,5 @@
 
 package org.apache.flink.metrics;
 
-/**
- * Common super interface for all metrics.
- */
-public interface Metric {
-}
+/** Common super interface for all metrics. */
+public interface Metric {}

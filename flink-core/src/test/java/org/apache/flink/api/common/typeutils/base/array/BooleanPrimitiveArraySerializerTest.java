@@ -20,35 +20,34 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
- * A test for the {@link LongPrimitiveArraySerializer}.
+ * A test for the {@link
+ * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
 public class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<boolean[]> {
 
-	@Override
-	protected TypeSerializer<boolean[]> createSerializer() {
-		return new BooleanPrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<boolean[]> createSerializer() {
+        return new BooleanPrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<boolean[]> getTypeClass() {
-		return boolean[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<boolean[]> getTypeClass() {
+        return boolean[].class;
+    }
 
-	@Override
-	protected boolean[][] getTestData() {
-		return new boolean[][] {
-			new boolean[] {true, false, true, true, true, true, false, true},
-			new boolean[] {},
-			new boolean[] {false, true, false, false, false, false, true, false}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected boolean[][] getTestData() {
+        return new boolean[][] {
+            new boolean[] {true, false, true, true, true, true, false, true},
+            new boolean[] {},
+            new boolean[] {false, true, false, false, false, false, true, false}
+        };
+    }
 }

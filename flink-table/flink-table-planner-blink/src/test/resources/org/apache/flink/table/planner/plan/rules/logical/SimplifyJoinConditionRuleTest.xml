@@ -23,7 +23,7 @@ SELECT a FROM MyTable1 WHERE b = (
     SELECT COUNT(*) FROM MyTable2 WHERE (d = a AND d < 2) OR (d = a AND b = 5))
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[=($1, $SCALAR_QUERY({
@@ -35,7 +35,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[=($1, CASE(IS NULL($5), 0:BIGINT, $5))])
@@ -55,7 +55,7 @@ LogicalProject(a=[$0])
     <Resource name="sql">
       <![CDATA[SELECT d FROM MyTable1 JOIN MyTable2 ON (d = a AND a > 2) OR (d = a AND b = 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[$3])
 +- LogicalJoin(condition=[OR(AND(=($3, $0), >($0, 2)), AND(=($3, $0), =($1, 1)))], joinType=[inner])
@@ -63,7 +63,7 @@ LogicalProject(d=[$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(d=[$3])
 +- LogicalJoin(condition=[AND(=($3, $0), OR(>($0, 2), =($1, 1)))], joinType=[inner])

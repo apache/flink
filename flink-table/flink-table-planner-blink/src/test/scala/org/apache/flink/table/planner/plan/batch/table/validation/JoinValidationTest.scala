@@ -123,6 +123,6 @@ class JoinValidationTest extends TableTestBase {
     val right = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
     val pyFunc = new PythonScalarFunction("pyFunc")
     val result = left.leftOuterJoin(right, 'a === 'd && pyFunc('a, 'd) === 'a + 'd)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

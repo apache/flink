@@ -30,6 +30,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 
+import org.junit.Ignore;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,58 +39,64 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-/**
- * A test base that includes utilities for taking a savepoint.
- */
+/** A test base that includes utilities for taking a savepoint. */
+@Ignore
 public abstract class SavepointTestBase extends AbstractTestBase {
 
-	public <T> String takeSavepoint(T[] data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
-		return takeSavepoint(Arrays.asList(data), jobGraphFactory);
-	}
+    public <T extends WaitingFunction> String takeSavepoint(
+            T waitingFunction, Function<T, StreamExecutionEnvironment> jobGraphFactory) {
 
-	public <T> String takeSavepoint(Collection<T> data, Function<SourceFunction<T>, StreamExecutionEnvironment> jobGraphFactory) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().disableClosureCleaner();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableClosureCleaner();
+        StreamExecutionEnvironment executionEnvironment = jobGraphFactory.apply(waitingFunction);
+        JobGraph jobGraph = executionEnvironment.getStreamGraph().getJobGraph();
 
-		WaitingSource<T> waitingSource = createSource(data);
+        JobID jobId = jobGraph.getJobID();
 
-		JobGraph jobGraph = jobGraphFactory.apply(waitingSource).getStreamGraph().getJobGraph();
-		JobID jobId = jobGraph.getJobID();
+        ClusterClient<?> client = miniClusterResource.getClusterClient();
 
-		ClusterClient<?> client = miniClusterResource.getClusterClient();
+        try {
+            JobID jobID = client.submitJob(jobGraph).get();
 
-		try {
-			JobID jobID = client.submitJob(jobGraph).get();
+            return CompletableFuture.runAsync(waitingFunction::await)
+                    .thenCompose(ignore -> triggerSavepoint(client, jobID))
+                    .get(5, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to take savepoint", e);
+        } finally {
+            client.cancel(jobId);
+        }
+    }
 
-			return CompletableFuture
-				.runAsync(waitingSource::awaitSource)
-				.thenCompose(ignore -> triggerSavepoint(client, jobID))
-				.get(5, TimeUnit.MINUTES);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to take savepoint", e);
-		} finally {
-			client.cancel(jobId);
-		}
-	}
+    public <T> WaitingSource<T> createSource(T[] data) {
+        return createSource(Arrays.asList(data));
+    }
 
-	private <T> WaitingSource<T> createSource(Collection<T> data) throws Exception {
-		T first = data.iterator().next();
-		if (first == null) {
-			throw new IllegalArgumentException("Collection must not contain null elements");
-		}
+    public <T> WaitingSource<T> createSource(Collection<T> data) {
+        T first = data.iterator().next();
+        if (first == null) {
+            throw new IllegalArgumentException("Collection must not contain null elements");
+        }
 
-		TypeInformation<T> typeInfo = TypeExtractor.getForObject(first);
-		SourceFunction<T> inner = new FromElementsFunction<>(typeInfo.createSerializer(new ExecutionConfig()), data);
-		return new WaitingSource<>(inner, typeInfo);
-	}
+        TypeInformation<T> typeInfo = TypeExtractor.getForObject(first);
+        try {
+            SourceFunction<T> inner =
+                    new FromElementsFunction<>(
+                            typeInfo.createSerializer(new ExecutionConfig()), data);
+            return new WaitingSource<>(inner, typeInfo);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private CompletableFuture<String> triggerSavepoint(ClusterClient<?> client, JobID jobID) throws RuntimeException {
-		try {
-			String dirPath = getTempDirPath(new AbstractID().toHexString());
-			return client.triggerSavepoint(jobID, dirPath);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private CompletableFuture<String> triggerSavepoint(ClusterClient<?> client, JobID jobID)
+            throws RuntimeException {
+        try {
+            String dirPath = getTempDirPath(new AbstractID().toHexString());
+            return client.triggerSavepoint(jobID, dirPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

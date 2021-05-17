@@ -23,28 +23,26 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Date;
 
-/**
- * Test for {@link DateSerializer}.
- */
+/** Test for {@link DateSerializer}. */
 public class DateSerializerTest extends SerializerTestBase<Date> {
 
-	@Override
-	protected TypeSerializer<Date> createSerializer() {
-		return DateSerializer.INSTANCE;
-	}
+    @Override
+    protected TypeSerializer<Date> createSerializer() {
+        return DateSerializer.INSTANCE;
+    }
 
-	@Override
-	protected int getLength() {
-		return 4;
-	}
+    @Override
+    protected int getLength() {
+        return 4;
+    }
 
-	@Override
-	protected Class<Date> getTypeClass() {
-		return Date.class;
-	}
+    @Override
+    protected Class<Date> getTypeClass() {
+        return Date.class;
+    }
 
-	@Override
-	protected Date[] getTestData() {
-		return new Date[]{Date.valueOf("2014-09-13")};
-	}
+    @Override
+    protected Date[] getTestData() {
+        return new Date[] {Date.valueOf("2014-09-13")};
+    }
 }

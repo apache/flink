@@ -24,16 +24,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Annotation to classify subclasses of {@link Throwable} into categories w.r.t. recovery.
- */
+/** Annotation to classify subclasses of {@link Throwable} into categories w.r.t. recovery. */
 @Inherited
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ThrowableAnnotation {
 
-	/**
-	 * Returns the type if the {@link Throwable}.
-	 */
-	ThrowableType value() default ThrowableType.RecoverableError;
+    /** Returns the type if the {@link Throwable}. */
+    ThrowableType value() default ThrowableType.RecoverableError;
 }

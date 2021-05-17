@@ -18,25 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-
 /**
   * Test for file system table factory with testcsv format.
   */
-@RunWith(classOf[Parameterized])
-class FileSystemTestCsvITCase(useBulkWriter: Boolean) extends BatchFileSystemITCaseBase {
+class FileSystemTestCsvITCase extends BatchFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {
-    super.formatProperties() ++ Seq(
-      "'format' = 'testcsv'",
-      s"'testcsv.use-bulk-writer' = '$useBulkWriter'")
-  }
-}
-
-object FileSystemTestCsvITCase {
-  @Parameterized.Parameters(name = "useBulkWriter-{0}")
-  def parameters(): java.util.Collection[Boolean] = {
-    java.util.Arrays.asList(true, false)
+    super.formatProperties() ++ Seq("'format' = 'testcsv'")
   }
 }

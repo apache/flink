@@ -22,18 +22,16 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.Callable;
 
-/**
- * Message for asynchronous callable invocations
- */
+/** Message for asynchronous callable invocations */
 public final class CallAsync {
 
-	private final Callable<?> callable;
+    private final Callable<?> callable;
 
-	public CallAsync(Callable<?> callable) {
-		this.callable = Preconditions.checkNotNull(callable);
-	}
+    public CallAsync(Callable<?> callable) {
+        this.callable = Preconditions.checkNotNull(callable);
+    }
 
-	public Callable<?> getCallable() {
-		return callable;
-	}
+    public Callable<?> getCallable() {
+        return callable;
+    }
 }

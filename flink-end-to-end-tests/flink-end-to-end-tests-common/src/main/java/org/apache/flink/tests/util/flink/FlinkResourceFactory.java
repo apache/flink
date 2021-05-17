@@ -18,19 +18,17 @@
 
 package org.apache.flink.tests.util.flink;
 
-/**
- * A factory for {@link FlinkResource} implementations.
- */
+/** A factory for {@link FlinkResource} implementations. */
 @FunctionalInterface
 public interface FlinkResourceFactory {
 
-	/**
-	 * Returns a {@link FlinkResource} instance. If the instance could not be instantiated (for example, because a
-	 * mandatory parameter was missing), then an exception should be thrown.
-	 *
-	 * @param setup setup instructions for the FlinkResource
-	 * @return FlinkResource instance,
-	 * @throws Exception if the instance could not be instantiated
-	 */
-	FlinkResource create(FlinkResourceSetup setup) throws Exception;
+    /**
+     * Returns a {@link FlinkResource} instance. If the instance could not be instantiated (for
+     * example, because a mandatory parameter was missing), then an exception should be thrown.
+     *
+     * @param setup setup instructions for the FlinkResource
+     * @return FlinkResource instance,
+     * @throws Exception if the instance could not be instantiated
+     */
+    FlinkResource create(FlinkResourceSetup setup) throws Exception;
 }

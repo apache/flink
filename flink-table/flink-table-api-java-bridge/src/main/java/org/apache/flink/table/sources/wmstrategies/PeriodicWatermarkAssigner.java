@@ -21,24 +21,21 @@ package org.apache.flink.table.sources.wmstrategies;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
-/**
- * A periodic watermark assigner.
- */
+/** A periodic watermark assigner. */
 @PublicEvolving
 public abstract class PeriodicWatermarkAssigner extends WatermarkStrategy {
 
-	/**
-	 * Updates the assigner with the next timestamp.
-	 *
-	 * @param timestamp The next timestamp to update the assigner.
-	 */
-	public abstract void nextTimestamp(long timestamp);
+    /**
+     * Updates the assigner with the next timestamp.
+     *
+     * @param timestamp The next timestamp to update the assigner.
+     */
+    public abstract void nextTimestamp(long timestamp);
 
-	/**
-	 * Returns the current watermark.
-	 *
-	 * @return The current watermark.
-	 */
-	public abstract Watermark getWatermark();
-
+    /**
+     * Returns the current watermark.
+     *
+     * @return The current watermark.
+     */
+    public abstract Watermark getWatermark();
 }

@@ -47,35 +47,49 @@ import java.util.concurrent.CompletableFuture;
  * @param <P> response type
  * @param <M> message parameters type
  */
-public abstract class AbstractResourceManagerHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractRestHandler<T, R, P, M> {
+public abstract class AbstractResourceManagerHandler<
+                T extends RestfulGateway,
+                R extends RequestBody,
+                P extends ResponseBody,
+                M extends MessageParameters>
+        extends AbstractRestHandler<T, R, P, M> {
 
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	protected AbstractResourceManagerHandler(
-			GatewayRetriever<? extends T> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<R, P, M> messageHeaders,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    protected AbstractResourceManagerHandler(
+            GatewayRetriever<? extends T> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<R, P, M> messageHeaders,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
-		this.resourceManagerGatewayRetriever = Preconditions.checkNotNull(resourceManagerGatewayRetriever);
-	}
+        this.resourceManagerGatewayRetriever =
+                Preconditions.checkNotNull(resourceManagerGatewayRetriever);
+    }
 
-	@Override
-	protected CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException {
-		ResourceManagerGateway resourceManagerGateway = getResourceManagerGateway(resourceManagerGatewayRetriever);
+    @Override
+    protected CompletableFuture<P> handleRequest(
+            @Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException {
+        ResourceManagerGateway resourceManagerGateway =
+                getResourceManagerGateway(resourceManagerGatewayRetriever);
 
-		return handleRequest(request, resourceManagerGateway);
-	}
+        return handleRequest(request, resourceManagerGateway);
+    }
 
-	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException;
+    protected abstract CompletableFuture<P> handleRequest(
+            @Nonnull HandlerRequest<R, M> request, @Nonnull ResourceManagerGateway gateway)
+            throws RestHandlerException;
 
-	public static ResourceManagerGateway getResourceManagerGateway(GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) throws RestHandlerException {
-		return resourceManagerGatewayRetriever
-			.getNow()
-			.orElseThrow(() -> new RestHandlerException(
-				"Cannot connect to ResourceManager right now. Please try to refresh.",
-				HttpResponseStatus.NOT_FOUND));
-	}
+    public static ResourceManagerGateway getResourceManagerGateway(
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever)
+            throws RestHandlerException {
+        return resourceManagerGatewayRetriever
+                .getNow()
+                .orElseThrow(
+                        () ->
+                                new RestHandlerException(
+                                        "Cannot connect to ResourceManager right now. Please try to refresh.",
+                                        HttpResponseStatus.NOT_FOUND));
+    }
 }

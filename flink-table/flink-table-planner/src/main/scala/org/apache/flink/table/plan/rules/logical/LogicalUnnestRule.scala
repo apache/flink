@@ -123,7 +123,7 @@ class LogicalUnnestRule(
           val rexCall = cluster.getRexBuilder.makeCall(
             explodeSqlFunc,
             uc.getInput.asInstanceOf[RelSubset]
-              .getOriginal.asInstanceOf[LogicalProject].getChildExps
+              .getOriginal.asInstanceOf[LogicalProject].getProjects
           )
 
           // determine rel data type of unnest

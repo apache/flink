@@ -30,52 +30,48 @@ import org.apache.hadoop.io.Writable;
 import java.io.IOException;
 import java.util.function.Function;
 
-/**
- * Hive {@link OutputFormatFactory}, use {@link RecordWriter} to write record.
- */
+/** Hive {@link OutputFormatFactory}, use {@link RecordWriter} to write record. */
 public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
-	private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 2L;
 
-	private final HiveWriterFactory factory;
+    private final HiveWriterFactory factory;
 
-	public HiveOutputFormatFactory(HiveWriterFactory factory) {
-		this.factory = factory;
-	}
+    public HiveOutputFormatFactory(HiveWriterFactory factory) {
+        this.factory = factory;
+    }
 
-	@Override
-	public HiveOutputFormat createOutputFormat(Path path) {
-		return new HiveOutputFormat(
-				factory.createRecordWriter(HadoopFileSystem.toHadoopPath(path)),
-				factory.createRowConverter());
-	}
+    @Override
+    public HiveOutputFormat createOutputFormat(Path path) {
+        return new HiveOutputFormat(
+                factory.createRecordWriter(HadoopFileSystem.toHadoopPath(path)),
+                factory.createRowConverter());
+    }
 
-	private class HiveOutputFormat implements org.apache.flink.api.common.io.OutputFormat<Row> {
+    private class HiveOutputFormat implements org.apache.flink.api.common.io.OutputFormat<Row> {
 
-		private final RecordWriter recordWriter;
-		private final Function<Row, Writable> rowConverter;
+        private final RecordWriter recordWriter;
+        private final Function<Row, Writable> rowConverter;
 
-		private HiveOutputFormat(RecordWriter recordWriter, Function<Row, Writable> rowConverter) {
-			this.recordWriter = recordWriter;
-			this.rowConverter = rowConverter;
-		}
+        private HiveOutputFormat(RecordWriter recordWriter, Function<Row, Writable> rowConverter) {
+            this.recordWriter = recordWriter;
+            this.rowConverter = rowConverter;
+        }
 
-		@Override
-		public void configure(Configuration parameters) {
-		}
+        @Override
+        public void configure(Configuration parameters) {}
 
-		@Override
-		public void open(int taskNumber, int numTasks) {
-		}
+        @Override
+        public void open(int taskNumber, int numTasks) {}
 
-		@Override
-		public void writeRecord(Row record) throws IOException {
-			recordWriter.write(rowConverter.apply(record));
-		}
+        @Override
+        public void writeRecord(Row record) throws IOException {
+            recordWriter.write(rowConverter.apply(record));
+        }
 
-		@Override
-		public void close() throws IOException {
-			recordWriter.close(false);
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            recordWriter.close(false);
+        }
+    }
 }

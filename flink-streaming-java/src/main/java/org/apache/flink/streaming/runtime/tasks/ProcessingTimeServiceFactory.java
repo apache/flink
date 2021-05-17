@@ -21,17 +21,17 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 /**
- * A factory for creating processing time services with a given {@link MailboxExecutor}.
- * The factory is usually bound to a specific task.
+ * A factory for creating processing time services with a given {@link MailboxExecutor}. The factory
+ * is usually bound to a specific task.
  */
 @FunctionalInterface
 @Internal
 public interface ProcessingTimeServiceFactory {
 
-	/**
-	 * Creates a new processing time service with the mailbox executor. The mailbox executor
-	 * is used to defer the {@link ProcessingTimeCallback} of the timer registered with the
-	 * {@link ProcessingTimeService} to mailbox for execution.
-	 */
-	ProcessingTimeService createProcessingTimeService(MailboxExecutor mailboxExecutor);
+    /**
+     * Creates a new processing time service with the mailbox executor. The mailbox executor is used
+     * to defer the {@link ProcessingTimeCallback} of the timer registered with the {@link
+     * ProcessingTimeService} to mailbox for execution.
+     */
+    ProcessingTimeService createProcessingTimeService(MailboxExecutor mailboxExecutor);
 }

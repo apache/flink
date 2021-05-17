@@ -24,32 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.DoubleValue;
 
-/**
- * Tests for {@link DoubleValueArrayComparator}.
- */
+/** Tests for {@link DoubleValueArrayComparator}. */
 public class DoubleValueArrayComparatorTest extends ComparatorTestBase<DoubleValueArray> {
 
-	@Override
-	protected TypeComparator<DoubleValueArray> createComparator(boolean ascending) {
-		return new DoubleValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<DoubleValueArray> createComparator(boolean ascending) {
+        return new DoubleValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<DoubleValueArray> createSerializer() {
-		return new DoubleValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<DoubleValueArray> createSerializer() {
+        return new DoubleValueArraySerializer();
+    }
 
-	@Override
-	protected DoubleValueArray[] getSortedTestData() {
-		DoubleValueArray lva0 = new DoubleValueArray();
+    @Override
+    protected DoubleValueArray[] getSortedTestData() {
+        DoubleValueArray lva0 = new DoubleValueArray();
 
-		DoubleValueArray lva1 = new DoubleValueArray();
-		lva1.add(new DoubleValue(5));
+        DoubleValueArray lva1 = new DoubleValueArray();
+        lva1.add(new DoubleValue(5));
 
-		DoubleValueArray lva2 = new DoubleValueArray();
-		lva2.add(new DoubleValue(5));
-		lva2.add(new DoubleValue(10));
+        DoubleValueArray lva2 = new DoubleValueArray();
+        lva2.add(new DoubleValue(5));
+        lva2.add(new DoubleValue(10));
 
-		return new DoubleValueArray[]{ lva0, lva1 };
-	}
+        return new DoubleValueArray[] {lva0, lva1};
+    }
 }

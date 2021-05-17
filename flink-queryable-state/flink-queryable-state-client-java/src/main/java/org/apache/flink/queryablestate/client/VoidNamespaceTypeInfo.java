@@ -31,62 +31,62 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 @Internal
 public class VoidNamespaceTypeInfo extends TypeInformation<VoidNamespace> {
 
-	private static final long serialVersionUID = 5453679706408610586L;
+    private static final long serialVersionUID = 5453679706408610586L;
 
-	public static final VoidNamespaceTypeInfo INSTANCE = new VoidNamespaceTypeInfo();
+    public static final VoidNamespaceTypeInfo INSTANCE = new VoidNamespaceTypeInfo();
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 0;
-	}
+    @Override
+    public int getArity() {
+        return 0;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public Class<VoidNamespace> getTypeClass() {
-		return VoidNamespace.class;
-	}
+    @Override
+    public Class<VoidNamespace> getTypeClass() {
+        return VoidNamespace.class;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public TypeSerializer<VoidNamespace> createSerializer(ExecutionConfig config) {
-		return VoidNamespaceSerializer.INSTANCE;
-	}
+    @Override
+    public TypeSerializer<VoidNamespace> createSerializer(ExecutionConfig config) {
+        return VoidNamespaceSerializer.INSTANCE;
+    }
 
-	@Override
-	public String toString() {
-		return "VoidNamespaceTypeInfo";
-	}
+    @Override
+    public String toString() {
+        return "VoidNamespaceTypeInfo";
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return this == obj || obj instanceof VoidNamespaceTypeInfo;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj || obj instanceof VoidNamespaceTypeInfo;
+    }
 
-	@Override
-	public int hashCode() {
-		return 0;
-	}
+    @Override
+    public int hashCode() {
+        return 0;
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof VoidNamespaceTypeInfo;
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof VoidNamespaceTypeInfo;
+    }
 }

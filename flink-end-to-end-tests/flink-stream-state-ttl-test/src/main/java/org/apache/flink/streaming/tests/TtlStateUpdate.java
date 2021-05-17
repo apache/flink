@@ -26,23 +26,22 @@ import java.util.Map;
 /** Randomly generated keyed state updates per state type. */
 class TtlStateUpdate implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int key;
+    private final int key;
 
-	@Nonnull
-	private final Map<String, Object> updates;
+    @Nonnull private final Map<String, Object> updates;
 
-	TtlStateUpdate(int key, @Nonnull Map<String, Object> updates) {
-		this.key = key;
-		this.updates = updates;
-	}
+    TtlStateUpdate(int key, @Nonnull Map<String, Object> updates) {
+        this.key = key;
+        this.updates = updates;
+    }
 
-	int getKey() {
-		return key;
-	}
+    int getKey() {
+        return key;
+    }
 
-	Object getUpdate(String verifierId) {
-		return updates.get(verifierId);
-	}
+    Object getUpdate(String verifierId) {
+        return updates.get(verifierId);
+    }
 }

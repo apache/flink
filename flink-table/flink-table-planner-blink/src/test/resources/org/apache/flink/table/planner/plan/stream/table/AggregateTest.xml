@@ -17,14 +17,14 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testAggregateWithAlias">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], x=[AS($1.f0, _UTF-16LE'x')], y=[AS($1.f1, _UTF-16LE'y')])
 +- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
@@ -34,14 +34,14 @@ Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
     </Resource>
   </TestCase>
   <TestCase name="testAggregateWithScalarResult">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], TMP_0=[$1])
 +- LogicalAggregate(group=[{1}], TMP_0=[COUNT($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
 +- Exchange(distribution=[hash[b]])
@@ -50,14 +50,14 @@ GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
     </Resource>
   </TestCase>
   <TestCase name="testDistinctAggregateOnTumbleWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[single])
@@ -66,14 +66,14 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], select=[
     </Resource>
   </TestCase>
   <TestCase name="testDistinctAggregateWithGroupingOnSessionWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalWindowAggregate(group=[{0}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT(DISTINCT $2)], window=[SessionGroupWindow('w, rowtime, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(groupBy=[a], window=[SessionGroupWindow('w, rowtime, 900000)], select=[a, COUNT(a) AS EXPR$0, COUNT(DISTINCT c) AS EXPR$1])
 +- Exchange(distribution=[hash[a]])
@@ -82,14 +82,14 @@ GroupWindowAggregate(groupBy=[a], window=[SessionGroupWindow('w, rowtime, 900000
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregate">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[COUNT($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS EXPR$0])
@@ -99,7 +99,7 @@ Calc(select=[EXPR$0])
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithAverage">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
@@ -107,7 +107,7 @@ LogicalProject(b=[$0], EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, AVG(a0) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
@@ -117,7 +117,7 @@ GroupAggregate(groupBy=[b], select=[b, AVG(a0) AS EXPR$0])
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithConstant1">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(four=[$1], EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
@@ -125,7 +125,7 @@ LogicalProject(four=[$1], EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$0])
 +- GroupAggregate(groupBy=[a], select=[a, SUM(b) AS EXPR$0])
@@ -136,7 +136,7 @@ Calc(select=[4 AS four, EXPR$0])
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithConstant2">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(four=[$1], EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[SUM($2)])
@@ -144,7 +144,7 @@ LogicalProject(four=[$1], EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
@@ -155,14 +155,14 @@ Calc(select=[4 AS four, EXPR$0])
     </Resource>
   </TestCase>
   <TestCase name="testSimpleAggregate">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')])
 +- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
@@ -172,7 +172,7 @@ Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithExpressionInSelect">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{1}], EXPR$0=[MIN($2)], EXPR$1=[AVG($0)])
@@ -180,7 +180,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[d], select=[d, MIN(c) AS EXPR$0, AVG(a) AS EXPR$1])
@@ -191,7 +191,7 @@ Calc(select=[EXPR$0, EXPR$1])
     </Resource>
   </TestCase>
   <TestCase name="testGroupAggregateWithFilter">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[=($0, 2)])
 +- LogicalProject(b=[$0], EXPR$0=[$1])
@@ -199,18 +199,18 @@ LogicalFilter(condition=[=($0, 2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(2) AS b, EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, c], where=[=(b, 2)])
+      +- Calc(select=[a, b, c], where=[(b = 2)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testGroupDistinctAggregateWithUDAGG">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{1}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT $0, $2)], EXPR$1=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $2)])
@@ -218,7 +218,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[c], select=[c, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(DISTINCT a, b0) AS EXPR$0, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(a, b0) AS EXPR$1])
@@ -229,14 +229,14 @@ Calc(select=[EXPR$0, EXPR$1])
     </Resource>
   </TestCase>
   <TestCase name="testGroupDistinctAggregate">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(DISTINCT a) AS EXPR$0, COUNT(DISTINCT c) AS EXPR$1])
@@ -246,14 +246,14 @@ Calc(select=[EXPR$0, EXPR$1])
     </Resource>
   </TestCase>
   <TestCase name="testMultiDistinctAggregateSameFieldOnHopWindow">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0)], EXPR$2=[MAX($0)], window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(DISTINCT a) AS EXPR$1, MAX(a) AS EXPR$2])
 +- Exchange(distribution=[single])
@@ -262,14 +262,14 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], 
     </Resource>
   </TestCase>
   <TestCase name="testSelectStar">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')], f2=[AS($1.f2, _UTF-16LE'f2')])
 +- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1, TMP_0.f2 AS f2])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])

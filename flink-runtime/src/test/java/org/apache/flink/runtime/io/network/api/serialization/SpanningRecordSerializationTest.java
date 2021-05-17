@@ -54,308 +54,323 @@ import java.util.Random;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferBuilder;
 
-/**
- * Tests for the {@link SpillingAdaptiveSpanningRecordDeserializer}.
- */
+/** Tests for the {@link SpillingAdaptiveSpanningRecordDeserializer}. */
 public class SpanningRecordSerializationTest extends TestLogger {
-	private static final Random RANDOM = new Random(42);
+    private static final Random RANDOM = new Random(42);
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testIntRecordsSpanningMultipleSegments() throws Exception {
-		final int segmentSize = 1;
-		final int numValues = 10;
+    @Test
+    public void testIntRecordsSpanningMultipleSegments() throws Exception {
+        final int segmentSize = 1;
+        final int numValues = 10;
 
-		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-	}
+        testSerializationRoundTrip(
+                Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+    }
 
-	@Test
-	public void testIntRecordsWithAlignedBuffers () throws Exception {
-		final int segmentSize = 64;
-		final int numValues = 64;
+    @Test
+    public void testIntRecordsWithAlignedBuffers() throws Exception {
+        final int segmentSize = 64;
+        final int numValues = 64;
 
-		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-	}
+        testSerializationRoundTrip(
+                Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+    }
 
-	@Test
-	public void testIntRecordsWithUnalignedBuffers () throws Exception {
-		final int segmentSize = 31;
-		final int numValues = 248;
+    @Test
+    public void testIntRecordsWithUnalignedBuffers() throws Exception {
+        final int segmentSize = 31;
+        final int numValues = 248;
 
-		testSerializationRoundTrip(Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
-	}
+        testSerializationRoundTrip(
+                Util.randomRecords(numValues, SerializationTestTypeFactory.INT), segmentSize);
+    }
 
-	@Test
-	public void testRandomRecords () throws Exception {
-		final int segmentSize = 127;
-		final int numValues = 10000;
+    @Test
+    public void testRandomRecords() throws Exception {
+        final int segmentSize = 127;
+        final int numValues = 10000;
 
-		testSerializationRoundTrip(Util.randomRecords(numValues), segmentSize);
-	}
+        testSerializationRoundTrip(Util.randomRecords(numValues), segmentSize);
+    }
 
-	@Test
-	public void testHandleMixedLargeRecords() throws Exception {
-		final int numValues = 99;
-		final int segmentSize = 32 * 1024;
+    @Test
+    public void testHandleMixedLargeRecords() throws Exception {
+        final int numValues = 99;
+        final int segmentSize = 32 * 1024;
 
-		List<SerializationTestType> originalRecords = new ArrayList<>((numValues + 1) / 2);
-		LargeObjectType genLarge = new LargeObjectType();
-		Random rnd = new Random();
+        List<SerializationTestType> originalRecords = new ArrayList<>((numValues + 1) / 2);
+        LargeObjectType genLarge = new LargeObjectType();
+        Random rnd = new Random();
 
-		for (int i = 0; i < numValues; i++) {
-			if (i % 2 == 0) {
-				originalRecords.add(new IntType(42));
-			} else {
-				originalRecords.add(genLarge.getRandom(rnd));
-			}
-		}
+        for (int i = 0; i < numValues; i++) {
+            if (i % 2 == 0) {
+                originalRecords.add(new IntType(42));
+            } else {
+                originalRecords.add(genLarge.getRandom(rnd));
+            }
+        }
 
-		testSerializationRoundTrip(originalRecords, segmentSize);
-	}
+        testSerializationRoundTrip(originalRecords, segmentSize);
+    }
 
-	// -----------------------------------------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------------------------------------
 
-	private void testSerializationRoundTrip(Iterable<SerializationTestType> records, int segmentSize) throws Exception {
-		RecordDeserializer<SerializationTestType> deserializer =
-			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{ tempFolder.getRoot().getAbsolutePath() });
+    private void testSerializationRoundTrip(
+            Iterable<SerializationTestType> records, int segmentSize) throws Exception {
+        RecordDeserializer<SerializationTestType> deserializer =
+                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                        new String[] {tempFolder.getRoot().getAbsolutePath()});
 
-		testSerializationRoundTrip(records, segmentSize, deserializer);
-	}
+        testSerializationRoundTrip(records, segmentSize, deserializer);
+    }
 
-	/**
-	 * Iterates over the provided records and tests whether {@link RecordWriter#serializeRecord} and
-	 * {@link RecordDeserializer} interact as expected.
-	 *
-	 * <p>Only a single {@link MemorySegment} will be allocated.
-	 *
-	 * @param records records to test
-	 * @param segmentSize size for the {@link MemorySegment}
-	 */
-	private static void testSerializationRoundTrip(
-			Iterable<SerializationTestType> records,
-			int segmentSize,
-			RecordDeserializer<SerializationTestType> deserializer)
-		throws Exception {
-		final DataOutputSerializer serializer = new DataOutputSerializer(128);
-		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<>();
+    /**
+     * Iterates over the provided records and tests whether {@link RecordWriter#serializeRecord} and
+     * {@link RecordDeserializer} interact as expected.
+     *
+     * <p>Only a single {@link MemorySegment} will be allocated.
+     *
+     * @param records records to test
+     * @param segmentSize size for the {@link MemorySegment}
+     */
+    private static void testSerializationRoundTrip(
+            Iterable<SerializationTestType> records,
+            int segmentSize,
+            RecordDeserializer<SerializationTestType> deserializer)
+            throws Exception {
+        final DataOutputSerializer serializer = new DataOutputSerializer(128);
+        final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<>();
 
-		// -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
 
-		BufferAndSerializerResult serializationResult = setNextBufferForSerializer(serializer.wrapAsByteBuffer(), segmentSize);
+        BufferAndSerializerResult serializationResult =
+                setNextBufferForSerializer(serializer.wrapAsByteBuffer(), segmentSize);
 
-		int numRecords = 0;
-		for (SerializationTestType record : records) {
+        int numRecords = 0;
+        for (SerializationTestType record : records) {
 
-			serializedRecords.add(record);
+            serializedRecords.add(record);
 
-			numRecords++;
+            numRecords++;
 
-			// serialize record
-			serializer.clear();
-			ByteBuffer serializedRecord = RecordWriter.serializeRecord(serializer, record);
-			serializationResult.getBufferBuilder().appendAndCommit(serializedRecord);
-			if (serializationResult.getBufferBuilder().isFull()) {
-				// buffer is full => start deserializing
-				deserializer.setNextBuffer(serializationResult.buildBuffer());
+            // serialize record
+            serializer.clear();
+            ByteBuffer serializedRecord = RecordWriter.serializeRecord(serializer, record);
+            serializationResult.getBufferBuilder().appendAndCommit(serializedRecord);
+            if (serializationResult.getBufferBuilder().isFull()) {
+                // buffer is full => start deserializing
+                deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-				numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer);
+                numRecords -=
+                        DeserializationUtils.deserializeRecords(serializedRecords, deserializer);
 
-				// move buffers as long as necessary (for long records)
-				while ((serializationResult = setNextBufferForSerializer(serializedRecord, segmentSize)).isFullBuffer()) {
-					deserializer.setNextBuffer(serializationResult.buildBuffer());
-				}
-			}
-			Assert.assertFalse(serializedRecord.hasRemaining());
-		}
+                // move buffers as long as necessary (for long records)
+                while ((serializationResult =
+                                setNextBufferForSerializer(serializedRecord, segmentSize))
+                        .isFullBuffer()) {
+                    deserializer.setNextBuffer(serializationResult.buildBuffer());
+                }
+            }
+            Assert.assertFalse(serializedRecord.hasRemaining());
+        }
 
-		// deserialize left over records
-		deserializer.setNextBuffer(serializationResult.buildBuffer());
+        // deserialize left over records
+        deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-		while (!serializedRecords.isEmpty()) {
-			SerializationTestType expected = serializedRecords.poll();
+        while (!serializedRecords.isEmpty()) {
+            SerializationTestType expected = serializedRecords.poll();
 
-			SerializationTestType actual = expected.getClass().newInstance();
-			RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
+            SerializationTestType actual = expected.getClass().newInstance();
+            RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
 
-			Assert.assertTrue(result.isFullRecord());
-			Assert.assertEquals(expected, actual);
-			numRecords--;
-		}
+            Assert.assertTrue(result.isFullRecord());
+            Assert.assertEquals(expected, actual);
+            numRecords--;
+        }
 
-		// assert that all records have been serialized and deserialized
-		Assert.assertEquals(0, numRecords);
-		Assert.assertFalse(deserializer.hasUnfinishedData());
-	}
+        // assert that all records have been serialized and deserialized
+        Assert.assertEquals(0, numRecords);
+    }
 
-	@Test
-	public void testSmallRecordUnconsumedBuffer() throws Exception {
-		RecordDeserializer<SerializationTestType> deserializer =
-			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{tempFolder.getRoot().getAbsolutePath()});
+    @Test
+    public void testSmallRecordUnconsumedBuffer() throws Exception {
+        RecordDeserializer<SerializationTestType> deserializer =
+                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                        new String[] {tempFolder.getRoot().getAbsolutePath()});
 
-		testUnconsumedBuffer(deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1024);
-	}
+        testUnconsumedBuffer(
+                deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1024);
+    }
 
-	/**
-	 * Test both for spanning records and for handling the length buffer, that's why it's going byte by byte.
-	 */
-	@Test
-	public void testSpanningRecordUnconsumedBuffer() throws Exception {
-		RecordDeserializer<SerializationTestType> deserializer =
-			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{tempFolder.getRoot().getAbsolutePath()});
+    /**
+     * Test both for spanning records and for handling the length buffer, that's why it's going byte
+     * by byte.
+     */
+    @Test
+    public void testSpanningRecordUnconsumedBuffer() throws Exception {
+        RecordDeserializer<SerializationTestType> deserializer =
+                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                        new String[] {tempFolder.getRoot().getAbsolutePath()});
 
-		testUnconsumedBuffer(deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1);
-	}
+        testUnconsumedBuffer(deserializer, Util.randomRecord(SerializationTestTypeFactory.INT), 1);
+    }
 
-	@Test
-	public void testLargeSpanningRecordUnconsumedBuffer() throws Exception {
-		RecordDeserializer<SerializationTestType> deserializer =
-			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{tempFolder.getRoot().getAbsolutePath()});
+    @Test
+    public void testLargeSpanningRecordUnconsumedBuffer() throws Exception {
+        RecordDeserializer<SerializationTestType> deserializer =
+                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                        new String[] {tempFolder.getRoot().getAbsolutePath()});
 
-		testUnconsumedBuffer(deserializer, Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY), 1);
-	}
+        testUnconsumedBuffer(
+                deserializer, Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY), 1);
+    }
 
-	@Test
-	public void testLargeSpanningRecordUnconsumedBufferWithLeftOverBytes() throws Exception {
-		RecordDeserializer<SerializationTestType> deserializer =
-			new SpillingAdaptiveSpanningRecordDeserializer<>(
-				new String[]{tempFolder.getRoot().getAbsolutePath()});
+    @Test
+    public void testLargeSpanningRecordUnconsumedBufferWithLeftOverBytes() throws Exception {
+        RecordDeserializer<SerializationTestType> deserializer =
+                new SpillingAdaptiveSpanningRecordDeserializer<>(
+                        new String[] {tempFolder.getRoot().getAbsolutePath()});
 
-		testUnconsumedBuffer(
-			deserializer,
-			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
-			1,
-			new byte[] {42, 43, 44});
+        testUnconsumedBuffer(
+                deserializer,
+                Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
+                1,
+                new byte[] {42, 43, 44});
 
-		deserializer.clear();
+        deserializer.clear();
 
-		testUnconsumedBuffer(
-			deserializer,
-			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
-			1,
-			new byte[] {42, 43, 44});
-	}
+        testUnconsumedBuffer(
+                deserializer,
+                Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
+                1,
+                new byte[] {42, 43, 44});
+    }
 
-	public void testUnconsumedBuffer(
-			RecordDeserializer<SerializationTestType> deserializer,
-			SerializationTestType record,
-			int segmentSize,
-			byte... leftOverBytes) throws Exception {
-		try (ByteArrayOutputStream unconsumedBytes = new ByteArrayOutputStream()) {
-			DataOutputSerializer serializer = new DataOutputSerializer(128);
-			ByteBuffer serializedRecord = RecordWriter.serializeRecord(serializer, record);
+    public void testUnconsumedBuffer(
+            RecordDeserializer<SerializationTestType> deserializer,
+            SerializationTestType record,
+            int segmentSize,
+            byte... leftOverBytes)
+            throws Exception {
+        try (ByteArrayOutputStream unconsumedBytes = new ByteArrayOutputStream()) {
+            DataOutputSerializer serializer = new DataOutputSerializer(128);
+            ByteBuffer serializedRecord = RecordWriter.serializeRecord(serializer, record);
 
-			BufferAndSerializerResult serializationResult = setNextBufferForSerializer(serializedRecord, segmentSize);
+            BufferAndSerializerResult serializationResult =
+                    setNextBufferForSerializer(serializedRecord, segmentSize);
 
-			serializationResult.getBufferBuilder().appendAndCommit(serializedRecord);
-			if (serializationResult.getBufferBuilder().isFull()) {
-				// buffer is full => start deserializing
-				Buffer buffer = serializationResult.buildBuffer();
-				writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
-				deserializer.setNextBuffer(buffer);
-				assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
+            serializationResult.getBufferBuilder().appendAndCommit(serializedRecord);
+            if (serializationResult.getBufferBuilder().isFull()) {
+                // buffer is full => start deserializing
+                Buffer buffer = serializationResult.buildBuffer();
+                writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
+                deserializer.setNextBuffer(buffer);
+                assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
 
-				deserializer.getNextRecord(record.getClass().newInstance());
+                deserializer.getNextRecord(record.getClass().newInstance());
 
-				// move buffers as long as necessary (for long records)
-				while ((serializationResult = setNextBufferForSerializer(serializedRecord, segmentSize)).isFullBuffer()) {
-					buffer = serializationResult.buildBuffer();
+                // move buffers as long as necessary (for long records)
+                while ((serializationResult =
+                                setNextBufferForSerializer(serializedRecord, segmentSize))
+                        .isFullBuffer()) {
+                    buffer = serializationResult.buildBuffer();
 
-					if (serializationResult.isFullRecord()) {
-						buffer = appendLeftOverBytes(buffer, leftOverBytes);
-					}
+                    if (serializationResult.isFullRecord()) {
+                        buffer = appendLeftOverBytes(buffer, leftOverBytes);
+                    }
 
-					writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
-					deserializer.setNextBuffer(buffer);
-					assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
+                    writeBuffer(buffer.readOnlySlice().getNioBufferReadable(), unconsumedBytes);
+                    deserializer.setNextBuffer(buffer);
+                    assertUnconsumedBuffer(unconsumedBytes, deserializer.getUnconsumedBuffer());
 
-					deserializer.getNextRecord(record.getClass().newInstance());
-				}
-			}
-		}
-	}
+                    deserializer.getNextRecord(record.getClass().newInstance());
+                }
+            }
+        }
+    }
 
-	private static Buffer appendLeftOverBytes(Buffer buffer, byte[] leftOverBytes) {
-		BufferBuilder bufferBuilder = new BufferBuilder(
-			MemorySegmentFactory.allocateUnpooledSegment(buffer.readableBytes() + leftOverBytes.length),
-			FreeingBufferRecycler.INSTANCE);
-		try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
-			bufferBuilder.append(buffer.getNioBufferReadable());
-			bufferBuilder.appendAndCommit(ByteBuffer.wrap(leftOverBytes));
-			return bufferConsumer.build();
-		}
-	}
+    private static Buffer appendLeftOverBytes(Buffer buffer, byte[] leftOverBytes) {
+        BufferBuilder bufferBuilder =
+                new BufferBuilder(
+                        MemorySegmentFactory.allocateUnpooledSegment(
+                                buffer.readableBytes() + leftOverBytes.length),
+                        FreeingBufferRecycler.INSTANCE);
+        try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
+            bufferBuilder.append(buffer.getNioBufferReadable());
+            bufferBuilder.appendAndCommit(ByteBuffer.wrap(leftOverBytes));
+            return bufferConsumer.build();
+        }
+    }
 
-	private static void assertUnconsumedBuffer(ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
-		if (!actual.hasNext()) {
-			Assert.assertEquals(expected.size(), 0);
-		}
+    private static void assertUnconsumedBuffer(
+            ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
+        if (!actual.hasNext()) {
+            Assert.assertEquals(expected.size(), 0);
+        }
 
-		ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());
-		ByteBuffer actualByteBuffer = actual.next().getNioBufferReadable();
-		Assert.assertEquals(expectedByteBuffer, actualByteBuffer);
-		actual.close();
-	}
+        ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());
+        ByteBuffer actualByteBuffer = actual.next().getNioBufferReadable();
+        Assert.assertEquals(expectedByteBuffer, actualByteBuffer);
+        actual.close();
+    }
 
-	private static void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {
-		WritableByteChannel channel = Channels.newChannel(stream);
-		channel.write(buffer);
-	}
+    private static void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {
+        WritableByteChannel channel = Channels.newChannel(stream);
+        channel.write(buffer);
+    }
 
-	private static BufferAndSerializerResult setNextBufferForSerializer(
-			ByteBuffer serializedRecord,
-			int segmentSize) throws IOException {
-		// create a bufferBuilder with some random starting offset to properly test handling buffer slices in the
-		// deserialization code.
-		int startingOffset = segmentSize > 2 ? RANDOM.nextInt(segmentSize / 2) : 0;
-		BufferBuilder bufferBuilder = createFilledBufferBuilder(segmentSize + startingOffset, startingOffset);
-		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-		bufferConsumer.build().recycleBuffer();
+    private static BufferAndSerializerResult setNextBufferForSerializer(
+            ByteBuffer serializedRecord, int segmentSize) throws IOException {
+        // create a bufferBuilder with some random starting offset to properly test handling buffer
+        // slices in the
+        // deserialization code.
+        int startingOffset = segmentSize > 2 ? RANDOM.nextInt(segmentSize / 2) : 0;
+        BufferBuilder bufferBuilder =
+                createFilledBufferBuilder(segmentSize + startingOffset, startingOffset);
+        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+        bufferConsumer.build().recycleBuffer();
 
-		bufferBuilder.appendAndCommit(serializedRecord);
-		return new BufferAndSerializerResult(
-			bufferBuilder,
-			bufferConsumer,
-			bufferBuilder.isFull(),
-			!serializedRecord.hasRemaining());
-	}
+        bufferBuilder.appendAndCommit(serializedRecord);
+        return new BufferAndSerializerResult(
+                bufferBuilder,
+                bufferConsumer,
+                bufferBuilder.isFull(),
+                !serializedRecord.hasRemaining());
+    }
 
-	private static class BufferAndSerializerResult {
-		private final BufferBuilder bufferBuilder;
-		private final BufferConsumer bufferConsumer;
-		private final boolean isFullBuffer;
-		private final boolean isFullRecord;
+    private static class BufferAndSerializerResult {
+        private final BufferBuilder bufferBuilder;
+        private final BufferConsumer bufferConsumer;
+        private final boolean isFullBuffer;
+        private final boolean isFullRecord;
 
-		public BufferAndSerializerResult(
-				BufferBuilder bufferBuilder,
-				BufferConsumer bufferConsumer,
-				boolean isFullBuffer,
-				boolean isFullRecord) {
-			this.bufferBuilder = bufferBuilder;
-			this.bufferConsumer = bufferConsumer;
-			this.isFullBuffer = isFullBuffer;
-			this.isFullRecord = isFullRecord;
-		}
+        public BufferAndSerializerResult(
+                BufferBuilder bufferBuilder,
+                BufferConsumer bufferConsumer,
+                boolean isFullBuffer,
+                boolean isFullRecord) {
+            this.bufferBuilder = bufferBuilder;
+            this.bufferConsumer = bufferConsumer;
+            this.isFullBuffer = isFullBuffer;
+            this.isFullRecord = isFullRecord;
+        }
 
-		public BufferBuilder getBufferBuilder() {
-			return bufferBuilder;
-		}
+        public BufferBuilder getBufferBuilder() {
+            return bufferBuilder;
+        }
 
-		public Buffer buildBuffer() {
-			return buildSingleBuffer(bufferConsumer);
-		}
+        public Buffer buildBuffer() {
+            return buildSingleBuffer(bufferConsumer);
+        }
 
-		public boolean isFullBuffer() {
-			return isFullBuffer;
-		}
+        public boolean isFullBuffer() {
+            return isFullBuffer;
+        }
 
-		public boolean isFullRecord() {
-			return isFullRecord;
-		}
-	}
+        public boolean isFullRecord() {
+            return isFullRecord;
+        }
+    }
 }

@@ -29,8 +29,8 @@ import org.apache.flink.util.Collector;
 import java.util.Collections;
 
 /**
- * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an
- * {@code Iterable} and an {@link AggregateFunction}.
+ * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an {@code
+ * Iterable} and an {@link AggregateFunction}.
  *
  * @param <K> The key type
  * @param <W> The window type
@@ -40,52 +40,59 @@ import java.util.Collections;
  * @param <R> The result type of the WindowFunction
  */
 public final class InternalAggregateProcessWindowFunction<T, ACC, V, R, K, W extends Window>
-		extends WrappingFunction<ProcessWindowFunction<V, R, K, W>>
-		implements InternalWindowFunction<Iterable<T>, R, K, W> {
+        extends WrappingFunction<ProcessWindowFunction<V, R, K, W>>
+        implements InternalWindowFunction<Iterable<T>, R, K, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final AggregateFunction<T, ACC, V> aggFunction;
+    private final AggregateFunction<T, ACC, V> aggFunction;
 
-	private final InternalProcessWindowContext<V, R, K, W> ctx;
+    private final InternalProcessWindowContext<V, R, K, W> ctx;
 
-	public InternalAggregateProcessWindowFunction(
-			AggregateFunction<T, ACC, V> aggFunction,
-			ProcessWindowFunction<V, R, K, W> windowFunction) {
-		super(windowFunction);
-		this.aggFunction = aggFunction;
-		this.ctx = new InternalProcessWindowContext<>(windowFunction);
-	}
+    public InternalAggregateProcessWindowFunction(
+            AggregateFunction<T, ACC, V> aggFunction,
+            ProcessWindowFunction<V, R, K, W> windowFunction) {
+        super(windowFunction);
+        this.aggFunction = aggFunction;
+        this.ctx = new InternalProcessWindowContext<>(windowFunction);
+    }
 
-	@Override
-	public void process(K key, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
-		ACC acc = aggFunction.createAccumulator();
+    @Override
+    public void process(
+            K key,
+            final W window,
+            final InternalWindowContext context,
+            Iterable<T> input,
+            Collector<R> out)
+            throws Exception {
+        ACC acc = aggFunction.createAccumulator();
 
-		for (T val : input) {
-			acc = aggFunction.add(val, acc);
-		}
+        for (T val : input) {
+            acc = aggFunction.add(val, acc);
+        }
 
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
-		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
-		wrappedFunction.process(key, ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
-	}
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
+        ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
+        wrappedFunction.process(
+                key, ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
+    }
 
-	@Override
-	public void clear(final W window, final InternalWindowContext context) throws Exception {
-		this.ctx.window = window;
-		this.ctx.internalContext = context;
-		ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
-		wrappedFunction.clear(ctx);
-	}
+    @Override
+    public void clear(final W window, final InternalWindowContext context) throws Exception {
+        this.ctx.window = window;
+        this.ctx.internalContext = context;
+        ProcessWindowFunction<V, R, K, W> wrappedFunction = this.wrappedFunction;
+        wrappedFunction.clear(ctx);
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new RuntimeException("This should never be called.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new RuntimeException("This should never be called.");
+    }
 }

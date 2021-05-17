@@ -46,137 +46,142 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN>
+        implements CheckpointedFunction {
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	protected transient Cluster cluster;
-	protected transient Session session;
+    protected transient Cluster cluster;
+    protected transient Session session;
 
-	private AtomicReference<Throwable> throwable;
-	private FutureCallback<V> callback;
-	private Semaphore semaphore;
+    private AtomicReference<Throwable> throwable;
+    private FutureCallback<V> callback;
+    private Semaphore semaphore;
 
-	private final ClusterBuilder builder;
-	private final CassandraSinkBaseConfig config;
+    private final ClusterBuilder builder;
+    private final CassandraSinkBaseConfig config;
 
-	private final CassandraFailureHandler failureHandler;
+    private final CassandraFailureHandler failureHandler;
 
-	CassandraSinkBase(ClusterBuilder builder, CassandraSinkBaseConfig config, CassandraFailureHandler failureHandler) {
-		this.builder = builder;
-		this.config = config;
-		this.failureHandler = Preconditions.checkNotNull(failureHandler);
-		ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-	}
+    CassandraSinkBase(
+            ClusterBuilder builder,
+            CassandraSinkBaseConfig config,
+            CassandraFailureHandler failureHandler) {
+        this.builder = builder;
+        this.config = config;
+        this.failureHandler = Preconditions.checkNotNull(failureHandler);
+        ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    }
 
-	@Override
-	public void open(Configuration configuration) {
-		this.callback = new FutureCallback<V>() {
-			@Override
-			public void onSuccess(V ignored) {
-				semaphore.release();
-			}
+    @Override
+    public void open(Configuration configuration) {
+        this.callback =
+                new FutureCallback<V>() {
+                    @Override
+                    public void onSuccess(V ignored) {
+                        semaphore.release();
+                    }
 
-			@Override
-			public void onFailure(Throwable t) {
-				throwable.compareAndSet(null, t);
-				log.error("Error while sending value.", t);
-				semaphore.release();
-			}
-		};
-		this.cluster = builder.getCluster();
-		this.session = createSession();
+                    @Override
+                    public void onFailure(Throwable t) {
+                        throwable.compareAndSet(null, t);
+                        log.error("Error while sending value.", t);
+                        semaphore.release();
+                    }
+                };
+        this.cluster = builder.getCluster();
+        this.session = createSession();
 
-		throwable = new AtomicReference<>();
-		semaphore = new Semaphore(config.getMaxConcurrentRequests());
-	}
+        throwable = new AtomicReference<>();
+        semaphore = new Semaphore(config.getMaxConcurrentRequests());
+    }
 
-	@Override
-	public void close() throws Exception {
-		try {
-			checkAsyncErrors();
-			flush();
-			checkAsyncErrors();
-		} finally {
-			try {
-				if (session != null) {
-					session.close();
-				}
-			} catch (Exception e) {
-				log.error("Error while closing session.", e);
-			}
-			try {
-				if (cluster != null) {
-					cluster.close();
-				}
-			} catch (Exception e) {
-				log.error("Error while closing cluster.", e);
-			}
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        try {
+            checkAsyncErrors();
+            flush();
+            checkAsyncErrors();
+        } finally {
+            try {
+                if (session != null) {
+                    session.close();
+                }
+            } catch (Exception e) {
+                log.error("Error while closing session.", e);
+            }
+            try {
+                if (cluster != null) {
+                    cluster.close();
+                }
+            } catch (Exception e) {
+                log.error("Error while closing cluster.", e);
+            }
+        }
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {}
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
-		checkAsyncErrors();
-		flush();
-		checkAsyncErrors();
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+        checkAsyncErrors();
+        flush();
+        checkAsyncErrors();
+    }
 
-	@Override
-	public void invoke(IN value) throws Exception {
-		checkAsyncErrors();
-		tryAcquire(1);
-		final ListenableFuture<V> result;
-		try {
-			result = send(value);
-		} catch (Throwable e) {
-			semaphore.release();
-			throw e;
-		}
-		Futures.addCallback(result, callback);
-	}
+    @Override
+    public void invoke(IN value) throws Exception {
+        checkAsyncErrors();
+        tryAcquire(1);
+        final ListenableFuture<V> result;
+        try {
+            result = send(value);
+        } catch (Throwable e) {
+            semaphore.release();
+            throw e;
+        }
+        Futures.addCallback(result, callback);
+    }
 
-	protected Session createSession() {
-		return cluster.connect();
-	}
+    protected Session createSession() {
+        return cluster.connect();
+    }
 
-	public abstract ListenableFuture<V> send(IN value);
+    public abstract ListenableFuture<V> send(IN value);
 
-	private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
-		if (!semaphore.tryAcquire(permits, config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
-			throw new TimeoutException(
-				String.format(
-					"Failed to acquire %d out of %d permits to send value in %s.",
-					permits,
-					config.getMaxConcurrentRequests(),
-					config.getMaxConcurrentRequestsTimeout()
-				)
-			);
-		}
-	}
+    private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
+        if (!semaphore.tryAcquire(
+                permits,
+                config.getMaxConcurrentRequestsTimeout().toMillis(),
+                TimeUnit.MILLISECONDS)) {
+            throw new TimeoutException(
+                    String.format(
+                            "Failed to acquire %d out of %d permits to send value in %s.",
+                            permits,
+                            config.getMaxConcurrentRequests(),
+                            config.getMaxConcurrentRequestsTimeout()));
+        }
+    }
 
-	private void checkAsyncErrors() throws Exception {
-		final Throwable currentError = throwable.getAndSet(null);
-		if (currentError != null) {
-			failureHandler.onFailure(currentError);
-		}
-	}
+    private void checkAsyncErrors() throws Exception {
+        final Throwable currentError = throwable.getAndSet(null);
+        if (currentError != null) {
+            failureHandler.onFailure(currentError);
+        }
+    }
 
-	private void flush() throws InterruptedException, TimeoutException {
-		tryAcquire(config.getMaxConcurrentRequests());
-		semaphore.release(config.getMaxConcurrentRequests());
-	}
+    private void flush() throws InterruptedException, TimeoutException {
+        tryAcquire(config.getMaxConcurrentRequests());
+        semaphore.release(config.getMaxConcurrentRequests());
+    }
 
-	@VisibleForTesting
-	int getAvailablePermits() {
-		return semaphore.availablePermits();
-	}
+    @VisibleForTesting
+    int getAvailablePermits() {
+        return semaphore.availablePermits();
+    }
 
-	@VisibleForTesting
-	int getAcquiredPermits() {
-		return config.getMaxConcurrentRequests() - semaphore.availablePermits();
-	}
+    @VisibleForTesting
+    int getAcquiredPermits() {
+        return config.getMaxConcurrentRequests() - semaphore.availablePermits();
+    }
 }

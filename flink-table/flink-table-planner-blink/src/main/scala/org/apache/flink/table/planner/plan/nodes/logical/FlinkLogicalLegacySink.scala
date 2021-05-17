@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LegacySink}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, LogicalLegacySink}
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
@@ -39,16 +40,17 @@ class FlinkLogicalLegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
+    hints: util.List[RelHint],
     sink: TableSink[_],
     sinkName: String,
     val catalogTable: CatalogTable,
     val staticPartitions: Map[String, String])
-  extends LegacySink(cluster, traitSet, input, sink, sinkName)
-          with FlinkLogicalRel {
+  extends LegacySink(cluster, traitSet, input, hints, sink, sinkName)
+  with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalLegacySink(
-      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
+      cluster, traitSet, inputs.head, hints, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -65,6 +67,7 @@ private class FlinkLogicalLegacySinkConverter
     val newInput = RelOptRule.convert(sink.getInput, FlinkConventions.LOGICAL)
     FlinkLogicalLegacySink.create(
       newInput,
+      sink.hints,
       sink.sink,
       sink.sinkName,
       sink.catalogTable,
@@ -77,6 +80,7 @@ object FlinkLogicalLegacySink {
 
   def create(
       input: RelNode,
+      hints: util.List[RelHint],
       sink: TableSink[_],
       sinkName: String,
       catalogTable: CatalogTable = null,
@@ -84,6 +88,6 @@ object FlinkLogicalLegacySink {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalLegacySink(
-      cluster, traitSet, input, sink, sinkName, catalogTable, staticPartitions)
+      cluster, traitSet, input, hints, sink, sinkName, catalogTable, staticPartitions)
   }
 }

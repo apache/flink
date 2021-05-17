@@ -26,50 +26,39 @@ import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import java.io.Serializable;
 
 /**
- * A window frame calculates the results for those records belong to a window frame. Before use a frame
- * must be prepared by passing it all the records in the current partition. A frame is a subset of the
- * current partition and the frame clause specifies how to define the subset. Frames are determined with
- * respect to the current row, which enables a frame to move within a partition depending on the location
- * of the current row within its partition. More information:
+ * A window frame calculates the results for those records belong to a window frame. Before use a
+ * frame must be prepared by passing it all the records in the current partition. A frame is a
+ * subset of the current partition and the frame clause specifies how to define the subset. Frames
+ * are determined with respect to the current row, which enables a frame to move within a partition
+ * depending on the location of the current row within its partition. More information:
  * https://docs.oracle.com/cd/E17952_01/mysql-8.0-en/window-functions-frames.html
  *
- * <p>E.g.:
- * SELECT d, e, f,
- *  sum(e) over (partition by d order by e rows between 5 PRECEDING and 2 FOLLOWING),              -- frame 1
- *  count(*) over (partition by d order by e desc rows between 6 PRECEDING and 2 FOLLOWING),       -- frame 2
- *  max(f) over (partition by d order by e rows between UNBOUNDED PRECEDING and CURRENT ROW),      -- frame 3
- *  min(h) over (partition by d order by e desc rows between CURRENT ROW and UNBOUNDED FOLLOWING), -- frame 4
- *  h FROM Table5
- * The above sql has 4 frames.
+ * <p>E.g.: SELECT d, e, f, sum(e) over (partition by d order by e rows between 5 PRECEDING and 2
+ * FOLLOWING), -- frame 1 count(*) over (partition by d order by e desc rows between 6 PRECEDING and
+ * 2 FOLLOWING), -- frame 2 max(f) over (partition by d order by e rows between UNBOUNDED PRECEDING
+ * and CURRENT ROW), -- frame 3 min(h) over (partition by d order by e desc rows between CURRENT ROW
+ * and UNBOUNDED FOLLOWING), -- frame 4 h FROM Table5 The above sql has 4 frames.
  *
- * <p>Over AGG means that every Row has a corresponding output.
- * OverWindowFrame is called by:
- * 1.Get all data and invoke {@link #prepare(ResettableExternalBuffer)} for partition
- * 2.Then each Row is traversed one by one to invoke {@link #process(int, RowData)} to get the calculation
- * results of the currentRow.
+ * <p>Over AGG means that every Row has a corresponding output. OverWindowFrame is called by: 1.Get
+ * all data and invoke {@link #prepare(ResettableExternalBuffer)} for partition 2.Then each Row is
+ * traversed one by one to invoke {@link #process(int, RowData)} to get the calculation results of
+ * the currentRow.
  */
 public interface OverWindowFrame extends Serializable {
 
-	/**
-	 * Open to init with {@link ExecutionContext}.
-	 */
-	void open(ExecutionContext ctx) throws Exception;
+    /** Open to init with {@link ExecutionContext}. */
+    void open(ExecutionContext ctx) throws Exception;
 
-	/**
-	 * Prepare for next partition.
-	 */
-	void prepare(ResettableExternalBuffer rows) throws Exception;
+    /** Prepare for next partition. */
+    void prepare(ResettableExternalBuffer rows) throws Exception;
 
-	/**
-	 * return the ACC of the window frame.
-	 */
-	RowData process(int index, RowData current) throws Exception;
+    /** return the ACC of the window frame. */
+    RowData process(int index, RowData current) throws Exception;
 
-	/**
-	 * Get next row from iterator. Return null if iterator has no next.
-	 * TODO Maybe copy is repeated.
-	 */
-	static BinaryRowData getNextOrNull(ResettableExternalBuffer.BufferIterator iterator) {
-		return iterator.advanceNext() ? iterator.getRow().copy() : null;
-	}
+    /**
+     * Get next row from iterator. Return null if iterator has no next. TODO Maybe copy is repeated.
+     */
+    static BinaryRowData getNextOrNull(ResettableExternalBuffer.BufferIterator iterator) {
+        return iterator.advanceNext() ? iterator.getRow().copy() : null;
+    }
 }

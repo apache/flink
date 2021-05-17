@@ -30,39 +30,43 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link SlotManagerConfiguration}.
- */
+/** Tests for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationTest extends TestLogger {
 
-	/**
-	 * Tests that {@link SlotManagerConfiguration#getSlotRequestTimeout()} returns the value
-	 * configured under key {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
-	 */
-	@Test
-	public void testSetSlotRequestTimeout() throws Exception {
-		final long slotIdleTimeout = 42;
+    /**
+     * Tests that {@link SlotManagerConfiguration#getSlotRequestTimeout()} returns the value
+     * configured under key {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
+     */
+    @Test
+    public void testSetSlotRequestTimeout() throws Exception {
+        final long slotIdleTimeout = 42;
 
-		final Configuration configuration = new Configuration();
-		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotIdleTimeout);
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
+        final Configuration configuration = new Configuration();
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotIdleTimeout);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
-		assertThat(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(), is(equalTo(slotIdleTimeout)));
-	}
+        assertThat(
+                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
+                is(equalTo(slotIdleTimeout)));
+    }
 
-	/**
-	 * Tests that {@link ResourceManagerOptions#SLOT_REQUEST_TIMEOUT} is preferred over
-	 * {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT} if set.
-	 */
-	@Test
-	public void testPreferLegacySlotRequestTimeout() throws Exception {
-		final long legacySlotIdleTimeout = 42;
+    /**
+     * Tests that {@link ResourceManagerOptions#SLOT_REQUEST_TIMEOUT} is preferred over {@link
+     * JobManagerOptions#SLOT_REQUEST_TIMEOUT} if set.
+     */
+    @Test
+    public void testPreferLegacySlotRequestTimeout() throws Exception {
+        final long legacySlotIdleTimeout = 42;
 
-		final Configuration configuration = new Configuration();
-		configuration.setLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT, legacySlotIdleTimeout);
-		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 300000L);
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
+        final Configuration configuration = new Configuration();
+        configuration.setLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT, legacySlotIdleTimeout);
+        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 300000L);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
-		assertThat(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(), is(equalTo(legacySlotIdleTimeout)));
-	}
+        assertThat(
+                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
+                is(equalTo(legacySlotIdleTimeout)));
+    }
 }

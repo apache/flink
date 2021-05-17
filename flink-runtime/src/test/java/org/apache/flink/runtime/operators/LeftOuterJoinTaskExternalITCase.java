@@ -16,64 +16,77 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 public class LeftOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 
-	private final double hash_frac;
-	
-	public LeftOuterJoinTaskExternalITCase(ExecutionConfig config) {
-		super(config);
-		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
-	}
-	
-	@Override
-	protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
-		return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2) + (keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : 0);
-	}
-	
-	@Override
-	protected AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver() {
-		return new LeftOuterJoinDriver<>();
-	}
+    private final double hash_frac;
 
-	@Override
-	protected DriverStrategy getSortStrategy() {
-		return DriverStrategy.LEFT_OUTER_MERGE;
-	}
+    public LeftOuterJoinTaskExternalITCase(ExecutionConfig config) {
+        super(config);
+        hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
+    }
 
-	@Test
-	public void testExternalHashLeftOuterJoinTask() throws Exception {
+    @Override
+    protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
+        return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2)
+                + (keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : 0);
+    }
 
-		final int keyCnt1 = 65536;
-		final int valCnt1 = 8;
+    @Override
+    protected AbstractOuterJoinDriver<
+                    Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+            getOuterJoinDriver() {
+        return new LeftOuterJoinDriver<>();
+    }
 
-		final int keyCnt2 = 32768;
-		final int valCnt2 = 8;
+    @Override
+    protected DriverStrategy getSortStrategy() {
+        return DriverStrategy.LEFT_OUTER_MERGE;
+    }
 
-		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    @Test
+    public void testExternalHashLeftOuterJoinTask() throws Exception {
 
-		setOutput(this.output);
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setRelativeMemoryDriver(hash_frac);
+        final int keyCnt1 = 65536;
+        final int valCnt1 = 8;
 
-		final AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = getOuterJoinDriver();
+        final int keyCnt2 = 32768;
+        final int valCnt2 = 8;
 
-		addInputSorted(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), serializer, this.comparator1.duplicate());
-		addInputSorted(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), serializer, this.comparator2.duplicate());
-		testDriver(testTask, MockJoinStub.class);
+        final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
-	}
+        setOutput(this.output);
+        addDriverComparator(this.comparator1);
+        addDriverComparator(this.comparator2);
+        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+        getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
+        getTaskConfig().setRelativeMemoryDriver(hash_frac);
+
+        final AbstractOuterJoinDriver<
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>>
+                testTask = getOuterJoinDriver();
+
+        addInputSorted(
+                new UniformIntTupleGenerator(keyCnt1, valCnt1, false),
+                serializer,
+                this.comparator1.duplicate());
+        addInputSorted(
+                new UniformIntTupleGenerator(keyCnt2, valCnt2, false),
+                serializer,
+                this.comparator2.duplicate());
+        testDriver(testTask, MockJoinStub.class);
+
+        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+    }
 }

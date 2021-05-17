@@ -18,31 +18,44 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.runtime.messages.ThreadInfoSample;
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 
-/**
- * Utilities for {@link java.lang.management.ManagementFactory}.
- */
+/** Utilities for {@link java.lang.management.ManagementFactory}. */
 public final class JvmUtils {
 
-	/**
-	 * Creates a thread dump of the current JVM.
-	 *
-	 * @return the thread dump of current JVM
-	 */
-	public static Collection<ThreadInfo> createThreadDump() {
-		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+    /**
+     * Creates a thread dump of the current JVM.
+     *
+     * @return the thread dump of current JVM
+     */
+    public static Collection<ThreadInfo> createThreadDump() {
+        ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
 
-		return Arrays.asList(threadMxBean.dumpAllThreads(true, true));
-	}
+        return Arrays.asList(threadMxBean.dumpAllThreads(true, true));
+    }
 
-	/**
-	 * Private default constructor to avoid instantiation.
-	 */
-	private JvmUtils() {}
+    /**
+     * Creates a {@link ThreadInfoSample} for a specific thread. Contains thread traces if
+     * maxStackTraceDepth > 0.
+     *
+     * @param threadId The ID of the thread to create the thread dump for.
+     * @param maxStackTraceDepth The maximum number of entries in the stack trace to be collected.
+     * @return The thread information of a specific thread.
+     */
+    public static Optional<ThreadInfoSample> createThreadInfoSample(
+            long threadId, int maxStackTraceDepth) {
+        ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
 
+        return ThreadInfoSample.from(threadMxBean.getThreadInfo(threadId, maxStackTraceDepth));
+    }
+
+    /** Private default constructor to avoid instantiation. */
+    private JvmUtils() {}
 }

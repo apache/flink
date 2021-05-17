@@ -97,7 +97,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       predicate: RexNode): JDouble = getSelectivityOfAgg(rel, mq, predicate)
 
   def getSelectivity(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       predicate: RexNode): JDouble = getSelectivityOfAgg(rel, mq, predicate)
 
@@ -110,7 +110,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
   }
 
   def getSelectivity(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       predicate: RexNode): JDouble = {
     val newPredicate = if (rel.isFinal) {
@@ -130,13 +130,13 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
     } else {
       val hasLocalAgg = agg match {
         case _: Aggregate => false
-        case rel: BatchExecGroupAggregateBase => rel.isFinal && rel.isMerge
-        case rel: BatchExecWindowAggregateBase => rel.isFinal && rel.isMerge
+        case rel: BatchPhysicalGroupAggregateBase => rel.isFinal && rel.isMerge
+        case rel: BatchPhysicalWindowAggregateBase => rel.isFinal && rel.isMerge
         case _ => throw new IllegalArgumentException(s"Cannot handle ${agg.getRelTypeName}!")
       }
       if (hasLocalAgg) {
         val childPredicate = agg match {
-          case rel: BatchExecWindowAggregateBase =>
+          case rel: BatchPhysicalWindowAggregateBase =>
             // set the predicate as they correspond to local window aggregate
             FlinkRelMdUtil.setChildPredicateOfWinAgg(predicate, rel)
           case _ => predicate
@@ -147,9 +147,9 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       val (childPred, restPred) = agg match {
         case rel: Aggregate =>
           FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
-        case rel: BatchExecGroupAggregateBase =>
+        case rel: BatchPhysicalGroupAggregateBase =>
           FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
-        case rel: BatchExecWindowAggregateBase =>
+        case rel: BatchPhysicalWindowAggregateBase =>
           FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
         case _ => throw new IllegalArgumentException(s"Cannot handle ${agg.getRelTypeName}!")
       }
@@ -174,7 +174,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       predicate: RexNode): JDouble = getSelectivityOfOverAgg(overWindow, mq, predicate)
 
   def getSelectivity(
-      rel: BatchExecOverAggregate,
+      rel: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       predicate: RexNode): JDouble = getSelectivityOfOverAgg(rel, mq, predicate)
 
@@ -187,7 +187,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
     } else {
       val input = over.getInput
       val childBitmap = over match {
-        case _: BatchExecOverAggregate | _: Window =>
+        case _: BatchPhysicalOverAggregate | _: Window =>
           ImmutableBitSet.range(0, input.getRowType.getFieldCount)
         case _ => throw new IllegalArgumentException(s"Unknown node type ${over.getRelTypeName}")
       }

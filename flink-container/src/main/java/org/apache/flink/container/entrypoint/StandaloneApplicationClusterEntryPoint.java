@@ -28,7 +28,7 @@ import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -41,91 +41,91 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 
-import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
-
-/**
- * An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined
- * location.
- */
+/** An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined location. */
 @Internal
 public final class StandaloneApplicationClusterEntryPoint extends ApplicationClusterEntryPoint {
 
-	private StandaloneApplicationClusterEntryPoint(
-			final Configuration configuration,
-			final PackagedProgram program) {
-		super(configuration, program, StandaloneResourceManagerFactory.getInstance());
-	}
+    private StandaloneApplicationClusterEntryPoint(
+            final Configuration configuration, final PackagedProgram program) {
+        super(configuration, program, StandaloneResourceManagerFactory.getInstance());
+    }
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneApplicationClusterEntryPoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, StandaloneApplicationClusterEntryPoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final CommandLineParser<StandaloneApplicationClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneApplicationClusterConfigurationParserFactory());
+        final StandaloneApplicationClusterConfiguration clusterConfiguration =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new StandaloneApplicationClusterConfigurationParserFactory(),
+                        StandaloneApplicationClusterEntryPoint.class);
 
-		StandaloneApplicationClusterConfiguration clusterConfiguration = null;
-		try {
-			clusterConfiguration = commandLineParser.parse(args);
-		} catch (Exception e) {
-			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp(StandaloneApplicationClusterEntryPoint.class.getSimpleName());
-			System.exit(1);
-		}
+        PackagedProgram program = null;
+        try {
+            program = getPackagedProgram(clusterConfiguration);
+        } catch (Exception e) {
+            LOG.error("Could not create application program.", e);
+            System.exit(1);
+        }
 
-		PackagedProgram program = null;
-		try {
-			program = getPackagedProgram(clusterConfiguration);
-		} catch (Exception e) {
-			LOG.error("Could not create application program.", e);
-			System.exit(1);
-		}
+        Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
+        try {
+            configureExecution(configuration, program);
+        } catch (Exception e) {
+            LOG.error("Could not apply application configuration.", e);
+            System.exit(1);
+        }
 
-		Configuration configuration = loadConfigurationFromClusterConfig(clusterConfiguration);
-		try {
-			configureExecution(configuration, program);
-		} catch (Exception e) {
-			LOG.error("Could not apply application configuration.", e);
-			System.exit(1);
-		}
+        StandaloneApplicationClusterEntryPoint entrypoint =
+                new StandaloneApplicationClusterEntryPoint(configuration, program);
 
-		StandaloneApplicationClusterEntryPoint entrypoint = new StandaloneApplicationClusterEntryPoint(configuration, program);
+        ClusterEntrypoint.runClusterEntrypoint(entrypoint);
+    }
 
-		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
-	}
+    @Override
+    protected boolean supportsReactiveMode() {
+        return true;
+    }
 
-	@VisibleForTesting
-	static Configuration loadConfigurationFromClusterConfig(StandaloneApplicationClusterConfiguration clusterConfiguration) {
-		Configuration configuration = loadConfiguration(clusterConfiguration);
-		setStaticJobId(clusterConfiguration, configuration);
-		SavepointRestoreSettings.toConfiguration(clusterConfiguration.getSavepointRestoreSettings(), configuration);
-		return configuration;
-	}
+    @VisibleForTesting
+    static Configuration loadConfigurationFromClusterConfig(
+            StandaloneApplicationClusterConfiguration clusterConfiguration) {
+        Configuration configuration = loadConfiguration(clusterConfiguration);
+        setStaticJobId(clusterConfiguration, configuration);
+        SavepointRestoreSettings.toConfiguration(
+                clusterConfiguration.getSavepointRestoreSettings(), configuration);
+        return configuration;
+    }
 
-	private static PackagedProgram getPackagedProgram(
-			final StandaloneApplicationClusterConfiguration clusterConfiguration) throws IOException, FlinkException {
-		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
-				clusterConfiguration.getArgs(),
-				clusterConfiguration.getJobClassName());
-		return programRetriever.getPackagedProgram();
-	}
+    private static PackagedProgram getPackagedProgram(
+            final StandaloneApplicationClusterConfiguration clusterConfiguration)
+            throws IOException, FlinkException {
+        final PackagedProgramRetriever programRetriever =
+                getPackagedProgramRetriever(
+                        clusterConfiguration.getArgs(), clusterConfiguration.getJobClassName());
+        return programRetriever.getPackagedProgram();
+    }
 
-	private static PackagedProgramRetriever getPackagedProgramRetriever(
-			final String[] programArguments,
-			@Nullable final String jobClassName) throws IOException {
-		final File userLibDir = tryFindUserLibDirectory().orElse(null);
-		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-				ClassPathPackagedProgramRetriever
-						.newBuilder(programArguments)
-						.setUserLibDirectory(userLibDir)
-						.setJobClassName(jobClassName);
-		return retrieverBuilder.build();
-	}
+    private static PackagedProgramRetriever getPackagedProgramRetriever(
+            final String[] programArguments, @Nullable final String jobClassName)
+            throws IOException {
+        final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
+        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
+                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+                        .setUserLibDirectory(userLibDir)
+                        .setJobClassName(jobClassName);
+        return retrieverBuilder.build();
+    }
 
-	private static void setStaticJobId(StandaloneApplicationClusterConfiguration clusterConfiguration, Configuration configuration) {
-		final JobID jobId = clusterConfiguration.getJobId();
-		if (jobId != null) {
-			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
-		}
-	}
+    private static void setStaticJobId(
+            StandaloneApplicationClusterConfiguration clusterConfiguration,
+            Configuration configuration) {
+        final JobID jobId = clusterConfiguration.getJobId();
+        if (jobId != null) {
+            configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
+        }
+    }
 }

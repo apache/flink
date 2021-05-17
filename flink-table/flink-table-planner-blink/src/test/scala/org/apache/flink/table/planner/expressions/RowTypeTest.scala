@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
@@ -142,14 +141,12 @@ class RowTypeTest extends RowTypeTestBase {
 
   @Test
   def testUnsupportedCastSqlApi(): Unit = {
-    expectedException.expect(classOf[CodeGenException])
-    expectedException.expectMessage(
-      "Unsupported cast from 'ROW<`f0` STRING, `f1` BOOLEAN>' to 'ROW<`f0` INT, `f1` STRING>'")
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Cast function cannot convert value")
 
     testSqlApi(
-      "CAST(f5 AS ROW<f0 INT, f1 STRING>)",
+      "CAST(f5 AS BIGINT)",
       ""
     )
   }
-
 }

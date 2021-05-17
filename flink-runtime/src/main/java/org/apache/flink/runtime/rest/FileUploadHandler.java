@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,165 +63,202 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Writes multipart/form-data to disk. Delegates all other requests to the next
- * {@link ChannelInboundHandler} in the {@link ChannelPipeline}.
+ * Writes multipart/form-data to disk. Delegates all other requests to the next {@link
+ * ChannelInboundHandler} in the {@link ChannelPipeline}.
  */
 public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileUploadHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FileUploadHandler.class);
 
-	public static final String HTTP_ATTRIBUTE_REQUEST = "request";
+    public static final String HTTP_ATTRIBUTE_REQUEST = "request";
 
-	private static final AttributeKey<FileUploads> UPLOADED_FILES = AttributeKey.valueOf("UPLOADED_FILES");
+    private static final AttributeKey<FileUploads> UPLOADED_FILES =
+            AttributeKey.valueOf("UPLOADED_FILES");
 
-	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
+    private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
-	private final Path uploadDir;
+    private final Path uploadDir;
 
-	private HttpPostRequestDecoder currentHttpPostRequestDecoder;
+    private HttpPostRequestDecoder currentHttpPostRequestDecoder;
 
-	private HttpRequest currentHttpRequest;
-	private byte[] currentJsonPayload;
-	private Path currentUploadDir;
+    private HttpRequest currentHttpRequest;
+    private byte[] currentJsonPayload;
+    private Path currentUploadDir;
 
-	public FileUploadHandler(final Path uploadDir) {
-		super(true);
+    public FileUploadHandler(final Path uploadDir) {
+        super(true);
 
-		// the clean up of temp files when jvm exits is handled by org.apache.flink.util.ShutdownHookUtil; thus,
-		// it's no need to register those files (post chunks and upload file chunks) to java.io.DeleteOnExitHook
-		// which may lead to memory leak.
-		DiskAttribute.deleteOnExitTemporaryFile = false;
-		DiskFileUpload.deleteOnExitTemporaryFile = false;
+        // the clean up of temp files when jvm exits is handled by
+        // org.apache.flink.util.ShutdownHookUtil; thus,
+        // it's no need to register those files (post chunks and upload file chunks) to
+        // java.io.DeleteOnExitHook
+        // which may lead to memory leak.
+        DiskAttribute.deleteOnExitTemporaryFile = false;
+        DiskFileUpload.deleteOnExitTemporaryFile = false;
 
-		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
-		// share the same directory with file upload for post chunks storage.
-		DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
+        DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
+        // share the same directory with file upload for post chunks storage.
+        DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
 
-		this.uploadDir = requireNonNull(uploadDir);
-	}
+        this.uploadDir = requireNonNull(uploadDir);
+    }
 
-	@Override
-	protected void channelRead0(final ChannelHandlerContext ctx, final HttpObject msg) throws Exception {
-		try {
-			if (msg instanceof HttpRequest) {
-				final HttpRequest httpRequest = (HttpRequest) msg;
-				LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
-				if (httpRequest.getMethod().equals(HttpMethod.POST)) {
-					if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
-						LOG.trace("Initializing multipart file upload.");
-						checkState(currentHttpPostRequestDecoder == null);
-						checkState(currentHttpRequest == null);
-						checkState(currentUploadDir == null);
-						currentHttpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
-						currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
+    @Override
+    protected void channelRead0(final ChannelHandlerContext ctx, final HttpObject msg)
+            throws Exception {
+        try {
+            if (msg instanceof HttpRequest) {
+                final HttpRequest httpRequest = (HttpRequest) msg;
+                LOG.trace(
+                        "Received request. URL:{} Method:{}",
+                        httpRequest.getUri(),
+                        httpRequest.getMethod());
+                if (httpRequest.getMethod().equals(HttpMethod.POST)) {
+                    if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
+                        LOG.trace("Initializing multipart file upload.");
+                        checkState(currentHttpPostRequestDecoder == null);
+                        checkState(currentHttpRequest == null);
+                        checkState(currentUploadDir == null);
+                        currentHttpPostRequestDecoder =
+                                new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
+                        currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
 
-						// make sure that we still have a upload dir in case that it got deleted in the meanwhile
-						RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
+                        // make sure that we still have a upload dir in case that it got deleted in
+                        // the meanwhile
+                        RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
-						currentUploadDir = Files.createDirectory(uploadDir.resolve(UUID.randomUUID().toString()));
-					} else {
-						ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
-					}
-				} else {
-					ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
-				}
-			} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
-				LOG.trace("Received http content.");
-				// make sure that we still have a upload dir in case that it got deleted in the meanwhile
-				RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
+                        currentUploadDir =
+                                Files.createDirectory(
+                                        uploadDir.resolve(UUID.randomUUID().toString()));
+                    } else {
+                        ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
+                    }
+                } else {
+                    ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
+                }
+            } else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
+                LOG.trace("Received http content.");
+                // make sure that we still have a upload dir in case that it got deleted in the
+                // meanwhile
+                RestServerEndpoint.createUploadDir(uploadDir, LOG, false);
 
-				final HttpContent httpContent = (HttpContent) msg;
-				currentHttpPostRequestDecoder.offer(httpContent);
+                final HttpContent httpContent = (HttpContent) msg;
+                currentHttpPostRequestDecoder.offer(httpContent);
 
-				while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT && currentHttpPostRequestDecoder.hasNext()) {
-					final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
-					if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
-						final DiskFileUpload fileUpload = (DiskFileUpload) data;
-						checkState(fileUpload.isCompleted());
+                while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT
+                        && currentHttpPostRequestDecoder.hasNext()) {
+                    final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
+                    if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
+                        final DiskFileUpload fileUpload = (DiskFileUpload) data;
+                        checkState(fileUpload.isCompleted());
 
-						final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
-						fileUpload.renameTo(dest.toFile());
-						LOG.trace("Upload of file {} complete.", fileUpload.getFilename());
-					} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
-						final Attribute request = (Attribute) data;
-						// this could also be implemented by using the first found Attribute as the payload
-						LOG.trace("Upload of attribute {} complete.", request.getName());
-						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
-							currentJsonPayload = request.get();
-						} else {
-							handleError(ctx, "Received unknown attribute " + data.getName() + '.', HttpResponseStatus.BAD_REQUEST, null);
-							return;
-						}
-					}
-				}
+                        // wrapping around another File instantiation is a simple way to remove any
+                        // path information - we're
+                        // solely interested in the filename
+                        final Path dest =
+                                currentUploadDir.resolve(
+                                        new File(fileUpload.getFilename()).getName());
+                        fileUpload.renameTo(dest.toFile());
+                        LOG.trace(
+                                "Upload of file {} into destination {} complete.",
+                                fileUpload.getFilename(),
+                                dest.toString());
+                    } else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+                        final Attribute request = (Attribute) data;
+                        // this could also be implemented by using the first found Attribute as the
+                        // payload
+                        LOG.trace("Upload of attribute {} complete.", request.getName());
+                        if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
+                            currentJsonPayload = request.get();
+                        } else {
+                            handleError(
+                                    ctx,
+                                    "Received unknown attribute " + data.getName() + '.',
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    null);
+                            return;
+                        }
+                    }
+                }
 
-				if (httpContent instanceof LastHttpContent) {
-					LOG.trace("Finalizing multipart file upload.");
-					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
-					if (currentJsonPayload != null) {
-						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
-						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
-						ctx.fireChannelRead(currentHttpRequest);
-						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
-					} else {
-						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-						currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
-						ctx.fireChannelRead(currentHttpRequest);
-						ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
-					}
-					reset();
-				}
-			} else {
-				ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
-			}
-		} catch (Exception e) {
-			handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-		}
-	}
+                if (httpContent instanceof LastHttpContent) {
+                    LOG.trace("Finalizing multipart file upload.");
+                    ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
+                    if (currentJsonPayload != null) {
+                        currentHttpRequest
+                                .headers()
+                                .set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+                        currentHttpRequest
+                                .headers()
+                                .set(
+                                        HttpHeaders.Names.CONTENT_TYPE,
+                                        RestConstants.REST_CONTENT_TYPE);
+                        ctx.fireChannelRead(currentHttpRequest);
+                        ctx.fireChannelRead(
+                                httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
+                    } else {
+                        currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+                        currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+                        ctx.fireChannelRead(currentHttpRequest);
+                        ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
+                    }
+                    reset();
+                }
+            } else {
+                ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
+            }
+        } catch (Exception e) {
+            handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+        }
+    }
 
-	private void handleError(ChannelHandlerContext ctx, String errorMessage, HttpResponseStatus responseStatus, @Nullable Throwable e) {
-		HttpRequest tmpRequest = currentHttpRequest;
-		deleteUploadedFiles();
-		reset();
-		LOG.warn(errorMessage, e);
-		HandlerUtils.sendErrorResponse(
-			ctx,
-			tmpRequest,
-			new ErrorResponseBody(errorMessage),
-			responseStatus,
-			Collections.emptyMap()
-		);
-		ReferenceCountUtil.release(tmpRequest);
-	}
+    private void handleError(
+            ChannelHandlerContext ctx,
+            String errorMessage,
+            HttpResponseStatus responseStatus,
+            @Nullable Throwable e) {
+        HttpRequest tmpRequest = currentHttpRequest;
+        deleteUploadedFiles();
+        reset();
+        LOG.warn(errorMessage, e);
+        HandlerUtils.sendErrorResponse(
+                ctx,
+                tmpRequest,
+                new ErrorResponseBody(errorMessage),
+                responseStatus,
+                Collections.emptyMap());
+        ReferenceCountUtil.release(tmpRequest);
+    }
 
-	private void deleteUploadedFiles() {
-		if (currentUploadDir != null) {
-			try {
-				FileUtils.deleteDirectory(currentUploadDir.toFile());
-			} catch (IOException e) {
-				LOG.warn("Could not cleanup uploaded files.", e);
-			}
-		}
-	}
+    private void deleteUploadedFiles() {
+        if (currentUploadDir != null) {
+            try {
+                FileUtils.deleteDirectory(currentUploadDir.toFile());
+            } catch (IOException e) {
+                LOG.warn("Could not cleanup uploaded files.", e);
+            }
+        }
+    }
 
-	private void reset() {
-		// destroy() can fail because some data is stored multiple times in the decoder causing an IllegalReferenceCountException
-		// see https://github.com/netty/netty/issues/7814
-		try {
-			currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
-		} catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ned) {
-			// this method always fails if not all chunks were offered to the decoder yet
-			LOG.debug("Error while resetting handler.", ned);
-		}
-		currentHttpPostRequestDecoder.destroy();
-		currentHttpPostRequestDecoder = null;
-		currentHttpRequest = null;
-		currentUploadDir = null;
-		currentJsonPayload = null;
-	}
+    private void reset() {
+        // destroy() can fail because some data is stored multiple times in the decoder causing an
+        // IllegalReferenceCountException
+        // see https://github.com/netty/netty/issues/7814
+        try {
+            currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
+        } catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ned) {
+            // this method always fails if not all chunks were offered to the decoder yet
+            LOG.debug("Error while resetting handler.", ned);
+        }
+        currentHttpPostRequestDecoder.destroy();
+        currentHttpPostRequestDecoder = null;
+        currentHttpRequest = null;
+        currentUploadDir = null;
+        currentJsonPayload = null;
+    }
 
-	public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
-		return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
-			.orElse(FileUploads.EMPTY);
-	}
+    public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
+        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
+                .orElse(FileUploads.EMPTY);
+    }
 }

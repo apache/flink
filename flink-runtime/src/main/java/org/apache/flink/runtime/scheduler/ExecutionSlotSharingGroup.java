@@ -18,28 +18,38 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Represents execution vertices that will run the same shared slot.
- */
+/** Represents execution vertices that will run the same shared slot. */
 class ExecutionSlotSharingGroup {
 
-	private final Set<ExecutionVertexID> executionVertexIds;
+    private final Set<ExecutionVertexID> executionVertexIds;
 
-	ExecutionSlotSharingGroup() {
-		this.executionVertexIds = new HashSet<>();
-	}
+    private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
 
-	void addVertex(final ExecutionVertexID executionVertexId) {
-		executionVertexIds.add(executionVertexId);
-	}
+    ExecutionSlotSharingGroup() {
+        this.executionVertexIds = new HashSet<>();
+    }
 
-	Set<ExecutionVertexID> getExecutionVertexIds() {
-		return Collections.unmodifiableSet(executionVertexIds);
-	}
+    void addVertex(final ExecutionVertexID executionVertexId) {
+        executionVertexIds.add(executionVertexId);
+    }
+
+    void setResourceProfile(ResourceProfile resourceProfile) {
+        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+    }
+
+    ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
+
+    Set<ExecutionVertexID> getExecutionVertexIds() {
+        return Collections.unmodifiableSet(executionVertexIds);
+    }
 }

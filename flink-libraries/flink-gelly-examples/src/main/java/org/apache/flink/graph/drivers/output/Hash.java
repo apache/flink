@@ -29,24 +29,23 @@ import java.io.PrintStream;
  *
  * @param <T> result Type
  */
-public class Hash<T>
-extends OutputBase<T> {
+public class Hash<T> extends OutputBase<T> {
 
-	private BooleanParameter printExecutionPlan = new BooleanParameter(this, "__print_execution_plan");
+    private BooleanParameter printExecutionPlan =
+            new BooleanParameter(this, "__print_execution_plan");
 
-	@Override
-	public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
-		ChecksumHashCode<T> checksumHashCode = new ChecksumHashCode<T>().run(data);
+    @Override
+    public void write(String executionName, PrintStream out, DataSet<T> data) throws Exception {
+        ChecksumHashCode<T> checksumHashCode = new ChecksumHashCode<T>().run(data);
 
-		if (printExecutionPlan.getValue()) {
-			out.println();
-			out.println(data.getExecutionEnvironment().getExecutionPlan());
-		}
+        if (printExecutionPlan.getValue()) {
+            out.println();
+            out.println(data.getExecutionEnvironment().getExecutionPlan());
+        }
 
-		ChecksumHashCode.Checksum checksum = checksumHashCode
-			.execute(executionName);
+        ChecksumHashCode.Checksum checksum = checksumHashCode.execute(executionName);
 
-		out.println();
-		out.println(checksum);
-	}
+        out.println();
+        out.println(checksum);
+    }
 }

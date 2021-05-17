@@ -22,16 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.FlinkException;
 
 /**
- * Exception to fail Future if the Task Manager on which the
- * {@code Client Proxy} is running on, does not know the location
- * of a requested state.
+ * Exception to fail Future if the Task Manager on which the {@code Client Proxy} is running on,
+ * does not know the location of a requested state.
  */
 @Internal
 public class UnknownLocationException extends FlinkException {
 
-	private static final long serialVersionUID = 9092442511708951209L;
+    private static final long serialVersionUID = 9092442511708951209L;
 
-	public UnknownLocationException(String msg) {
-		super(msg);
-	}
+    public UnknownLocationException(String msg) {
+        super(msg);
+    }
 }

@@ -16,84 +16,89 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.runtime.io.network.DataExchangeMode;
-import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
+import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
+
+import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class BroadcastVariablePipelinebreakerTest extends CompilerTestBase {
 
-	@Test
-	public void testNoBreakerForIndependentVariable() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			DataSet<String> source1 = env.fromElements("test");
-			DataSet<String> source2 = env.fromElements("test");
-			
-			source1.map(new IdentityMapper<String>()).withBroadcastSet(source2, "some name")
-					.output(new DiscardingOutputFormat<String>());
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
-			
-			assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-			assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
-			
-			assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
-			assertEquals(DataExchangeMode.PIPELINED, mapper.getBroadcastInputs().get(0).getDataExchangeMode());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	 @Test
-	public void testBreakerForDependentVariable() {
-			try {
-				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<String> source1 = env.fromElements("test");
-				
-				source1.map(new IdentityMapper<String>()).map(new IdentityMapper<String>()).withBroadcastSet(source1, "some name")
-						.output(new DiscardingOutputFormat<String>());
-				
-				Plan p = env.createProgramPlan();
-				OptimizedPlan op = compileNoStats(p);
-				
-				SinkPlanNode sink = op.getDataSinks().iterator().next();
-				SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
-				SingleInputPlanNode beforeMapper = (SingleInputPlanNode) mapper.getInput().getSource();
+    @Test
+    public void testNoBreakerForIndependentVariable() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-				assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
-				assertEquals(TempMode.NONE, beforeMapper.getInput().getTempMode());
-				assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+            DataSet<String> source1 = env.fromElements("test");
+            DataSet<String> source2 = env.fromElements("test");
 
-				assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
-				assertEquals(DataExchangeMode.BATCH, beforeMapper.getInput().getDataExchangeMode());
-				assertEquals(DataExchangeMode.BATCH, mapper.getBroadcastInputs().get(0).getDataExchangeMode());
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
-			}
-	}
+            source1.map(new IdentityMapper<String>())
+                    .withBroadcastSet(source2, "some name")
+                    .output(new DiscardingOutputFormat<String>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            SinkPlanNode sink = op.getDataSinks().iterator().next();
+            SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
+
+            assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
+            assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+
+            assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
+            assertEquals(
+                    DataExchangeMode.PIPELINED,
+                    mapper.getBroadcastInputs().get(0).getDataExchangeMode());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testBreakerForDependentVariable() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            DataSet<String> source1 = env.fromElements("test");
+
+            source1.map(new IdentityMapper<String>())
+                    .map(new IdentityMapper<String>())
+                    .withBroadcastSet(source1, "some name")
+                    .output(new DiscardingOutputFormat<String>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            SinkPlanNode sink = op.getDataSinks().iterator().next();
+            SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
+            SingleInputPlanNode beforeMapper = (SingleInputPlanNode) mapper.getInput().getSource();
+
+            assertEquals(TempMode.NONE, mapper.getInput().getTempMode());
+            assertEquals(TempMode.NONE, beforeMapper.getInput().getTempMode());
+            assertEquals(TempMode.NONE, mapper.getBroadcastInputs().get(0).getTempMode());
+
+            assertEquals(DataExchangeMode.PIPELINED, mapper.getInput().getDataExchangeMode());
+            assertEquals(DataExchangeMode.BATCH, beforeMapper.getInput().getDataExchangeMode());
+            assertEquals(
+                    DataExchangeMode.BATCH,
+                    mapper.getBroadcastInputs().get(0).getDataExchangeMode());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

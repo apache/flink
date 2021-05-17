@@ -27,61 +27,59 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A {@link CoordinationRequestHandler} to test fetching SELECT query results.
- * It does not do checkpoint and will produce all results again when failure occurs.
+ * A {@link CoordinationRequestHandler} to test fetching SELECT query results. It does not do
+ * checkpoint and will produce all results again when failure occurs.
  */
-public class TestUncheckpointedCoordinationRequestHandler<T> extends AbstractTestCoordinationRequestHandler<T> {
+public class TestUncheckpointedCoordinationRequestHandler<T>
+        extends AbstractTestCoordinationRequestHandler<T> {
 
-	private int failCount;
+    private int failCount;
 
-	private final LinkedList<T> originalData;
-	private LinkedList<T> data;
+    private final LinkedList<T> originalData;
+    private LinkedList<T> data;
 
-	public TestUncheckpointedCoordinationRequestHandler(
-			int failCount,
-			List<T> data,
-			TypeSerializer<T> serializer,
-			String accumulatorName) {
-		super(serializer, accumulatorName);
-		this.failCount = failCount;
+    public TestUncheckpointedCoordinationRequestHandler(
+            int failCount, List<T> data, TypeSerializer<T> serializer, String accumulatorName) {
+        super(serializer, accumulatorName);
+        this.failCount = failCount;
 
-		this.originalData = new LinkedList<>(data);
-		this.data = new LinkedList<>(data);
+        this.originalData = new LinkedList<>(data);
+        this.data = new LinkedList<>(data);
 
-		this.closed = false;
-	}
+        this.closed = false;
+    }
 
-	@Override
-	protected void updateBufferedResults() {
-		for (int i = random.nextInt(3) + 1; i > 0; i--) {
-			int r = random.nextInt(20);
-			if (r < 19 || failCount <= 0) {
-				// with 95% chance we add data
-				int size = Math.min(data.size(), BATCH_SIZE * 2 - buffered.size());
-				if (size > 0) {
-					size = random.nextInt(size) + 1;
-				}
-				for (int j = 0; j < size; j++) {
-					buffered.add(data.removeFirst());
-				}
+    @Override
+    protected void updateBufferedResults() {
+        for (int i = random.nextInt(3) + 1; i > 0; i--) {
+            int r = random.nextInt(20);
+            if (r < 19 || failCount <= 0) {
+                // with 95% chance we add data
+                int size = Math.min(data.size(), BATCH_SIZE * 2 - buffered.size());
+                if (size > 0) {
+                    size = random.nextInt(size) + 1;
+                }
+                for (int j = 0; j < size; j++) {
+                    buffered.add(data.removeFirst());
+                }
 
-				if (data.isEmpty()) {
-					buildAccumulatorResults();
-					closed = true;
-					break;
-				}
-			} else {
-				// with 5% chance we fail, we fail at most `failCount` times
-				failCount--;
+                if (data.isEmpty()) {
+                    buildAccumulatorResults();
+                    closed = true;
+                    break;
+                }
+            } else {
+                // with 5% chance we fail, we fail at most `failCount` times
+                failCount--;
 
-				// we shuffle data to simulate jobs whose result order is undetermined
-				data = new LinkedList<>(originalData);
-				Collections.shuffle(data);
+                // we shuffle data to simulate jobs whose result order is undetermined
+                data = new LinkedList<>(originalData);
+                Collections.shuffle(data);
 
-				buffered = new LinkedList<>();
-				version = UUID.randomUUID().toString();
-				offset = 0;
-			}
-		}
-	}
+                buffered = new LinkedList<>();
+                version = UUID.randomUUID().toString();
+                offset = 0;
+            }
+        }
+    }
 }

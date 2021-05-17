@@ -23,32 +23,26 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 
-/**
- * Python execution environments.
- */
+/** Python execution environments. */
 @Internal
 public final class PythonEnv implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The execution type of the Python worker, it defines how to execute the Python functions.
-	 */
-	private final ExecType execType;
+    /** The execution type of the Python worker, it defines how to execute the Python functions. */
+    private final ExecType execType;
 
-	public PythonEnv(ExecType execType) {
-		this.execType = Preconditions.checkNotNull(execType);
-	}
+    public PythonEnv(ExecType execType) {
+        this.execType = Preconditions.checkNotNull(execType);
+    }
 
-	public ExecType getExecType() {
-		return execType;
-	}
+    public ExecType getExecType() {
+        return execType;
+    }
 
-	/**
-	 * The Execution type specifies how to execute the Python function.
-	 */
-	public enum ExecType {
-		// python function is executed in a separate process
-		PROCESS
-	}
+    /** The Execution type specifies how to execute the Python function. */
+    public enum ExecType {
+        // python function is executed in a separate process
+        PROCESS
+    }
 }

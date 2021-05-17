@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -73,312 +74,319 @@ import java.util.function.Consumer;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-/**
- * Mock {@link Environment}.
- */
+/** Mock {@link Environment}. */
 public class StreamMockEnvironment implements Environment {
 
-	private final TaskInfo taskInfo;
+    private final TaskInfo taskInfo;
 
-	private final MemoryManager memManager;
+    private final MemoryManager memManager;
 
-	private final IOManager ioManager;
+    private final IOManager ioManager;
 
-	private final InputSplitProvider inputSplitProvider;
+    private final InputSplitProvider inputSplitProvider;
 
-	private final Configuration jobConfiguration;
+    private final Configuration jobConfiguration;
 
-	private final Configuration taskConfiguration;
+    private final Configuration taskConfiguration;
 
-	private final List<IndexedInputGate> inputs;
+    private final List<IndexedInputGate> inputs;
 
-	private final List<ResultPartitionWriter> outputs;
+    private final List<ResultPartitionWriter> outputs;
 
-	private final JobID jobID;
+    private final JobID jobID;
 
-	private final ExecutionAttemptID executionAttemptID;
+    private final ExecutionAttemptID executionAttemptID;
 
-	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
-
-	private final AccumulatorRegistry accumulatorRegistry;
-
-	private final TaskKvStateRegistry kvStateRegistry;
-
-	private final int bufferSize;
-
-	private final ExecutionConfig executionConfig;
-
-	private final TaskStateManager taskStateManager;
-
-	private final GlobalAggregateManager aggregateManager;
-
-	private final UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
-
-	@Nullable
-	private Consumer<Throwable> externalExceptionHandler;
-
-	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-
-	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
-
-	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-
-	private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
-
-	public StreamMockEnvironment(
-		Configuration jobConfig,
-		Configuration taskConfig,
-		ExecutionConfig executionConfig,
-		long memorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		TaskStateManager taskStateManager) {
-		this(
-			new JobID(),
-			new ExecutionAttemptID(),
-			jobConfig,
-			taskConfig,
-			executionConfig,
-			memorySize,
-			inputSplitProvider,
-			bufferSize,
-			taskStateManager);
-	}
-
-	public StreamMockEnvironment(
-		JobID jobID,
-		ExecutionAttemptID executionAttemptID,
-		Configuration jobConfig,
-		Configuration taskConfig,
-		ExecutionConfig executionConfig,
-		long offHeapMemorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		TaskStateManager taskStateManager) {
-
-		this.jobID = jobID;
-		this.executionAttemptID = executionAttemptID;
-
-		int subtaskIndex = 0;
-		this.taskInfo = new TaskInfo(
-			"", /* task name */
-			1, /* num key groups / max parallelism */
-			subtaskIndex, /* index of this subtask */
-			1, /* num subtasks */
-			0 /* attempt number */);
-		this.jobConfiguration = jobConfig;
-		this.taskConfiguration = taskConfig;
-		this.inputs = new LinkedList<>();
-		this.outputs = new LinkedList<ResultPartitionWriter>();
-		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
-		this.ioManager = new IOManagerAsync();
-		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
-		this.aggregateManager = new TestGlobalAggregateManager();
-		this.inputSplitProvider = inputSplitProvider;
-		this.bufferSize = bufferSize;
-
-		this.executionConfig = executionConfig;
-		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
-
-		KvStateRegistry registry = new KvStateRegistry();
-		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
-	}
-
-	public StreamMockEnvironment(
-		Configuration jobConfig,
-		Configuration taskConfig,
-		long memorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		TaskStateManager taskStateManager) {
-
-		this(jobConfig, taskConfig, new ExecutionConfig(), memorySize, inputSplitProvider, bufferSize, taskStateManager);
-	}
-
-	public void addInputGate(IndexedInputGate gate) {
-		inputs.add(gate);
-	}
-
-	public <T> void addOutput(final Collection<Object> outputList, final TypeSerializer<T> serializer) {
-		try {
-			outputs.add(new RecordOrEventCollectingResultPartitionWriter<T>(
-				outputList,
-				serializer));
-		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail(t.getMessage());
-		}
-	}
-
-	public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {
-		this.externalExceptionHandler = externalExceptionHandler;
-	}
-
-	@Override
-	public Configuration getTaskConfiguration() {
-		return this.taskConfiguration;
-	}
-
-	@Override
-	public MemoryManager getMemoryManager() {
-		return this.memManager;
-	}
-
-	@Override
-	public IOManager getIOManager() {
-		return this.ioManager;
-	}
-
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return this.executionConfig;
-	}
-
-	@Override
-	public JobID getJobID() {
-		return this.jobID;
-	}
-
-	@Override
-	public Configuration getJobConfiguration() {
-		return this.jobConfiguration;
-	}
-
-	@Override
-	public InputSplitProvider getInputSplitProvider() {
-		return this.inputSplitProvider;
-	}
-
-	@Override
-	public TaskInfo getTaskInfo() {
-		return this.taskInfo;
-	}
-
-	@Override
-	public UserCodeClassLoader getUserCodeClassLoader() {
-		return userCodeClassLoader;
-	}
-
-	@Override
-	public Map<String, Future<Path>> getDistributedCacheEntries() {
-		return Collections.emptyMap();
-	}
-
-	@Override
-	public ResultPartitionWriter getWriter(int index) {
-		return outputs.get(index);
-	}
-
-	@Override
-	public ResultPartitionWriter[] getAllWriters() {
-		return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
-	}
-
-	@Override
-	public IndexedInputGate getInputGate(int index) {
-		return inputs.get(index);
-	}
-
-	@Override
-	public IndexedInputGate[] getAllInputGates() {
-		return inputs.toArray(new IndexedInputGate[0]);
-	}
-
-	@Override
-	public TaskEventDispatcher getTaskEventDispatcher() {
-		return taskEventDispatcher;
-	}
-
-	@Override
-	public JobVertexID getJobVertexId() {
-		return new JobVertexID(new byte[16]);
-	}
-
-	@Override
-	public ExecutionAttemptID getExecutionId() {
-		return executionAttemptID;
-	}
-
-	@Override
-	public BroadcastVariableManager getBroadcastVariableManager() {
-		return this.bcVarManager;
-	}
-
-	@Override
-	public TaskStateManager getTaskStateManager() {
-		return taskStateManager;
-	}
-
-	@Override
-	public GlobalAggregateManager getGlobalAggregateManager() {
-		return aggregateManager;
-	}
-
-	@Override
-	public AccumulatorRegistry getAccumulatorRegistry() {
-		return accumulatorRegistry;
-	}
-
-	@Override
-	public TaskKvStateRegistry getTaskKvStateRegistry() {
-		return kvStateRegistry;
-	}
-
-	@Override
-	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
-		return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
-	}
-
-	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {
-	}
-
-	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-		taskStateManager.reportTaskStateSnapshots(
-			new CheckpointMetaData(checkpointId, 0L),
-			checkpointMetrics,
-			subtaskState,
-			null);
-	}
-
-	@Override
-	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		checkpointResponder.declineCheckpoint(jobID, executionAttemptID, checkpointId, cause);
-	}
-
-	@Override
-	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
-		return new NoOpTaskOperatorEventGateway();
-	}
-
-	@Override
-	public void failExternally(Throwable cause) {
-		if (externalExceptionHandler != null) {
-			externalExceptionHandler.accept(cause);
-		}
-	}
-
-	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManagerRuntimeInfo;
-	}
-
-	public void setTaskManagerInfo(TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
-		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
-	}
-
-	@Override
-	public TaskMetricGroup getMetricGroup() {
-		return this.taskMetricGroup;
-	}
-
-	public void setTaskMetricGroup(TaskMetricGroup taskMetricGroup) {
-		this.taskMetricGroup = taskMetricGroup;
-	}
-
-	public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
-		this.checkpointResponder = checkpointResponder;
-	}
+    private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
+
+    private final AccumulatorRegistry accumulatorRegistry;
+
+    private final TaskKvStateRegistry kvStateRegistry;
+
+    private final int bufferSize;
+
+    private final ExecutionConfig executionConfig;
+
+    private final TaskStateManager taskStateManager;
+
+    private final GlobalAggregateManager aggregateManager;
+
+    private final UserCodeClassLoader userCodeClassLoader =
+            TestingUserCodeClassLoader.newBuilder().build();
+
+    @Nullable private Consumer<Throwable> externalExceptionHandler;
+
+    private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
+
+    private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+
+    private TaskMetricGroup taskMetricGroup =
+            UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+
+    private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
+
+    public StreamMockEnvironment(
+            Configuration jobConfig,
+            Configuration taskConfig,
+            ExecutionConfig executionConfig,
+            long memorySize,
+            MockInputSplitProvider inputSplitProvider,
+            int bufferSize,
+            TaskStateManager taskStateManager) {
+        this(
+                new JobID(),
+                new ExecutionAttemptID(),
+                jobConfig,
+                taskConfig,
+                executionConfig,
+                memorySize,
+                inputSplitProvider,
+                bufferSize,
+                taskStateManager);
+    }
+
+    public StreamMockEnvironment(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            Configuration jobConfig,
+            Configuration taskConfig,
+            ExecutionConfig executionConfig,
+            long offHeapMemorySize,
+            MockInputSplitProvider inputSplitProvider,
+            int bufferSize,
+            TaskStateManager taskStateManager) {
+
+        this.jobID = jobID;
+        this.executionAttemptID = executionAttemptID;
+
+        int subtaskIndex = 0;
+        this.taskInfo =
+                new TaskInfo(
+                        "", /* task name */
+                        1, /* num key groups / max parallelism */
+                        subtaskIndex, /* index of this subtask */
+                        1, /* num subtasks */
+                        0 /* attempt number */);
+        this.jobConfiguration = jobConfig;
+        this.taskConfiguration = taskConfig;
+        this.inputs = new LinkedList<>();
+        this.outputs = new LinkedList<ResultPartitionWriter>();
+        this.memManager =
+                MemoryManagerBuilder.newBuilder().setMemorySize(offHeapMemorySize).build();
+        this.ioManager = new IOManagerAsync();
+        this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
+        this.aggregateManager = new TestGlobalAggregateManager();
+        this.inputSplitProvider = inputSplitProvider;
+        this.bufferSize = bufferSize;
+
+        this.executionConfig = executionConfig;
+        this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
+
+        KvStateRegistry registry = new KvStateRegistry();
+        this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+    }
+
+    public StreamMockEnvironment(
+            Configuration jobConfig,
+            Configuration taskConfig,
+            long memorySize,
+            MockInputSplitProvider inputSplitProvider,
+            int bufferSize,
+            TaskStateManager taskStateManager) {
+
+        this(
+                jobConfig,
+                taskConfig,
+                new ExecutionConfig(),
+                memorySize,
+                inputSplitProvider,
+                bufferSize,
+                taskStateManager);
+    }
+
+    public void addInputGate(IndexedInputGate gate) {
+        inputs.add(gate);
+    }
+
+    public <T> void addOutput(
+            final Collection<Object> outputList, final TypeSerializer<T> serializer) {
+        try {
+            outputs.add(
+                    new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+        } catch (Throwable t) {
+            t.printStackTrace();
+            fail(t.getMessage());
+        }
+    }
+
+    public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {
+        this.externalExceptionHandler = externalExceptionHandler;
+    }
+
+    @Override
+    public Configuration getTaskConfiguration() {
+        return this.taskConfiguration;
+    }
+
+    @Override
+    public MemoryManager getMemoryManager() {
+        return this.memManager;
+    }
+
+    @Override
+    public IOManager getIOManager() {
+        return this.ioManager;
+    }
+
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return this.executionConfig;
+    }
+
+    @Override
+    public JobID getJobID() {
+        return this.jobID;
+    }
+
+    @Override
+    public Configuration getJobConfiguration() {
+        return this.jobConfiguration;
+    }
+
+    @Override
+    public InputSplitProvider getInputSplitProvider() {
+        return this.inputSplitProvider;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return this.taskInfo;
+    }
+
+    @Override
+    public UserCodeClassLoader getUserCodeClassLoader() {
+        return userCodeClassLoader;
+    }
+
+    @Override
+    public Map<String, Future<Path>> getDistributedCacheEntries() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public ResultPartitionWriter getWriter(int index) {
+        return outputs.get(index);
+    }
+
+    @Override
+    public ResultPartitionWriter[] getAllWriters() {
+        return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
+    }
+
+    @Override
+    public IndexedInputGate getInputGate(int index) {
+        return inputs.get(index);
+    }
+
+    @Override
+    public IndexedInputGate[] getAllInputGates() {
+        return inputs.toArray(new IndexedInputGate[0]);
+    }
+
+    @Override
+    public TaskEventDispatcher getTaskEventDispatcher() {
+        return taskEventDispatcher;
+    }
+
+    @Override
+    public JobVertexID getJobVertexId() {
+        return new JobVertexID(new byte[16]);
+    }
+
+    @Override
+    public ExecutionAttemptID getExecutionId() {
+        return executionAttemptID;
+    }
+
+    @Override
+    public BroadcastVariableManager getBroadcastVariableManager() {
+        return this.bcVarManager;
+    }
+
+    @Override
+    public TaskStateManager getTaskStateManager() {
+        return taskStateManager;
+    }
+
+    @Override
+    public GlobalAggregateManager getGlobalAggregateManager() {
+        return aggregateManager;
+    }
+
+    @Override
+    public AccumulatorRegistry getAccumulatorRegistry() {
+        return accumulatorRegistry;
+    }
+
+    @Override
+    public TaskKvStateRegistry getTaskKvStateRegistry() {
+        return kvStateRegistry;
+    }
+
+    @Override
+    public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+        return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    }
+
+    @Override
+    public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {}
+
+    @Override
+    public void acknowledgeCheckpoint(
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics,
+            TaskStateSnapshot subtaskState) {
+        taskStateManager.reportTaskStateSnapshots(
+                new CheckpointMetaData(checkpointId, 0L), checkpointMetrics, subtaskState, null);
+    }
+
+    @Override
+    public void declineCheckpoint(long checkpointId, CheckpointException checkpointException) {
+        checkpointResponder.declineCheckpoint(
+                jobID, executionAttemptID, checkpointId, checkpointException);
+    }
+
+    @Override
+    public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
+        return new NoOpTaskOperatorEventGateway();
+    }
+
+    @Override
+    public void failExternally(Throwable cause) {
+        if (externalExceptionHandler != null) {
+            externalExceptionHandler.accept(cause);
+        }
+    }
+
+    @Override
+    public TaskManagerRuntimeInfo getTaskManagerInfo() {
+        return this.taskManagerRuntimeInfo;
+    }
+
+    public void setTaskManagerInfo(TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+        this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
+    }
+
+    @Override
+    public TaskMetricGroup getMetricGroup() {
+        return this.taskMetricGroup;
+    }
+
+    public void setTaskMetricGroup(TaskMetricGroup taskMetricGroup) {
+        this.taskMetricGroup = taskMetricGroup;
+    }
+
+    public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
+        this.checkpointResponder = checkpointResponder;
+    }
 }

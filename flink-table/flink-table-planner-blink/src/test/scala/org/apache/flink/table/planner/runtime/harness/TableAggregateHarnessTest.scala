@@ -18,22 +18,27 @@
 
 package org.apache.flink.table.planner.runtime.harness
 
-import java.lang.{Integer => JInt}
-import java.util.concurrent.ConcurrentLinkedQueue
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.EnvironmentSettings
+import org.apache.flink.table.api.{EnvironmentSettings, _}
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{deleteRecord, insertRecord}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
+
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.lang.{Integer => JInt}
+import java.time.Duration
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable
 
@@ -60,7 +65,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .flatAggregate(top3('b) as ('b1, 'b2))
       .select('a, 'b1, 'b2)
 
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
     val testHarness = createHarnessTester(
       resultTable.toRetractStream[Row], "GroupTableAggregate")
     val assertor = new RowDataHarnessAssertor(
@@ -72,8 +77,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt, 1: JInt))
@@ -104,8 +109,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.processElement(insertRecord(2: JInt, 2: JInt))
     expectedOutput.add(insertRecord(2: JInt, 2: JInt, 2: JInt))
 
-    // trigger cleanup timer
-    testHarness.setProcessingTime(3002)
+    //set TtlTimeProvider with 3002 to trigger expired state cleanup
+    testHarness.setStateTtlProcessingTime(3002)
     testHarness.processElement(insertRecord(1: JInt, 2: JInt))
     expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
 
@@ -116,28 +121,14 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
   @Test
   def testTableAggregateWithRetractInput(): Unit = {
-    val top3 = new Top3WithRetractInput
-    tEnv.registerFunction("top3", top3)
-    val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
-    val resultTable = source
-      .groupBy('a)
-      .select('b.sum as 'b)
-      .flatAggregate(top3('b) as ('b1, 'b2))
-      .select('b1, 'b2)
-
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
-    val testHarness = createHarnessTester(
-      resultTable.toRetractStream[Row], "GroupTableAggregate")
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.INT().getLogicalType,
-        DataTypes.INT().getLogicalType))
+    val (testHarness, outputTypes) = createTableAggregateWithRetract
+    val assertor = new RowDataHarnessAssertor(outputTypes)
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
-    // register cleanup timer with 3001
-    testHarness.setProcessingTime(1)
+    // set TtlTimeProvider with 1
+    testHarness.setStateTtlProcessingTime(1)
 
     // input with two columns: key and value
     testHarness.processElement(insertRecord(1: JInt))
@@ -167,6 +158,34 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+    testHarness.close()
+  }
+
+  private def createTableAggregateWithRetract()
+    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val top3 = new Top3WithRetractInput
+    tEnv.registerFunction("top3", top3)
+    val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    val resultTable = source
+        .groupBy('a)
+        .select('b.sum as 'b)
+        .flatAggregate(top3('b) as('b1, 'b2))
+        .select('b1, 'b2)
+
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
+    val testHarness = createHarnessTester(
+      resultTable.toRetractStream[Row], "GroupTableAggregate")
+    val outputTypes = Array(
+      DataTypes.INT().getLogicalType,
+      DataTypes.INT().getLogicalType)
+    (testHarness, outputTypes)
+  }
+
+  @Test
+  def testCloseWithoutOpen(): Unit = {
+    val (testHarness, outputTypes) = createTableAggregateWithRetract
+    testHarness.setup(new RowDataSerializer(outputTypes: _*))
+    // simulate a failover after a failed task open, expect no exception happens
     testHarness.close()
   }
 }

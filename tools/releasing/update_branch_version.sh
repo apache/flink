@@ -53,8 +53,8 @@ find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>(.*)'$OLD_VERSION'(
 
 #change version of documentation
 cd docs
-perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
-perl -pi -e "s#^version_title: .*#version_title: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^  Version = .*#  Version = \"${NEW_VERSION}\"#" config.toml
+perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${NEW_VERSION}\"#" config.toml
 cd ..
 
 #change version of pyflink

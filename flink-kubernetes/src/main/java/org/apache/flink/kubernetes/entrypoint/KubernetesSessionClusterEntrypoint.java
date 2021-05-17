@@ -20,6 +20,8 @@ package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -27,29 +29,35 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 
-/**
- * Entry point for a Kubernetes session cluster.
- */
+/** Entry point for a Kubernetes session cluster. */
 public class KubernetesSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public KubernetesSessionClusterEntrypoint(Configuration configuration) {
-		super(configuration);
-	}
+    public KubernetesSessionClusterEntrypoint(Configuration configuration) {
+        super(configuration);
+    }
 
-	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			KubernetesResourceManagerFactory.getInstance());
-	}
+    @Override
+    protected DispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+        return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+                KubernetesResourceManagerFactory.getInstance());
+    }
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, KubernetesSessionClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, KubernetesSessionClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final ClusterEntrypoint entrypoint = new KubernetesSessionClusterEntrypoint(
-			KubernetesEntrypointUtils.loadConfiguration());
-		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
-	}
+        final Configuration dynamicParameters =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new DynamicParametersConfigurationParserFactory(),
+                        KubernetesSessionClusterEntrypoint.class);
+        final ClusterEntrypoint entrypoint =
+                new KubernetesSessionClusterEntrypoint(
+                        KubernetesEntrypointUtils.loadConfiguration(dynamicParameters));
+        ClusterEntrypoint.runClusterEntrypoint(entrypoint);
+    }
 }

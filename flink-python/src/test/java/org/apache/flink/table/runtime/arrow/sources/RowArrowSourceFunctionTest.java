@@ -40,46 +40,48 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Tests for {@link RowArrowSourceFunction}.
- */
+/** Tests for {@link RowArrowSourceFunction}. */
 public class RowArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<Row> {
 
-	private static List<LogicalType> fieldTypes = new ArrayList<>();
-	private static RowType rowType;
-	private static DataType dataType;
-	private static BufferAllocator allocator;
+    private static List<LogicalType> fieldTypes = new ArrayList<>();
+    private static RowType rowType;
+    private static DataType dataType;
+    private static BufferAllocator allocator;
 
-	public RowArrowSourceFunctionTest() {
-		super(VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator),
-			new RowSerializer(new TypeSerializer[]{StringSerializer.INSTANCE}, false),
-			Comparator.comparing(o -> (String) (o.getField(0))));
-	}
+    public RowArrowSourceFunctionTest() {
+        super(
+                VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator),
+                new RowSerializer(new TypeSerializer[] {StringSerializer.INSTANCE}),
+                Comparator.comparing(o -> (String) (o.getField(0))));
+    }
 
-	@BeforeClass
-	public static void init() {
-		fieldTypes.add(new VarCharType());
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		for (int i = 0; i < fieldTypes.size(); i++) {
-			rowFields.add(new RowType.RowField("f" + i, fieldTypes.get(i)));
-		}
-		rowType = new RowType(rowFields);
-		dataType = TypeConversions.fromLogicalToDataType(rowType);
-		allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
-	}
+    @BeforeClass
+    public static void init() {
+        fieldTypes.add(new VarCharType());
+        List<RowType.RowField> rowFields = new ArrayList<>();
+        for (int i = 0; i < fieldTypes.size(); i++) {
+            rowFields.add(new RowType.RowField("f" + i, fieldTypes.get(i)));
+        }
+        rowType = new RowType(rowFields);
+        dataType = TypeConversions.fromLogicalToDataType(rowType);
+        allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
+    }
 
-	@Override
-	public Tuple2<List<Row>, Integer> getTestData() {
-		return Tuple2.of(Arrays.asList(Row.of("aaa"), Row.of("bbb"), Row.of("ccc"), Row.of("ddd"), Row.of("eee")), 3);
-	}
+    @Override
+    public Tuple2<List<Row>, Integer> getTestData() {
+        return Tuple2.of(
+                Arrays.asList(
+                        Row.of("aaa"), Row.of("bbb"), Row.of("ccc"), Row.of("ddd"), Row.of("eee")),
+                3);
+    }
 
-	@Override
-	public ArrowWriter<Row> createArrowWriter() {
-		return ArrowUtils.createRowArrowWriter(root, rowType);
-	}
+    @Override
+    public ArrowWriter<Row> createArrowWriter() {
+        return ArrowUtils.createRowArrowWriter(root, rowType);
+    }
 
-	@Override
-	public AbstractArrowSourceFunction<Row> createArrowSourceFunction(byte[][] arrowData) {
-		return new RowArrowSourceFunction(dataType, arrowData);
-	}
+    @Override
+    public AbstractArrowSourceFunction<Row> createArrowSourceFunction(byte[][] arrowData) {
+        return new RowArrowSourceFunction(dataType, arrowData);
+    }
 }

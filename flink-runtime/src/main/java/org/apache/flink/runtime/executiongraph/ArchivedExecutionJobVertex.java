@@ -28,104 +28,103 @@ import static org.apache.flink.runtime.executiongraph.ExecutionJobVertex.getAggr
 
 public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Serializable {
 
-	private static final long serialVersionUID = -5768187638639437957L;
-	private final ArchivedExecutionVertex[] taskVertices;
+    private static final long serialVersionUID = -5768187638639437957L;
+    private final ArchivedExecutionVertex[] taskVertices;
 
-	private final JobVertexID id;
+    private final JobVertexID id;
 
-	private final String name;
+    private final String name;
 
-	private final int parallelism;
+    private final int parallelism;
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	private final ResourceProfile resourceProfile;
+    private final ResourceProfile resourceProfile;
 
-	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
+    private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
-	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
-		this.taskVertices = new ArchivedExecutionVertex[jobVertex.getTaskVertices().length];
-		for (int x = 0; x < taskVertices.length; x++) {
-			taskVertices[x] = jobVertex.getTaskVertices()[x].archive();
-		}
+    public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
+        this.taskVertices = new ArchivedExecutionVertex[jobVertex.getTaskVertices().length];
+        for (int x = 0; x < taskVertices.length; x++) {
+            taskVertices[x] = jobVertex.getTaskVertices()[x].archive();
+        }
 
-		archivedUserAccumulators = jobVertex.getAggregatedUserAccumulatorsStringified();
+        archivedUserAccumulators = jobVertex.getAggregatedUserAccumulatorsStringified();
 
-		this.id = jobVertex.getJobVertexId();
-		this.name = jobVertex.getJobVertex().getName();
-		this.parallelism = jobVertex.getParallelism();
-		this.maxParallelism = jobVertex.getMaxParallelism();
-		this.resourceProfile = jobVertex.getResourceProfile();
-	}
+        this.id = jobVertex.getJobVertexId();
+        this.name = jobVertex.getJobVertex().getName();
+        this.parallelism = jobVertex.getParallelism();
+        this.maxParallelism = jobVertex.getMaxParallelism();
+        this.resourceProfile = jobVertex.getResourceProfile();
+    }
 
-	public ArchivedExecutionJobVertex(
-			ArchivedExecutionVertex[] taskVertices,
-			JobVertexID id,
-			String name,
-			int parallelism,
-			int maxParallelism,
-			ResourceProfile resourceProfile,
-			StringifiedAccumulatorResult[] archivedUserAccumulators) {
-		this.taskVertices = taskVertices;
-		this.id = id;
-		this.name = name;
-		this.parallelism = parallelism;
-		this.maxParallelism = maxParallelism;
-		this.resourceProfile = resourceProfile;
-		this.archivedUserAccumulators = archivedUserAccumulators;
-	}
+    public ArchivedExecutionJobVertex(
+            ArchivedExecutionVertex[] taskVertices,
+            JobVertexID id,
+            String name,
+            int parallelism,
+            int maxParallelism,
+            ResourceProfile resourceProfile,
+            StringifiedAccumulatorResult[] archivedUserAccumulators) {
+        this.taskVertices = taskVertices;
+        this.id = id;
+        this.name = name;
+        this.parallelism = parallelism;
+        this.maxParallelism = maxParallelism;
+        this.resourceProfile = resourceProfile;
+        this.archivedUserAccumulators = archivedUserAccumulators;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//   Accessors
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //   Accessors
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String getName() {
-		return name;
-	}
+    @Override
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public int getParallelism() {
-		return parallelism;
-	}
+    @Override
+    public int getParallelism() {
+        return parallelism;
+    }
 
-	@Override
-	public int getMaxParallelism() {
-		return maxParallelism;
-	}
+    @Override
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
 
-	@Override
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
-	}
+    @Override
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
 
-	@Override
-	public JobVertexID getJobVertexId() {
-		return id;
-	}
+    @Override
+    public JobVertexID getJobVertexId() {
+        return id;
+    }
 
-	@Override
-	public ArchivedExecutionVertex[] getTaskVertices() {
-		return taskVertices;
-	}
+    @Override
+    public ArchivedExecutionVertex[] getTaskVertices() {
+        return taskVertices;
+    }
 
-	@Override
-	public ExecutionState getAggregateState() {
-		int[] num = new int[ExecutionState.values().length];
-		for (ArchivedExecutionVertex vertex : this.taskVertices) {
-			num[vertex.getExecutionState().ordinal()]++;
-		}
+    @Override
+    public ExecutionState getAggregateState() {
+        int[] num = new int[ExecutionState.values().length];
+        for (ArchivedExecutionVertex vertex : this.taskVertices) {
+            num[vertex.getExecutionState().ordinal()]++;
+        }
 
-		return getAggregateJobVertexState(num, parallelism);
-	}
+        return getAggregateJobVertexState(num, parallelism);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Static / pre-assigned input splits
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Static / pre-assigned input splits
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
-		return archivedUserAccumulators;
-	}
-
+    @Override
+    public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
+        return archivedUserAccumulators;
+    }
 }

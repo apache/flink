@@ -21,37 +21,33 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extractor;
 
 /**
- * This delta function calculates the euclidean distance between two given
- * points.
+ * This delta function calculates the euclidean distance between two given points.
  *
  * <p>Euclidean distance: http://en.wikipedia.org/wiki/Euclidean_distance
  *
- * @param <DATA>
- *            The input data type. This delta function works with a double[],
- *            but can extract/convert to it from any other given object in case
- *            the respective extractor has been set. See
- *            {@link ExtractionAwareDeltaFunction} for more information.
+ * @param <DATA> The input data type. This delta function works with a double[], but can
+ *     extract/convert to it from any other given object in case the respective extractor has been
+ *     set. See {@link ExtractionAwareDeltaFunction} for more information.
  */
 @PublicEvolving
 public class EuclideanDistance<DATA> extends ExtractionAwareDeltaFunction<DATA, double[]> {
 
-	public EuclideanDistance() {
-		super(null);
-	}
+    public EuclideanDistance() {
+        super(null);
+    }
 
-	public EuclideanDistance(Extractor<DATA, double[]> converter) {
-		super(converter);
-	}
+    public EuclideanDistance(Extractor<DATA, double[]> converter) {
+        super(converter);
+    }
 
-	private static final long serialVersionUID = 3119432599634512359L;
+    private static final long serialVersionUID = 3119432599634512359L;
 
-	@Override
-	public double getNestedDelta(double[] oldDataPoint, double[] newDataPoint) {
-		double result = 0;
-		for (int i = 0; i < oldDataPoint.length; i++) {
-			result += (oldDataPoint[i] - newDataPoint[i]) * (oldDataPoint[i] - newDataPoint[i]);
-		}
-		return Math.sqrt(result);
-	}
-
+    @Override
+    public double getNestedDelta(double[] oldDataPoint, double[] newDataPoint) {
+        double result = 0;
+        for (int i = 0; i < oldDataPoint.length; i++) {
+            result += (oldDataPoint[i] - newDataPoint[i]) * (oldDataPoint[i] - newDataPoint[i]);
+        }
+        return Math.sqrt(result);
+    }
 }

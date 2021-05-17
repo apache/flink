@@ -26,8 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@link DownloadCache} implementation that caches downloaded files in a configured directory. Cached files that are
- * older than the configured time-to-live {@link Period} will be removed.
+ * {@link DownloadCache} implementation that caches downloaded files in a configured directory.
+ * Cached files that are older than the configured time-to-live {@link Period} will be removed.
  *
  * @see PersistingDownloadCacheFactory
  * @see PersistingDownloadCacheFactory#TMP_DIR
@@ -35,47 +35,55 @@ import java.util.regex.Pattern;
  */
 public final class PersistingDownloadCache extends AbstractDownloadCache {
 
-	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-	private static final String CACHE_FILE_NAME_DELIMITER = "__";
-	private static final Pattern CACHE_FILE_NAME_PATTERN =
-		Pattern.compile("(?<hash>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<date>.*)" + CACHE_FILE_NAME_DELIMITER + "(?<name>.*)");
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String CACHE_FILE_NAME_DELIMITER = "__";
+    private static final Pattern CACHE_FILE_NAME_PATTERN =
+            Pattern.compile(
+                    "(?<hash>.*)"
+                            + CACHE_FILE_NAME_DELIMITER
+                            + "(?<date>.*)"
+                            + CACHE_FILE_NAME_DELIMITER
+                            + "(?<name>.*)");
 
-	private final Period ttl;
+    private final Period ttl;
 
-	public PersistingDownloadCache(final Path path, final Period ttl) {
-		super(path);
-		this.ttl = ttl;
-	}
+    public PersistingDownloadCache(final Path path, final Period ttl) {
+        super(path);
+        this.ttl = ttl;
+        log.info("Using PersistingDownloadCache with path {} and ttl {}", path, ttl);
+    }
 
-	@Override
-	Matcher createCacheFileMatcher(final String cacheFileName) {
-		return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
-	}
+    @Override
+    Matcher createCacheFileMatcher(final String cacheFileName) {
+        return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
+    }
 
-	@Override
-	String generateCacheFileName(final String url, final String fileName) {
-		final String hash = String.valueOf(url.hashCode());
-		final String datePrefix = LocalDate.now().format(DATE_FORMATTER);
+    @Override
+    String generateCacheFileName(final String url, final String fileName) {
+        final String hash = String.valueOf(url.hashCode());
+        final String datePrefix = LocalDate.now().format(DATE_FORMATTER);
 
-		return hash + CACHE_FILE_NAME_DELIMITER + datePrefix + CACHE_FILE_NAME_DELIMITER + fileName;
-	}
+        return hash + CACHE_FILE_NAME_DELIMITER + datePrefix + CACHE_FILE_NAME_DELIMITER + fileName;
+    }
 
-	@Override
-	String regenerateOriginalFileName(final Matcher matcher) {
-		return matcher.group("name");
-	}
+    @Override
+    String regenerateOriginalFileName(final Matcher matcher) {
+        return matcher.group("name");
+    }
 
-	@Override
-	boolean exceedsTimeToLive(final Matcher matcher) {
-		final LocalDate cacheFileDate = LocalDate.parse(matcher.group("date"), DATE_FORMATTER);
+    @Override
+    boolean exceedsTimeToLive(final Matcher matcher) {
+        final LocalDate cacheFileDate = LocalDate.parse(matcher.group("date"), DATE_FORMATTER);
 
-		return ttl != Period.ZERO && Period.between(cacheFileDate, LocalDate.now()).getDays() > ttl.getDays();
-	}
+        return ttl != Period.ZERO
+                && Period.between(cacheFileDate, LocalDate.now()).getDays() > ttl.getDays();
+    }
 
-	@Override
-	boolean matchesCachedFile(final Matcher matcher, final String url) {
-		final String hash = matcher.group("hash");
+    @Override
+    boolean matchesCachedFile(final Matcher matcher, final String url) {
+        final String hash = matcher.group("hash");
 
-		return url.hashCode() == Integer.parseInt(hash);
-	}
+        return url.hashCode() == Integer.parseInt(hash);
+    }
 }

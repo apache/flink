@@ -36,61 +36,62 @@ import java.util.Set;
 @Internal
 public final class ScalarFunctionDefinition implements FunctionDefinition {
 
-	private final String name;
-	private final ScalarFunction scalarFunction;
+    private final String name;
+    private final ScalarFunction scalarFunction;
 
-	public ScalarFunctionDefinition(String name, ScalarFunction scalarFunction) {
-		this.name = Preconditions.checkNotNull(name);
-		this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
-	}
+    public ScalarFunctionDefinition(String name, ScalarFunction scalarFunction) {
+        this.name = Preconditions.checkNotNull(name);
+        this.scalarFunction = Preconditions.checkNotNull(scalarFunction);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public ScalarFunction getScalarFunction() {
-		return scalarFunction;
-	}
+    public ScalarFunction getScalarFunction() {
+        return scalarFunction;
+    }
 
-	@Override
-	public FunctionKind getKind() {
-		return FunctionKind.SCALAR;
-	}
+    @Override
+    public FunctionKind getKind() {
+        return FunctionKind.SCALAR;
+    }
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory factory) {
-		throw new TableException("Functions implemented for the old type system are not supported.");
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory factory) {
+        throw new TableException(
+                "Functions implemented for the old type system are not supported.");
+    }
 
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		return scalarFunction.getRequirements();
-	}
+    @Override
+    public Set<FunctionRequirement> getRequirements() {
+        return scalarFunction.getRequirements();
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return scalarFunction.isDeterministic();
-	}
+    @Override
+    public boolean isDeterministic() {
+        return scalarFunction.isDeterministic();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ScalarFunctionDefinition that = (ScalarFunctionDefinition) o;
-		return name.equals(that.name);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ScalarFunctionDefinition that = (ScalarFunctionDefinition) o;
+        return name.equals(that.name);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
 
-	@Override
-	public String toString() {
-		return name;
-	}
+    @Override
+    public String toString() {
+        return name;
+    }
 }

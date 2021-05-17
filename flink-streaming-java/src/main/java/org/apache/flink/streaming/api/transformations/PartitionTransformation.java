@@ -24,7 +24,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -40,68 +40,62 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class PartitionTransformation<T> extends Transformation<T> {
 
-	private final Transformation<T> input;
+    private final Transformation<T> input;
 
-	private final StreamPartitioner<T> partitioner;
+    private final StreamPartitioner<T> partitioner;
 
-	private final ShuffleMode shuffleMode;
+    private final ShuffleMode shuffleMode;
 
-	/**
-	 * Creates a new {@code PartitionTransformation} from the given input and
-	 * {@link StreamPartitioner}.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param partitioner The {@code StreamPartitioner}
-	 */
-	public PartitionTransformation(Transformation<T> input, StreamPartitioner<T> partitioner) {
-		this(input, partitioner, ShuffleMode.UNDEFINED);
-	}
+    /**
+     * Creates a new {@code PartitionTransformation} from the given input and {@link
+     * StreamPartitioner}.
+     *
+     * @param input The input {@code Transformation}
+     * @param partitioner The {@code StreamPartitioner}
+     */
+    public PartitionTransformation(Transformation<T> input, StreamPartitioner<T> partitioner) {
+        this(input, partitioner, ShuffleMode.UNDEFINED);
+    }
 
-	/**
-	 * Creates a new {@code PartitionTransformation} from the given input and
-	 * {@link StreamPartitioner}.
-	 *
-	 * @param input The input {@code Transformation}
-	 * @param partitioner The {@code StreamPartitioner}
-	 * @param shuffleMode The {@code ShuffleMode}
-	 */
-	public PartitionTransformation(
-			Transformation<T> input,
-			StreamPartitioner<T> partitioner,
-			ShuffleMode shuffleMode) {
-		super("Partition", input.getOutputType(), input.getParallelism());
-		this.input = input;
-		this.partitioner = partitioner;
-		this.shuffleMode = checkNotNull(shuffleMode);
-	}
+    /**
+     * Creates a new {@code PartitionTransformation} from the given input and {@link
+     * StreamPartitioner}.
+     *
+     * @param input The input {@code Transformation}
+     * @param partitioner The {@code StreamPartitioner}
+     * @param shuffleMode The {@code ShuffleMode}
+     */
+    public PartitionTransformation(
+            Transformation<T> input, StreamPartitioner<T> partitioner, ShuffleMode shuffleMode) {
+        super("Partition", input.getOutputType(), input.getParallelism());
+        this.input = input;
+        this.partitioner = partitioner;
+        this.shuffleMode = checkNotNull(shuffleMode);
+    }
 
-	/**
-	 * Returns the input {@code Transformation} of this {@code SinkTransformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
+    /**
+     * Returns the {@code StreamPartitioner} that must be used for partitioning the elements of the
+     * input {@code Transformation}.
+     */
+    public StreamPartitioner<T> getPartitioner() {
+        return partitioner;
+    }
 
-	/**
-	 * Returns the {@code StreamPartitioner} that must be used for partitioning the elements
-	 * of the input {@code Transformation}.
-	 */
-	public StreamPartitioner<T> getPartitioner() {
-		return partitioner;
-	}
+    /** Returns the {@link ShuffleMode} of this {@link PartitionTransformation}. */
+    public ShuffleMode getShuffleMode() {
+        return shuffleMode;
+    }
 
-	/**
-	 * Returns the {@link ShuffleMode} of this {@link PartitionTransformation}.
-	 */
-	public ShuffleMode getShuffleMode() {
-		return shuffleMode;
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        List<Transformation<?>> result = Lists.newArrayList();
+        result.add(this);
+        result.addAll(input.getTransitivePredecessors());
+        return result;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		List<Transformation<?>> result = Lists.newArrayList();
-		result.add(this);
-		result.addAll(input.getTransitivePredecessors());
-		return result;
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.singletonList(input);
+    }
 }

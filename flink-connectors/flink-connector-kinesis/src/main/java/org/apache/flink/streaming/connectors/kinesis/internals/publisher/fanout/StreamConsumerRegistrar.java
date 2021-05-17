@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.ResourceInUseException;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
@@ -43,233 +43,271 @@ import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.ACTIV
 import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.DELETING;
 
 /**
- * Responsible for registering and deregistering EFO stream consumers.
- * Will block until consumers are ready.
+ * Responsible for registering and deregistering EFO stream consumers. Will block until consumers
+ * are ready.
  */
 @Internal
 public class StreamConsumerRegistrar {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamConsumerRegistrar.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamConsumerRegistrar.class);
 
-	private final KinesisProxyV2Interface kinesisProxyV2Interface;
+    private final KinesisProxyV2Interface kinesisProxyV2Interface;
 
-	private final FanOutRecordPublisherConfiguration configuration;
+    private final FanOutRecordPublisherConfiguration configuration;
 
-	private final FullJitterBackoff backoff;
+    private final FullJitterBackoff backoff;
 
-	public StreamConsumerRegistrar(
-			final KinesisProxyV2Interface kinesisProxyV2Interface,
-			final FanOutRecordPublisherConfiguration configuration,
-			final FullJitterBackoff backoff) {
-		this.kinesisProxyV2Interface = Preconditions.checkNotNull(kinesisProxyV2Interface);
-		this.configuration = Preconditions.checkNotNull(configuration);
-		this.backoff = Preconditions.checkNotNull(backoff);
-	}
+    public StreamConsumerRegistrar(
+            final KinesisProxyV2Interface kinesisProxyV2Interface,
+            final FanOutRecordPublisherConfiguration configuration,
+            final FullJitterBackoff backoff) {
+        this.kinesisProxyV2Interface = Preconditions.checkNotNull(kinesisProxyV2Interface);
+        this.configuration = Preconditions.checkNotNull(configuration);
+        this.backoff = Preconditions.checkNotNull(backoff);
+    }
 
-	/**
-	 * Register a stream consumer with the given name against the given stream.
-	 * Blocks until the consumer becomes active.
-	 * If the stream consumer already exists, the ARN is returned.
-	 *
-	 * @param stream the stream to register the stream consumer against
-	 * @param streamConsumerName the name of the new stream consumer
-	 * @return the stream consumer ARN
-	 * @throws ExecutionException
-	 * @throws InterruptedException
-	 */
-	public String registerStreamConsumer(final String stream, final String streamConsumerName) throws ExecutionException, InterruptedException {
-		LOG.debug("Registering stream consumer - {}::{}", stream, streamConsumerName);
+    /**
+     * Register a stream consumer with the given name against the given stream. Blocks until the
+     * consumer becomes active. If the stream consumer already exists, the ARN is returned.
+     *
+     * @param stream the stream to register the stream consumer against
+     * @param streamConsumerName the name of the new stream consumer
+     * @return the stream consumer ARN
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    public String registerStreamConsumer(final String stream, final String streamConsumerName)
+            throws ExecutionException, InterruptedException {
+        LOG.debug("Registering stream consumer - {}::{}", stream, streamConsumerName);
 
-		int attempt = 1;
+        int attempt = 1;
 
-		if (configuration.getEfoRegistrationType() == LAZY) {
-			registrationBackoff(configuration, backoff, attempt++);
-		}
+        if (configuration.getEfoRegistrationType() == LAZY) {
+            registrationBackoff(configuration, backoff, attempt++);
+        }
 
-		DescribeStreamResponse describeStreamResponse = kinesisProxyV2Interface.describeStream(stream);
-		String streamArn = describeStreamResponse.streamDescription().streamARN();
+        DescribeStreamSummaryResponse describeStreamSummaryResponse =
+                kinesisProxyV2Interface.describeStreamSummary(stream);
+        String streamArn = describeStreamSummaryResponse.streamDescriptionSummary().streamARN();
 
-		LOG.debug("Found stream ARN - {}", streamArn);
+        LOG.debug("Found stream ARN - {}", streamArn);
 
-		Optional<DescribeStreamConsumerResponse> describeStreamConsumerResponse =
-			describeStreamConsumer(streamArn, streamConsumerName);
+        Optional<DescribeStreamConsumerResponse> describeStreamConsumerResponse =
+                describeStreamConsumer(streamArn, streamConsumerName);
 
-		if (!describeStreamConsumerResponse.isPresent()) {
-			invokeIgnoringResourceInUse(() -> kinesisProxyV2Interface.registerStreamConsumer(streamArn, streamConsumerName));
-		}
+        if (!describeStreamConsumerResponse.isPresent()) {
+            invokeIgnoringResourceInUse(
+                    () ->
+                            kinesisProxyV2Interface.registerStreamConsumer(
+                                    streamArn, streamConsumerName));
+        }
 
-		String streamConsumerArn = waitForConsumerToBecomeActive(
-			describeStreamConsumerResponse.orElse(null), streamArn, streamConsumerName, attempt);
+        String streamConsumerArn =
+                waitForConsumerToBecomeActive(
+                        describeStreamConsumerResponse.orElse(null),
+                        streamArn,
+                        streamConsumerName,
+                        attempt);
 
-		LOG.debug("Using stream consumer - {}", streamConsumerArn);
+        LOG.debug("Using stream consumer - {}", streamConsumerArn);
 
-		return streamConsumerArn;
-	}
+        return streamConsumerArn;
+    }
 
-	/**
-	 * Deregister the stream consumer with the given ARN.
-	 * Blocks until the consumer is deleted.
-	 *
-	 * @param stream the stream in which to deregister the consumer
-	 * @throws ExecutionException
-	 * @throws InterruptedException
-	 */
-	public void deregisterStreamConsumer(final String stream) throws InterruptedException, ExecutionException {
-		LOG.debug("Deregistering stream consumer - {}", stream);
+    /**
+     * Deregister the stream consumer with the given ARN. Blocks until the consumer is deleted.
+     *
+     * @param stream the stream in which to deregister the consumer
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
+    public void deregisterStreamConsumer(final String stream)
+            throws InterruptedException, ExecutionException {
+        LOG.debug("Deregistering stream consumer - {}", stream);
 
-		int attempt = 1;
-		String streamConsumerArn = getStreamConsumerArn(stream);
+        int attempt = 1;
+        String streamConsumerArn = getStreamConsumerArn(stream);
 
-		deregistrationBackoff(configuration, backoff, attempt++);
+        deregistrationBackoff(configuration, backoff, attempt++);
 
-		Optional<DescribeStreamConsumerResponse> response = describeStreamConsumer(streamConsumerArn);
-		if (response.isPresent() && response.get().consumerDescription().consumerStatus() != DELETING) {
-			invokeIgnoringResourceInUse(() -> kinesisProxyV2Interface.deregisterStreamConsumer(streamConsumerArn));
-		}
+        Optional<DescribeStreamConsumerResponse> response =
+                describeStreamConsumer(streamConsumerArn);
+        if (response.isPresent()
+                && response.get().consumerDescription().consumerStatus() != DELETING) {
+            invokeIgnoringResourceInUse(
+                    () -> kinesisProxyV2Interface.deregisterStreamConsumer(streamConsumerArn));
+        }
 
-		waitForConsumerToDeregister(response.orElse(null), streamConsumerArn, attempt);
+        waitForConsumerToDeregister(response.orElse(null), streamConsumerArn, attempt);
 
-		LOG.debug("Deregistered stream consumer - {}", streamConsumerArn);
-	}
+        LOG.debug("Deregistered stream consumer - {}", streamConsumerArn);
+    }
 
-	/**
-	 * Destroy any open resources used by the factory.
-	 */
-	public void close() {
-		kinesisProxyV2Interface.close();
-	}
+    /** Destroy any open resources used by the factory. */
+    public void close() {
+        kinesisProxyV2Interface.close();
+    }
 
-	@VisibleForTesting
-	void registrationBackoff(
-			final FanOutRecordPublisherConfiguration configuration,
-			final FullJitterBackoff backoff,
-			int attempt) throws InterruptedException {
-		long backoffMillis = backoff.calculateFullJitterBackoff(
-			configuration.getRegisterStreamBaseBackoffMillis(),
-			configuration.getRegisterStreamMaxBackoffMillis(),
-			configuration.getRegisterStreamExpConstant(),
-			attempt);
+    @VisibleForTesting
+    void registrationBackoff(
+            final FanOutRecordPublisherConfiguration configuration,
+            final FullJitterBackoff backoff,
+            int attempt)
+            throws InterruptedException {
+        long backoffMillis =
+                backoff.calculateFullJitterBackoff(
+                        configuration.getRegisterStreamBaseBackoffMillis(),
+                        configuration.getRegisterStreamMaxBackoffMillis(),
+                        configuration.getRegisterStreamExpConstant(),
+                        attempt);
 
-		backoff.sleep(backoffMillis);
-	}
+        backoff.sleep(backoffMillis);
+    }
 
-	@VisibleForTesting
-	void deregistrationBackoff(
-			final FanOutRecordPublisherConfiguration configuration,
-			final FullJitterBackoff backoff,
-			int attempt) throws InterruptedException {
-		long backoffMillis = backoff.calculateFullJitterBackoff(
-			configuration.getDeregisterStreamBaseBackoffMillis(),
-			configuration.getDeregisterStreamMaxBackoffMillis(),
-			configuration.getDeregisterStreamExpConstant(),
-			attempt);
+    @VisibleForTesting
+    void deregistrationBackoff(
+            final FanOutRecordPublisherConfiguration configuration,
+            final FullJitterBackoff backoff,
+            int attempt)
+            throws InterruptedException {
+        long backoffMillis =
+                backoff.calculateFullJitterBackoff(
+                        configuration.getDeregisterStreamBaseBackoffMillis(),
+                        configuration.getDeregisterStreamMaxBackoffMillis(),
+                        configuration.getDeregisterStreamExpConstant(),
+                        attempt);
 
-		backoff.sleep(backoffMillis);
-	}
+        backoff.sleep(backoffMillis);
+    }
 
-	private String waitForConsumerToBecomeActive(
-			@Nullable final DescribeStreamConsumerResponse describeStreamConsumerResponse,
-			final String streamArn,
-			final String streamConsumerName,
-			final int initialAttempt) throws InterruptedException, ExecutionException {
-		int attempt = initialAttempt;
+    private String waitForConsumerToBecomeActive(
+            @Nullable final DescribeStreamConsumerResponse describeStreamConsumerResponse,
+            final String streamArn,
+            final String streamConsumerName,
+            final int initialAttempt)
+            throws InterruptedException, ExecutionException {
+        int attempt = initialAttempt;
 
-		Instant start = Instant.now();
-		Duration timeout = configuration.getRegisterStreamConsumerTimeout();
+        Instant start = Instant.now();
+        Duration timeout = configuration.getRegisterStreamConsumerTimeout();
 
-		DescribeStreamConsumerResponse response = describeStreamConsumerResponse;
-		while (response == null || response.consumerDescription().consumerStatus() != ACTIVE) {
-			LOG.debug("Waiting for stream consumer to become active, attempt {} - {} on {}", attempt, streamConsumerName, streamArn);
-			registrationBackoff(configuration, backoff, attempt++);
-			response = kinesisProxyV2Interface.describeStreamConsumer(streamArn, streamConsumerName);
+        DescribeStreamConsumerResponse response = describeStreamConsumerResponse;
+        while (response == null || response.consumerDescription().consumerStatus() != ACTIVE) {
+            LOG.debug(
+                    "Waiting for stream consumer to become active, attempt {} - {} on {}",
+                    attempt,
+                    streamConsumerName,
+                    streamArn);
+            registrationBackoff(configuration, backoff, attempt++);
+            response =
+                    kinesisProxyV2Interface.describeStreamConsumer(streamArn, streamConsumerName);
 
-			if (Duration.between(start, Instant.now()).compareTo(timeout) > 0) {
-				throw new FlinkKinesisTimeoutException("Timeout waiting for stream consumer to become active: " + streamConsumerName + " on " + streamArn);
-			}
-		}
+            if (Duration.between(start, Instant.now()).compareTo(timeout) > 0) {
+                throw new FlinkKinesisTimeoutException(
+                        "Timeout waiting for stream consumer to become active: "
+                                + streamConsumerName
+                                + " on "
+                                + streamArn);
+            }
+        }
 
-		return response.consumerDescription().consumerARN();
-	}
+        return response.consumerDescription().consumerARN();
+    }
 
-	private void waitForConsumerToDeregister(
-			@Nullable final DescribeStreamConsumerResponse describeStreamConsumerResponse,
-			final String streamConsumerArn,
-			final int initialAttempt) throws InterruptedException, ExecutionException {
-		int attempt = initialAttempt;
+    private void waitForConsumerToDeregister(
+            @Nullable final DescribeStreamConsumerResponse describeStreamConsumerResponse,
+            final String streamConsumerArn,
+            final int initialAttempt)
+            throws InterruptedException, ExecutionException {
+        int attempt = initialAttempt;
 
-		Instant start = Instant.now();
-		Duration timeout = configuration.getDeregisterStreamConsumerTimeout();
+        Instant start = Instant.now();
+        Duration timeout = configuration.getDeregisterStreamConsumerTimeout();
 
-		Optional<DescribeStreamConsumerResponse> response = Optional.ofNullable(describeStreamConsumerResponse);
-		while (response.isPresent() && response.get().consumerDescription().consumerStatus() != DELETING) {
-			LOG.debug("Waiting for stream consumer to deregister, attempt {} - {}", attempt, streamConsumerArn);
-			deregistrationBackoff(configuration, backoff, attempt++);
-			response = describeStreamConsumer(streamConsumerArn);
+        Optional<DescribeStreamConsumerResponse> response =
+                Optional.ofNullable(describeStreamConsumerResponse);
+        while (response.isPresent()
+                && response.get().consumerDescription().consumerStatus() != DELETING) {
+            LOG.debug(
+                    "Waiting for stream consumer to deregister, attempt {} - {}",
+                    attempt,
+                    streamConsumerArn);
+            deregistrationBackoff(configuration, backoff, attempt++);
+            response = describeStreamConsumer(streamConsumerArn);
 
-			if (Duration.between(start, Instant.now()).compareTo(timeout) > 0) {
-				throw new FlinkKinesisTimeoutException("Timeout waiting for stream consumer to deregister: " + streamConsumerArn);
-			}
-		}
-	}
+            if (Duration.between(start, Instant.now()).compareTo(timeout) > 0) {
+                throw new FlinkKinesisTimeoutException(
+                        "Timeout waiting for stream consumer to deregister: " + streamConsumerArn);
+            }
+        }
+    }
 
-	private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(final String streamArn, final String streamConsumerName) throws InterruptedException, ExecutionException {
-		return describeStreamConsumer(() -> kinesisProxyV2Interface.describeStreamConsumer(streamArn, streamConsumerName));
-	}
+    private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(
+            final String streamArn, final String streamConsumerName)
+            throws InterruptedException, ExecutionException {
+        return describeStreamConsumer(
+                () ->
+                        kinesisProxyV2Interface.describeStreamConsumer(
+                                streamArn, streamConsumerName));
+    }
 
-	private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(final String streamConsumerArn) throws InterruptedException, ExecutionException {
-		return describeStreamConsumer(() -> kinesisProxyV2Interface.describeStreamConsumer(streamConsumerArn));
-	}
+    private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(
+            final String streamConsumerArn) throws InterruptedException, ExecutionException {
+        return describeStreamConsumer(
+                () -> kinesisProxyV2Interface.describeStreamConsumer(streamConsumerArn));
+    }
 
-	private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(
-			final ResponseSupplier<DescribeStreamConsumerResponse> responseSupplier) throws InterruptedException, ExecutionException {
-		DescribeStreamConsumerResponse response;
+    private Optional<DescribeStreamConsumerResponse> describeStreamConsumer(
+            final ResponseSupplier<DescribeStreamConsumerResponse> responseSupplier)
+            throws InterruptedException, ExecutionException {
+        DescribeStreamConsumerResponse response;
 
-		try {
-			response = responseSupplier.get();
-		} catch (ExecutionException ex) {
-			if (isResourceNotFound(ex)) {
-				return Optional.empty();
-			}
+        try {
+            response = responseSupplier.get();
+        } catch (ExecutionException ex) {
+            if (isResourceNotFound(ex)) {
+                return Optional.empty();
+            }
 
-			throw ex;
-		}
+            throw ex;
+        }
 
-		return Optional.ofNullable(response);
-	}
+        return Optional.ofNullable(response);
+    }
 
-	private <T> void invokeIgnoringResourceInUse(
-		final ResponseSupplier<T> responseSupplier) throws InterruptedException, ExecutionException {
-		try {
-			responseSupplier.get();
-		} catch (ExecutionException ex) {
-			if (isResourceInUse(ex)) {
-				// The stream consumer may have been created since we performed the describe
-				return;
-			}
+    private <T> void invokeIgnoringResourceInUse(final ResponseSupplier<T> responseSupplier)
+            throws InterruptedException, ExecutionException {
+        try {
+            responseSupplier.get();
+        } catch (ExecutionException ex) {
+            if (isResourceInUse(ex)) {
+                // The stream consumer may have been created since we performed the describe
+                return;
+            }
 
-			throw ex;
-		}
-	}
+            throw ex;
+        }
+    }
 
-	private boolean isResourceNotFound(final ExecutionException ex) {
-		return ex.getCause() instanceof ResourceNotFoundException;
-	}
+    private boolean isResourceNotFound(final ExecutionException ex) {
+        return ex.getCause() instanceof ResourceNotFoundException;
+    }
 
-	private boolean isResourceInUse(final ExecutionException ex) {
-		return ex.getCause() instanceof ResourceInUseException;
-	}
+    private boolean isResourceInUse(final ExecutionException ex) {
+        return ex.getCause() instanceof ResourceInUseException;
+    }
 
-	private String getStreamConsumerArn(final String stream) {
-		Optional<String> streamConsumerArn = configuration.getStreamConsumerArn(stream);
-		if (!streamConsumerArn.isPresent()) {
-			throw new IllegalArgumentException("Stream consumer ARN not found for stream: " + stream);
-		}
+    private String getStreamConsumerArn(final String stream) {
+        Optional<String> streamConsumerArn = configuration.getStreamConsumerArn(stream);
+        if (!streamConsumerArn.isPresent()) {
+            throw new IllegalArgumentException(
+                    "Stream consumer ARN not found for stream: " + stream);
+        }
 
-		return streamConsumerArn.get();
-	}
+        return streamConsumerArn.get();
+    }
 
-	private interface ResponseSupplier<T> {
-		T get() throws ExecutionException, InterruptedException;
-	}
-
+    private interface ResponseSupplier<T> {
+        T get() throws ExecutionException, InterruptedException;
+    }
 }

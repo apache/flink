@@ -30,38 +30,38 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 
 /**
- * Parser factory which generates a {@link PythonDriverOptions} from a given
- * list of command line arguments.
+ * Parser factory which generates a {@link PythonDriverOptions} from a given list of command line
+ * arguments.
  */
 final class PythonDriverOptionsParserFactory implements ParserResultFactory<PythonDriverOptions> {
 
-	@Override
-	public Options getOptions() {
-		final Options options = new Options();
-		options.addOption(PY_OPTION);
-		options.addOption(PYMODULE_OPTION);
-		return options;
-	}
+    @Override
+    public Options getOptions() {
+        final Options options = new Options();
+        options.addOption(PY_OPTION);
+        options.addOption(PYMODULE_OPTION);
+        return options;
+    }
 
-	@Override
-	public PythonDriverOptions createResult(@Nonnull CommandLine commandLine) throws FlinkParseException {
-		String entryPointModule = null;
-		String entryPointScript = null;
+    @Override
+    public PythonDriverOptions createResult(@Nonnull CommandLine commandLine)
+            throws FlinkParseException {
+        String entryPointModule = null;
+        String entryPointScript = null;
 
-		if (commandLine.hasOption(PY_OPTION.getOpt()) && commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
-			throw new FlinkParseException("Cannot use options -py and -pym simultaneously.");
-		} else if (commandLine.hasOption(PY_OPTION.getOpt())) {
-			entryPointScript = commandLine.getOptionValue(PY_OPTION.getOpt());
-		} else if (commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
-			entryPointModule = commandLine.getOptionValue(PYMODULE_OPTION.getOpt());
-		} else {
-			throw new FlinkParseException(
-				"The Python entry point has not been specified. It can be specified with options -py or -pym");
-		}
+        if (commandLine.hasOption(PY_OPTION.getOpt())
+                && commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
+            throw new FlinkParseException("Cannot use options -py and -pym simultaneously.");
+        } else if (commandLine.hasOption(PY_OPTION.getOpt())) {
+            entryPointScript = commandLine.getOptionValue(PY_OPTION.getOpt());
+        } else if (commandLine.hasOption(PYMODULE_OPTION.getOpt())) {
+            entryPointModule = commandLine.getOptionValue(PYMODULE_OPTION.getOpt());
+        } else {
+            throw new FlinkParseException(
+                    "The Python entry point has not been specified. It can be specified with options -py or -pym");
+        }
 
-		return new PythonDriverOptions(
-			entryPointModule,
-			entryPointScript,
-			commandLine.getArgList());
-	}
+        return new PythonDriverOptions(
+                entryPointModule, entryPointScript, commandLine.getArgList());
+    }
 }

@@ -23,8 +23,8 @@ import org.apache.flink.util.TernaryBoolean;
 
 /** Test suite for rocksdb state TTL with full snapshot strategy. */
 public class FullSnapshotRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
-	@Override
-	StateBackend createStateBackend() {
-		return createStateBackend(TernaryBoolean.FALSE);
-	}
+    @Override
+    StateBackend createStateBackend() {
+        return createStateBackend(TernaryBoolean.FALSE);
+    }
 }

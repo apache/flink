@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.TestLogger;
 
@@ -32,53 +35,70 @@ import java.net.InetAddress;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-/**
- * Unit test for {@link NettyShuffleEnvironmentConfiguration}.
- */
+/** Unit test for {@link NettyShuffleEnvironmentConfiguration}. */
 public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 
-	private static final MemorySize MEM_SIZE_PARAM = new MemorySize(128L * 1024 * 1024);
+    private static final MemorySize MEM_SIZE_PARAM = new MemorySize(128L * 1024 * 1024);
 
-	@Test
-	public void testNetworkBufferNumberCalculation() {
-		final Configuration config = new Configuration();
-		config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1m"));
-		final int numNetworkBuffers = NettyShuffleEnvironmentConfiguration.fromConfiguration(
-			config,
-			MEM_SIZE_PARAM,
-			false,
-			InetAddress.getLoopbackAddress()).numNetworkBuffers();
-		assertThat(numNetworkBuffers, is(128));
-	}
+    @Test
+    public void testNetworkBufferNumberCalculation() {
+        final Configuration config = new Configuration();
+        config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1m"));
+        final int numNetworkBuffers =
+                NettyShuffleEnvironmentConfiguration.fromConfiguration(
+                                config, MEM_SIZE_PARAM, false, InetAddress.getLoopbackAddress())
+                        .numNetworkBuffers();
+        assertThat(numNetworkBuffers, is(128));
+    }
 
-	/**
-	 * Verifies that {@link  NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration, MemorySize, boolean, InetAddress)}
-	 * returns the correct result for new configurations via
-	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL},
-	 * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX},
-	 * {@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and
-	 * {@link NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
-	 */
-	@Test
-	public void testNetworkRequestBackoffAndBuffers() {
+    /**
+     * Verifies that {@link NettyShuffleEnvironmentConfiguration#fromConfiguration(Configuration,
+     * MemorySize, boolean, InetAddress)} returns the correct result for new configurations via
+     * {@link NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_INITIAL}, {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_REQUEST_BACKOFF_MAX}, {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL} and {@link
+     * NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
+     */
+    @Test
+    public void testNetworkRequestBackoffAndBuffers() {
 
-		// set some non-default values
-		final Configuration config = new Configuration();
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
-		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+        // set some non-default values
+        final Configuration config = new Configuration();
+        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
-		final  NettyShuffleEnvironmentConfiguration networkConfig =  NettyShuffleEnvironmentConfiguration.fromConfiguration(
-			config,
-			MEM_SIZE_PARAM,
-			true,
-			InetAddress.getLoopbackAddress());
+        final NettyShuffleEnvironmentConfiguration networkConfig =
+                NettyShuffleEnvironmentConfiguration.fromConfiguration(
+                        config, MEM_SIZE_PARAM, true, InetAddress.getLoopbackAddress());
 
-		assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
-		assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
-		assertEquals(networkConfig.networkBuffersPerChannel(), 10);
-		assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
-	}
+        assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
+        assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
+        assertEquals(networkConfig.networkBuffersPerChannel(), 10);
+        assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+    }
+
+    /** Verifies the correlation of sort-merge blocking shuffle config options. */
+    @Test
+    public void testSortMergeShuffleConfigOptionsCorrelation() {
+        Formatter formatter = new HtmlFormatter();
+        ConfigOption<Integer> configOption =
+                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM;
+        String description = formatter.format(configOption.description());
+
+        String configKey =
+                getConfigKey(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED);
+        assertTrue(description.contains(configKey));
+        configKey = getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+        assertTrue(description.contains(configKey));
+        configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
+        assertTrue(description.contains(configKey));
+    }
+
+    private static String getConfigKey(ConfigOption<?> configOption) {
+        return "'" + configOption.key() + "'";
+    }
 }

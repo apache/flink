@@ -54,14 +54,14 @@ class RewriteMultiJoinConditionRule extends RelOptRule(
     val multiJoin: MultiJoin = call.rel(0)
     val (equiJoinFilters, nonEquiJoinFilters) = partitionJoinFilters(multiJoin)
     // there is no `equals` method in RexCall, so the key of this map should be String
-    val equiJoinFilterMap = mutable.HashMap[String, mutable.ListBuffer[RexNode]]()
+    val equiJoinFilterMap = mutable.HashMap[RexNode, mutable.ListBuffer[RexNode]]()
     equiJoinFilters.foreach {
       case c: RexCall =>
         require(c.isA(SqlKind.EQUALS))
         val left = c.operands.head
         val right = c.operands(1)
-        equiJoinFilterMap.getOrElseUpdate(left.toString, mutable.ListBuffer[RexNode]()) += right
-        equiJoinFilterMap.getOrElseUpdate(right.toString, mutable.ListBuffer[RexNode]()) += left
+        equiJoinFilterMap.getOrElseUpdate(left, mutable.ListBuffer[RexNode]()) += right
+        equiJoinFilterMap.getOrElseUpdate(right, mutable.ListBuffer[RexNode]()) += left
     }
 
     val candidateJoinFilters = equiJoinFilterMap.values.filter(_.size > 1)
@@ -72,7 +72,7 @@ class RewriteMultiJoinConditionRule extends RelOptRule(
 
     val newEquiJoinFilters = mutable.ListBuffer[RexNode](equiJoinFilters: _*)
     def containEquiJoinFilter(joinFilter: RexNode): Boolean = {
-      newEquiJoinFilters.exists { f => f.toString.equals(joinFilter.toString) }
+      newEquiJoinFilters.exists { f => f.equals(joinFilter) }
     }
 
     val rexBuilder = multiJoin.getCluster.getRexBuilder
@@ -82,11 +82,9 @@ class RewriteMultiJoinConditionRule extends RelOptRule(
           val op1 = candidate(startIndex)
           candidate.subList(startIndex + 1, candidate.size).foreach {
             op2 =>
-              // `a = b` and `b = a` are the same
-              val newFilter1 = rexBuilder.makeCall(EQUALS, op1, op2)
-              val newFilter2 = rexBuilder.makeCall(EQUALS, op2, op1)
-              if (!containEquiJoinFilter(newFilter1) && !containEquiJoinFilter(newFilter2)) {
-                newEquiJoinFilters += newFilter1
+              val newFilter = rexBuilder.makeCall(EQUALS, op1, op2)
+              if (!containEquiJoinFilter(newFilter)) {
+                newEquiJoinFilters += newFilter
               }
           }
       }

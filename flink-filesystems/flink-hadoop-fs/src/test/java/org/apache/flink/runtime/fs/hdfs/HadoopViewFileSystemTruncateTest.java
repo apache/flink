@@ -51,122 +51,122 @@ import java.io.InputStreamReader;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for {@link org.apache.hadoop.fs.viewfs.ViewFileSystem} support.
- */
+/** Test for {@link org.apache.hadoop.fs.viewfs.ViewFileSystem} support. */
 public class HadoopViewFileSystemTruncateTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	private final FileSystemTestHelper fileSystemTestHelper = new FileSystemTestHelper("/tests");
+    private final FileSystemTestHelper fileSystemTestHelper = new FileSystemTestHelper("/tests");
 
-	private static MiniDFSCluster hdfsCluster;
-	private static FileSystem fHdfs;
-	private static org.apache.flink.core.fs.FileSystem fSystem;
+    private static MiniDFSCluster hdfsCluster;
+    private static FileSystem fHdfs;
+    private static org.apache.flink.core.fs.FileSystem fSystem;
 
-	private Configuration fsViewConf;
-	private FileSystem fsTarget;
-	private Path targetTestRoot;
+    private Configuration fsViewConf;
+    private FileSystem fsTarget;
+    private Path targetTestRoot;
 
-	@BeforeClass
-	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
-	}
+    @BeforeClass
+    public static void testHadoopVersion() {
+        Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+    }
 
-	@BeforeClass
-	public static void verifyOS() {
-		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
-	}
+    @BeforeClass
+    public static void verifyOS() {
+        Assume.assumeTrue(
+                "HDFS cluster cannot be started on Windows without extensions.",
+                !OperatingSystem.isWindows());
+    }
 
-	@BeforeClass
-	public static void createHDFS() throws Exception {
-		final File baseDir = TEMP_FOLDER.newFolder();
+    @BeforeClass
+    public static void createHDFS() throws Exception {
+        final File baseDir = TEMP_FOLDER.newFolder();
 
-		final Configuration hdConf = new Configuration();
-		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+        final Configuration hdConf = new Configuration();
+        hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
 
-		final MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf)
-				.nnTopology(MiniDFSNNTopology.simpleFederatedTopology(1));
-		hdfsCluster = builder.build();
-		hdfsCluster.waitClusterUp();
+        final MiniDFSCluster.Builder builder =
+                new MiniDFSCluster.Builder(hdConf)
+                        .nnTopology(MiniDFSNNTopology.simpleFederatedTopology(1));
+        hdfsCluster = builder.build();
+        hdfsCluster.waitClusterUp();
 
-		fHdfs = hdfsCluster.getFileSystem(0);
-	}
+        fHdfs = hdfsCluster.getFileSystem(0);
+    }
 
-	@Before
-	public void setUp() throws Exception {
-		fsTarget = fHdfs;
-		targetTestRoot = fileSystemTestHelper.getAbsoluteTestRootPath(fsTarget);
+    @Before
+    public void setUp() throws Exception {
+        fsTarget = fHdfs;
+        targetTestRoot = fileSystemTestHelper.getAbsoluteTestRootPath(fsTarget);
 
-		fsTarget.delete(targetTestRoot, true);
-		fsTarget.mkdirs(targetTestRoot);
+        fsTarget.delete(targetTestRoot, true);
+        fsTarget.mkdirs(targetTestRoot);
 
-		fsViewConf = ViewFileSystemTestSetup.createConfig();
-		setupMountPoints();
-		FileSystem fsView = FileSystem.get(FsConstants.VIEWFS_URI, fsViewConf);
-		fSystem = new HadoopFileSystem(fsView);
-	}
+        fsViewConf = ViewFileSystemTestSetup.createConfig();
+        setupMountPoints();
+        FileSystem fsView = FileSystem.get(FsConstants.VIEWFS_URI, fsViewConf);
+        fSystem = new HadoopFileSystem(fsView);
+    }
 
-	private void setupMountPoints() {
-		Path mountOnNn1 = new Path("/mountOnNn1");
-		ConfigUtil.addLink(fsViewConf, mountOnNn1.toString(), targetTestRoot.toUri());
-	}
+    private void setupMountPoints() {
+        Path mountOnNn1 = new Path("/mountOnNn1");
+        ConfigUtil.addLink(fsViewConf, mountOnNn1.toString(), targetTestRoot.toUri());
+    }
 
-	@AfterClass
-	public static void shutdownCluster() {
-		hdfsCluster.shutdown();
-	}
+    @AfterClass
+    public static void shutdownCluster() {
+        hdfsCluster.shutdown();
+    }
 
-	@After
-	public void tearDown() throws Exception {
-		fsTarget.delete(fileSystemTestHelper.getTestRootPath(fsTarget), true);
-	}
+    @After
+    public void tearDown() throws Exception {
+        fsTarget.delete(fileSystemTestHelper.getTestRootPath(fsTarget), true);
+    }
 
-	@Test
-	public void testViewFileSystemRecoverWorks() throws IOException {
+    @Test
+    public void testViewFileSystemRecoverWorks() throws IOException {
 
-		final org.apache.flink.core.fs.Path testPath = new org.apache.flink.core.fs.Path(
-				fSystem.getUri() + "mountOnNn1/test-1");
-		final String expectedContent = "test_line";
+        final org.apache.flink.core.fs.Path testPath =
+                new org.apache.flink.core.fs.Path(fSystem.getUri() + "mountOnNn1/test-1");
+        final String expectedContent = "test_line";
 
-		final RecoverableWriter writer = fSystem.createRecoverableWriter();
-		final RecoverableFsDataOutputStream streamUnderTest = getOpenStreamToFileWithContent(
-				writer, testPath, expectedContent);
+        final RecoverableWriter writer = fSystem.createRecoverableWriter();
+        final RecoverableFsDataOutputStream streamUnderTest =
+                getOpenStreamToFileWithContent(writer, testPath, expectedContent);
 
-		final ResumeRecoverable resumeRecover = streamUnderTest.persist();
+        final ResumeRecoverable resumeRecover = streamUnderTest.persist();
 
-		final RecoverableFsDataOutputStream recover = writer.recover(resumeRecover);
+        final RecoverableFsDataOutputStream recover = writer.recover(resumeRecover);
 
-		final RecoverableWriter.CommitRecoverable committable = recover.closeForCommit().getRecoverable();
+        final RecoverableWriter.CommitRecoverable committable =
+                recover.closeForCommit().getRecoverable();
 
-		final RecoverableWriter recoveredWriter = fSystem.createRecoverableWriter();
-		recoveredWriter.recoverForCommit(committable).commitAfterRecovery();
+        final RecoverableWriter recoveredWriter = fSystem.createRecoverableWriter();
+        recoveredWriter.recoverForCommit(committable).commitAfterRecovery();
 
-		verifyFileContent(testPath, expectedContent);
-	}
+        verifyFileContent(testPath, expectedContent);
+    }
 
-	private RecoverableFsDataOutputStream getOpenStreamToFileWithContent(
-			final RecoverableWriter writerUnderTest,
-			final org.apache.flink.core.fs.Path path,
-			final String expectedContent) throws IOException {
-		final byte[] content = expectedContent.getBytes(UTF_8);
+    private RecoverableFsDataOutputStream getOpenStreamToFileWithContent(
+            final RecoverableWriter writerUnderTest,
+            final org.apache.flink.core.fs.Path path,
+            final String expectedContent)
+            throws IOException {
+        final byte[] content = expectedContent.getBytes(UTF_8);
 
-		final RecoverableFsDataOutputStream streamUnderTest = writerUnderTest.open(path);
-		streamUnderTest.write(content);
-		return streamUnderTest;
-	}
+        final RecoverableFsDataOutputStream streamUnderTest = writerUnderTest.open(path);
+        streamUnderTest.write(content);
+        return streamUnderTest;
+    }
 
-	private static void verifyFileContent(
-			final org.apache.flink.core.fs.Path testPath,
-			final String expectedContent) throws IOException {
-		try (
-				FSDataInputStream in = fSystem.open(testPath);
-				InputStreamReader ir = new InputStreamReader(in, UTF_8);
-				BufferedReader reader = new BufferedReader(ir)
-		) {
-			final String line = reader.readLine();
-			assertEquals(expectedContent, line);
-		}
-	}
+    private static void verifyFileContent(
+            final org.apache.flink.core.fs.Path testPath, final String expectedContent)
+            throws IOException {
+        try (FSDataInputStream in = fSystem.open(testPath);
+                InputStreamReader ir = new InputStreamReader(in, UTF_8);
+                BufferedReader reader = new BufferedReader(ir)) {
+            final String line = reader.readLine();
+            assertEquals(expectedContent, line);
+        }
+    }
 }

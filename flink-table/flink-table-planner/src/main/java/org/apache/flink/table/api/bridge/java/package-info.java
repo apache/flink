@@ -18,20 +18,17 @@
 
 /**
  * <strong>Table API (Java)</strong><br>
- *
  * A {@link org.apache.flink.table.api.bridge.java.BatchTableEnvironment} can be used to create a
  * {@link org.apache.flink.table.api.Table} from a {@link org.apache.flink.api.java.DataSet}.
- * Equivalently, a {@link org.apache.flink.table.api.bridge.java.StreamTableEnvironment} can be used to
- * create a {@link org.apache.flink.table.api.Table} from a
- * {@link org.apache.flink.streaming.api.datastream.DataStream}.
+ * Equivalently, a {@link org.apache.flink.table.api.bridge.java.StreamTableEnvironment} can be used
+ * to create a {@link org.apache.flink.table.api.Table} from a {@link
+ * org.apache.flink.streaming.api.datastream.DataStream}.
  *
- * <p>
- * Tables can be used to perform SQL-like queries on data. Please have
- * a look at {@link org.apache.flink.table.api.Table} to see which operations are supported and
- * how query strings are written.
+ * <p>Tables can be used to perform SQL-like queries on data. Please have a look at {@link
+ * org.apache.flink.table.api.Table} to see which operations are supported and how query strings are
+ * written.
  *
- * <p>
- * Example:
+ * <p>Example:
  *
  * <pre>{@code
  * ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -54,14 +51,14 @@
  * result.print();
  * }</pre>
  *
- * <p>
- * As seen above, a {@link org.apache.flink.table.api.Table} can be converted back to the
- * underlying API representation using
- * {@link org.apache.flink.table.api.bridge.java.BatchTableEnvironment#toDataSet(Table, java.lang.Class)},
- * {@link org.apache.flink.table.api.bridge.java.StreamTableEnvironment#toAppendStream(Table, java.lang.Class)}}, or
- * {@link org.apache.flink.table.api.bridge.java.StreamTableEnvironment#toRetractStream(Table, java.lang.Class)}}.
+ * <p>As seen above, a {@link org.apache.flink.table.api.Table} can be converted back to the
+ * underlying API representation using {@link
+ * org.apache.flink.table.api.bridge.java.BatchTableEnvironment#toDataSet(Table, java.lang.Class)},
+ * {@link org.apache.flink.table.api.bridge.java.StreamTableEnvironment#toAppendStream(Table,
+ * java.lang.Class)}}, or {@link
+ * org.apache.flink.table.api.bridge.java.StreamTableEnvironment#toRetractStream(Table,
+ * java.lang.Class)}}.
  */
-
 package org.apache.flink.table.api.bridge.java;
 
 import org.apache.flink.table.api.Table;

@@ -22,13 +22,14 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLegacySink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexBuilder
 
 import java.util.Collections
 
@@ -57,7 +58,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     val optimizedTree = optimizeTree(originTree)
 
     optimizedTree match {
-      case _: BatchExecLegacySink[_] => // ignore
+      case _: LegacySink | _: Sink => // ignore
       case _ =>
         val name = createUniqueIntermediateRelTableName
         val intermediateRelTable =  new IntermediateRelTable(Collections.singletonList(name),
@@ -92,6 +93,10 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory
+
+      override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
+
+      override def needFinalTimeIndicatorConversion: Boolean = true
     })
   }
 

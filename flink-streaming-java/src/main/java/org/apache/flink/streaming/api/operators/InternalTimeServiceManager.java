@@ -22,58 +22,61 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
-import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+
+import java.io.Serializable;
 
 /**
  * An entity keeping all the time-related services.
  *
- * <b>NOTE:</b> These services are only available to keyed operators.
+ * <p><b>NOTE:</b> These services are only available to keyed operators.
  *
  * @param <K> The type of keys used for the timers and the registry.
  */
 @Internal
 public interface InternalTimeServiceManager<K> {
-	/**
-	 * Creates an {@link InternalTimerService} for handling a group of timers identified by
-	 * the given {@code name}. The timers are scoped to a key and namespace.
-	 *
-	 * <p>When a timer fires the given {@link Triggerable} will be invoked.
-	 */
-	<N> InternalTimerService<N> getInternalTimerService(
-		String name,
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		Triggerable<K, N> triggerable);
+    /**
+     * Creates an {@link InternalTimerService} for handling a group of timers identified by the
+     * given {@code name}. The timers are scoped to a key and namespace.
+     *
+     * <p>When a timer fires the given {@link Triggerable} will be invoked.
+     */
+    <N> InternalTimerService<N> getInternalTimerService(
+            String name,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            Triggerable<K, N> triggerable);
 
-	/**
-	 * Advances the Watermark of all managed {@link InternalTimerService timer services},
-	 * potentially firing event time timers.
-	 */
-	void advanceWatermark(Watermark watermark) throws Exception;
+    /**
+     * Advances the Watermark of all managed {@link InternalTimerService timer services},
+     * potentially firing event time timers.
+     */
+    void advanceWatermark(Watermark watermark) throws Exception;
 
-	/**
-	 * Snapshots the timers to keyed state.
-	 *
-	 * <p><b>TODO:</b> This can be removed once heap-based timers are integrated with RocksDB
-	 * incremental snapshots.
-	 */
-	void snapshotState(
-		StateSnapshotContext context,
-		String operatorName) throws Exception;
+    /**
+     * Snapshots the timers to raw keyed state.
+     *
+     * <p><b>TODO:</b> This can be removed once heap-based timers are integrated with RocksDB
+     * incremental snapshots.
+     */
+    void snapshotToRawKeyedState(
+            KeyedStateCheckpointOutputStream stateCheckpointOutputStream, String operatorName)
+            throws Exception;
 
-	/**
-	 * A provider pattern for creating an instance of a {@link InternalTimeServiceManager}.
-	 * Allows substituting the manager that will be used at the runtime.
-	 */
-	@FunctionalInterface
-	interface Provider {
-		<K> InternalTimeServiceManager<K> create(
-			CheckpointableKeyedStateBackend<K> keyedStatedBackend,
-			ClassLoader userClassloader,
-			KeyContext keyContext,
-			ProcessingTimeService processingTimeService,
-			Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception;
-	}
+    /**
+     * A provider pattern for creating an instance of a {@link InternalTimeServiceManager}. Allows
+     * substituting the manager that will be used at the runtime.
+     */
+    @FunctionalInterface
+    interface Provider extends Serializable {
+        <K> InternalTimeServiceManager<K> create(
+                CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                ClassLoader userClassloader,
+                KeyContext keyContext,
+                ProcessingTimeService processingTimeService,
+                Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                throws Exception;
+    }
 }

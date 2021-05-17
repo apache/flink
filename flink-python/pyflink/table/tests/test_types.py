@@ -544,6 +544,9 @@ class TypesTests(PyFlinkTestCase):
                                    "under Windows platform")
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+        last_abbreviation = DataTypes.TIMESTAMP_LTZ()
+        self.assertEqual(lztst, last_abbreviation)
+
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
         self.assertEqual(0, lztst.to_sql_type(ts))
 
@@ -910,6 +913,16 @@ class DataTypeConvertTests(PyFlinkTestCase):
 
         self.assertEqual(test_types, converted_python_types)
 
+    def test_list_view_type(self):
+        test_types = [DataTypes.LIST_VIEW(DataTypes.BIGINT()),
+                      DataTypes.LIST_VIEW(DataTypes.STRING())]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
 
 class DataSerializerTests(PyFlinkTestCase):
 
@@ -919,7 +932,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 
@@ -935,7 +948,7 @@ class DataSerializerTests(PyFlinkTestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 

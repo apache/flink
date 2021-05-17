@@ -24,26 +24,24 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.UUID;
 
-/**
- * Tests for the {@link WritableComparator} with {@link WritableID}.
- */
+/** Tests for the {@link WritableComparator} with {@link WritableID}. */
 public class WritableComparatorUUIDTest extends ComparatorTestBase<WritableID> {
-	@Override
-	protected TypeComparator<WritableID> createComparator(boolean ascending) {
-		return new WritableComparator<>(ascending, WritableID.class);
-	}
+    @Override
+    protected TypeComparator<WritableID> createComparator(boolean ascending) {
+        return new WritableComparator<>(ascending, WritableID.class);
+    }
 
-	@Override
-	protected TypeSerializer<WritableID> createSerializer() {
-		return new WritableSerializer<>(WritableID.class);
-	}
+    @Override
+    protected TypeSerializer<WritableID> createSerializer() {
+        return new WritableSerializer<>(WritableID.class);
+    }
 
-	@Override
-	protected WritableID[] getSortedTestData() {
-		return new WritableID[] {
-			new WritableID(new UUID(0, 0)),
-			new WritableID(new UUID(1, 0)),
-			new WritableID(new UUID(1, 1))
-		};
-	}
+    @Override
+    protected WritableID[] getSortedTestData() {
+        return new WritableID[] {
+            new WritableID(new UUID(0, 0)),
+            new WritableID(new UUID(1, 0)),
+            new WritableID(new UUID(1, 1))
+        };
+    }
 }

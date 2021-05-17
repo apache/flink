@@ -48,151 +48,151 @@ import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.MAX_CONC
 import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPLOAD_MIN_SIZE;
 
 /**
- * Tests for exception throwing in the
- * {@link org.apache.flink.fs.s3.common.writer.S3RecoverableWriter S3RecoverableWriter}.
+ * Tests for exception throwing in the {@link
+ * org.apache.flink.fs.s3.common.writer.S3RecoverableWriter S3RecoverableWriter}.
  */
 public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
-	// ----------------------- S3 general configuration -----------------------
+    // ----------------------- S3 general configuration -----------------------
 
-	private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
-	private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
+    private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
+    private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
-	// ----------------------- Test Specific configuration -----------------------
+    // ----------------------- Test Specific configuration -----------------------
 
-	private static final Random RND = new Random();
+    private static final Random RND = new Random();
 
-	private static Path basePath;
+    private static Path basePath;
 
-	private static FlinkS3FileSystem fileSystem;
+    private static FlinkS3FileSystem fileSystem;
 
-	// this is set for every test @Before
-	private Path basePathForTest;
+    // this is set for every test @Before
+    private Path basePathForTest;
 
-	// ----------------------- Test Data to be used -----------------------
+    // ----------------------- Test Data to be used -----------------------
 
-	private static final String testData1 = "THIS IS A TEST 1.";
-	private static final String testData2 = "THIS IS A TEST 2.";
-	private static final String testData3 = "THIS IS A TEST 3.";
+    private static final String testData1 = "THIS IS A TEST 1.";
+    private static final String testData2 = "THIS IS A TEST 2.";
+    private static final String testData3 = "THIS IS A TEST 3.";
 
-	private static boolean skipped = true;
+    private static boolean skipped = true;
 
-	@ClassRule
-	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	@BeforeClass
-	public static void checkCredentialsAndSetup() throws IOException {
-		// check whether credentials exist
-		S3TestCredentials.assumeCredentialsAvailable();
+    @BeforeClass
+    public static void checkCredentialsAndSetup() throws IOException {
+        // check whether credentials exist
+        S3TestCredentials.assumeCredentialsAvailable();
 
-		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
 
-		// initialize configuration with valid credentials
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        // initialize configuration with valid credentials
+        final Configuration conf = new Configuration();
+        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
-		conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
-		conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
+        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-		final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
-		conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
+        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
 
-		FileSystem.initialize(conf);
+        FileSystem.initialize(conf);
 
-		skipped = false;
-	}
+        skipped = false;
+    }
 
-	@AfterClass
-	public static void cleanUp() throws Exception {
-		if (!skipped) {
-			getFileSystem().delete(basePath, true);
-		}
-		FileSystem.initialize(new Configuration());
-	}
+    @AfterClass
+    public static void cleanUp() throws Exception {
+        if (!skipped) {
+            getFileSystem().delete(basePath, true);
+        }
+        FileSystem.initialize(new Configuration());
+    }
 
-	@Before
-	public void prepare() throws Exception {
-		basePathForTest = new Path(
-				basePath,
-				StringUtils.getRandomString(RND, 16, 16, 'a', 'z'));
+    @Before
+    public void prepare() throws Exception {
+        basePathForTest = new Path(basePath, StringUtils.getRandomString(RND, 16, 16, 'a', 'z'));
 
-		final String defaultTmpDir = getFileSystem().getLocalTmpDir();
-		final java.nio.file.Path path = Paths.get(defaultTmpDir);
+        final String defaultTmpDir = getFileSystem().getLocalTmpDir();
+        final java.nio.file.Path path = Paths.get(defaultTmpDir);
 
-		if (!Files.exists(path)) {
-			Files.createDirectory(path);
-		}
-	}
+        if (!Files.exists(path)) {
+            Files.createDirectory(path);
+        }
+    }
 
-	@After
-	public void cleanup() throws Exception {
-		getFileSystem().delete(basePathForTest, true);
-	}
+    @After
+    public void cleanup() throws Exception {
+        getFileSystem().delete(basePathForTest, true);
+    }
 
-	private static FlinkS3FileSystem getFileSystem() throws Exception {
-		if (fileSystem == null) {
-			fileSystem = (FlinkS3FileSystem) FileSystem.get(basePath.toUri());
-		}
-		return fileSystem;
-	}
+    private static FlinkS3FileSystem getFileSystem() throws Exception {
+        if (fileSystem == null) {
+            fileSystem = (FlinkS3FileSystem) FileSystem.get(basePath.toUri());
+        }
+        return fileSystem;
+    }
 
-	@Test(expected = IOException.class)
-	public void testExceptionWritingAfterCloseForCommit() throws Exception {
-		final Path path = new Path(basePathForTest, "part-0");
+    @Test(expected = IOException.class)
+    public void testExceptionWritingAfterCloseForCommit() throws Exception {
+        final Path path = new Path(basePathForTest, "part-0");
 
-		final RecoverableFsDataOutputStream stream = getFileSystem().createRecoverableWriter().open(path);
-		stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+        final RecoverableFsDataOutputStream stream =
+                getFileSystem().createRecoverableWriter().open(path);
+        stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
-		stream.closeForCommit().getRecoverable();
-		stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-	}
+        stream.closeForCommit().getRecoverable();
+        stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+    }
 
-	// IMPORTANT FOR THE FOLLOWING TWO TESTS:
+    // IMPORTANT FOR THE FOLLOWING TWO TESTS:
 
-	// These tests illustrate a difference in the user-perceived behavior of the different writers.
-	// In HDFS this will fail when trying to recover the stream while here is will fail at "commit", i.e.
-	// when we try to "publish" the multipart upload and we realize that the MPU is no longer active.
+    // These tests illustrate a difference in the user-perceived behavior of the different writers.
+    // In HDFS this will fail when trying to recover the stream while here is will fail at "commit",
+    // i.e.
+    // when we try to "publish" the multipart upload and we realize that the MPU is no longer
+    // active.
 
-	@Test(expected = IOException.class)
-	public void testResumeAfterCommit() throws Exception {
-		final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
-		final Path path = new Path(basePathForTest, "part-0");
+    @Test(expected = IOException.class)
+    public void testResumeAfterCommit() throws Exception {
+        final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
+        final Path path = new Path(basePathForTest, "part-0");
 
-		final RecoverableFsDataOutputStream stream = writer.open(path);
-		stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+        final RecoverableFsDataOutputStream stream = writer.open(path);
+        stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
-		final RecoverableWriter.ResumeRecoverable recoverable = stream.persist();
-		stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+        final RecoverableWriter.ResumeRecoverable recoverable = stream.persist();
+        stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
-		stream.closeForCommit().commit();
+        stream.closeForCommit().commit();
 
-		final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable);
-		recoveredStream.closeForCommit().commit();
-	}
+        final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable);
+        recoveredStream.closeForCommit().commit();
+    }
 
-	@Test(expected = IOException.class)
-	public void testResumeWithWrongOffset() throws Exception {
-		// this is a rather unrealistic scenario, but it is to trigger
-		// truncation of the file and try to resume with missing data.
+    @Test(expected = IOException.class)
+    public void testResumeWithWrongOffset() throws Exception {
+        // this is a rather unrealistic scenario, but it is to trigger
+        // truncation of the file and try to resume with missing data.
 
-		final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
-		final Path path = new Path(basePathForTest, "part-0");
+        final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
+        final Path path = new Path(basePathForTest, "part-0");
 
-		final RecoverableFsDataOutputStream stream = writer.open(path);
-		stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+        final RecoverableFsDataOutputStream stream = writer.open(path);
+        stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
-		final RecoverableWriter.ResumeRecoverable recoverable1 = stream.persist();
-		stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+        final RecoverableWriter.ResumeRecoverable recoverable1 = stream.persist();
+        stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
-		final RecoverableWriter.ResumeRecoverable recoverable2 = stream.persist();
-		stream.write(testData3.getBytes(StandardCharsets.UTF_8));
+        final RecoverableWriter.ResumeRecoverable recoverable2 = stream.persist();
+        stream.write(testData3.getBytes(StandardCharsets.UTF_8));
 
-		final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable1);
-		recoveredStream.closeForCommit().commit();
+        final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable1);
+        recoveredStream.closeForCommit().commit();
 
-		// this should throw an exception
-		final RecoverableFsDataOutputStream newRecoveredStream = writer.recover(recoverable2);
-		newRecoveredStream.closeForCommit().commit();
-	}
+        // this should throw an exception
+        final RecoverableFsDataOutputStream newRecoveredStream = writer.recover(recoverable2);
+        newRecoveredStream.closeForCommit().commit();
+    }
 }

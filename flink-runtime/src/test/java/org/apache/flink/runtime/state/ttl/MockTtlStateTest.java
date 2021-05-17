@@ -18,18 +18,26 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 
 /** Test suite for mock state TTL. */
 public class MockTtlStateTest extends TtlStateTestBase {
-	@Override
-	protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
-		return new StateBackendTestContext(timeProvider) {
-			@Override
-			protected StateBackend createStateBackend() {
-				return new MockStateBackend();
-			}
-		};
-	}
+
+    @Override
+    protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
+        return new StateBackendTestContext(timeProvider) {
+            @Override
+            protected StateBackend createStateBackend() {
+                return new MockStateBackend();
+            }
+
+            @Override
+            protected CheckpointStorage createCheckpointStorage() {
+                return new MockCheckpointStorage();
+            }
+        };
+    }
 }

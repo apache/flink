@@ -18,10 +18,13 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcSplitReaderUtil;
 import org.apache.flink.orc.nohive.OrcNoHiveSplitReaderUtil;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
@@ -33,79 +36,87 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
-/**
- * Orc {@link SplitReader} to read files using {@link OrcColumnarRowSplitReader}.
- */
+/** Orc {@link SplitReader} to read files using {@link OrcColumnarRowSplitReader}. */
 public class HiveVectorizedOrcSplitReader implements SplitReader {
 
-	private OrcColumnarRowSplitReader reader;
+    private OrcColumnarRowSplitReader reader;
 
-	public HiveVectorizedOrcSplitReader(
-			String hiveVersion,
-			JobConf jobConf,
-			String[] fieldNames,
-			DataType[] fieldTypes,
-			int[] selectedFields,
-			HiveTableInputSplit split) throws IOException {
-		StorageDescriptor sd = split.getHiveTablePartition().getStorageDescriptor();
+    public HiveVectorizedOrcSplitReader(
+            String hiveVersion,
+            JobConf jobConf,
+            String[] fieldNames,
+            DataType[] fieldTypes,
+            int[] selectedFields,
+            HiveTableInputSplit split)
+            throws IOException {
+        StorageDescriptor sd = split.getHiveTablePartition().getStorageDescriptor();
 
-		Configuration conf = new Configuration(jobConf);
-		sd.getSerdeInfo().getParameters().forEach(conf::set);
+        Configuration conf = new Configuration(jobConf);
+        sd.getSerdeInfo().getParameters().forEach(conf::set);
 
-		InputSplit hadoopSplit = split.getHadoopInputSplit();
-		FileSplit fileSplit;
-		if (hadoopSplit instanceof FileSplit) {
-			fileSplit = (FileSplit) hadoopSplit;
-		} else {
-			throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
-		}
+        InputSplit hadoopSplit = split.getHadoopInputSplit();
+        FileSplit fileSplit;
+        if (hadoopSplit instanceof FileSplit) {
+            fileSplit = (FileSplit) hadoopSplit;
+        } else {
+            throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
+        }
 
-		this.reader = hiveVersion.startsWith("1.") ?
-				OrcNoHiveSplitReaderUtil.genPartColumnarRowReader(
-						conf,
-						fieldNames,
-						fieldTypes,
-						split.getHiveTablePartition().getPartitionSpec(),
-						selectedFields,
-						new ArrayList<>(),
-						DEFAULT_SIZE,
-						new Path(fileSplit.getPath().toString()),
-						fileSplit.getStart(),
-						fileSplit.getLength()) :
-				OrcSplitReaderUtil.genPartColumnarRowReader(
-						hiveVersion,
-						conf,
-						fieldNames,
-						fieldTypes,
-						split.getHiveTablePartition().getPartitionSpec(),
-						selectedFields,
-						new ArrayList<>(),
-						DEFAULT_SIZE,
-						new Path(fileSplit.getPath().toString()),
-						fileSplit.getStart(),
-						fileSplit.getLength());
-	}
+        Map<String, Object> partitionValues =
+                HivePartitionUtils.parsePartitionValues(
+                        split.getHiveTablePartition().getPartitionSpec(),
+                        fieldNames,
+                        fieldTypes,
+                        JobConfUtils.getDefaultPartitionName(jobConf),
+                        HiveShimLoader.loadHiveShim(hiveVersion));
+        this.reader =
+                hiveVersion.startsWith("1.")
+                        ? OrcNoHiveSplitReaderUtil.genPartColumnarRowReader(
+                                conf,
+                                fieldNames,
+                                fieldTypes,
+                                partitionValues,
+                                selectedFields,
+                                new ArrayList<>(),
+                                DEFAULT_SIZE,
+                                new Path(fileSplit.getPath().toString()),
+                                fileSplit.getStart(),
+                                fileSplit.getLength())
+                        : OrcSplitReaderUtil.genPartColumnarRowReader(
+                                hiveVersion,
+                                conf,
+                                fieldNames,
+                                fieldTypes,
+                                partitionValues,
+                                selectedFields,
+                                new ArrayList<>(),
+                                DEFAULT_SIZE,
+                                new Path(fileSplit.getPath().toString()),
+                                fileSplit.getStart(),
+                                fileSplit.getLength());
+    }
 
-	@Override
-	public void seekToRow(long rowCount, RowData reuse) throws IOException {
-		this.reader.seekToRow(rowCount);
-	}
+    @Override
+    public void seekToRow(long rowCount, RowData reuse) throws IOException {
+        this.reader.seekToRow(rowCount);
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return this.reader.reachedEnd();
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return this.reader.reachedEnd();
+    }
 
-	@Override
-	public RowData nextRecord(RowData reuse) {
-		return this.reader.nextRecord(reuse);
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) {
+        return this.reader.nextRecord(reuse);
+    }
 
-	@Override
-	public void close() throws IOException {
-		this.reader.close();
-	}
+    @Override
+    public void close() throws IOException {
+        this.reader.close();
+    }
 }

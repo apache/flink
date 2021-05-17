@@ -43,69 +43,71 @@ import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link YarnApplicationFileUploader}.
- */
+/** Tests for the {@link YarnApplicationFileUploader}. */
 public class YarnApplicationFileUploaderTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testRegisterProvidedLocalResources() throws IOException {
-		final File flinkLibDir = temporaryFolder.newFolder();
-		final Map<String, String> libJars = getLibJars();
+    @Test
+    public void testRegisterProvidedLocalResources() throws IOException {
+        final File flinkLibDir = temporaryFolder.newFolder();
+        final Map<String, String> libJars = getLibJars();
 
-		generateFilesInDirectory(flinkLibDir, libJars);
+        generateFilesInDirectory(flinkLibDir, libJars);
 
-		try (final YarnApplicationFileUploader yarnApplicationFileUploader = YarnApplicationFileUploader.from(
-				FileSystem.get(new YarnConfiguration()),
-				new Path(temporaryFolder.getRoot().toURI()),
-				Collections.singletonList(new Path(flinkLibDir.toURI())),
-				ApplicationId.newInstance(0, 0),
-				DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        FileSystem.get(new YarnConfiguration()),
+                        new Path(temporaryFolder.getRoot().toURI()),
+                        Collections.singletonList(new Path(flinkLibDir.toURI())),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
 
-			yarnApplicationFileUploader.registerProvidedLocalResources();
+            yarnApplicationFileUploader.registerProvidedLocalResources();
 
-			final Set<String> registeredResources = yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
+            final Set<String> registeredResources =
+                    yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
 
-			assertThat(registeredResources, Matchers.containsInAnyOrder(libJars.keySet().toArray()));
-		}
-	}
+            assertThat(
+                    registeredResources, Matchers.containsInAnyOrder(libJars.keySet().toArray()));
+        }
+    }
 
-	@Test
-	public void testRegisterProvidedLocalResourcesWithDuplication() throws IOException {
-		final File flinkLibDir1 = temporaryFolder.newFolder();
-		final File flinkLibDir2 = temporaryFolder.newFolder();
+    @Test
+    public void testRegisterProvidedLocalResourcesWithDuplication() throws IOException {
+        final File flinkLibDir1 = temporaryFolder.newFolder();
+        final File flinkLibDir2 = temporaryFolder.newFolder();
 
-		generateFilesInDirectory(flinkLibDir1, getLibJars());
-		generateFilesInDirectory(flinkLibDir2, getLibJars());
+        generateFilesInDirectory(flinkLibDir1, getLibJars());
+        generateFilesInDirectory(flinkLibDir2, getLibJars());
 
-		final FileSystem fileSystem = FileSystem.get(new YarnConfiguration());
-		try {
-			assertThrows(
-				"Two files with the same filename exist in the shared libs",
-				RuntimeException.class,
-				() -> YarnApplicationFileUploader.from(
-						fileSystem,
-						new Path(temporaryFolder.getRoot().toURI()),
-						Arrays.asList(new Path(flinkLibDir1.toURI()), new Path(flinkLibDir2.toURI())),
-						ApplicationId.newInstance(0, 0),
-						DFSConfigKeys.DFS_REPLICATION_DEFAULT));
-		} finally {
-			IOUtils.closeQuietly(fileSystem);
-		}
-	}
+        final FileSystem fileSystem = FileSystem.get(new YarnConfiguration());
+        try {
+            assertThrows(
+                    "Two files with the same filename exist in the shared libs",
+                    RuntimeException.class,
+                    () ->
+                            YarnApplicationFileUploader.from(
+                                    fileSystem,
+                                    new Path(temporaryFolder.getRoot().toURI()),
+                                    Arrays.asList(
+                                            new Path(flinkLibDir1.toURI()),
+                                            new Path(flinkLibDir2.toURI())),
+                                    ApplicationId.newInstance(0, 0),
+                                    DFSConfigKeys.DFS_REPLICATION_DEFAULT));
+        } finally {
+            IOUtils.closeQuietly(fileSystem);
+        }
+    }
 
-	private static Map<String, String> getLibJars() {
-		final HashMap<String, String> libJars = new HashMap<>(4);
-		final String jarContent = "JAR Content";
+    private static Map<String, String> getLibJars() {
+        final HashMap<String, String> libJars = new HashMap<>(4);
+        final String jarContent = "JAR Content";
 
-		libJars.put("flink-dist.jar", jarContent);
-		libJars.put("log4j.jar", jarContent);
-		libJars.put("flink-table.jar", jarContent);
+        libJars.put("flink-dist.jar", jarContent);
+        libJars.put("log4j.jar", jarContent);
+        libJars.put("flink-table.jar", jarContent);
 
-		return libJars;
-	}
+        return libJars;
+    }
 }
-

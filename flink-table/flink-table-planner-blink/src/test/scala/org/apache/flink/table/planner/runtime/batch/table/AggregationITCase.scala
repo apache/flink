@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinctWithMergeAndReset, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.{CountAggFunction, NonMergableCount}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._
@@ -37,6 +38,9 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class AggregationITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testAggregationWithCaseClass(): Unit = {
@@ -354,15 +358,15 @@ class AggregationITCase extends BatchTestBase {
 
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
       .groupBy('b)
-      .select('b, top10Fun('b.cast(Types.INT), 'a.cast(Types.FLOAT)))
+      .select('b, top10Fun('b.cast(DataTypes.INT()).ifNull(0), 'a.cast(DataTypes.FLOAT).ifNull(0f)))
 
     val expected =
-      "1,[1,1.0, null, null, null, null, null, null, null, null, null]\n" +
-        "2,[2,3.0, 2,2.0, null, null, null, null, null, null, null, null]\n" +
-        "3,[3,6.0, 3,5.0, 3,4.0, null, null, null, null, null, null, null]\n" +
-        "4,[4,10.0, 4,9.0, 4,8.0, 4,7.0, null, null, null, null, null, null]\n" +
-        "5,[5,15.0, 5,14.0, 5,13.0, 5,12.0, 5,11.0, null, null, null, null, null]\n" +
-        "6,[6,21.0, 6,20.0, 6,19.0, 6,18.0, 6,17.0, 6,16.0, null, null, null, null]"
+      "1,[(1,1.0), null, null, null, null, null, null, null, null, null]\n" +
+        "2,[(2,3.0), (2,2.0), null, null, null, null, null, null, null, null]\n" +
+        "3,[(3,6.0), (3,5.0), (3,4.0), null, null, null, null, null, null, null]\n" +
+        "4,[(4,10.0), (4,9.0), (4,8.0), (4,7.0), null, null, null, null, null, null]\n" +
+        "5,[(5,15.0), (5,14.0), (5,13.0), (5,12.0), (5,11.0), null, null, null, null, null]\n" +
+        "6,[(6,21.0), (6,20.0), (6,19.0), (6,18.0), (6,17.0), (6,16.0), null, null, null, null]"
     val results = executeQuery(t)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

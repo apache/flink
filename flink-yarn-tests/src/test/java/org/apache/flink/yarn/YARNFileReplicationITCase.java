@@ -56,103 +56,123 @@ import static org.junit.Assert.assertThat;
  */
 public class YARNFileReplicationITCase extends YarnTestBase {
 
-	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
-	private static final int sleepIntervalInMS = 100;
+    private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
+    private static final int sleepIntervalInMS = 100;
 
-	@BeforeClass
-	public static void setup() {
-		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
-		startYARNWithConfig(YARN_CONFIGURATION, true);
-	}
+    @BeforeClass
+    public static void setup() {
+        YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
+        startYARNWithConfig(YARN_CONFIGURATION, true);
+    }
 
-	@Test
-	public void testPerJobModeWithCustomizedFileReplication() throws Exception {
-		final Configuration configuration = getDefaultConfiguration();
-		configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
+    @Test
+    public void testPerJobModeWithCustomizedFileReplication() throws Exception {
+        final Configuration configuration = getDefaultConfiguration();
+        configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
 
-		runTest(() -> deployPerJob(configuration, getTestingJobGraph()));
-	}
+        runTest(() -> deployPerJob(configuration, getTestingJobGraph()));
+    }
 
-	@Test
-	public void testPerJobModeWithDefaultFileReplication() throws Exception {
-		runTest(() -> deployPerJob(getDefaultConfiguration(), getTestingJobGraph()));
-	}
+    @Test
+    public void testPerJobModeWithDefaultFileReplication() throws Exception {
+        runTest(() -> deployPerJob(getDefaultConfiguration(), getTestingJobGraph()));
+    }
 
-	private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
-		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
+    private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(configuration)) {
 
-			yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+            yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+            yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-			final int masterMemory = yarnClusterDescriptor.getFlinkConfiguration().get(JobManagerOptions.TOTAL_PROCESS_MEMORY).getMebiBytes();
-			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-				.setMasterMemoryMB(masterMemory)
-				.setTaskManagerMemoryMB(1024)
-				.setSlotsPerTaskManager(1)
-				.createClusterSpecification();
+            final int masterMemory =
+                    yarnClusterDescriptor
+                            .getFlinkConfiguration()
+                            .get(JobManagerOptions.TOTAL_PROCESS_MEMORY)
+                            .getMebiBytes();
+            final ClusterSpecification clusterSpecification =
+                    new ClusterSpecification.ClusterSpecificationBuilder()
+                            .setMasterMemoryMB(masterMemory)
+                            .setTaskManagerMemoryMB(1024)
+                            .setSlotsPerTaskManager(1)
+                            .createClusterSpecification();
 
-			File testingJar = TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
+            File testingJar =
+                    TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
-			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
-			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor
-				.deployJobCluster(
-					clusterSpecification,
-					jobGraph,
-					false)
-				.getClusterClient()) {
+            jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+            try (ClusterClient<ApplicationId> clusterClient =
+                    yarnClusterDescriptor
+                            .deployJobCluster(clusterSpecification, jobGraph, false)
+                            .getClusterClient()) {
 
-				ApplicationId applicationId = clusterClient.getClusterId();
+                ApplicationId applicationId = clusterClient.getClusterId();
 
-				final CompletableFuture<JobResult> jobResultCompletableFuture = clusterClient.requestJobResult(jobGraph.getJobID());
+                final CompletableFuture<JobResult> jobResultCompletableFuture =
+                        clusterClient.requestJobResult(jobGraph.getJobID());
 
-				final JobResult jobResult = jobResultCompletableFuture.get();
+                final JobResult jobResult = jobResultCompletableFuture.get();
 
-				assertThat(jobResult, is(notNullValue()));
-				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+                assertThat(jobResult, is(notNullValue()));
+                jobResult
+                        .getSerializedThrowable()
+                        .ifPresent(
+                                serializedThrowable -> {
+                                    throw new AssertionError(
+                                            "Job failed",
+                                            serializedThrowable.deserializeError(
+                                                    YARNFileReplicationITCase.class
+                                                            .getClassLoader()));
+                                });
 
-				extraVerification(configuration, applicationId);
+                extraVerification(configuration, applicationId);
 
-				waitApplicationFinishedElseKillIt(
-					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
-			}
-		}
-	}
+                waitApplicationFinishedElseKillIt(
+                        applicationId,
+                        yarnAppTerminateTimeout,
+                        yarnClusterDescriptor,
+                        sleepIntervalInMS);
+            }
+        }
+    }
 
-	private JobGraph getTestingJobGraph() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(2);
+    private JobGraph getTestingJobGraph() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(2);
 
-		env.addSource(new NoDataSource())
-			.shuffle()
-			.addSink(new DiscardingSink<>());
+        env.addSource(new NoDataSource()).shuffle().addSink(new DiscardingSink<>());
 
-		return env.getStreamGraph().getJobGraph();
-	}
+        return env.getStreamGraph().getJobGraph();
+    }
 
-	private Configuration getDefaultConfiguration() {
-		final Configuration configuration = new Configuration();
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+    private Configuration getDefaultConfiguration() {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
+        configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+        configuration.set(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED);
 
-		return configuration;
-	}
+        return configuration;
+    }
 
-	private void extraVerification(Configuration configuration, ApplicationId applicationId) throws Exception {
-		final FileSystem fs = FileSystem.get(getYarnConfiguration());
+    private void extraVerification(Configuration configuration, ApplicationId applicationId)
+            throws Exception {
+        final FileSystem fs = FileSystem.get(getYarnConfiguration());
 
-		String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
+        String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
 
-		Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
-		FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
+        Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
+        FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 
-		final int flinkFileReplication = configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
-		final int replication = YARN_CONFIGURATION.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+        final int flinkFileReplication =
+                configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+        final int replication =
+                YARN_CONFIGURATION.getInt(
+                        DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
-		// If YarnConfigOptions.FILE_REPLICATION is not set. The replication number should equals to yarn configuration value.
-		int expectedReplication = flinkFileReplication > 0
-			? flinkFileReplication : replication;
-		assertEquals(expectedReplication, fsStatus.getReplication());
-	}
+        // If YarnConfigOptions.FILE_REPLICATION is not set. The replication number should equals to
+        // yarn configuration value.
+        int expectedReplication = flinkFileReplication > 0 ? flinkFileReplication : replication;
+        assertEquals(expectedReplication, fsStatus.getReplication());
+    }
 }

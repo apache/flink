@@ -21,6 +21,7 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -36,81 +37,86 @@ import org.apache.hadoop.conf.Configuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * HBase table source implementation.
- */
+/** HBase table source implementation. */
 @Internal
-public abstract class AbstractHBaseDynamicTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+public abstract class AbstractHBaseDynamicTableSource
+        implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
 
-	protected final Configuration conf;
-	protected final String tableName;
-	protected HBaseTableSchema hbaseSchema;
-	protected final String nullStringLiteral;
+    protected final Configuration conf;
+    protected final String tableName;
+    protected HBaseTableSchema hbaseSchema;
+    protected final String nullStringLiteral;
+    protected final HBaseLookupOptions lookupOptions;
 
-	public AbstractHBaseDynamicTableSource(
-			Configuration conf,
-			String tableName,
-			HBaseTableSchema hbaseSchema,
-			String nullStringLiteral) {
-		this.conf = conf;
-		this.tableName = tableName;
-		this.hbaseSchema = hbaseSchema;
-		this.nullStringLiteral = nullStringLiteral;
-	}
+    public AbstractHBaseDynamicTableSource(
+            Configuration conf,
+            String tableName,
+            HBaseTableSchema hbaseSchema,
+            String nullStringLiteral,
+            HBaseLookupOptions lookupOptions) {
+        this.conf = conf;
+        this.tableName = tableName;
+        this.hbaseSchema = hbaseSchema;
+        this.nullStringLiteral = nullStringLiteral;
+        this.lookupOptions = lookupOptions;
+    }
 
-	@Override
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-		return InputFormatProvider.of(getInputFormat());
-	}
+    @Override
+    public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+        return InputFormatProvider.of(getInputFormat());
+    }
 
-	protected abstract InputFormat<RowData, ?> getInputFormat();
+    protected abstract InputFormat<RowData, ?> getInputFormat();
 
-	@Override
-	public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
-		checkArgument(context.getKeys().length == 1 && context.getKeys()[0].length == 1,
-			"Currently, HBase table can only be lookup by single rowkey.");
-		checkArgument(
-			hbaseSchema.getRowKeyName().isPresent(),
-			"HBase schema must have a row key when used in lookup mode.");
-		checkArgument(
-			hbaseSchema
-				.convertsToTableSchema()
-				.getTableColumn(context.getKeys()[0][0])
-				.filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
-				.isPresent(),
-			"Currently, HBase table only supports lookup by rowkey field.");
+    @Override
+    public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
+        checkArgument(
+                context.getKeys().length == 1 && context.getKeys()[0].length == 1,
+                "Currently, HBase table can only be lookup by single rowkey.");
+        checkArgument(
+                hbaseSchema.getRowKeyName().isPresent(),
+                "HBase schema must have a row key when used in lookup mode.");
+        checkArgument(
+                hbaseSchema
+                        .convertsToTableSchema()
+                        .getTableColumn(context.getKeys()[0][0])
+                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
+                        .isPresent(),
+                "Currently, HBase table only supports lookup by rowkey field.");
 
-		return TableFunctionProvider.of(new HBaseRowDataLookupFunction(conf, tableName, hbaseSchema, nullStringLiteral));
-	}
+        return TableFunctionProvider.of(
+                new HBaseRowDataLookupFunction(
+                        conf, tableName, hbaseSchema, nullStringLiteral, lookupOptions));
+    }
 
-	@Override
-	public boolean supportsNestedProjection() {
-		// planner doesn't support nested projection push down yet.
-		return false;
-	}
+    @Override
+    public boolean supportsNestedProjection() {
+        // planner doesn't support nested projection push down yet.
+        return false;
+    }
 
-	@Override
-	public void applyProjection(int[][] projectedFields) {
-		TableSchema projectSchema = TableSchemaUtils.projectSchema(
-			hbaseSchema.convertsToTableSchema(),
-			projectedFields);
-		this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
-	}
+    @Override
+    public void applyProjection(int[][] projectedFields) {
+        TableSchema projectSchema =
+                TableSchemaUtils.projectSchema(
+                        hbaseSchema.convertsToTableSchema(), projectedFields);
+        this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
+    }
 
-	@Override
-	public ChangelogMode getChangelogMode() {
-		return ChangelogMode.insertOnly();
-	}
+    @Override
+    public ChangelogMode getChangelogMode() {
+        return ChangelogMode.insertOnly();
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "HBase";
-	}
+    @Override
+    public String asSummaryString() {
+        return "HBase";
+    }
 
-	// -------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
 
-	@VisibleForTesting
-	public HBaseTableSchema getHBaseTableSchema() {
-		return this.hbaseSchema;
-	}
+    @VisibleForTesting
+    public HBaseTableSchema getHBaseTableSchema() {
+        return this.hbaseSchema;
+    }
 }

@@ -33,57 +33,55 @@ import java.util.Map;
 @PublicEvolving
 public final class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long delay;
-	private long maxTimestamp;
+    private final long delay;
+    private long maxTimestamp;
 
-	/**
-	 * @param delay The delay by which watermarks are behind the maximum observed timestamp.
-	 */
-	public BoundedOutOfOrderTimestamps(long delay) {
-		this.delay = delay;
-		maxTimestamp = Long.MIN_VALUE + delay;
-	}
+    /** @param delay The delay by which watermarks are behind the maximum observed timestamp. */
+    public BoundedOutOfOrderTimestamps(long delay) {
+        this.delay = delay;
+        maxTimestamp = Long.MIN_VALUE + delay;
+    }
 
-	@Override
-	public void nextTimestamp(long timestamp) {
-		if (timestamp > maxTimestamp) {
-			maxTimestamp = timestamp;
-		}
-	}
+    @Override
+    public void nextTimestamp(long timestamp) {
+        if (timestamp > maxTimestamp) {
+            maxTimestamp = timestamp;
+        }
+    }
 
-	@Override
-	public Watermark getWatermark() {
-		return new Watermark(maxTimestamp - delay);
-	}
+    @Override
+    public Watermark getWatermark() {
+        return new Watermark(maxTimestamp - delay);
+    }
 
-	@Override
-	public Map<String, String> toProperties() {
-		Map<String, String> map = new HashMap<>();
-		map.put(
-				Rowtime.ROWTIME_WATERMARKS_TYPE,
-				Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED);
-		map.put(Rowtime.ROWTIME_WATERMARKS_DELAY, String.valueOf(delay));
-		return map;
-	}
+    @Override
+    public Map<String, String> toProperties() {
+        Map<String, String> map = new HashMap<>();
+        map.put(
+                Rowtime.ROWTIME_WATERMARKS_TYPE,
+                Rowtime.ROWTIME_WATERMARKS_TYPE_VALUE_PERIODIC_BOUNDED);
+        map.put(Rowtime.ROWTIME_WATERMARKS_DELAY, String.valueOf(delay));
+        return map;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		BoundedOutOfOrderTimestamps that = (BoundedOutOfOrderTimestamps) o;
+        BoundedOutOfOrderTimestamps that = (BoundedOutOfOrderTimestamps) o;
 
-		return delay == that.delay;
-	}
+        return delay == that.delay;
+    }
 
-	@Override
-	public int hashCode() {
-		return Long.hashCode(delay);
-	}
+    @Override
+    public int hashCode() {
+        return Long.hashCode(delay);
+    }
 }

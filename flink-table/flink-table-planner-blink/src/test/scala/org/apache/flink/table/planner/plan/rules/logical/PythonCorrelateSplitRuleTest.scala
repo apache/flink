@@ -62,7 +62,7 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, " +
       "LATERAL TABLE(func(a * a, pyFunc(b, c))) AS T(x, y)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -70,7 +70,7 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
     val sqlQuery = "SELECT a, b, c, x FROM MyTable, " +
       "LATERAL TABLE(javaFunc(pyFunc(c))) AS T(x)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -78,7 +78,7 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     util.addTableSource[(Int, Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c, 'd)
     val sqlQuery = "SELECT a, b, c, x, y FROM MyTable, " +
       "LATERAL TABLE(func(d._1 * a, pyFunc(d._2, c))) AS T(x, y)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -86,6 +86,6 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     util.addTableSource[(Int, Int, String, (String, String))]("MyTable", 'a, 'b, 'c, 'd)
     val sqlQuery = "SELECT a, b, c, x FROM MyTable, " +
       "LATERAL TABLE(javaFunc(pyFunc(d._1))) AS T(x)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

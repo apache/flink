@@ -22,27 +22,27 @@ import org.apache.flink.metrics.Counter;
 import java.util.Iterator;
 
 public class CountingIterator<IN> implements Iterator<IN> {
-	private final Iterator<IN> iterator;
-	private final Counter numRecordsIn;
+    private final Iterator<IN> iterator;
+    private final Counter numRecordsIn;
 
-	public CountingIterator(Iterator<IN> iterator, Counter numRecordsIn) {
-		this.iterator = iterator;
-		this.numRecordsIn = numRecordsIn;
-	}
+    public CountingIterator(Iterator<IN> iterator, Counter numRecordsIn) {
+        this.iterator = iterator;
+        this.numRecordsIn = numRecordsIn;
+    }
 
-	@Override
-	public boolean hasNext() {
-		return this.iterator.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return this.iterator.hasNext();
+    }
 
-	@Override
-	public IN next() {
-		numRecordsIn.inc();
-		return this.iterator.next();
-	}
+    @Override
+    public IN next() {
+        numRecordsIn.inc();
+        return this.iterator.next();
+    }
 
-	@Override
-	public void remove() {
-		this.iterator.remove();
-	}
+    @Override
+    public void remove() {
+        this.iterator.remove();
+    }
 }

@@ -37,147 +37,134 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Integration tests for aggregations.
- */
+/** Integration tests for aggregations. */
 @RunWith(Parameterized.class)
 public class AggregateITCase extends MultipleProgramsTestBase {
 
-	public AggregateITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public AggregateITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testFullAggregate() throws Exception {
-		/*
-		 * Full Aggregate
-		 */
+    @Test
+    public void testFullAggregate() throws Exception {
+        /*
+         * Full Aggregate
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<Integer, Long>> aggregateDs = ds
-				.aggregate(Aggregations.SUM, 0)
-				.and(Aggregations.MAX, 1)
-				.project(0, 1);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<Integer, Long>> aggregateDs =
+                ds.aggregate(Aggregations.SUM, 0).and(Aggregations.MAX, 1).project(0, 1);
 
-		List<Tuple2<Integer, Long>> result = aggregateDs.collect();
+        List<Tuple2<Integer, Long>> result = aggregateDs.collect();
 
-		String expected = "231,6\n";
+        String expected = "231,6\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testFullAggregateOfMutableValueTypes() throws Exception {
-		/*
-		 * Full Aggregate of mutable value types
-		 */
+    @Test
+    public void testFullAggregateOfMutableValueTypes() throws Exception {
+        /*
+         * Full Aggregate of mutable value types
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<IntValue, LongValue>> aggregateDs = ds
-				.aggregate(Aggregations.SUM, 0)
-				.and(Aggregations.MAX, 1)
-				.project(0, 1);
+        DataSet<Tuple3<IntValue, LongValue, StringValue>> ds =
+                ValueCollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<IntValue, LongValue>> aggregateDs =
+                ds.aggregate(Aggregations.SUM, 0).and(Aggregations.MAX, 1).project(0, 1);
 
-		List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
+        List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
 
-		String expected = "231,6\n";
+        String expected = "231,6\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testGroupedAggregate() throws Exception {
-		/*
-		 * Grouped Aggregate
-		 */
+    @Test
+    public void testGroupedAggregate() throws Exception {
+        /*
+         * Grouped Aggregate
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
-				.aggregate(Aggregations.SUM, 0)
-				.project(1, 0);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<Long, Integer>> aggregateDs =
+                ds.groupBy(1).aggregate(Aggregations.SUM, 0).project(1, 0);
 
-		List<Tuple2<Long, Integer>> result = aggregateDs.collect();
+        List<Tuple2<Long, Integer>> result = aggregateDs.collect();
 
-		String expected = "1,1\n" +
-				"2,5\n" +
-				"3,15\n" +
-				"4,34\n" +
-				"5,65\n" +
-				"6,111\n";
+        String expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testGroupedAggregateOfMutableValueTypes() throws Exception {
-		/*
-		 * Grouped Aggregate of mutable value types
-		 */
+    @Test
+    public void testGroupedAggregateOfMutableValueTypes() throws Exception {
+        /*
+         * Grouped Aggregate of mutable value types
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple2<IntValue, LongValue>> aggregateDs = ds.groupBy(1)
-				.aggregate(Aggregations.SUM, 0)
-				.project(1, 0);
+        DataSet<Tuple3<IntValue, LongValue, StringValue>> ds =
+                ValueCollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple2<IntValue, LongValue>> aggregateDs =
+                ds.groupBy(1).aggregate(Aggregations.SUM, 0).project(1, 0);
 
-		List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
+        List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
 
-		String expected = "1,1\n" +
-				"2,5\n" +
-				"3,15\n" +
-				"4,34\n" +
-				"5,65\n" +
-				"6,111\n";
+        String expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testNestedAggregate() throws Exception {
-		/*
-		 * Nested Aggregate
-		 */
+    @Test
+    public void testNestedAggregate() throws Exception {
+        /*
+         * Nested Aggregate
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
-				.aggregate(Aggregations.MIN, 0)
-				.aggregate(Aggregations.MIN, 0)
-				.project(0);
+        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple1<Integer>> aggregateDs =
+                ds.groupBy(1)
+                        .aggregate(Aggregations.MIN, 0)
+                        .aggregate(Aggregations.MIN, 0)
+                        .project(0);
 
-		List<Tuple1<Integer>> result = aggregateDs.collect();
+        List<Tuple1<Integer>> result = aggregateDs.collect();
 
-		String expected = "1\n";
+        String expected = "1\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 
-	@Test
-	public void testNestedAggregateOfMutableValueTypes() throws Exception {
-		/*
-		 * Nested Aggregate of mutable value types
-		 */
+    @Test
+    public void testNestedAggregateOfMutableValueTypes() throws Exception {
+        /*
+         * Nested Aggregate of mutable value types
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple1<IntValue>> aggregateDs = ds.groupBy(1)
-				.aggregate(Aggregations.MIN, 0)
-				.aggregate(Aggregations.MIN, 0)
-				.project(0);
+        DataSet<Tuple3<IntValue, LongValue, StringValue>> ds =
+                ValueCollectionDataSets.get3TupleDataSet(env);
+        DataSet<Tuple1<IntValue>> aggregateDs =
+                ds.groupBy(1)
+                        .aggregate(Aggregations.MIN, 0)
+                        .aggregate(Aggregations.MIN, 0)
+                        .project(0);
 
-		List<Tuple1<IntValue>> result = aggregateDs.collect();
+        List<Tuple1<IntValue>> result = aggregateDs.collect();
 
-		String expected = "1\n";
+        String expected = "1\n";
 
-		compareResultAsTuples(result, expected);
-	}
+        compareResultAsTuples(result, expected);
+    }
 }

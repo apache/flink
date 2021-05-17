@@ -22,36 +22,33 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-/**
- * An invokable that does nothing.
- */
+/** An invokable that does nothing. */
 public class DummyInvokable extends AbstractInvokable {
 
-	public DummyInvokable() {
-		super(new DummyEnvironment("test", 1, 0));
-	}
+    public DummyInvokable() {
+        super(new DummyEnvironment("test", 1, 0));
+    }
 
-	@Override
-	public void invoke() {}
+    @Override
+    public void invoke() {}
 
-	@Override
-	public int getCurrentNumberOfSubtasks() {
-		return 1;
-	}
+    @Override
+    public int getCurrentNumberOfSubtasks() {
+        return 1;
+    }
 
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return 0;
-	}
+    @Override
+    public int getIndexInSubtaskGroup() {
+        return 0;
+    }
 
-	@Override
-	public final Configuration getJobConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    public final Configuration getJobConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return new ExecutionConfig();
-	}
-
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return new ExecutionConfig();
+    }
 }

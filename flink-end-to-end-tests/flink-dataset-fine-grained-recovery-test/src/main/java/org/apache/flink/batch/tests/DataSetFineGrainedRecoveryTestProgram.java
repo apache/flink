@@ -24,25 +24,23 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
 
-/**
- * Program to test fine grained recovery.
- */
+/** Program to test fine grained recovery. */
 public class DataSetFineGrainedRecoveryTestProgram {
 
-	public static void main(String[] args) throws Exception {
-		final ParameterTool params = ParameterTool.fromArgs(args);
-		final String latchFilePath = params.getRequired("latchFilePath");
-		final String outputPath = params.getRequired("outputPath");
+    public static void main(String[] args) throws Exception {
+        final ParameterTool params = ParameterTool.fromArgs(args);
+        final String latchFilePath = params.getRequired("latchFilePath");
+        final String outputPath = params.getRequired("outputPath");
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setExecutionMode(ExecutionMode.BATCH_FORCED);
-		env.setParallelism(4);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setExecutionMode(ExecutionMode.BATCH_FORCED);
+        env.setParallelism(4);
 
-		env.generateSequence(0, 1000)
-			.map(new BlockingIncrementingMapFunction(latchFilePath))
-			.writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE)
-			.setParallelism(1);
+        env.generateSequence(0, 1000)
+                .map(new BlockingIncrementingMapFunction(latchFilePath))
+                .writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE)
+                .setParallelism(1);
 
-		env.execute();
-	}
+        env.execute();
+    }
 }

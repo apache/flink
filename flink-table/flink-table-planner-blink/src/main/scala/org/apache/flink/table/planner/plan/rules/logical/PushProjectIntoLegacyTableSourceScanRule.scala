@@ -71,7 +71,10 @@ class PushProjectIntoLegacyTableSourceScanRule extends RelOptRule(
       case nested: NestedFieldsProjectableTableSource[_] =>
         val nestedFields = RexNodeExtractor.extractRefNestedInputFields(
           project.getProjects, usedFields)
-        (nested.projectNestedFields(usedFields, nestedFields), true)
+        (nested.projectNestedFields(usedFields,
+          nestedFields.toStream.map(
+            row => row.toStream.map(field => String.join(".", field)).toArray)
+            .toArray), true)
       case projecting: ProjectableTableSource[_] =>
         (projecting.projectFields(usedFields), true)
       case nonProjecting: TableSource[_] =>

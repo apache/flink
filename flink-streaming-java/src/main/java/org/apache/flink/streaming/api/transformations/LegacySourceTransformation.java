@@ -28,76 +28,82 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This represents a Source. This does not actually transform anything since it has no inputs but
- * it is the root {@code Transformation} of any topology.
+ * This represents a Source. This does not actually transform anything since it has no inputs but it
+ * is the root {@code Transformation} of any topology.
  *
  * @param <T> The type of the elements that this source produces
  */
 @Internal
-public class LegacySourceTransformation<T> extends PhysicalTransformation<T> implements WithBoundedness {
+public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
+        implements WithBoundedness {
 
-	private final StreamOperatorFactory<T> operatorFactory;
+    private final StreamOperatorFactory<T> operatorFactory;
 
-	private final Boundedness boundedness;
+    private final Boundedness boundedness;
 
-	/**
-	 * Creates a new {@code LegacySourceTransformation} from the given operator.
-	 *
-	 * @param name The name of the {@code LegacySourceTransformation}, this will be shown in Visualizations and the Log
-	 * @param operator The {@code StreamSource} that is the operator of this Transformation
-	 * @param outputType The type of the elements produced by this {@code LegacySourceTransformation}
-	 * @param parallelism The parallelism of this {@code LegacySourceTransformation}
-	 */
-	public LegacySourceTransformation(
-			String name,
-			StreamSource<T, ?> operator,
-			TypeInformation<T> outputType,
-			int parallelism,
-			Boundedness boundedness) {
-		this(name, SimpleOperatorFactory.of(operator), outputType, parallelism, boundedness);
-	}
+    /**
+     * Creates a new {@code LegacySourceTransformation} from the given operator.
+     *
+     * @param name The name of the {@code LegacySourceTransformation}, this will be shown in
+     *     Visualizations and the Log
+     * @param operator The {@code StreamSource} that is the operator of this Transformation
+     * @param outputType The type of the elements produced by this {@code
+     *     LegacySourceTransformation}
+     * @param parallelism The parallelism of this {@code LegacySourceTransformation}
+     */
+    public LegacySourceTransformation(
+            String name,
+            StreamSource<T, ?> operator,
+            TypeInformation<T> outputType,
+            int parallelism,
+            Boundedness boundedness) {
+        this(name, SimpleOperatorFactory.of(operator), outputType, parallelism, boundedness);
+    }
 
-	public LegacySourceTransformation(
-			String name,
-			StreamOperatorFactory<T> operatorFactory,
-			TypeInformation<T> outputType,
-			int parallelism,
-			Boundedness boundedness) {
-		super(name, outputType, parallelism);
-		this.operatorFactory = checkNotNull(operatorFactory);
-		this.boundedness = checkNotNull(boundedness);
-	}
+    public LegacySourceTransformation(
+            String name,
+            StreamOperatorFactory<T> operatorFactory,
+            TypeInformation<T> outputType,
+            int parallelism,
+            Boundedness boundedness) {
+        super(name, outputType, parallelism);
+        this.operatorFactory = checkNotNull(operatorFactory);
+        this.boundedness = checkNotNull(boundedness);
+    }
 
-	@Override
-	public Boundedness getBoundedness() {
-		return boundedness;
-	}
+    @Override
+    public Boundedness getBoundedness() {
+        return boundedness;
+    }
 
-	@VisibleForTesting
-	public StreamSource<T, ?> getOperator() {
-		return (StreamSource<T, ?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
-	}
+    @VisibleForTesting
+    public StreamSource<T, ?> getOperator() {
+        return (StreamSource<T, ?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+    }
 
-	/**
-	 * Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}.
-	 */
-	public StreamOperatorFactory<T> getOperatorFactory() {
-		return operatorFactory;
-	}
+    /** Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}. */
+    public StreamOperatorFactory<T> getOperatorFactory() {
+        return operatorFactory;
+    }
 
-	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		return Collections.singleton(this);
-	}
+    @Override
+    public List<Transformation<?>> getTransitivePredecessors() {
+        return Collections.singletonList(this);
+    }
 
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operatorFactory.setChainingStrategy(strategy);
-	}
+    @Override
+    public List<Transformation<?>> getInputs() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public final void setChainingStrategy(ChainingStrategy strategy) {
+        operatorFactory.setChainingStrategy(strategy);
+    }
 }

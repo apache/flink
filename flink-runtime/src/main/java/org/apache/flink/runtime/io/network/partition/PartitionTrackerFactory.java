@@ -22,32 +22,28 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
 import java.util.Optional;
 
-/**
- * Factory for {@link JobMasterPartitionTracker}.
- */
+/** Factory for {@link JobMasterPartitionTracker}. */
 @FunctionalInterface
 public interface PartitionTrackerFactory {
 
-	/**
-	 * Creates a new PartitionTracker.
-	 *
-	 * @param taskExecutorGatewayLookup lookup function to access task executor gateways
-	 * @return created PartitionTracker
-	 */
-	JobMasterPartitionTracker create(TaskExecutorGatewayLookup taskExecutorGatewayLookup);
+    /**
+     * Creates a new PartitionTracker.
+     *
+     * @param taskExecutorGatewayLookup lookup function to access task executor gateways
+     * @return created PartitionTracker
+     */
+    JobMasterPartitionTracker create(TaskExecutorGatewayLookup taskExecutorGatewayLookup);
 
-	/**
-	 * Lookup function for {@link TaskExecutorGateway}.
-	 */
-	@FunctionalInterface
-	interface TaskExecutorGatewayLookup {
+    /** Lookup function for {@link TaskExecutorGateway}. */
+    @FunctionalInterface
+    interface TaskExecutorGatewayLookup {
 
-		/**
-		 * Returns a {@link TaskExecutorGateway} corresponding to the given ResourceID.
-		 *
-		 * @param taskExecutorId id of the task executor to look up.
-		 * @return optional task executor gateway
-		 */
-		Optional<TaskExecutorGateway> lookup(ResourceID taskExecutorId);
-	}
+        /**
+         * Returns a {@link TaskExecutorGateway} corresponding to the given ResourceID.
+         *
+         * @param taskExecutorId id of the task executor to look up.
+         * @return optional task executor gateway
+         */
+        Optional<TaskExecutorGateway> lookup(ResourceID taskExecutorId);
+    }
 }

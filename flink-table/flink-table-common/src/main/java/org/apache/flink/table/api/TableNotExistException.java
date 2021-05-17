@@ -20,17 +20,15 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Exception for an operation on a nonexistent table.
- */
+/** Exception for an operation on a nonexistent table. */
 @PublicEvolving
 public class TableNotExistException extends RuntimeException {
 
-	public TableNotExistException(String catalogName, String tableName) {
-		this(catalogName, tableName, null);
-	}
+    public TableNotExistException(String catalogName, String tableName) {
+        this(catalogName, tableName, null);
+    }
 
-	public TableNotExistException(String catalog, String table, Throwable cause) {
-		super("Table " + catalog + "." + table + " does not exist.", cause);
-	}
+    public TableNotExistException(String catalog, String table, Throwable cause) {
+        super("Table " + catalog + "." + table + " does not exist.", cause);
+    }
 }

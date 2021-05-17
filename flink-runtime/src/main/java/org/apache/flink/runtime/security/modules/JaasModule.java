@@ -45,130 +45,143 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Responsible for installing a process-wide JAAS configuration.
  *
- * <p>The installed configuration combines login modules based on:
- * - the user-supplied JAAS configuration file, if any
- * - a Kerberos keytab, if configured
- * - any cached Kerberos credentials from the current environment
+ * <p>The installed configuration combines login modules based on: - the user-supplied JAAS
+ * configuration file, if any - a Kerberos keytab, if configured - any cached Kerberos credentials
+ * from the current environment
  *
- * <p>The module also installs a default JAAS config file (if necessary) for
- * compatibility with ZK and Kafka.  Note that the JRE actually draws on numerous file locations.
- * See: https://docs.oracle.com/javase/7/docs/jre/api/security/jaas/spec/com/sun/security/auth/login/ConfigFile.html
- * See: https://github.com/apache/kafka/blob/0.9.0/clients/src/main/java/org/apache/kafka/common/security/kerberos/Login.java#L289
+ * <p>The module also installs a default JAAS config file (if necessary) for compatibility with ZK
+ * and Kafka. Note that the JRE actually draws on numerous file locations. See:
+ * https://docs.oracle.com/javase/7/docs/jre/api/security/jaas/spec/com/sun/security/auth/login/ConfigFile.html
+ * See:
+ * https://github.com/apache/kafka/blob/0.9.0/clients/src/main/java/org/apache/kafka/common/security/kerberos/Login.java#L289
  */
 @Internal
 public class JaasModule implements SecurityModule {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JaasModule.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JaasModule.class);
 
-	static final String JAVA_SECURITY_AUTH_LOGIN_CONFIG = "java.security.auth.login.config";
+    static final String JAVA_SECURITY_AUTH_LOGIN_CONFIG = "java.security.auth.login.config";
 
-	static final String JAAS_CONF_RESOURCE_NAME = "flink-jaas.conf";
+    static final String JAAS_CONF_RESOURCE_NAME = "flink-jaas.conf";
 
-	private final SecurityConfiguration securityConfig;
+    private final SecurityConfiguration securityConfig;
 
-	private String priorConfigFile;
-	private javax.security.auth.login.Configuration priorConfig;
+    private String priorConfigFile;
+    private javax.security.auth.login.Configuration priorConfig;
 
-	private DynamicConfiguration currentConfig;
+    private DynamicConfiguration currentConfig;
 
-	/**
-	 * The working directory that the jaas file will install into.
-	 */
-	private final String workingDir;
+    /** The working directory that the jaas file will install into. */
+    private final String workingDir;
 
-	public JaasModule(SecurityConfiguration securityConfig) {
-		this.securityConfig = checkNotNull(securityConfig);
-		String[] dirs = splitPaths(securityConfig.getFlinkConfig().getString(CoreOptions.TMP_DIRS));
-		// should be at least one directory.
-		checkState(dirs.length > 0);
-		this.workingDir = dirs[0];
-	}
+    public JaasModule(SecurityConfiguration securityConfig) {
+        this.securityConfig = checkNotNull(securityConfig);
+        String[] dirs = splitPaths(securityConfig.getFlinkConfig().getString(CoreOptions.TMP_DIRS));
+        // should be at least one directory.
+        checkState(dirs.length > 0);
+        this.workingDir = dirs[0];
+    }
 
-	@Override
-	public void install() {
+    @Override
+    public void install() {
 
-		// ensure that a config file is always defined, for compatibility with
-		// ZK and Kafka which check for the system property and existence of the file
-		priorConfigFile = System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, null);
-		if (priorConfigFile == null) {
-			File configFile = generateDefaultConfigFile(workingDir);
-			System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, configFile.getAbsolutePath());
-			LOG.info("Jaas file will be created as {}.", configFile);
-		}
+        // ensure that a config file is always defined, for compatibility with
+        // ZK and Kafka which check for the system property and existence of the file
+        priorConfigFile = System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, null);
+        if (priorConfigFile == null) {
+            File configFile = generateDefaultConfigFile(workingDir);
+            System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, configFile.getAbsolutePath());
+            LOG.info("Jaas file will be created as {}.", configFile);
+        }
 
-		// read the JAAS configuration file
-		priorConfig = javax.security.auth.login.Configuration.getConfiguration();
+        // read the JAAS configuration file
+        priorConfig = javax.security.auth.login.Configuration.getConfiguration();
 
-		// construct a dynamic JAAS configuration
-		currentConfig = new DynamicConfiguration(priorConfig);
+        // construct a dynamic JAAS configuration
+        currentConfig = new DynamicConfiguration(priorConfig);
 
-		// wire up the configured JAAS login contexts to use the krb5 entries
-		AppConfigurationEntry[] krb5Entries = getAppConfigurationEntries(securityConfig);
-		if (krb5Entries != null) {
-			for (String app : securityConfig.getLoginContextNames()) {
-				currentConfig.addAppConfigurationEntry(app, krb5Entries);
-			}
-		}
+        // wire up the configured JAAS login contexts to use the krb5 entries
+        AppConfigurationEntry[] krb5Entries = getAppConfigurationEntries(securityConfig);
+        if (krb5Entries != null) {
+            for (String app : securityConfig.getLoginContextNames()) {
+                currentConfig.addAppConfigurationEntry(app, krb5Entries);
+            }
+        }
 
-		javax.security.auth.login.Configuration.setConfiguration(currentConfig);
-	}
+        javax.security.auth.login.Configuration.setConfiguration(currentConfig);
+    }
 
-	@Override
-	public void uninstall() throws SecurityInstallException {
-		if (priorConfigFile != null) {
-			System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, priorConfigFile);
-		} else {
-			System.clearProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
-		}
-		javax.security.auth.login.Configuration.setConfiguration(priorConfig);
-	}
+    @Override
+    public void uninstall() throws SecurityInstallException {
+        if (priorConfigFile != null) {
+            System.setProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG, priorConfigFile);
+        } else {
+            System.clearProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
+        }
+        javax.security.auth.login.Configuration.setConfiguration(priorConfig);
+    }
 
-	public DynamicConfiguration getCurrentConfiguration() {
-		return currentConfig;
-	}
+    public DynamicConfiguration getCurrentConfiguration() {
+        return currentConfig;
+    }
 
-	private static AppConfigurationEntry[] getAppConfigurationEntries(SecurityConfiguration securityConfig) {
+    private static AppConfigurationEntry[] getAppConfigurationEntries(
+            SecurityConfiguration securityConfig) {
 
-		AppConfigurationEntry userKerberosAce = null;
-		if (securityConfig.useTicketCache()) {
-			userKerberosAce = KerberosUtils.ticketCacheEntry();
-		}
-		AppConfigurationEntry keytabKerberosAce = null;
-		if (securityConfig.getKeytab() != null) {
-			keytabKerberosAce = KerberosUtils.keytabEntry(securityConfig.getKeytab(), securityConfig.getPrincipal());
-		}
+        AppConfigurationEntry userKerberosAce = null;
+        if (securityConfig.useTicketCache()) {
+            userKerberosAce = KerberosUtils.ticketCacheEntry();
+        }
+        AppConfigurationEntry keytabKerberosAce = null;
+        if (securityConfig.getKeytab() != null) {
+            keytabKerberosAce =
+                    KerberosUtils.keytabEntry(
+                            securityConfig.getKeytab(), securityConfig.getPrincipal());
+        }
 
-		AppConfigurationEntry[] appConfigurationEntry;
-		if (userKerberosAce != null && keytabKerberosAce != null) {
-			appConfigurationEntry = new AppConfigurationEntry[]{keytabKerberosAce, userKerberosAce};
-		} else if (keytabKerberosAce != null) {
-			appConfigurationEntry = new AppConfigurationEntry[]{keytabKerberosAce};
-		} else if (userKerberosAce != null) {
-			appConfigurationEntry = new AppConfigurationEntry[]{userKerberosAce};
-		} else {
-			return null;
-		}
+        AppConfigurationEntry[] appConfigurationEntry;
+        if (userKerberosAce != null && keytabKerberosAce != null) {
+            appConfigurationEntry =
+                    new AppConfigurationEntry[] {keytabKerberosAce, userKerberosAce};
+        } else if (keytabKerberosAce != null) {
+            appConfigurationEntry = new AppConfigurationEntry[] {keytabKerberosAce};
+        } else if (userKerberosAce != null) {
+            appConfigurationEntry = new AppConfigurationEntry[] {userKerberosAce};
+        } else {
+            return null;
+        }
 
-		return appConfigurationEntry;
-	}
+        return appConfigurationEntry;
+    }
 
-	/**
-	 * Generate the default JAAS config file.
-	 */
-	private static File generateDefaultConfigFile(String workingDir) {
-		checkArgument(workingDir != null, "working directory should not be null.");
-		final File jaasConfFile;
-		try {
-			Path path = Paths.get(workingDir);
-			Path jaasConfPath = Files.createTempFile(path, "jaas-", ".conf");
-			try (InputStream resourceStream = JaasModule.class.getClassLoader().getResourceAsStream(JAAS_CONF_RESOURCE_NAME)) {
-				Files.copy(resourceStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
-			}
-			jaasConfFile = jaasConfPath.toFile();
-			jaasConfFile.deleteOnExit();
-		} catch (IOException e) {
-			throw new RuntimeException("unable to generate a JAAS configuration file", e);
-		}
-		return jaasConfFile;
-	}
+    /** Generate the default JAAS config file. */
+    private static File generateDefaultConfigFile(String workingDir) {
+        checkArgument(workingDir != null, "working directory should not be null.");
+        final File jaasConfFile;
+        try {
+            Path path = Paths.get(workingDir);
+            if (Files.notExists(path)) {
+                // We intentionally favored Path.toRealPath over Files.readSymbolicLinks as the
+                // latter one might return a
+                // relative path if the symbolic link refers to it. Path.toRealPath resolves the
+                // relative path instead.
+                Path parent = path.getParent().toRealPath();
+                Path resolvedPath = Paths.get(parent.toString(), path.getFileName().toString());
+
+                path = Files.createDirectories(resolvedPath);
+            }
+            Path jaasConfPath = Files.createTempFile(path, "jaas-", ".conf");
+            try (InputStream resourceStream =
+                    JaasModule.class
+                            .getClassLoader()
+                            .getResourceAsStream(JAAS_CONF_RESOURCE_NAME)) {
+                Files.copy(resourceStream, jaasConfPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            jaasConfFile = new File(workingDir, jaasConfPath.getFileName().toString());
+            jaasConfFile.deleteOnExit();
+        } catch (IOException e) {
+            throw new RuntimeException("unable to generate a JAAS configuration file", e);
+        }
+        return jaasConfFile;
+    }
 }

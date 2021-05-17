@@ -26,30 +26,31 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * A simple job used to test submitting the Python UDF job in flink batch mode.
- */
+/** A simple job used to test submitting the Python UDF job in flink batch mode. */
 public class FlinkBatchPythonUdfSqlJob {
 
-	public static void main(String[] args) {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
-		tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");
+    public static void main(String[] args) {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
+        tEnv.executeSql(
+                "create temporary system function add_one as 'add_one.add_one' language python");
 
-		tEnv.createTemporaryView("source", tEnv.fromDataSet(env.fromElements(1L, 2L, 3L)).as("a"));
+        tEnv.createTemporaryView("source", tEnv.fromDataSet(env.fromElements(1L, 2L, 3L)).as("a"));
 
-		Iterator<Row> result = tEnv.executeSql("select add_one(a) as a from source").collect();
+        Iterator<Row> result = tEnv.executeSql("select add_one(a) as a from source").collect();
 
-		List<Long> actual = new ArrayList<>();
-		while (result.hasNext()) {
-			Row r = result.next();
-			actual.add((Long) r.getField(0));
-		}
+        List<Long> actual = new ArrayList<>();
+        while (result.hasNext()) {
+            Row r = result.next();
+            actual.add((Long) r.getField(0));
+        }
 
-		List<Long> expected = Arrays.asList(2L, 3L, 4L);
-		if (!actual.equals(expected)) {
-			throw new AssertionError(String.format("The output result: %s is not as expected: %s!", actual, expected));
-		}
-	}
+        List<Long> expected = Arrays.asList(2L, 3L, 4L);
+        if (!actual.equals(expected)) {
+            throw new AssertionError(
+                    String.format(
+                            "The output result: %s is not as expected: %s!", actual, expected));
+        }
+    }
 }

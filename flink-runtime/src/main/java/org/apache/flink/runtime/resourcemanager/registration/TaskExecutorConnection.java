@@ -25,32 +25,32 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class is responsible for grouping the TaskExecutorGateway and the InstanceID
- * of a registered task executor.
+ * This class is responsible for grouping the TaskExecutorGateway and the InstanceID of a registered
+ * task executor.
  */
 public class TaskExecutorConnection {
 
-	private final ResourceID resourceID;
+    private final ResourceID resourceID;
 
-	private final InstanceID instanceID;
+    private final InstanceID instanceID;
 
-	private final TaskExecutorGateway taskExecutorGateway;
+    private final TaskExecutorGateway taskExecutorGateway;
 
-	public TaskExecutorConnection(ResourceID resourceID, TaskExecutorGateway taskExecutorGateway) {
-		this.resourceID = checkNotNull(resourceID);
-		this.instanceID = new InstanceID();
-		this.taskExecutorGateway = checkNotNull(taskExecutorGateway);
-	}
+    public TaskExecutorConnection(ResourceID resourceID, TaskExecutorGateway taskExecutorGateway) {
+        this.resourceID = checkNotNull(resourceID);
+        this.instanceID = new InstanceID();
+        this.taskExecutorGateway = checkNotNull(taskExecutorGateway);
+    }
 
-	public ResourceID getResourceID() {
-		return resourceID;
-	}
+    public ResourceID getResourceID() {
+        return resourceID;
+    }
 
-	public InstanceID getInstanceID() {
-		return instanceID;
-	}
+    public InstanceID getInstanceID() {
+        return instanceID;
+    }
 
-	public TaskExecutorGateway getTaskExecutorGateway() {
-		return taskExecutorGateway;
-	}
+    public TaskExecutorGateway getTaskExecutorGateway() {
+        return taskExecutorGateway;
+    }
 }

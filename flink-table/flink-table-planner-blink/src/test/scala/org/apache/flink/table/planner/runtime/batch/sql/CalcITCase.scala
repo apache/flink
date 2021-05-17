@@ -26,33 +26,40 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
+import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, ZoneId}
 import java.util
 
 import scala.collection.Seq
 
 class CalcITCase extends BatchTestBase {
+
+  var _expectedEx: ExpectedException = ExpectedException.none
+
+  @Rule
+  def expectedEx: ExpectedException = _expectedEx
 
   @Before
   override def before(): Unit = {
@@ -391,6 +398,70 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testTimeUDFParametersImplicitCast(): Unit = {
+    val data: Seq[Row] = Seq(row(
+      localDateTime("2019-09-19 08:03:09.123"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+      Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant)
+    )
+    val dataId = TestValuesTableFactory.registerData(data)
+
+    val ddl =
+    s"""
+        |CREATE TABLE MyTable (
+        |  ntz TIMESTAMP(3),
+        |  ltz0 TIMESTAMP_LTZ(0),
+        |  ltz3 TIMESTAMP_LTZ(3),
+        |  ltz6 TIMESTAMP_LTZ(6),
+        |  ltz9 TIMESTAMP_LTZ(9),
+        |  ltz_not_null TIMESTAMP_LTZ(3) NOT NULL
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId',
+        |  'bounded' = 'true'
+        |)
+        |""".stripMargin
+
+    tEnv.executeSql(ddl)
+    tEnv.createTemporaryFunction("timestampFunc", TimestampFunction)
+    tEnv.createTemporaryFunction("datetimeFunc", DateTimeFunction)
+    tEnv.createTemporaryFunction("instantFunc", InstantFunction)
+
+    checkResult(
+      "SELECT" +
+        " timestampFunc(ntz), datetimeFunc(ntz), instantFunc(ntz)," +
+        " timestampFunc(ltz0), datetimeFunc(ltz0), instantFunc(ltz0)," +
+        " timestampFunc(ltz3), datetimeFunc(ltz3), instantFunc(ltz3)," +
+        " timestampFunc(ltz6), datetimeFunc(ltz6), instantFunc(ltz6)," +
+        " timestampFunc(ltz9), datetimeFunc(ltz9), instantFunc(ltz9)," +
+        " timestampFunc(ltz_not_null), datetimeFunc(ltz_not_null), instantFunc(ltz_not_null)" +
+        " FROM MyTable",
+      Seq(row(
+        // ntz
+       "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz0
+        "2019-09-19 08:03:09.0", "2019-09-19T08:03:09",
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant,
+        // ltz3
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456", "2019-09-19T08:03:09.123456",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456").toInstant,
+        // ltz6
+        "2019-09-19 08:03:09.123456789", "2019-09-19T08:03:09.123456789",
+        Timestamp.valueOf("2019-09-19 08:03:09.123456789").toInstant,
+        // ltz_not_null
+        "2019-09-19 08:03:09.123", "2019-09-19T08:03:09.123",
+        Timestamp.valueOf("2019-09-19 08:03:09.123").toInstant))
+    )
+  }
+
+  @Test
   def testBinary(): Unit = {
     val data = Seq(row(1, 2, "hehe".getBytes(StandardCharsets.UTF_8)))
     registerCollection(
@@ -655,9 +726,9 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "SELECT ROW(CAST(2.0002 AS DECIMAL(5, 4)), a, c) FROM SmallTable3",
       Seq(
-        row(d, 1, "Hi"),
-        row(d, 2, "Hello"),
-        row(d, 3, "Hello world")
+        row(row(d, 1, "Hi")),
+        row(row(d, 2, "Hello")),
+        row(row(d, 3, "Hello world"))
       )
     )
   }
@@ -725,6 +796,15 @@ class CalcITCase extends BatchTestBase {
         row("{2=Hello}"),
         row("{3=Hello world}")
       )
+    )
+  }
+
+  @Test
+  def testMapTypeGroupBy(): Unit = {
+    _expectedEx.expectMessage("is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field")
+    checkResult(
+      "SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']",
+      Seq()
     )
   }
 
@@ -1033,8 +1113,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = TimestampData.fromLocalDateTime(
-      result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
+    val ts1 = TimestampData.fromInstant(
+      result.toList.head.getField(0).asInstanceOf[Instant]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
 
@@ -1221,7 +1301,7 @@ class CalcITCase extends BatchTestBase {
     conf.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     conf.getConfiguration.setBoolean(
-      BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED, true)
+      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>
@@ -1310,4 +1390,106 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testFloatIn(): Unit = {
+    val source = tEnv.fromValues(
+      DataTypes.ROW(
+        DataTypes.FIELD("f0", DataTypes.FLOAT()),
+        DataTypes.FIELD("f1", DataTypes.FLOAT()),
+        DataTypes.FIELD("f2", DataTypes.FLOAT())),
+      row(1.0f, 11.0f, 12.0f),
+      row(2.0f, 21.0f, 22.0f),
+      row(3.0f, 31.0f, 32.0f),
+      row(4.0f, 41.0f, 42.0f),
+      row(5.0f, 51.0f, 52.0f)
+    )
+
+    tEnv.createTemporaryView("myTable", source)
+
+    val query = """
+                  |select * from myTable where f0 in (1.0, 2.0, 3.0)
+                  |""".stripMargin;
+
+    checkResult(
+      query,
+      Seq(
+        row(1.0f, 11.0f, 12.0f),
+        row(2.0f, 21.0f, 22.0f),
+        row(3.0f, 31.0f, 32.0f))
+    )
+  }
+
+  @Test
+  def testFilterPushDownWithInterval(): Unit = {
+    val schema = TableSchema
+      .builder()
+      .field("a", DataTypes.TIMESTAMP)
+      .field("b", DataTypes.TIMESTAMP)
+      .build()
+
+    val data = List(
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00")),
+      row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:01")))
+
+    TestLegacyFilterableTableSource.createTemporaryTable(
+      tEnv,
+      schema,
+      "myTable",
+      isBounded = true,
+      data,
+      List("a", "b"))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00"))))
+
+    checkResult(
+      "SELECT * FROM myTable WHERE TIMESTAMPADD(YEAR, 2, a) >= b",
+      Seq(
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 14:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:00")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2021-03-30 15:00:01")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 09:59:59")),
+        row(localDateTime("2021-03-30 10:00:00"), localDateTime("2023-03-30 10:00:00"))))
+  }
+
+  @Test
+  def testOrWithIsNullPredicate(): Unit = {
+    checkResult(
+      """
+        |SELECT * FROM NullTable3 AS T
+        |WHERE T.a = 1 OR T.a = 3 OR T.a IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 1L, "Hi"),
+        row(3, 2L, "Hello world"),
+        row(null, 999L, "NullTuple"),
+        row(null, 999L, "NullTuple")))
+  }
+
+  @Test
+  def testOrWithIsNullInIf(): Unit = {
+    val data = Seq(
+      row("", "N"),
+      row("X", "Y"),
+      row(null, "Y"))
+    registerCollection(
+      "MyTable", data, new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO), "a, b")
+
+    checkResult(
+      "SELECT IF(a = '', 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('b')))
+    checkResult(
+      "SELECT IF(a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('b'), row('b'), row('a')))
+    checkResult(
+      "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
+      Seq(row('a'), row('b'), row('a')))
+  }
 }

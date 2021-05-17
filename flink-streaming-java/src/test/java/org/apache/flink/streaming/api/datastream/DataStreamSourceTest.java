@@ -26,28 +26,22 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit test for {@link DataStreamSource}.
- */
+/** Unit test for {@link DataStreamSource}. */
 public class DataStreamSourceTest {
 
-	/**
-	 * Test constructor for new Sources (FLIP-27).
-	 */
-	@Test
-	public void testConstructor() {
-		int expectParallelism = 100;
-		boolean expectIsParallel = true;
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		MockSource mockSource = new MockSource(Boundedness.BOUNDED, 10);
-		DataStreamSource<Integer> stream = env.fromSource(
-			mockSource,
-			WatermarkStrategy.noWatermarks(),
-			"TestingSource");
-		stream.setParallelism(expectParallelism);
+    /** Test constructor for new Sources (FLIP-27). */
+    @Test
+    public void testConstructor() {
+        int expectParallelism = 100;
+        boolean expectIsParallel = true;
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        MockSource mockSource = new MockSource(Boundedness.BOUNDED, 10);
+        DataStreamSource<Integer> stream =
+                env.fromSource(mockSource, WatermarkStrategy.noWatermarks(), "TestingSource");
+        stream.setParallelism(expectParallelism);
 
-		assertEquals(expectIsParallel, stream.isParallel());
+        assertEquals(expectIsParallel, stream.isParallel());
 
-		assertEquals(expectParallelism, stream.getParallelism());
-	}
+        assertEquals(expectParallelism, stream.getParallelism());
+    }
 }

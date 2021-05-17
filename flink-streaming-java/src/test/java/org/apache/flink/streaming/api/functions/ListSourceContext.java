@@ -30,57 +30,54 @@ import java.util.List;
  */
 public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	private final List<T> target;
+    private final List<T> target;
 
-	private final long delay;
+    private final long delay;
 
-	public ListSourceContext(List<T> target) {
-		this(target, 0L);
-	}
+    public ListSourceContext(List<T> target) {
+        this(target, 0L);
+    }
 
-	public ListSourceContext(List<T> target, long delay) {
-		this.target = target;
-		this.delay = delay;
-	}
+    public ListSourceContext(List<T> target, long delay) {
+        this.target = target;
+        this.delay = delay;
+    }
 
-	@Override
-	public void collect(T element) {
-		target.add(element);
+    @Override
+    public void collect(T element) {
+        target.add(element);
 
-		if (delay > 0) {
-			try {
-				Thread.sleep(delay);
-			}
-			catch (InterruptedException e) {
-				// ignore
-			}
-		}
-	}
+        if (delay > 0) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
 
-	@Override
-	public void collectWithTimestamp(T element, long timestamp) {
-		target.add(element);
-	}
+    @Override
+    public void collectWithTimestamp(T element, long timestamp) {
+        target.add(element);
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void markAsTemporarilyIdle() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void markAsTemporarilyIdle() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Object getCheckpointLock() {
-		return lock;
-	}
+    @Override
+    public Object getCheckpointLock() {
+        return lock;
+    }
 
-	@Override
-	public void close() {
-
-	}
+    @Override
+    public void close() {}
 }

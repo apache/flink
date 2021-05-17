@@ -34,42 +34,40 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * This is the last handler in the pipeline. It logs all error messages.
- */
+/** This is the last handler in the pipeline. It logs all error messages. */
 @ChannelHandler.Sharable
 public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
-	/** The logger to which the handler writes the log statements. */
-	private final Logger logger;
+    /** The logger to which the handler writes the log statements. */
+    private final Logger logger;
 
-	private final Map<String, String> responseHeaders;
+    private final Map<String, String> responseHeaders;
 
-	public PipelineErrorHandler(Logger logger, final Map<String, String> responseHeaders) {
-		this.logger = requireNonNull(logger);
-		this.responseHeaders = requireNonNull(responseHeaders);
-	}
+    public PipelineErrorHandler(Logger logger, final Map<String, String> responseHeaders) {
+        this.logger = requireNonNull(logger);
+        this.responseHeaders = requireNonNull(responseHeaders);
+    }
 
-	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, HttpRequest message) {
-		// we can't deal with this message. No one in the pipeline handled it. Log it.
-		logger.warn("Unknown message received: {}", message);
-		HandlerUtils.sendErrorResponse(
-			ctx,
-			message,
-			new ErrorResponseBody("Bad request received."),
-			HttpResponseStatus.BAD_REQUEST,
-			Collections.emptyMap());
-	}
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, HttpRequest message) {
+        // we can't deal with this message. No one in the pipeline handled it. Log it.
+        logger.warn("Unknown message received: {}", message);
+        HandlerUtils.sendErrorResponse(
+                ctx,
+                message,
+                new ErrorResponseBody("Bad request received."),
+                HttpResponseStatus.BAD_REQUEST,
+                Collections.emptyMap());
+    }
 
-	@Override
-	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-		logger.warn("Unhandled exception", cause);
-		HandlerUtils.sendErrorResponse(
-			ctx,
-			false,
-			new ErrorResponseBody("Internal server error: " + cause.getMessage()),
-			HttpResponseStatus.INTERNAL_SERVER_ERROR,
-			responseHeaders);
-	}
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.warn("Unhandled exception", cause);
+        HandlerUtils.sendErrorResponse(
+                ctx,
+                false,
+                new ErrorResponseBody("Internal server error: " + cause.getMessage()),
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                responseHeaders);
+    }
 }

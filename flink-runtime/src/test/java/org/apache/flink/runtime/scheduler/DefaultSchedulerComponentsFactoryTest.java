@@ -22,56 +22,76 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
-import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the factory method {@link DefaultSchedulerComponents#createSchedulerComponents(
- * ScheduleMode, Configuration, SlotPool, Time)}.
+ * JobType, boolean, Configuration, SlotPool, Time)}.
  */
 public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 
-	@Test
-	public void testCreatingPipelinedSchedulingStrategyFactory() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.SCHEDULING_STRATEGY, "region");
+    @Test
+    public void testCreatingPipelinedSchedulingStrategyFactory() {
 
-		final DefaultSchedulerComponents components = createSchedulerComponents(configuration);
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
-		assertThat(components.getAllocatorFactory(), instanceOf(SlotSharingExecutionSlotAllocatorFactory.class));
-	}
+        final DefaultSchedulerComponents components =
+                createSchedulerComponents(new Configuration());
+        assertThat(
+                components.getSchedulingStrategyFactory(),
+                instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
+        assertThat(
+                components.getAllocatorFactory(),
+                instanceOf(SlotSharingExecutionSlotAllocatorFactory.class));
+    }
 
-	@Test
-	public void testCreatingLegacySchedulingStrategyFactory() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.SCHEDULING_STRATEGY, "legacy");
+    @Test
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
+        final DefaultSchedulerComponents components =
+                createSchedulerComponents(new Configuration());
+        assertThat(
+                components.getSchedulingStrategyFactory(),
+                instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
+    }
 
-		final DefaultSchedulerComponents components = createSchedulerComponents(configuration);
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(LazyFromSourcesSchedulingStrategy.Factory.class));
-		assertThat(components.getAllocatorFactory(), instanceOf(DefaultExecutionSlotAllocatorFactory.class));
-	}
+    @Test
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery() {
+        final Configuration configuration = new Configuration();
 
-	@Test
-	public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
-		final DefaultSchedulerComponents components = createSchedulerComponents(new Configuration());
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
-	}
+        try {
+            createSchedulerComponents(configuration, true, JobType.STREAMING);
+            fail("expected failure");
+        } catch (IllegalArgumentException e) {
+            assertThat(
+                    e,
+                    containsMessage(
+                            "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
+        }
+    }
 
-	private static DefaultSchedulerComponents createSchedulerComponents(final Configuration configuration) {
-		return DefaultSchedulerComponents.createSchedulerComponents(
-			ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
-			configuration,
-			new TestingSlotPoolImpl(new JobID()),
-			Time.milliseconds(10L));
-	}
+    private static DefaultSchedulerComponents createSchedulerComponents(
+            final Configuration configuration) {
+        return createSchedulerComponents(configuration, false, JobType.BATCH);
+    }
+
+    private static DefaultSchedulerComponents createSchedulerComponents(
+            final Configuration configuration,
+            boolean iApproximateLocalRecoveryEnabled,
+            JobType jobType) {
+        return DefaultSchedulerComponents.createSchedulerComponents(
+                jobType,
+                iApproximateLocalRecoveryEnabled,
+                configuration,
+                new TestingSlotPoolImpl(new JobID()),
+                Time.milliseconds(10L));
+    }
 }

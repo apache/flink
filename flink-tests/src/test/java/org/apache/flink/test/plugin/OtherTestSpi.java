@@ -20,9 +20,7 @@ package org.apache.flink.test.plugin;
 
 import org.apache.flink.core.plugin.Plugin;
 
-/**
- * Another service interface for tests of plugin mechanism.
- */
+/** Another service interface for tests of plugin mechanism. */
 public interface OtherTestSpi extends Plugin {
-	String otherTestMethod();
+    String otherTestMethod();
 }

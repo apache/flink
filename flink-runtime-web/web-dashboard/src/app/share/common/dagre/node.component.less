@@ -32,10 +32,10 @@
     border-radius: 0;
     padding: 15px;
     color: @text-color;
-    background: lighten(@primary-color, 30%);
     text-align: left;
     word-break: break-all;
-    border: 1px solid @primary-color;
+    border-width: 1px;
+    border-style: solid;
 
     .content-wrap {
       font-size: 12px;
@@ -51,15 +51,16 @@
         margin-top: 24px;
       }
 
-      &.watermark {
+      &.metric {
         font-weight: normal;;
         font-weight: 12px;
+        margin-bottom: 2px;
         color: @text-color-secondary;
       }
     }
 
     .detail {
-      margin-bottom: 12px;
+      margin-bottom: 2px;
       color: @text-color;
       &.description {
         color: @heading-color;

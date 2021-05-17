@@ -28,25 +28,25 @@ import java.util.ArrayList;
 /**
  * Writes tuples in text format.
  *
- * @param <IN>
- *            Input tuple type
- *
- * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
- * for writing to files from a streaming program.
+ * @param <IN> Input tuple type
+ * @deprecated Please use the {@link
+ *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ *     for writing to files from a streaming program.
  */
 @PublicEvolving
 @Deprecated
 public class WriteFormatAsText<IN> extends WriteFormat<IN> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void write(String path, ArrayList<IN> tupleList) {
-		try (PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)))) {
-			for (IN tupleToWrite : tupleList) {
-				outStream.println(tupleToWrite);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException("Exception occurred while writing file " + path, e);
-		}
-	}
+    @Override
+    public void write(String path, ArrayList<IN> tupleList) {
+        try (PrintWriter outStream =
+                new PrintWriter(new BufferedWriter(new FileWriter(path, true)))) {
+            for (IN tupleToWrite : tupleList) {
+                outStream.println(tupleToWrite);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Exception occurred while writing file " + path, e);
+        }
+    }
 }

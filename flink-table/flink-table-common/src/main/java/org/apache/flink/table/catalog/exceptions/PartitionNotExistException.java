@@ -26,22 +26,20 @@ import org.apache.flink.table.catalog.ObjectPath;
  * non-partitioned table, invalid partition spec, etc.
  */
 public class PartitionNotExistException extends Exception {
-	private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";
+    private static final String MSG = "Partition %s of table %s in catalog %s does not exist.";
 
-	public PartitionNotExistException(
-		String catalogName,
-		ObjectPath tablePath,
-		CatalogPartitionSpec partitionSpec) {
+    public PartitionNotExistException(
+            String catalogName, ObjectPath tablePath, CatalogPartitionSpec partitionSpec) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
-	}
+        super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), null);
+    }
 
-	public PartitionNotExistException(
-		String catalogName,
-		ObjectPath tablePath,
-		CatalogPartitionSpec partitionSpec,
-		Throwable cause) {
+    public PartitionNotExistException(
+            String catalogName,
+            ObjectPath tablePath,
+            CatalogPartitionSpec partitionSpec,
+            Throwable cause) {
 
-		super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), cause);
-	}
+        super(String.format(MSG, partitionSpec, tablePath.getFullName(), catalogName), cause);
+    }
 }

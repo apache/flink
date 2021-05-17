@@ -18,13 +18,43 @@
 
 package org.apache.flink.table.operations;
 
-/**
- * Operation to describe a SHOW FUNCTIONS statement.
- */
+/** Operation to describe a SHOW [USER] FUNCTIONS statement. */
 public class ShowFunctionsOperation implements ShowOperation {
 
-	@Override
-	public String asSummaryString() {
-		return "SHOW FUNCTIONS";
-	}
+    /**
+     * Represent scope of function.
+     *
+     * <ul>
+     *   <li><b>USER</b> return only user-defined functions
+     *   <li><b>ALL</b> return all user-defined and built-in functions
+     * </ul>
+     */
+    public enum FunctionScope {
+        USER,
+        ALL
+    }
+
+    private final FunctionScope functionScope;
+
+    public ShowFunctionsOperation() {
+        // "SHOW FUNCTIONS" default is ALL scope
+        this.functionScope = FunctionScope.ALL;
+    }
+
+    public ShowFunctionsOperation(FunctionScope functionScope) {
+        this.functionScope = functionScope;
+    }
+
+    @Override
+    public String asSummaryString() {
+        if (functionScope == FunctionScope.ALL) {
+            return "SHOW FUNCTIONS";
+        } else {
+            return String.format("SHOW %s FUNCTIONS", functionScope);
+        }
+    }
+
+    public FunctionScope getFunctionScope() {
+        return functionScope;
+    }
 }

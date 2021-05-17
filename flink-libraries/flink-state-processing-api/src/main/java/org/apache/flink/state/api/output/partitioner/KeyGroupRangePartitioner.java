@@ -22,25 +22,23 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
-/**
- * A partitioner that selects the target channel based on the key group index.
- */
+/** A partitioner that selects the target channel based on the key group index. */
 @Internal
 public class KeyGroupRangePartitioner implements Partitioner<Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	public KeyGroupRangePartitioner(int maxParallelism) {
-		this.maxParallelism = maxParallelism;
-	}
+    public KeyGroupRangePartitioner(int maxParallelism) {
+        this.maxParallelism = maxParallelism;
+    }
 
-	@Override
-	public int partition(Integer key, int numPartitions) {
-		return KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-			maxParallelism,
-			numPartitions,
-			KeyGroupRangeAssignment.computeKeyGroupForKeyHash(key, maxParallelism));
-	}
+    @Override
+    public int partition(Integer key, int numPartitions) {
+        return KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                maxParallelism,
+                numPartitions,
+                KeyGroupRangeAssignment.computeKeyGroupForKeyHash(key, maxParallelism));
+    }
 }

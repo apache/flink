@@ -18,31 +18,32 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Time;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.sql.Time;
+
 public class SqlTimeComparatorTest extends ComparatorTestBase<Time> {
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected TypeComparator<Time> createComparator(boolean ascending) {
-		return (TypeComparator) new DateComparator(ascending);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected TypeComparator<Time> createComparator(boolean ascending) {
+        return (TypeComparator) new DateComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Time> createSerializer() {
-		return new SqlTimeSerializer();
-	}
+    @Override
+    protected TypeSerializer<Time> createSerializer() {
+        return new SqlTimeSerializer();
+    }
 
-	@Override
-	protected Time[] getSortedTestData() {
-		return new Time[] {
-			Time.valueOf("00:00:00"),
-			Time.valueOf("02:42:25"),
-			Time.valueOf("14:15:59"),
-			Time.valueOf("18:00:45")
-		};
-	}
+    @Override
+    protected Time[] getSortedTestData() {
+        return new Time[] {
+            Time.valueOf("00:00:00"),
+            Time.valueOf("02:42:25"),
+            Time.valueOf("14:15:59"),
+            Time.valueOf("18:00:45")
+        };
+    }
 }

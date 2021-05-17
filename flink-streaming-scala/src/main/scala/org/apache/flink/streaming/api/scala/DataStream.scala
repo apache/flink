@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.sink.Sink
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -40,7 +41,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{CloseableIterator, Collector}
 
 import scala.collection.JavaConverters._
 
@@ -1124,6 +1125,61 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     this.addSink(sinkFunction)
   }
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   */
+  def sinkTo(sink: Sink[T, _, _, _]): DataStreamSink[T] = stream.sinkTo(sink)
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect())
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(jobExecutionName: String): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect(jobExecutionName))
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(limit: Int): List[T] =
+    stream.executeAndCollect(limit).asScala.toList
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(jobExecutionName: String, limit: Int): List[T] =
+    stream.executeAndCollect(jobExecutionName, limit).asScala.toList
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning

@@ -46,7 +46,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
-      .get.remove(RuleSets.ofList(BatchExecSortAggRule.INSTANCE))
+      .get.remove(RuleSets.ofList(BatchPhysicalSortAggRule.INSTANCE))
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
       .get.add(RuleSets.ofList(BatchExecSortAggRuleForOnePhase.INSTANCE))
 
@@ -63,17 +63,17 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 
   @Test
   def testRollupWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)")
+    util.verifyRelPlan("SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)")
   }
 
   @Test
   def testCubeWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("SELECT weightedAvg(d, 1) FROM t GROUP BY CUBE (a, b)")
+    util.verifyRelPlan("SELECT weightedAvg(d, 1) FROM t GROUP BY CUBE (a, b)")
   }
 
   @Test
   def testGroupSetsWithUnmergeableAggCall(): Unit = {
-    util.verifyPlan("select weightedAvg(a, 1) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
+    util.verifyRelPlan("select weightedAvg(a, 1) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))")
   }
 }
 
@@ -82,7 +82,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
   * value, and only enable one phase aggregate.
   * This rule only used for test.
   */
-class BatchExecSortAggRuleForOnePhase extends BatchExecSortAggRule {
+class BatchExecSortAggRuleForOnePhase extends BatchPhysicalSortAggRule {
   override protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
 

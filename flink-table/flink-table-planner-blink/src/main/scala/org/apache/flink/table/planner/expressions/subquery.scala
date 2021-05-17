@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
   extends PlannerExpression  {
@@ -39,12 +41,13 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
         if (elements.length != 1) {
           return ValidationFailure("IN operator supports only one table reference.")
         }
-        val tableSchema = tableOperation.getTableSchema
-        if (tableSchema.getFieldCount > 1) {
+        val resolvedSchema = tableOperation.getResolvedSchema
+        if (resolvedSchema.getColumnCount > 1) {
           return ValidationFailure(
             s"The sub-query table '$name' must not have more than one column.")
         }
-        (expression.resultType, tableSchema.getFieldType(0).get()) match {
+        (expression.resultType,
+            fromDataTypeToLegacyInfo(resolvedSchema.getColumnDataTypes.get(0))) match {
           case (lType, rType) if lType == rType => ValidationSuccess
           case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
           case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>

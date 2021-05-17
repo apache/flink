@@ -26,36 +26,33 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import java.util.Set;
 
 /**
- * Component which encapsulates the scheduling logic.
- * It can react to execution state changes and partition consumable events.
- * Moreover, it is responsible for resolving task failures.
+ * Component which encapsulates the scheduling logic. It can react to execution state changes and
+ * partition consumable events. Moreover, it is responsible for resolving task failures.
  */
 public interface SchedulingStrategy {
 
-	/**
-	 * Called when the scheduling is started (initial scheduling operation).
-	 */
-	void startScheduling();
+    /** Called when the scheduling is started (initial scheduling operation). */
+    void startScheduling();
 
-	/**
-	 * Called whenever vertices need to be restarted (due to task failure).
-	 *
-	 * @param verticesToRestart The tasks need to be restarted
-	 */
-	void restartTasks(Set<ExecutionVertexID> verticesToRestart);
+    /**
+     * Called whenever vertices need to be restarted (due to task failure).
+     *
+     * @param verticesToRestart The tasks need to be restarted
+     */
+    void restartTasks(Set<ExecutionVertexID> verticesToRestart);
 
-	/**
-	 * Called whenever an {@link Execution} changes its state.
-	 *
-	 * @param executionVertexId The id of the task
-	 * @param executionState The new state of the execution
-	 */
-	void onExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState);
+    /**
+     * Called whenever an {@link Execution} changes its state.
+     *
+     * @param executionVertexId The id of the task
+     * @param executionState The new state of the execution
+     */
+    void onExecutionStateChange(ExecutionVertexID executionVertexId, ExecutionState executionState);
 
-	/**
-	 * Called whenever an {@link IntermediateResultPartition} becomes consumable.
-	 *
-	 * @param resultPartitionId The id of the result partition
-	 */
-	void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId);
+    /**
+     * Called whenever an {@link IntermediateResultPartition} becomes consumable.
+     *
+     * @param resultPartitionId The id of the result partition
+     */
+    void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId);
 }

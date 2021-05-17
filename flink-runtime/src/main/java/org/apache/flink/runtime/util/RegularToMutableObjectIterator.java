@@ -18,40 +18,40 @@
 
 package org.apache.flink.runtime.util;
 
-import java.util.Iterator;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.util.Iterator;
+
 public class RegularToMutableObjectIterator<T> implements MutableObjectIterator<T> {
 
-	private final Iterator<T> iterator;
-	
-	private final TypeSerializer<T> serializer;
+    private final Iterator<T> iterator;
 
-	public RegularToMutableObjectIterator(Iterator<T> iterator, TypeSerializer<T> serializer) {
-		this.iterator = iterator;
-		this.serializer = serializer;
-	}
+    private final TypeSerializer<T> serializer;
 
-	@Override
-	public T next(T reuse) {
-		// -----------------------------------------------------------------------------------------
-		// IMPORTANT: WE NEED TO COPY INTO THE REUSE OBJECT TO SIMULATE THE MUTABLE OBJECT RUNTIME
-		// -----------------------------------------------------------------------------------------
-		if (this.iterator.hasNext()) {
-			return this.serializer.copy(this.iterator.next(), reuse);
-		} else {
-			return null;
-		}
-	}
+    public RegularToMutableObjectIterator(Iterator<T> iterator, TypeSerializer<T> serializer) {
+        this.iterator = iterator;
+        this.serializer = serializer;
+    }
 
-	@Override
-	public T next() {
-		if (this.iterator.hasNext()) {
-			return this.iterator.next();
-		} else {
-			return null;
-		}
-	}
+    @Override
+    public T next(T reuse) {
+        // -----------------------------------------------------------------------------------------
+        // IMPORTANT: WE NEED TO COPY INTO THE REUSE OBJECT TO SIMULATE THE MUTABLE OBJECT RUNTIME
+        // -----------------------------------------------------------------------------------------
+        if (this.iterator.hasNext()) {
+            return this.serializer.copy(this.iterator.next(), reuse);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public T next() {
+        if (this.iterator.hasNext()) {
+            return this.iterator.next();
+        } else {
+            return null;
+        }
+    }
 }

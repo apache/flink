@@ -54,88 +54,88 @@ class ProjectSemiAntiJoinTransposeRuleTest extends TableTestBase {
 
   @Test
   def testNotNeedTransposeProject_Semi1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testNotNeedTransposeProject_Semi2(): Unit = {
-    util.verifyPlan("SELECT b + 1, c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT b + 1, c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testNotNeedTransposeProject_Semi3(): Unit = {
-    util.verifyPlan("SELECT c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE b = e)")
+    util.verifyRelPlan("SELECT c FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE b = e)")
   }
 
   @Test
   def testNotNeedTransposeProject_Anti1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT * FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testNotNeedTransposeProject_Anti2(): Unit = {
-    util.verifyPlan("SELECT b + 1, c FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT b + 1, c FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testNotNeedTransposeProject_Anti3(): Unit = {
     val sqlQuery =
       "SELECT c FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2 WHERE b = e)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testTransposeProject_Semi1(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Semi2(): Unit = {
-    util.verifyPlan("SELECT a + 1 FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a + 1 FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Semi3(): Unit = {
-    util.verifyPlan("SELECT a, b FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a, b FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Semi4(): Unit = {
-    util.verifyPlan("SELECT b, a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT b, a FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Semi5(): Unit = {
     val sqlQuery = "SELECT d FROM (SELECT a, b, c, d FROM MyTable1, MyTable2) t " +
       "WHERE a IN (SELECT d FROM MyTable2)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testTransposeProject_Anti1(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Anti2(): Unit = {
-    util.verifyPlan( "SELECT a + 1 FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan( "SELECT a + 1 FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Anti3(): Unit = {
-    util.verifyPlan("SELECT a, b FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT a, b FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Anti4(): Unit = {
-    util.verifyPlan("SELECT b, a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
+    util.verifyRelPlan("SELECT b, a FROM MyTable1 WHERE a NOT IN (SELECT d FROM MyTable2)")
   }
 
   @Test
   def testTransposeProject_Anti5(): Unit = {
     val sqlQuery = "SELECT d FROM (SELECT a, b, c, d FROM MyTable1, MyTable2) t " +
       "WHERE a NOT IN (SELECT d FROM MyTable2)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -146,6 +146,6 @@ class ProjectSemiAntiJoinTransposeRuleTest extends TableTestBase {
     val sqlQuery = "SELECT * FROM MyTable1 WHERE EXISTS (" +
       "SELECT * FROM MyTable2, " +
       "LATERAL TABLE(table_func(f)) AS T(f1) WHERE EXISTS (SELECT * FROM MyTable3))"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

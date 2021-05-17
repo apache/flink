@@ -45,73 +45,88 @@ import java.util.concurrent.Executor;
 import java.util.stream.IntStream;
 
 /**
- * Request handler that returns, aggregated across subtasks, a list of all available metrics or the values
- * for a set of metrics.
+ * Request handler that returns, aggregated across subtasks, a list of all available metrics or the
+ * values for a set of metrics.
  *
- * <p>Specific subtasks can be selected for aggregation by specifying a comma-separated list of integer ranges.
- * {@code /metrics?get=X,Y&subtasks=0-2,4-5}
+ * <p>Specific subtasks can be selected for aggregation by specifying a comma-separated list of
+ * integer ranges. {@code /metrics?get=X,Y&subtasks=0-2,4-5}
  */
-public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetricsHandler<AggregatedSubtaskMetricsParameters> {
+public class AggregatingSubtasksMetricsHandler
+        extends AbstractAggregatingMetricsHandler<AggregatedSubtaskMetricsParameters> {
 
-	public AggregatingSubtasksMetricsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			Executor executor,
-			MetricFetcher fetcher) {
-		super(leaderRetriever, timeout, responseHeaders, AggregatedSubtaskMetricsHeaders.getInstance(), executor, fetcher);
-	}
+    public AggregatingSubtasksMetricsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            Executor executor,
+            MetricFetcher fetcher) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                AggregatedSubtaskMetricsHeaders.getInstance(),
+                executor,
+                fetcher);
+    }
 
-	@Nonnull
-	@Override
-	Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, HandlerRequest<EmptyRequestBody, AggregatedSubtaskMetricsParameters> request) {
-		JobID jobID = request.getPathParameter(JobIDPathParameter.class);
-		JobVertexID taskID = request.getPathParameter(JobVertexIdPathParameter.class);
+    @Nonnull
+    @Override
+    Collection<? extends MetricStore.ComponentMetricStore> getStores(
+            MetricStore store,
+            HandlerRequest<EmptyRequestBody, AggregatedSubtaskMetricsParameters> request) {
+        JobID jobID = request.getPathParameter(JobIDPathParameter.class);
+        JobVertexID taskID = request.getPathParameter(JobVertexIdPathParameter.class);
 
-		Collection<String> subtaskRanges = request.getQueryParameter(SubtasksFilterQueryParameter.class);
-		if (subtaskRanges.isEmpty()) {
-			MetricStore.TaskMetricStore taskMetricStore = store.getTaskMetricStore(jobID.toString(), taskID.toString());
-			if (taskMetricStore != null) {
-				return taskMetricStore.getAllSubtaskMetricStores();
-			} else {
-				return Collections.emptyList();
-			}
-		} else {
-			Iterable<Integer> subtasks = getIntegerRangeFromString(subtaskRanges);
-			Collection<MetricStore.ComponentMetricStore> subtaskStores = new ArrayList<>(8);
-			for (int subtask : subtasks) {
-				MetricStore.ComponentMetricStore subtaskMetricStore = store.getSubtaskMetricStore(jobID.toString(), taskID.toString(), subtask);
-				if (subtaskMetricStore != null) {
-					subtaskStores.add(subtaskMetricStore);
-				}
-			}
-			return subtaskStores;
-		}
-	}
+        Collection<String> subtaskRanges =
+                request.getQueryParameter(SubtasksFilterQueryParameter.class);
+        if (subtaskRanges.isEmpty()) {
+            MetricStore.TaskMetricStore taskMetricStore =
+                    store.getTaskMetricStore(jobID.toString(), taskID.toString());
+            if (taskMetricStore != null) {
+                return taskMetricStore.getAllSubtaskMetricStores().values();
+            } else {
+                return Collections.emptyList();
+            }
+        } else {
+            Iterable<Integer> subtasks = getIntegerRangeFromString(subtaskRanges);
+            Collection<MetricStore.ComponentMetricStore> subtaskStores = new ArrayList<>(8);
+            for (int subtask : subtasks) {
+                MetricStore.ComponentMetricStore subtaskMetricStore =
+                        store.getSubtaskMetricStore(jobID.toString(), taskID.toString(), subtask);
+                if (subtaskMetricStore != null) {
+                    subtaskStores.add(subtaskMetricStore);
+                }
+            }
+            return subtaskStores;
+        }
+    }
 
-	private Iterable<Integer> getIntegerRangeFromString(Collection<String> ranges) {
-		UnionIterator<Integer> iterators = new UnionIterator<>();
+    private Iterable<Integer> getIntegerRangeFromString(Collection<String> ranges) {
+        UnionIterator<Integer> iterators = new UnionIterator<>();
 
-		for (String rawRange : ranges) {
-			try {
-				Iterator<Integer> rangeIterator;
-				String range = rawRange.trim();
-				int dashIdx = range.indexOf('-');
-				if (dashIdx == -1) {
-					// only one value in range:
-					rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
-				} else {
-					// evaluate range
-					final int start = Integer.valueOf(range.substring(0, dashIdx));
-					final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
-					rangeIterator = IntStream.rangeClosed(start, end).iterator();
-				}
-				iterators.add(rangeIterator);
-			} catch (NumberFormatException nfe) {
-				log.warn("Invalid value {} specified for integer range. Not a number.", rawRange, nfe);
-			}
-		}
+        for (String rawRange : ranges) {
+            try {
+                Iterator<Integer> rangeIterator;
+                String range = rawRange.trim();
+                int dashIdx = range.indexOf('-');
+                if (dashIdx == -1) {
+                    // only one value in range:
+                    rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
+                } else {
+                    // evaluate range
+                    final int start = Integer.valueOf(range.substring(0, dashIdx));
+                    final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
+                    rangeIterator = IntStream.rangeClosed(start, end).iterator();
+                }
+                iterators.add(rangeIterator);
+            } catch (NumberFormatException nfe) {
+                log.warn(
+                        "Invalid value {} specified for integer range. Not a number.",
+                        rawRange,
+                        nfe);
+            }
+        }
 
-		return iterators;
-	}
+        return iterators;
+    }
 }

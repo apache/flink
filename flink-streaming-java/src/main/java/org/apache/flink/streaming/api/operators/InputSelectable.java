@@ -20,28 +20,28 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface for stream operators that can select the input to get
- * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
+ * Interface for stream operators that can select the input to get {@link
+ * org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
  *
- * <p><b>IMPORTANT:</b> This interface is a loose contract. The runtime may read multiple
- * records continuously before calling {@code nextSelection()} again to determine whether
- * to change the input to be read. That is, it is not guaranteed that {@code nextSelection()}
- * will be called immediately after the operator has processed a record and the reading input
- * will be changed according to {@link InputSelection} returned. This means that the operator
- * may receive some data that it does not currently want to process. Therefore, if an operator
- * needs a strict convention, it must cache the unexpected data itself and handle them correctly.
+ * <p><b>IMPORTANT:</b> This interface is a loose contract. The runtime may read multiple records
+ * continuously before calling {@code nextSelection()} again to determine whether to change the
+ * input to be read. That is, it is not guaranteed that {@code nextSelection()} will be called
+ * immediately after the operator has processed a record and the reading input will be changed
+ * according to {@link InputSelection} returned. This means that the operator may receive some data
+ * that it does not currently want to process. Therefore, if an operator needs a strict convention,
+ * it must cache the unexpected data itself and handle them correctly.
  *
- * <p>This interface also makes the following conventions:
- * 1.The runtime must call {@code nextSelection()} to determine the input to read the first record.
- * 2.When the input being read reaches the end, the runtime must call {@code nextSelection()} to
- *   determine the next input to be read.
+ * <p>This interface also makes the following conventions: 1.The runtime must call {@code
+ * nextSelection()} to determine the input to read the first record. 2.When the input being read
+ * reaches the end, the runtime must call {@code nextSelection()} to determine the next input to be
+ * read.
  */
 @PublicEvolving
 public interface InputSelectable {
 
-	/**
-	 * Returns the next {@link InputSelection} that wants to get the record.
-	 * This method is guaranteed to not be called concurrently with other methods of the operator.
-	 */
-	InputSelection nextSelection();
+    /**
+     * Returns the next {@link InputSelection} that wants to get the record. This method is
+     * guaranteed to not be called concurrently with other methods of the operator.
+     */
+    InputSelection nextSelection();
 }

@@ -28,35 +28,35 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link FlinkUserCodeClassLoader}.
- */
+/** Tests for the {@link FlinkUserCodeClassLoader}. */
 public class FlinkUserCodeClassLoaderTest extends TestLogger {
-	@Test
-	public void testExceptionHandling() {
-		RuntimeException expectedException = new RuntimeException("Expected exception");
-		AtomicReference<Throwable> handledException = new AtomicReference<>();
-		try (FlinkUserCodeClassLoader classLoaderWithErrorHandler =
-				new ThrowingURLClassLoader(handledException::set, expectedException)) {
-			classLoaderWithErrorHandler.loadClass("dummy.class");
-			fail("The expected exception is not thrown");
-		} catch (Throwable t) {
-			assertThat(handledException.get(), is(expectedException));
-			assertThat(t, is(expectedException));
-		}
-	}
+    @Test
+    public void testExceptionHandling() {
+        RuntimeException expectedException = new RuntimeException("Expected exception");
+        AtomicReference<Throwable> handledException = new AtomicReference<>();
+        try (FlinkUserCodeClassLoader classLoaderWithErrorHandler =
+                new ThrowingURLClassLoader(handledException::set, expectedException)) {
+            classLoaderWithErrorHandler.loadClass("dummy.class");
+            fail("The expected exception is not thrown");
+        } catch (Throwable t) {
+            assertThat(handledException.get(), is(expectedException));
+            assertThat(t, is(expectedException));
+        }
+    }
 
-	private static class ThrowingURLClassLoader extends FlinkUserCodeClassLoader {
-		private final RuntimeException expectedException;
+    private static class ThrowingURLClassLoader extends FlinkUserCodeClassLoader {
+        private final RuntimeException expectedException;
 
-		ThrowingURLClassLoader(Consumer<Throwable> classLoadingExceptionHandler, RuntimeException expectedException) {
-			super(new URL[]{}, null, classLoadingExceptionHandler);
-			this.expectedException = expectedException;
-		}
+        ThrowingURLClassLoader(
+                Consumer<Throwable> classLoadingExceptionHandler,
+                RuntimeException expectedException) {
+            super(new URL[] {}, null, classLoadingExceptionHandler);
+            this.expectedException = expectedException;
+        }
 
-		@Override
-		protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) {
-			throw expectedException;
-		}
-	}
+        @Override
+        protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) {
+            throw expectedException;
+        }
+    }
 }

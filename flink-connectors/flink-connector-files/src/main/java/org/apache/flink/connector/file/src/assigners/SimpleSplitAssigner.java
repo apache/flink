@@ -26,40 +26,40 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * The {@code SimpleSplitAssigner} hands out splits in a random order, without any consideration
- * for order or locality.
+ * The {@code SimpleSplitAssigner} hands out splits in a random order, without any consideration for
+ * order or locality.
  */
 @PublicEvolving
 public class SimpleSplitAssigner implements FileSplitAssigner {
 
-	private final ArrayList<FileSourceSplit> splits;
+    private final ArrayList<FileSourceSplit> splits;
 
-	public SimpleSplitAssigner(Collection<FileSourceSplit> splits) {
-		this.splits = new ArrayList<>(splits);
-	}
+    public SimpleSplitAssigner(Collection<FileSourceSplit> splits) {
+        this.splits = new ArrayList<>(splits);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Optional<FileSourceSplit> getNext(String hostname) {
-		final int size = splits.size();
-		return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
-	}
+    @Override
+    public Optional<FileSourceSplit> getNext(String hostname) {
+        final int size = splits.size();
+        return size == 0 ? Optional.empty() : Optional.of(splits.remove(size - 1));
+    }
 
-	@Override
-	public void addSplits(Collection<FileSourceSplit> newSplits) {
-		splits.addAll(newSplits);
-	}
+    @Override
+    public void addSplits(Collection<FileSourceSplit> newSplits) {
+        splits.addAll(newSplits);
+    }
 
-	@Override
-	public Collection<FileSourceSplit> remainingSplits() {
-		return splits;
-	}
+    @Override
+    public Collection<FileSourceSplit> remainingSplits() {
+        return splits;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "SimpleSplitAssigner " + splits;
-	}
+    @Override
+    public String toString() {
+        return "SimpleSplitAssigner " + splits;
+    }
 }

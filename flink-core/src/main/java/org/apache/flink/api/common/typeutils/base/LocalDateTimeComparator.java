@@ -29,125 +29,130 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * This class can not extend {@link BasicTypeComparator}, because LocalDateTime is a
- * Comparable of ChronoLocalDateTime instead of Comparable of LocalDateTime.
+ * This class can not extend {@link BasicTypeComparator}, because LocalDateTime is a Comparable of
+ * ChronoLocalDateTime instead of Comparable of LocalDateTime.
  */
 @Internal
-public final class LocalDateTimeComparator extends TypeComparator<LocalDateTime> implements Serializable {
+public final class LocalDateTimeComparator extends TypeComparator<LocalDateTime>
+        implements Serializable {
 
-	private transient LocalDateTime reference;
+    private transient LocalDateTime reference;
 
-	protected final boolean ascendingComparison;
-	protected final LocalDateComparator dateComparator;
-	protected final LocalTimeComparator timeComparator;
+    protected final boolean ascendingComparison;
+    protected final LocalDateComparator dateComparator;
+    protected final LocalTimeComparator timeComparator;
 
-	// For use by getComparators
-	@SuppressWarnings("rawtypes")
-	private final LocalDateTimeComparator[] comparators = new LocalDateTimeComparator[] {this};
+    // For use by getComparators
+    @SuppressWarnings("rawtypes")
+    private final LocalDateTimeComparator[] comparators = new LocalDateTimeComparator[] {this};
 
-	public LocalDateTimeComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
-		this.dateComparator = new LocalDateComparator(ascending);
-		this.timeComparator = new LocalTimeComparator(ascending);
-	}
+    public LocalDateTimeComparator(boolean ascending) {
+        this.ascendingComparison = ascending;
+        this.dateComparator = new LocalDateComparator(ascending);
+        this.timeComparator = new LocalTimeComparator(ascending);
+    }
 
-	@Override
-	public int hash(LocalDateTime value) {
-		return value.hashCode();
-	}
+    @Override
+    public int hash(LocalDateTime value) {
+        return value.hashCode();
+    }
 
-	@Override
-	public void setReference(LocalDateTime toCompare) {
-		this.reference = toCompare;
-	}
+    @Override
+    public void setReference(LocalDateTime toCompare) {
+        this.reference = toCompare;
+    }
 
-	@Override
-	public boolean equalToReference(LocalDateTime candidate) {
-		return candidate.equals(reference);
-	}
+    @Override
+    public boolean equalToReference(LocalDateTime candidate) {
+        return candidate.equals(reference);
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<LocalDateTime> referencedComparator) {
-		int comp = ((LocalDateTimeComparator) referencedComparator).reference.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compareToReference(TypeComparator<LocalDateTime> referencedComparator) {
+        int comp = ((LocalDateTimeComparator) referencedComparator).reference.compareTo(reference);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public int compare(LocalDateTime first, LocalDateTime second) {
-		int cmp = first.compareTo(second);
-		return ascendingComparison ? cmp : -cmp;
-	}
+    @Override
+    public int compare(LocalDateTime first, LocalDateTime second) {
+        int cmp = first.compareTo(second);
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return !ascendingComparison;
+    }
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(LocalDateTime record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(LocalDateTime record, DataOutputView target)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
 
-	@SuppressWarnings("rawtypes")
-	@Override
-	public TypeComparator[] getFlatComparators() {
-		return comparators;
-	}
+    @SuppressWarnings("rawtypes")
+    @Override
+    public TypeComparator[] getFlatComparators() {
+        return comparators;
+    }
 
-	@Override
-	public LocalDateTime readWithKeyDenormalization(LocalDateTime reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public LocalDateTime readWithKeyDenormalization(LocalDateTime reuse, DataInputView source)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int cmp = dateComparator.compareSerialized(firstSource, secondSource);
-		if (cmp == 0) {
-			cmp = timeComparator.compareSerialized(firstSource, secondSource);
-		}
-		return cmp;
-	}
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        int cmp = dateComparator.compareSerialized(firstSource, secondSource);
+        if (cmp == 0) {
+            cmp = timeComparator.compareSerialized(firstSource, secondSource);
+        }
+        return cmp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return true;
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return true;
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return dateComparator.getNormalizeKeyLen() + timeComparator.getNormalizeKeyLen();
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return dateComparator.getNormalizeKeyLen() + timeComparator.getNormalizeKeyLen();
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(LocalDateTime record, MemorySegment target, int offset, int numBytes) {
-		int dateNKLen = dateComparator.getNormalizeKeyLen();
-		if (numBytes <= dateNKLen) {
-			dateComparator.putNormalizedKey(record.toLocalDate(), target, offset, numBytes);
-		} else {
-			dateComparator.putNormalizedKey(record.toLocalDate(), target, offset, dateNKLen);
-			timeComparator.putNormalizedKey(
-					record.toLocalTime(), target, offset + dateNKLen, numBytes - dateNKLen);
-		}
-	}
+    @Override
+    public void putNormalizedKey(
+            LocalDateTime record, MemorySegment target, int offset, int numBytes) {
+        int dateNKLen = dateComparator.getNormalizeKeyLen();
+        if (numBytes <= dateNKLen) {
+            dateComparator.putNormalizedKey(record.toLocalDate(), target, offset, numBytes);
+        } else {
+            dateComparator.putNormalizedKey(record.toLocalDate(), target, offset, dateNKLen);
+            timeComparator.putNormalizedKey(
+                    record.toLocalTime(), target, offset + dateNKLen, numBytes - dateNKLen);
+        }
+    }
 
-	@Override
-	public LocalDateTimeComparator duplicate() {
-		return new LocalDateTimeComparator(ascendingComparison);
-	}
+    @Override
+    public LocalDateTimeComparator duplicate() {
+        return new LocalDateTimeComparator(ascendingComparison);
+    }
 }

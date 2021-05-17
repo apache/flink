@@ -20,10 +20,11 @@ package org.apache.flink.table.api
 
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, ImperativeAggregateFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
@@ -359,6 +360,17 @@ trait ImplicitExpressionConversions {
       function,
       params: _*)
 
+  /**
+   * A call to a SQL expression.
+   *
+   * The given string is parsed and translated into an [[Expression]] during planning. Only the
+   * translated expression is evaluated during runtime.
+   *
+   * Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+   * table-valued functions are not supported. Sub-queries are also not allowed.
+   */
+  def callSql(sqlExpression: String): Expression = Expressions.callSql(sqlExpression)
+
   // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------
@@ -410,38 +422,55 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-    * Returns the current SQL date in UTC time zone.
+    * Returns the current SQL date in local time zone,
+    * the return type of this expression is [[DataTypes.DATE]].
     */
   def currentDate(): Expression = {
     Expressions.currentDate()
   }
 
   /**
-    * Returns the current SQL time in UTC time zone.
+    * Returns the current SQL time in local time zone,
+    * the return type of this expression is [[DataTypes.TIME]].
     */
   def currentTime(): Expression = {
     Expressions.currentTime()
   }
 
   /**
-    * Returns the current SQL timestamp in UTC time zone.
+    * Returns the current SQL timestamp in local time zone,
+    * the return type of this expression is [[DataTypes.TIMESTAMP_LTZ()]].
     */
   def currentTimestamp(): Expression = {
     Expressions.currentTimestamp()
   }
 
   /**
-    * Returns the current SQL time in local time zone.
+    * Returns the current SQL time in local time zone,
+    * the return type of this expression is [[DataTypes.TIME]],
+    * this is a synonym for [[ImplicitExpressionConversions.currentTime()]].
     */
   def localTime(): Expression = {
     Expressions.localTime()
   }
 
   /**
-    * Returns the current SQL timestamp in local time zone.
+    * Returns the current SQL timestamp in local time zone,
+    * the return type of this expression is [[DataTypes.TIMESTAMP]].
     */
   def localTimestamp(): Expression = {
     Expressions.localTimestamp()
+  }
+
+  /**
+   * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
+   *
+   * The supported precision is 0 or 3:
+   *   - 0 means the numericEpochTime is in second.
+   *   - 3 means the numericEpochTime is in millisecond.
+   */
+  def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
+    Expressions.toTimestampLtz(numericEpochTime, precision)
   }
 
   /**
@@ -648,6 +677,21 @@ trait ImplicitExpressionConversions {
     */
   def log(base: Expression, value: Expression): Expression = {
     Expressions.log(base, value)
+  }
+
+  /**
+   * Source watermark declaration for [[Schema]].
+   *
+   * This is a marker function that doesn't have concrete runtime implementation.
+   * It can only be used as a single expression in [[Schema.Builder#watermark(String, Expression)]].
+   * The declaration will be pushed down into a table source that implements the
+   * [[SupportsSourceWatermark]] interface. The source will emit system-defined watermarks
+   * afterwards.
+   *
+   * Please check the documentation whether the connector supports source watermarks.
+   */
+  def sourceWatermark(): Expression = {
+    Expressions.sourceWatermark()
   }
 
   /**

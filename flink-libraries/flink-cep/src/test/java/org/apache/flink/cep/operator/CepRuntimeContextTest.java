@@ -60,253 +60,254 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Test cases for {@link CepRuntimeContext}.
- */
+/** Test cases for {@link CepRuntimeContext}. */
 public class CepRuntimeContextTest extends TestLogger {
 
-	@Test
-	public void testCepRuntimeContextIsSetInNFA() throws Exception {
+    @Test
+    public void testCepRuntimeContextIsSetInNFA() throws Exception {
 
-		@SuppressWarnings("unchecked")
-		final NFA<Event> mockNFA = mock(NFA.class);
+        @SuppressWarnings("unchecked")
+        final NFA<Event> mockNFA = mock(NFA.class);
 
-		try (
-			OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = getCepTestHarness(
-				createOperatorForNFA(mockNFA).build())) {
+        try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+                getCepTestHarness(createOperatorForNFA(mockNFA).build())) {
 
-			harness.open();
-			verify(mockNFA).open(any(CepRuntimeContext.class), any(Configuration.class));
-		}
-	}
+            harness.open();
+            verify(mockNFA).open(any(CepRuntimeContext.class), any(Configuration.class));
+        }
+    }
 
-	@Test
-	public void testCepRuntimeContextIsSetInProcessFunction() throws Exception {
+    @Test
+    public void testCepRuntimeContextIsSetInProcessFunction() throws Exception {
 
-		final VerifyRuntimeContextProcessFunction processFunction = new VerifyRuntimeContextProcessFunction();
+        final VerifyRuntimeContextProcessFunction processFunction =
+                new VerifyRuntimeContextProcessFunction();
 
-		try (
-			OneInputStreamOperatorTestHarness<Event, Event> harness = getCepTestHarness(
-				createOperatorForNFA(getSingleElementAlwaysTrueNFA())
-					.withFunction(processFunction)
-					.build())) {
+        try (OneInputStreamOperatorTestHarness<Event, Event> harness =
+                getCepTestHarness(
+                        createOperatorForNFA(getSingleElementAlwaysTrueNFA())
+                                .withFunction(processFunction)
+                                .build())) {
 
-			harness.open();
-			Event record = event().withName("A").build();
-			harness.processElement(record, 0);
+            harness.open();
+            Event record = event().withName("A").build();
+            harness.processElement(record, 0);
 
-			assertFunction(processFunction)
-				.checkOpenCalled()
-				.checkCloseCalled()
-				.checkProcessMatchCalled();
-		}
-	}
+            assertFunction(processFunction)
+                    .checkOpenCalled()
+                    .checkCloseCalled()
+                    .checkProcessMatchCalled();
+        }
+    }
 
-	private NFA<Event> getSingleElementAlwaysTrueNFA() {
-		return NFACompiler.compileFactory(Pattern.<Event>begin("A"), false).createNFA();
-	}
+    private NFA<Event> getSingleElementAlwaysTrueNFA() {
+        return NFACompiler.compileFactory(Pattern.<Event>begin("A"), false).createNFA();
+    }
 
-	@Test
-	public void testCepRuntimeContext() {
-		final String taskName = "foobarTask";
-		final MetricGroup metricGroup = new UnregisteredMetricsGroup();
-		final int numberOfParallelSubtasks = 42;
-		final int indexOfSubtask = 43;
-		final int attemptNumber = 1337;
-		final String taskNameWithSubtask = "barfoo";
-		final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
-		final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
-		final DistributedCache distributedCache = mock(DistributedCache.class);
+    @Test
+    public void testCepRuntimeContext() {
+        final String taskName = "foobarTask";
+        final MetricGroup metricGroup = new UnregisteredMetricsGroup();
+        final int numberOfParallelSubtasks = 42;
+        final int indexOfSubtask = 43;
+        final int attemptNumber = 1337;
+        final String taskNameWithSubtask = "barfoo";
+        final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
+        final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
+        final DistributedCache distributedCache = mock(DistributedCache.class);
 
-		RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+        RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
 
-		when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
-		when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-		when(mockedRuntimeContext.getNumberOfParallelSubtasks()).thenReturn(numberOfParallelSubtasks);
-		when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
-		when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
-		when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
-		when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
-		when(mockedRuntimeContext.getDistributedCache()).thenReturn(distributedCache);
+        when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
+        when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+        when(mockedRuntimeContext.getNumberOfParallelSubtasks())
+                .thenReturn(numberOfParallelSubtasks);
+        when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
+        when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
+        when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
+        when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
+        when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
+        when(mockedRuntimeContext.getDistributedCache()).thenReturn(distributedCache);
 
-		RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
+        RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
 
-		assertEquals(taskName, runtimeContext.getTaskName());
-		assertEquals(metricGroup, runtimeContext.getMetricGroup());
-		assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
-		assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
-		assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
-		assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
-		assertEquals(executionConfig, runtimeContext.getExecutionConfig());
-		assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
-		assertEquals(distributedCache, runtimeContext.getDistributedCache());
+        assertEquals(taskName, runtimeContext.getTaskName());
+        assertEquals(metricGroup, runtimeContext.getMetricGroup());
+        assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
+        assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
+        assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
+        assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
+        assertEquals(executionConfig, runtimeContext.getExecutionConfig());
+        assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
+        assertEquals(distributedCache, runtimeContext.getDistributedCache());
 
-		try {
-			runtimeContext.getState(new ValueStateDescriptor<>("foobar", Integer.class, 42));
-			fail("Expected getState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getState(new ValueStateDescriptor<>("foobar", Integer.class, 42));
+            fail("Expected getState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getListState(new ListStateDescriptor<>("foobar", Integer.class));
-			fail("Expected getListState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getListState(new ListStateDescriptor<>("foobar", Integer.class));
+            fail("Expected getListState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getReducingState(new ReducingStateDescriptor<>(
-				"foobar",
-				mock(ReduceFunction.class),
-				Integer.class));
-			fail("Expected getReducingState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getReducingState(
+                    new ReducingStateDescriptor<>(
+                            "foobar", mock(ReduceFunction.class), Integer.class));
+            fail("Expected getReducingState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getAggregatingState(new AggregatingStateDescriptor<>(
-				"foobar",
-				mock(AggregateFunction.class),
-				Integer.class));
-			fail("Expected getAggregatingState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getAggregatingState(
+                    new AggregatingStateDescriptor<>(
+                            "foobar", mock(AggregateFunction.class), Integer.class));
+            fail("Expected getAggregatingState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getMapState(new MapStateDescriptor<>("foobar", Integer.class, String.class));
-			fail("Expected getMapState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getMapState(
+                    new MapStateDescriptor<>("foobar", Integer.class, String.class));
+            fail("Expected getMapState to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.addAccumulator("foobar", mock(Accumulator.class));
-			fail("Expected addAccumulator to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.addAccumulator("foobar", mock(Accumulator.class));
+            fail("Expected addAccumulator to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getAccumulator("foobar");
-			fail("Expected getAccumulator to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getAccumulator("foobar");
+            fail("Expected getAccumulator to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getIntCounter("foobar");
-			fail("Expected getIntCounter to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getIntCounter("foobar");
+            fail("Expected getIntCounter to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getLongCounter("foobar");
-			fail("Expected getLongCounter to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getLongCounter("foobar");
+            fail("Expected getLongCounter to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getDoubleCounter("foobar");
-			fail("Expected getDoubleCounter to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getDoubleCounter("foobar");
+            fail("Expected getDoubleCounter to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getHistogram("foobar");
-			fail("Expected getHistogram to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getHistogram("foobar");
+            fail("Expected getHistogram to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.hasBroadcastVariable("foobar");
-			fail("Expected hasBroadcastVariable to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.hasBroadcastVariable("foobar");
+            fail("Expected hasBroadcastVariable to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getBroadcastVariable("foobar");
-			fail("Expected getBroadcastVariable to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            runtimeContext.getBroadcastVariable("foobar");
+            fail("Expected getBroadcastVariable to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			runtimeContext.getBroadcastVariableWithInitializer(
-				"foobar",
-				mock(BroadcastVariableInitializer.class));
-			fail("Expected getBroadcastVariableWithInitializer to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-	}
+        try {
+            runtimeContext.getBroadcastVariableWithInitializer(
+                    "foobar", mock(BroadcastVariableInitializer.class));
+            fail(
+                    "Expected getBroadcastVariableWithInitializer to fail with unsupported operation exception.");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+    }
 
-	/* Test Utils */
-	static class MockProcessFunctionAsserter {
-		private final VerifyRuntimeContextProcessFunction function;
+    /* Test Utils */
+    static class MockProcessFunctionAsserter {
+        private final VerifyRuntimeContextProcessFunction function;
 
-		static MockProcessFunctionAsserter assertFunction(VerifyRuntimeContextProcessFunction function) {
-			return new MockProcessFunctionAsserter(function);
-		}
+        static MockProcessFunctionAsserter assertFunction(
+                VerifyRuntimeContextProcessFunction function) {
+            return new MockProcessFunctionAsserter(function);
+        }
 
-		private MockProcessFunctionAsserter(VerifyRuntimeContextProcessFunction function) {
-			this.function = function;
-		}
+        private MockProcessFunctionAsserter(VerifyRuntimeContextProcessFunction function) {
+            this.function = function;
+        }
 
-		MockProcessFunctionAsserter checkOpenCalled() {
-			assertThat(function.openCalled, is(true));
-			return this;
-		}
+        MockProcessFunctionAsserter checkOpenCalled() {
+            assertThat(function.openCalled, is(true));
+            return this;
+        }
 
-		MockProcessFunctionAsserter checkCloseCalled() {
-			assertThat(function.openCalled, is(true));
-			return this;
-		}
+        MockProcessFunctionAsserter checkCloseCalled() {
+            assertThat(function.openCalled, is(true));
+            return this;
+        }
 
-		MockProcessFunctionAsserter checkProcessMatchCalled() {
-			assertThat(function.processMatchCalled, is(true));
-			return this;
-		}
-	}
+        MockProcessFunctionAsserter checkProcessMatchCalled() {
+            assertThat(function.processMatchCalled, is(true));
+            return this;
+        }
+    }
 
-	private static class VerifyRuntimeContextProcessFunction extends PatternProcessFunction<Event, Event> {
+    private static class VerifyRuntimeContextProcessFunction
+            extends PatternProcessFunction<Event, Event> {
 
-		boolean openCalled = false;
-		boolean closeCalled = false;
-		boolean processMatchCalled = false;
+        boolean openCalled = false;
+        boolean closeCalled = false;
+        boolean processMatchCalled = false;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			verifyContext();
-			openCalled = true;
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            verifyContext();
+            openCalled = true;
+        }
 
-		private void verifyContext() {
-			if (!(getRuntimeContext() instanceof CepRuntimeContext)) {
-				fail("Runtime context was not wrapped in CepRuntimeContext");
-			}
-		}
+        private void verifyContext() {
+            if (!(getRuntimeContext() instanceof CepRuntimeContext)) {
+                fail("Runtime context was not wrapped in CepRuntimeContext");
+            }
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			verifyContext();
-			closeCalled = true;
-		}
+        @Override
+        public void close() throws Exception {
+            super.close();
+            verifyContext();
+            closeCalled = true;
+        }
 
-		@Override
-		public void processMatch(Map<String, List<Event>> match, Context ctx, Collector<Event> out) throws Exception {
-			verifyContext();
-			processMatchCalled = true;
-		}
-	}
+        @Override
+        public void processMatch(Map<String, List<Event>> match, Context ctx, Collector<Event> out)
+                throws Exception {
+            verifyContext();
+            processMatchCalled = true;
+        }
+    }
 }

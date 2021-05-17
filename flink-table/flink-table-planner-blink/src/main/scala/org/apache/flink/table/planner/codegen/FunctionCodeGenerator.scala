@@ -154,6 +154,8 @@ object FunctionCodeGenerator {
         public void close() throws Exception {
           ${ctx.reuseCloseCode()}
         }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
       }
     """.stripMargin
 

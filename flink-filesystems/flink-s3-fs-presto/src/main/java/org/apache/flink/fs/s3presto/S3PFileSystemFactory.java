@@ -18,12 +18,10 @@
 
 package org.apache.flink.fs.s3presto;
 
-/**
- * Simple factory for the S3 file system, registered for the <tt>s3p://</tt> scheme.
- */
+/** Simple factory for the S3 file system, registered for the <tt>s3p://</tt> scheme. */
 public class S3PFileSystemFactory extends S3FileSystemFactory {
-	@Override
-	public String getScheme() {
-		return "s3p";
-	}
+    @Override
+    public String getScheme() {
+        return "s3p";
+    }
 }

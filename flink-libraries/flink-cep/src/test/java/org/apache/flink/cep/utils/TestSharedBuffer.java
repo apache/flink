@@ -41,219 +41,219 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * Extends {@link SharedBuffer} with methods for checking the number of state accesses. It does not use a proper
- * StateBackend, but uses stubs over java collections.
+ * Extends {@link SharedBuffer} with methods for checking the number of state accesses. It does not
+ * use a proper StateBackend, but uses stubs over java collections.
  */
 public class TestSharedBuffer<V> extends SharedBuffer<V> {
 
-	private final MockKeyedStateStore keyedStateStore;
+    private final MockKeyedStateStore keyedStateStore;
 
-	private TestSharedBuffer(MockKeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
-		super(stateStore, valueSerializer);
-		this.keyedStateStore = stateStore;
-	}
+    private TestSharedBuffer(MockKeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
+        super(stateStore, valueSerializer);
+        this.keyedStateStore = stateStore;
+    }
 
-	public long getStateWrites() {
-		return keyedStateStore.stateWrites;
-	}
+    public long getStateWrites() {
+        return keyedStateStore.stateWrites;
+    }
 
-	public long getStateReads() {
-		return keyedStateStore.stateReads;
-	}
+    public long getStateReads() {
+        return keyedStateStore.stateReads;
+    }
 
-	public long getStateAccesses() {
-		return getStateWrites() + getStateReads();
-	}
+    public long getStateAccesses() {
+        return getStateWrites() + getStateReads();
+    }
 
-	/**
-	 * Creates instance of {@link TestSharedBuffer}.
-	 *
-	 * @param typeSerializer serializer used to serialize incoming events
-	 * @param <T>            type of incoming events
-	 * @return TestSharedBuffer instance
-	 */
-	public static <T> TestSharedBuffer<T> createTestBuffer(TypeSerializer<T> typeSerializer) {
-		return new TestSharedBuffer<>(new MockKeyedStateStore(), typeSerializer);
-	}
+    /**
+     * Creates instance of {@link TestSharedBuffer}.
+     *
+     * @param typeSerializer serializer used to serialize incoming events
+     * @param <T> type of incoming events
+     * @return TestSharedBuffer instance
+     */
+    public static <T> TestSharedBuffer<T> createTestBuffer(TypeSerializer<T> typeSerializer) {
+        return new TestSharedBuffer<>(new MockKeyedStateStore(), typeSerializer);
+    }
 
-	private static class MockKeyedStateStore implements KeyedStateStore {
+    private static class MockKeyedStateStore implements KeyedStateStore {
 
-		private long stateWrites = 0;
-		private long stateReads = 0;
+        private long stateWrites = 0;
+        private long stateReads = 0;
 
-		@Override
-		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-			return new ValueState<T>() {
+        @Override
+        public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+            return new ValueState<T>() {
 
-				private T value;
+                private T value;
 
-				@Override
-				public T value() throws IOException {
-					stateReads++;
-					return value;
-				}
+                @Override
+                public T value() throws IOException {
+                    stateReads++;
+                    return value;
+                }
 
-				@Override
-				public void update(T value) throws IOException {
-					stateWrites++;
-					this.value = value;
-				}
+                @Override
+                public void update(T value) throws IOException {
+                    stateWrites++;
+                    this.value = value;
+                }
 
-				@Override
-				public void clear() {
-					this.value = null;
-				}
-			};
-		}
+                @Override
+                public void clear() {
+                    this.value = null;
+                }
+            };
+        }
 
-		@Override
-		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
+                AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
-			return new MapState<UK, UV>() {
+        @Override
+        public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+            return new MapState<UK, UV>() {
 
-				private Map<UK, UV> values;
+                private Map<UK, UV> values;
 
-				private Map<UK, UV> getOrSetMap() {
-					if (values == null) {
-						this.values = new HashMap<>();
-					}
-					return values;
-				}
+                private Map<UK, UV> getOrSetMap() {
+                    if (values == null) {
+                        this.values = new HashMap<>();
+                    }
+                    return values;
+                }
 
-				@Override
-				public UV get(UK key) throws Exception {
-					stateReads++;
-					if (values == null) {
-						return null;
-					}
+                @Override
+                public UV get(UK key) throws Exception {
+                    stateReads++;
+                    if (values == null) {
+                        return null;
+                    }
 
-					return values.get(key);
-				}
+                    return values.get(key);
+                }
 
-				@Override
-				public void put(UK key, UV value) throws Exception {
-					stateWrites++;
-					getOrSetMap().put(key, value);
-				}
+                @Override
+                public void put(UK key, UV value) throws Exception {
+                    stateWrites++;
+                    getOrSetMap().put(key, value);
+                }
 
-				@Override
-				public void putAll(Map<UK, UV> map) throws Exception {
-					stateWrites++;
-					getOrSetMap().putAll(map);
-				}
+                @Override
+                public void putAll(Map<UK, UV> map) throws Exception {
+                    stateWrites++;
+                    getOrSetMap().putAll(map);
+                }
 
-				@Override
-				public void remove(UK key) throws Exception {
-					if (values == null) {
-						return;
-					}
+                @Override
+                public void remove(UK key) throws Exception {
+                    if (values == null) {
+                        return;
+                    }
 
-					stateWrites++;
-					values.remove(key);
-				}
+                    stateWrites++;
+                    values.remove(key);
+                }
 
-				@Override
-				public boolean contains(UK key) throws Exception {
-					if (values == null) {
-						return false;
-					}
+                @Override
+                public boolean contains(UK key) throws Exception {
+                    if (values == null) {
+                        return false;
+                    }
 
-					stateReads++;
-					return values.containsKey(key);
-				}
+                    stateReads++;
+                    return values.containsKey(key);
+                }
 
-				@Override
-				public Iterable<Map.Entry<UK, UV>> entries() throws Exception {
-					if (values == null) {
-						return Collections.emptyList();
-					}
+                @Override
+                public Iterable<Map.Entry<UK, UV>> entries() throws Exception {
+                    if (values == null) {
+                        return Collections.emptyList();
+                    }
 
-					return () -> new CountingIterator<>(values.entrySet().iterator());
-				}
+                    return () -> new CountingIterator<>(values.entrySet().iterator());
+                }
 
-				@Override
-				public Iterable<UK> keys() throws Exception {
-					if (values == null) {
-						return Collections.emptyList();
-					}
+                @Override
+                public Iterable<UK> keys() throws Exception {
+                    if (values == null) {
+                        return Collections.emptyList();
+                    }
 
-					return () -> new CountingIterator<>(values.keySet().iterator());
-				}
+                    return () -> new CountingIterator<>(values.keySet().iterator());
+                }
 
-				@Override
-				public Iterable<UV> values() throws Exception {
-					if (values == null) {
-						return Collections.emptyList();
-					}
+                @Override
+                public Iterable<UV> values() throws Exception {
+                    if (values == null) {
+                        return Collections.emptyList();
+                    }
 
-					return () -> new CountingIterator<>(values.values().iterator());
-				}
+                    return () -> new CountingIterator<>(values.values().iterator());
+                }
 
-				@Override
-				public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
-					if (values == null) {
-						return Iterators.emptyIterator();
-					}
+                @Override
+                public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
+                    if (values == null) {
+                        return Iterators.emptyIterator();
+                    }
 
-					return new CountingIterator<>(values.entrySet().iterator());
-				}
+                    return new CountingIterator<>(values.entrySet().iterator());
+                }
 
-				@Override
-				public boolean isEmpty() throws Exception {
-					if (values == null) {
-						return true;
-					}
+                @Override
+                public boolean isEmpty() throws Exception {
+                    if (values == null) {
+                        return true;
+                    }
 
-					return values.isEmpty();
-				}
+                    return values.isEmpty();
+                }
 
-				@Override
-				public void clear() {
-					stateWrites++;
-					this.values = null;
-				}
-			};
-		}
+                @Override
+                public void clear() {
+                    stateWrites++;
+                    this.values = null;
+                }
+            };
+        }
 
-		private class CountingIterator<T> implements Iterator<T> {
+        private class CountingIterator<T> implements Iterator<T> {
 
-			private final Iterator<T> iterator;
+            private final Iterator<T> iterator;
 
-			CountingIterator(Iterator<T> iterator) {
-				this.iterator = iterator;
-			}
+            CountingIterator(Iterator<T> iterator) {
+                this.iterator = iterator;
+            }
 
-			@Override
-			public boolean hasNext() {
-				return iterator.hasNext();
-			}
+            @Override
+            public boolean hasNext() {
+                return iterator.hasNext();
+            }
 
-			@Override
-			public T next() {
-				stateReads++;
-				return iterator.next();
-			}
+            @Override
+            public T next() {
+                stateReads++;
+                return iterator.next();
+            }
 
-			@Override
-			public void remove() {
-				stateWrites++;
-				iterator.remove();
-			}
-		}
-	}
-
+            @Override
+            public void remove() {
+                stateWrites++;
+                iterator.remove();
+            }
+        }
+    }
 }

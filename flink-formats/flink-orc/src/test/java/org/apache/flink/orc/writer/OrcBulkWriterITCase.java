@@ -39,39 +39,37 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-/**
- * Integration test for writing data in ORC bulk format using StreamingFileSink.
- */
+/** Integration test for writing data in ORC bulk format using StreamingFileSink. */
 public class OrcBulkWriterITCase extends TestLogger {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private final String schema = "struct<_col0:string,_col1:int>";
-	private final List<Record> testData = Arrays.asList(
-		new Record("Sourav", 41), new Record("Saul", 35), new Record("Kim", 31));
+    private final String schema = "struct<_col0:string,_col1:int>";
+    private final List<Record> testData =
+            Arrays.asList(new Record("Sourav", 41), new Record("Saul", 35), new Record("Kim", 31));
 
-	@Test
-	public void testOrcBulkWriter() throws Exception {
-		final File outDir = TEMPORARY_FOLDER.newFolder();
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		final Properties writerProps = new Properties();
-		writerProps.setProperty("orc.compress", "LZ4");
+    @Test
+    public void testOrcBulkWriter() throws Exception {
+        final File outDir = TEMPORARY_FOLDER.newFolder();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final Properties writerProps = new Properties();
+        writerProps.setProperty("orc.compress", "LZ4");
 
-		final OrcBulkWriterFactory<Record> factory = new OrcBulkWriterFactory<>(
-			new RecordVectorizer(schema), writerProps, new Configuration());
+        final OrcBulkWriterFactory<Record> factory =
+                new OrcBulkWriterFactory<>(
+                        new RecordVectorizer(schema), writerProps, new Configuration());
 
-		env.setParallelism(1);
-		env.enableCheckpointing(100);
+        env.setParallelism(1);
+        env.enableCheckpointing(100);
 
-		DataStream<Record> stream = env.addSource(new FiniteTestSource<>(testData), TypeInformation.of(Record.class));
-		stream.map(str -> str)
-			.addSink(StreamingFileSink
-				.forBulkFormat(new Path(outDir.toURI()), factory)
-				.build());
+        DataStream<Record> stream =
+                env.addSource(new FiniteTestSource<>(testData), TypeInformation.of(Record.class));
+        stream.map(str -> str)
+                .addSink(
+                        StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), factory).build());
 
-		env.execute();
+        env.execute();
 
-		OrcBulkWriterTestUtil.validate(outDir, testData);
-	}
+        OrcBulkWriterTestUtil.validate(outDir, testData);
+    }
 }

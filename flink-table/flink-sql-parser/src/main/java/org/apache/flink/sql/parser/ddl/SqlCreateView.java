@@ -37,112 +37,109 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * CREATE VIEW DDL sql call.
- */
+/** CREATE VIEW DDL sql call. */
 public class SqlCreateView extends SqlCreate {
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
 
-	private final SqlIdentifier viewName;
-	private final SqlNodeList fieldList;
-	private final SqlNode query;
-	private final boolean isTemporary;
+    private final SqlIdentifier viewName;
+    private final SqlNodeList fieldList;
+    private final SqlNode query;
+    private final boolean isTemporary;
 
-	@Nullable
-	private final SqlCharStringLiteral comment;
+    @Nullable private final SqlCharStringLiteral comment;
 
-	@Nullable
-	private final SqlNodeList properties;
+    @Nullable private final SqlNodeList properties;
 
-	public SqlCreateView(
-			SqlParserPos pos,
-			SqlIdentifier viewName,
-			SqlNodeList fieldList,
-			SqlNode query,
-			boolean replace,
-			boolean isTemporary,
-			boolean ifNotExists,
-			SqlCharStringLiteral comment,
-			SqlNodeList properties) {
-		super(OPERATOR, pos, replace, ifNotExists);
-		this.viewName = requireNonNull(viewName, "viewName should not be null");
-		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
-		this.query = requireNonNull(query, "query should not be null");
-		this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
-		this.comment = comment;
-		this.properties = properties;
-	}
+    public SqlCreateView(
+            SqlParserPos pos,
+            SqlIdentifier viewName,
+            SqlNodeList fieldList,
+            SqlNode query,
+            boolean replace,
+            boolean isTemporary,
+            boolean ifNotExists,
+            SqlCharStringLiteral comment,
+            SqlNodeList properties) {
+        super(OPERATOR, pos, replace, ifNotExists);
+        this.viewName = requireNonNull(viewName, "viewName should not be null");
+        this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
+        this.query = requireNonNull(query, "query should not be null");
+        this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
+        this.comment = comment;
+        this.properties = properties;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		List<SqlNode> ops = new ArrayList<>();
-		ops.add(viewName);
-		ops.add(fieldList);
-		ops.add(query);
-		ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
-		return ops;
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        List<SqlNode> ops = new ArrayList<>();
+        ops.add(viewName);
+        ops.add(fieldList);
+        ops.add(query);
+        ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
+        return ops;
+    }
 
-	public SqlIdentifier getViewName() {
-		return viewName;
-	}
+    public SqlIdentifier getViewName() {
+        return viewName;
+    }
 
-	public SqlNodeList getFieldList() {
-		return fieldList;
-	}
+    public SqlNodeList getFieldList() {
+        return fieldList;
+    }
 
-	public SqlNode getQuery() {
-		return query;
-	}
+    public SqlNode getQuery() {
+        return query;
+    }
 
-	public Optional<SqlCharStringLiteral> getComment() {
-		return Optional.ofNullable(comment);
-	}
+    public Optional<SqlCharStringLiteral> getComment() {
+        return Optional.ofNullable(comment);
+    }
 
-	public Optional<SqlNodeList> getProperties() {
-		return Optional.ofNullable(properties);
-	}
+    public Optional<SqlNodeList> getProperties() {
+        return Optional.ofNullable(properties);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("CREATE");
-		if (isTemporary()) {
-			writer.keyword("TEMPORARY");
-		}
-		writer.keyword("VIEW");
-		if (isIfNotExists()) {
-			writer.keyword("IF NOT EXISTS");
-		}
-		viewName.unparse(writer, leftPrec, rightPrec);
-		if (fieldList.size() > 0) {
-			fieldList.unparse(writer, 1, rightPrec);
-		}
-		if (comment != null) {
-			writer.newlineAndIndent();
-			writer.keyword("COMMENT");
-			comment.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.keyword("AS");
-		writer.newlineAndIndent();
-		query.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("CREATE");
+        if (isTemporary()) {
+            writer.keyword("TEMPORARY");
+        }
+        writer.keyword("VIEW");
+        if (isIfNotExists()) {
+            writer.keyword("IF NOT EXISTS");
+        }
+        viewName.unparse(writer, leftPrec, rightPrec);
+        if (fieldList.size() > 0) {
+            fieldList.unparse(writer, 1, rightPrec);
+        }
+        if (comment != null) {
+            writer.newlineAndIndent();
+            writer.keyword("COMMENT");
+            comment.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.keyword("AS");
+        writer.newlineAndIndent();
+        query.unparse(writer, leftPrec, rightPrec);
+    }
 
-	protected void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
-	}
+    protected void printIndent(SqlWriter writer) {
+        writer.sep(",", false);
+        writer.newlineAndIndent();
+        writer.print("  ");
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	public boolean isIfNotExists() {
-		return ifNotExists;
-	}
+    public boolean isIfNotExists() {
+        return ifNotExists;
+    }
 
-	public String[] fullViewName() {
-		return viewName.names.toArray(new String[0]);
-	}
+    public String[] fullViewName() {
+        return viewName.names.toArray(new String[0]);
+    }
 }

@@ -34,33 +34,35 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.sql.Timestamp;
 
-/**
- * {@link ArrowFieldWriter} for Timestamp.
- */
+/** {@link ArrowFieldWriter} for Timestamp. */
 @Internal
 public final class RowTimestampWriter extends ArrowFieldWriter<Row> {
 
-	public RowTimestampWriter(ValueVector valueVector) {
-		super(valueVector);
-		Preconditions.checkState(valueVector instanceof TimeStampVector && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone() == null);
-	}
+    public RowTimestampWriter(ValueVector valueVector) {
+        super(valueVector);
+        Preconditions.checkState(
+                valueVector instanceof TimeStampVector
+                        && ((ArrowType.Timestamp) valueVector.getField().getType()).getTimezone()
+                                == null);
+    }
 
-	@Override
-	public void doWrite(Row row, int ordinal) {
-		ValueVector valueVector = getValueVector();
-		if (row.getField(ordinal) == null) {
-			((BaseFixedWidthVector) getValueVector()).setNull(getCount());
-		} else {
-			long millisecond = PythonTypeUtils.timestampToInternal((Timestamp) row.getField(ordinal));
-			if (valueVector instanceof TimeStampSecVector) {
-				((TimeStampSecVector) valueVector).setSafe(getCount(), millisecond / 1000);
-			} else if (valueVector instanceof TimeStampMilliVector) {
-				((TimeStampMilliVector) valueVector).setSafe(getCount(), millisecond);
-			} else if (valueVector instanceof TimeStampMicroVector) {
-				((TimeStampMicroVector) valueVector).setSafe(getCount(), millisecond * 1000);
-			} else {
-				((TimeStampNanoVector) valueVector).setSafe(getCount(), millisecond * 1_000_000);
-			}
-		}
-	}
+    @Override
+    public void doWrite(Row row, int ordinal) {
+        ValueVector valueVector = getValueVector();
+        if (row.getField(ordinal) == null) {
+            ((BaseFixedWidthVector) getValueVector()).setNull(getCount());
+        } else {
+            long millisecond =
+                    PythonTypeUtils.timestampToInternal((Timestamp) row.getField(ordinal));
+            if (valueVector instanceof TimeStampSecVector) {
+                ((TimeStampSecVector) valueVector).setSafe(getCount(), millisecond / 1000);
+            } else if (valueVector instanceof TimeStampMilliVector) {
+                ((TimeStampMilliVector) valueVector).setSafe(getCount(), millisecond);
+            } else if (valueVector instanceof TimeStampMicroVector) {
+                ((TimeStampMicroVector) valueVector).setSafe(getCount(), millisecond * 1000);
+            } else {
+                ((TimeStampNanoVector) valueVector).setSafe(getCount(), millisecond * 1_000_000);
+            }
+        }
+    }
 }

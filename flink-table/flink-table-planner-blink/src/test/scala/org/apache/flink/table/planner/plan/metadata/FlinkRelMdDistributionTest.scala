@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDataStreamTableScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalBoundedStreamScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType}
 
 import com.google.common.collect.ImmutableList
@@ -45,11 +45,11 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       createDataStreamScan(ImmutableList.of("student"), flinkLogicalTraits.replace(distribution01))
     assertEquals(distribution01, mq.flinkDistribution(flinkLogicalScan))
 
-    val batchScan: BatchExecBoundedStreamScan =
+    val batchScan: BatchPhysicalBoundedStreamScan =
       createDataStreamScan(ImmutableList.of("student"), batchPhysicalTraits.replace(distribution01))
     assertEquals(distribution01, mq.flinkDistribution(batchScan))
 
-    val streamScan: StreamExecDataStreamScan = createDataStreamScan(
+    val streamScan: StreamPhysicalDataStreamScan = createDataStreamScan(
       ImmutableList.of("student"), streamPhysicalTraits.replace(distribution01))
     assertEquals(distribution01, mq.flinkDistribution(streamScan))
   }

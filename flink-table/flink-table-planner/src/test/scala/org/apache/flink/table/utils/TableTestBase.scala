@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.utils
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -28,8 +30,9 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.internal.{BatchTableEnvironmentImpl => JavaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => JavaStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.{BatchTableEnvironmentImpl => ScalaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => ScalaStreamTableEnvironmentImpl}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.internal.{TableEnvImpl, TableEnvironmentImpl, TableImpl, BatchTableEnvImpl => _}
-import org.apache.flink.table.api.{ApiExpression, Table, TableConfig, TableSchema}
+import org.apache.flink.table.api.{ApiExpression, PlannerType, Table, TableConfig, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.expressions.Expression
@@ -45,6 +48,7 @@ import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
+import scala.collection.JavaConversions.asScalaBuffer
 import scala.io.Source
 import scala.util.control.Breaks._
 
@@ -52,6 +56,9 @@ import scala.util.control.Breaks._
   * Test base for testing Table API / SQL plans.
   */
 class TableTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   // used for accurate exception information checking.
   val expectedException = ExpectedException.none()
@@ -97,8 +104,8 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
   def verifyTable(resultTable: Table, expected: String): Unit
 
   def verifySchema(resultTable: Table, fields: Seq[(String, TypeInformation[_])]): Unit = {
-    val actual = resultTable.getSchema
-    val expected = new TableSchema(fields.map(_._1).toArray, fields.map(_._2).toArray)
+    val actual = resultTable.getSchema.toRowType
+    val expected = new TableSchema(fields.map(_._1).toArray, fields.map(_._2).toArray).toRowType
     assertEquals(expected, actual)
   }
 
@@ -201,15 +208,15 @@ object TableTestUtil {
   def batchTableNode(table: Table): String = {
     val dataSetTable = table.getQueryOperation.asInstanceOf[DataSetQueryOperation[_]]
     s"DataSetScan(ref=[${System.identityHashCode(dataSetTable.getDataSet)}], " +
-      s"fields=[${dataSetTable.getTableSchema.getFieldNames.mkString(", ")}])"
+      s"fields=[${dataSetTable.getResolvedSchema.getColumnNames.mkString(", ")}])"
   }
 
   def streamTableNode(table: Table): String = {
     val (id, fieldNames) = table.getQueryOperation match {
       case q: JavaDataStreamQueryOperation[_] =>
-        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+        (q.getDataStream.getId, q.getResolvedSchema.getColumnNames)
       case q: ScalaDataStreamQueryOperation[_] =>
-        (q.getDataStream.getId, q.getTableSchema.getFieldNames)
+        (q.getDataStream.getId, q.getResolvedSchema.getColumnNames)
       case n => throw new AssertionError(s"Unexpected table node $n")
     }
 
@@ -230,17 +237,20 @@ case class BatchTableTestUtil(
     catalogManager: Option[CatalogManager] = None)
   extends TableTestUtil {
   val javaEnv = new LocalEnvironment()
+  val config = new TableConfig()
+  config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+  config.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
 
   val javaTableEnv = new JavaBatchTableEnvironmentImpl(
     javaEnv,
-    new TableConfig,
+    config,
     catalogManager
       .getOrElse(CatalogManagerMocks.createEmptyCatalogManager()),
     new ModuleManager)
   val env = new ExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaBatchTableEnvironmentImpl(
     env,
-    new TableConfig,
+    config,
     catalogManager
       .getOrElse(CatalogManagerMocks.createEmptyCatalogManager()),
     new ModuleManager)
@@ -332,6 +342,7 @@ case class StreamTableTestUtil(
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   private val tableConfig = new TableConfig
+  tableConfig.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
   private val manager: CatalogManager = catalogManager
     .getOrElse(CatalogManagerMocks.createEmptyCatalogManager())
   private val moduleManager: ModuleManager = new ModuleManager

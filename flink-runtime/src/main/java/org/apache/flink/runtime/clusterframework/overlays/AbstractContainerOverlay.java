@@ -28,45 +28,49 @@ import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 
-/**
- * An abstract container overlay.
- */
+/** An abstract container overlay. */
 abstract class AbstractContainerOverlay implements ContainerOverlay {
 
-	/**
-	 * Add a path recursively to the container specification.
-	 *
-	 * If the path is a directory, the directory itself (not just its contents) is added to the target path.
-	 *
-	 * The execute bit is preserved; permissions aren't.
-	 *
-	 * @param sourcePath the path to add.
-	 * @param targetPath the target path.
-	 * @param env the specification to mutate.
+    /**
+     * Add a path recursively to the container specification.
+     *
+     * <p>If the path is a directory, the directory itself (not just its contents) is added to the
+     * target path.
+     *
+     * <p>The execute bit is preserved; permissions aren't.
+     *
+     * @param sourcePath the path to add.
+     * @param targetPath the target path.
+     * @param env the specification to mutate.
      * @throws IOException
      */
-	protected void addPathRecursively(
-		final File sourcePath, final Path targetPath, final ContainerSpecification env) throws IOException {
+    protected void addPathRecursively(
+            final File sourcePath, final Path targetPath, final ContainerSpecification env)
+            throws IOException {
 
-		final java.nio.file.Path sourceRoot = sourcePath.toPath().getParent();
+        final java.nio.file.Path sourceRoot = sourcePath.toPath().getParent();
 
-		Files.walkFileTree(sourcePath.toPath(), new SimpleFileVisitor<java.nio.file.Path>() {
-			@Override
-			public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+        Files.walkFileTree(
+                sourcePath.toPath(),
+                new SimpleFileVisitor<java.nio.file.Path>() {
+                    @Override
+                    public FileVisitResult visitFile(
+                            java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
 
-				java.nio.file.Path relativePath = sourceRoot.relativize(file);
+                        java.nio.file.Path relativePath = sourceRoot.relativize(file);
 
-				ContainerSpecification.Artifact.Builder artifact = ContainerSpecification.Artifact.newBuilder()
-					.setSource(new Path(file.toUri()))
-					.setDest(new Path(targetPath, relativePath.toString()))
-					.setExecutable(Files.isExecutable(file))
-					.setCachable(true)
-					.setExtract(false);
+                        ContainerSpecification.Artifact.Builder artifact =
+                                ContainerSpecification.Artifact.newBuilder()
+                                        .setSource(new Path(file.toUri()))
+                                        .setDest(new Path(targetPath, relativePath.toString()))
+                                        .setExecutable(Files.isExecutable(file))
+                                        .setCachable(true)
+                                        .setExtract(false);
 
-				env.getArtifacts().add(artifact.build());
+                        env.getArtifacts().add(artifact.build());
 
-				return super.visitFile(file, attrs);
-			}
-		});
-	}
+                        return super.visitFile(file, attrs);
+                    }
+                });
+    }
 }

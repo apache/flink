@@ -23,67 +23,66 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 /**
- * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link DescriptiveStatistics} as a Flink {@link Histogram}.
+ * The {@link DescriptiveStatisticsHistogram} use a DescriptiveStatistics {@link
+ * DescriptiveStatistics} as a Flink {@link Histogram}.
  */
 public class DescriptiveStatisticsHistogram implements org.apache.flink.metrics.Histogram {
 
-	private final CircularDoubleArray descriptiveStatistics;
+    private final CircularDoubleArray descriptiveStatistics;
 
-	public DescriptiveStatisticsHistogram(int windowSize) {
-		this.descriptiveStatistics = new CircularDoubleArray(windowSize);
-	}
+    public DescriptiveStatisticsHistogram(int windowSize) {
+        this.descriptiveStatistics = new CircularDoubleArray(windowSize);
+    }
 
-	@Override
-	public void update(long value) {
-		this.descriptiveStatistics.addValue(value);
-	}
+    @Override
+    public void update(long value) {
+        this.descriptiveStatistics.addValue(value);
+    }
 
-	@Override
-	public long getCount() {
-		return this.descriptiveStatistics.getElementsSeen();
-	}
+    @Override
+    public long getCount() {
+        return this.descriptiveStatistics.getElementsSeen();
+    }
 
-	@Override
-	public HistogramStatistics getStatistics() {
-		return new DescriptiveStatisticsHistogramStatistics(this.descriptiveStatistics);
-	}
+    @Override
+    public HistogramStatistics getStatistics() {
+        return new DescriptiveStatisticsHistogramStatistics(this.descriptiveStatistics);
+    }
 
-	/**
-	 * Fixed-size array that wraps around at the end and has a dynamic start position.
-	 */
-	static class CircularDoubleArray {
-		private final double[] backingArray;
-		private int nextPos = 0;
-		private boolean fullSize = false;
-		private long elementsSeen = 0;
+    /** Fixed-size array that wraps around at the end and has a dynamic start position. */
+    static class CircularDoubleArray {
+        private final double[] backingArray;
+        private int nextPos = 0;
+        private boolean fullSize = false;
+        private long elementsSeen = 0;
 
-		CircularDoubleArray(int windowSize) {
-			this.backingArray = new double[windowSize];
-		}
+        CircularDoubleArray(int windowSize) {
+            this.backingArray = new double[windowSize];
+        }
 
-		synchronized void addValue(double value) {
-			backingArray[nextPos] = value;
-			++elementsSeen;
-			++nextPos;
-			if (nextPos == backingArray.length) {
-				nextPos = 0;
-				fullSize = true;
-			}
-		}
+        synchronized void addValue(double value) {
+            backingArray[nextPos] = value;
+            ++elementsSeen;
+            ++nextPos;
+            if (nextPos == backingArray.length) {
+                nextPos = 0;
+                fullSize = true;
+            }
+        }
 
-		synchronized double[] toUnsortedArray() {
-			final int size = getSize();
-			double[] result = new double[size];
-			System.arraycopy(backingArray, 0, result, 0, result.length);
-			return result;
-		}
+        synchronized double[] toUnsortedArray() {
+            final int size = getSize();
+            double[] result = new double[size];
+            System.arraycopy(backingArray, 0, result, 0, result.length);
+            return result;
+        }
 
-		private synchronized int getSize() {
-			return fullSize ? backingArray.length : nextPos;
-		}
+        private synchronized int getSize() {
+            return fullSize ? backingArray.length : nextPos;
+        }
 
-		private synchronized long getElementsSeen() {
-			return elementsSeen;
-		}
-	}
+        private synchronized long getElementsSeen() {
+            return elementsSeen;
+        }
+    }
 }

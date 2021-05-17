@@ -27,12 +27,13 @@ import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.validate.{SqlUserDefinedTableFunction, SqlUserDefinedTableMacro}
+import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 
 import java.lang.reflect.Method
 import java.util
@@ -54,16 +55,16 @@ class TableSqlFunction(
     implicitResultType: DataType,
     typeFactory: FlinkTypeFactory,
     functionImpl: FlinkTableFunction,
-    operandTypeInfer: Option[SqlOperandTypeChecker] = None)
+    operandMetadata: Option[SqlOperandMetadata] = None)
   extends SqlUserDefinedTableFunction(
     Option(identifier).map(id => new SqlIdentifier(id.toList, SqlParserPos.ZERO))
       .getOrElse(new SqlIdentifier(udtf.functionIdentifier(), SqlParserPos.ZERO)),
+    SqlKind.OTHER_FUNCTION,
     ReturnTypes.CURSOR,
     // type inference has the UNKNOWN operand types.
     createOperandTypeInference(displayName, udtf, typeFactory),
     // only checker has the real operand types.
-    operandTypeInfer.getOrElse(createOperandTypeChecker(displayName, udtf)),
-    null,
+    operandMetadata.getOrElse(createOperandMetadata(displayName, udtf)),
     functionImpl) {
 
   /**
@@ -82,9 +83,16 @@ class TableSqlFunction(
 
   override def toString: String = displayName
 
-  override def getRowType(
+  override def getRowTypeInference: SqlReturnTypeInference = new SqlReturnTypeInference {
+    override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
+      val arguments = convertArguments(opBinding, functionImpl, getNameAsId)
+      getRowType(opBinding.getTypeFactory, arguments)
+    }
+  }
+
+  def getRowType(
       typeFactory: RelDataTypeFactory,
-      operandList: util.List[SqlNode]): RelDataType = {
+      arguments: util.List[Object]): RelDataType = {
     functionImpl.getRowType(typeFactory)
   }
 }
@@ -129,20 +137,45 @@ object TableSqlFunction {
         }
   }
 
-  private[flink] def createOperandTypeChecker(
+  private[flink] def createOperandMetadata(
       name: String,
-      udtf: TableFunction[_]): SqlOperandTypeChecker = {
-    new OperandTypeChecker(name, udtf, checkAndExtractMethods(udtf, "eval"))
+      udtf: TableFunction[_]): SqlOperandMetadata = {
+    new OperandMetadata(name, udtf, checkAndExtractMethods(udtf, "eval"))
+  }
+
+  /**
+   * Converts arguments from [[org.apache.calcite.sql.SqlNode]] to
+   * java object format.
+   *
+   * @param callBinding Operator bound to arguments
+   * @param function target function to get parameter types from
+   * @param opName name of the operator to use in error message
+   * @return converted list of arguments
+   */
+  private[flink] def convertArguments(
+      callBinding: SqlOperatorBinding,
+      function: org.apache.calcite.schema.Function,
+      opName: SqlIdentifier): util.List[Object] = {
+    val arguments = new util.ArrayList[Object](callBinding.getOperandCount)
+    0 until callBinding.getOperandCount foreach { i =>
+      val value: Object = if (callBinding.isOperandLiteral(i, true)) {
+        callBinding.getOperandLiteralValue(i, classOf[Object])
+      } else {
+        null
+      }
+      arguments.add(value);
+    }
+    arguments
   }
 }
 
 /**
   * Operand type checker based on [[TableFunction]] given information.
   */
-class OperandTypeChecker(
+class OperandMetadata(
     name: String,
     udtf: TableFunction[_],
-    methods: Array[Method]) extends SqlOperandTypeChecker {
+    methods: Array[Method]) extends SqlOperandMetadata {
 
   override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
     s"$opName[${signaturesToString(udtf, "eval")}]"
@@ -191,4 +224,12 @@ class OperandTypeChecker(
   override def isOptional(i: Int): Boolean = false
 
   override def getConsistency: Consistency = Consistency.NONE
+
+  override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] =
+    throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+        + "should never be invoked")
+
+  override def paramNames(): util.List[String] =
+    throw new UnsupportedOperationException("SqlOperandMetadata.paramNames "
+        + "should never be invoked")
 }

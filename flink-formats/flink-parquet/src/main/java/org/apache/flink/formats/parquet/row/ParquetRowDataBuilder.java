@@ -45,111 +45,94 @@ import static org.apache.parquet.hadoop.ParquetOutputFormat.getValidation;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getWriterVersion;
 import static org.apache.parquet.hadoop.codec.CodecConfig.getParquetCompressionCodec;
 
-/**
- * {@link RowData} of {@link ParquetWriter.Builder}.
- */
+/** {@link RowData} of {@link ParquetWriter.Builder}. */
 public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, ParquetRowDataBuilder> {
 
-	private final RowType rowType;
-	private final boolean utcTimestamp;
+    private final RowType rowType;
+    private final boolean utcTimestamp;
 
-	public ParquetRowDataBuilder(
-			OutputFile path,
-			RowType rowType,
-			boolean utcTimestamp) {
-		super(path);
-		this.rowType = rowType;
-		this.utcTimestamp = utcTimestamp;
-	}
+    public ParquetRowDataBuilder(OutputFile path, RowType rowType, boolean utcTimestamp) {
+        super(path);
+        this.rowType = rowType;
+        this.utcTimestamp = utcTimestamp;
+    }
 
-	@Override
-	protected ParquetRowDataBuilder self() {
-		return this;
-	}
+    @Override
+    protected ParquetRowDataBuilder self() {
+        return this;
+    }
 
-	@Override
-	protected WriteSupport<RowData> getWriteSupport(Configuration conf) {
-		return new ParquetWriteSupport();
-	}
+    @Override
+    protected WriteSupport<RowData> getWriteSupport(Configuration conf) {
+        return new ParquetWriteSupport();
+    }
 
-	private class ParquetWriteSupport extends WriteSupport<RowData> {
+    private class ParquetWriteSupport extends WriteSupport<RowData> {
 
-		private MessageType schema = convertToParquetMessageType("flink_schema", rowType);
-		private ParquetRowDataWriter writer;
+        private MessageType schema = convertToParquetMessageType("flink_schema", rowType);
+        private ParquetRowDataWriter writer;
 
-		@Override
-		public WriteContext init(Configuration configuration) {
-			return new WriteContext(schema, new HashMap<>());
-		}
+        @Override
+        public WriteContext init(Configuration configuration) {
+            return new WriteContext(schema, new HashMap<>());
+        }
 
-		@Override
-		public void prepareForWrite(RecordConsumer recordConsumer) {
-			this.writer = new ParquetRowDataWriter(
-					recordConsumer,
-					rowType,
-					schema,
-					utcTimestamp);
-		}
+        @Override
+        public void prepareForWrite(RecordConsumer recordConsumer) {
+            this.writer = new ParquetRowDataWriter(recordConsumer, rowType, schema, utcTimestamp);
+        }
 
-		@Override
-		public void write(RowData record) {
-			try {
-				this.writer.write(record);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-	}
+        @Override
+        public void write(RowData record) {
+            try {
+                this.writer.write(record);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
-	/**
-	 * Create a parquet {@link BulkWriter.Factory}.
-	 *
-	 * @param rowType row type of parquet table.
-	 * @param conf hadoop configuration.
-	 * @param utcTimestamp Use UTC timezone or local timezone to the conversion between epoch time
-	 *                     and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x
-	 *                     use UTC timezone.
-	 */
-	public static ParquetWriterFactory<RowData> createWriterFactory(
-			RowType rowType,
-			Configuration conf,
-			boolean utcTimestamp) {
-		return new ParquetWriterFactory<>(
-				new FlinkParquetBuilder(rowType, conf, utcTimestamp));
-	}
+    /**
+     * Create a parquet {@link BulkWriter.Factory}.
+     *
+     * @param rowType row type of parquet table.
+     * @param conf hadoop configuration.
+     * @param utcTimestamp Use UTC timezone or local timezone to the conversion between epoch time
+     *     and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x use UTC timezone.
+     */
+    public static ParquetWriterFactory<RowData> createWriterFactory(
+            RowType rowType, Configuration conf, boolean utcTimestamp) {
+        return new ParquetWriterFactory<>(new FlinkParquetBuilder(rowType, conf, utcTimestamp));
+    }
 
-	/**
-	 * Flink Row {@link ParquetBuilder}.
-	 */
-	public static class FlinkParquetBuilder implements ParquetBuilder<RowData> {
+    /** Flink Row {@link ParquetBuilder}. */
+    public static class FlinkParquetBuilder implements ParquetBuilder<RowData> {
 
-		private final RowType rowType;
-		private final SerializableConfiguration configuration;
-		private final boolean utcTimestamp;
+        private final RowType rowType;
+        private final SerializableConfiguration configuration;
+        private final boolean utcTimestamp;
 
-		public FlinkParquetBuilder(
-				RowType rowType,
-				Configuration conf,
-				boolean utcTimestamp) {
-			this.rowType = rowType;
-			this.configuration = new SerializableConfiguration(conf);
-			this.utcTimestamp = utcTimestamp;
-		}
+        public FlinkParquetBuilder(RowType rowType, Configuration conf, boolean utcTimestamp) {
+            this.rowType = rowType;
+            this.configuration = new SerializableConfiguration(conf);
+            this.utcTimestamp = utcTimestamp;
+        }
 
-		@Override
-		public ParquetWriter<RowData> createWriter(OutputFile out) throws IOException {
-			Configuration conf = configuration.conf();
-			return new ParquetRowDataBuilder(out, rowType, utcTimestamp)
-					.withCompressionCodec(getParquetCompressionCodec(conf))
-					.withRowGroupSize(getBlockSize(conf))
-					.withPageSize(getPageSize(conf))
-					.withDictionaryPageSize(getDictionaryPageSize(conf))
-					.withMaxPaddingSize(conf.getInt(
-							MAX_PADDING_BYTES, ParquetWriter.MAX_PADDING_SIZE_DEFAULT))
-					.withDictionaryEncoding(getEnableDictionary(conf))
-					.withValidation(getValidation(conf))
-					.withWriterVersion(getWriterVersion(conf))
-					.withConf(conf).build();
-		}
-	}
+        @Override
+        public ParquetWriter<RowData> createWriter(OutputFile out) throws IOException {
+            Configuration conf = configuration.conf();
+            return new ParquetRowDataBuilder(out, rowType, utcTimestamp)
+                    .withCompressionCodec(getParquetCompressionCodec(conf))
+                    .withRowGroupSize(getBlockSize(conf))
+                    .withPageSize(getPageSize(conf))
+                    .withDictionaryPageSize(getDictionaryPageSize(conf))
+                    .withMaxPaddingSize(
+                            conf.getInt(MAX_PADDING_BYTES, ParquetWriter.MAX_PADDING_SIZE_DEFAULT))
+                    .withDictionaryEncoding(getEnableDictionary(conf))
+                    .withValidation(getValidation(conf))
+                    .withWriterVersion(getWriterVersion(conf))
+                    .withConf(conf)
+                    .build();
+        }
+    }
 }

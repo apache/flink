@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -92,437 +93,469 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.END_OF_KEY_GROUP_MARK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.clearMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.hasMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.setMetaDataFollowsFlagInKey;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for asynchronous RocksDB Key/Value state checkpoints.
- */
+/** Tests for asynchronous RocksDB Key/Value state checkpoints. */
 @RunWith(PowerMockRunner.class)
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest extends TestLogger {
 
-	/**
-	 * Temporary fold for test.
-	 */
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	/**
-	 * This ensures that asynchronous state handles are actually materialized asynchronously.
-	 *
-	 * <p>We use latches to block at various stages and see if the code still continues through
-	 * the parts that are not asynchronous. If the checkpoint is not done asynchronously the
-	 * test will simply lock forever.
-	 */
-	@Test
-	public void testFullyAsyncSnapshot() throws Exception {
-
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-		testHarness.setupOutputForSingletonOperatorChain();
-
-		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
-			@Override
-			public String getKey(String value) throws Exception {
-				return value;
-			}
-		}, BasicTypeInfo.STRING_TYPE_INFO);
-
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-
-		File dbDir = temporaryFolder.newFolder();
-
-		RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
-		backend.setDbStoragePath(dbDir.getAbsolutePath());
-
-		streamConfig.setStateBackend(backend);
-
-		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
-		streamConfig.setOperatorID(new OperatorID());
-
-		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
-		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
-
-		CheckpointResponder checkpointResponderMock = new CheckpointResponder() {
-
-			@Override
-			public void acknowledgeCheckpoint(
-				JobID jobID,
-				ExecutionAttemptID executionAttemptID,
-				long checkpointId,
-				CheckpointMetrics checkpointMetrics,
-				TaskStateSnapshot subtaskState) {
-				// block on the latch, to verify that triggerCheckpoint returns below,
-				// even though the async checkpoint would not finish
-				try {
-					delayCheckpointLatch.await();
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-
-				boolean hasManagedKeyedState = false;
-				for (Map.Entry<OperatorID, OperatorSubtaskState> entry : subtaskState.getSubtaskStateMappings()) {
-					OperatorSubtaskState state = entry.getValue();
-					if (state != null) {
-						hasManagedKeyedState |= state.getManagedKeyedState() != null;
-					}
-				}
-
-				// should be one k/v state
-				assertTrue(hasManagedKeyedState);
-
-				// we now know that the checkpoint went through
-				ensureCheckpointLatch.trigger();
-			}
-
-			@Override
-			public void declineCheckpoint(
-				JobID jobID, ExecutionAttemptID executionAttemptID,
-				long checkpointId, Throwable cause) {
-
-			}
-		};
-
-		JobID jobID = new JobID();
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
-		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager(
-			jobID,
-			executionAttemptID,
-			checkpointResponderMock,
-			TestLocalRecoveryConfig.disabled());
-
-		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
-			testHarness.jobConfig,
-			testHarness.taskConfig,
-			testHarness.memorySize,
-			new MockInputSplitProvider(),
-			testHarness.bufferSize,
-			taskStateManagerTestMock);
-
-		AtomicReference<Throwable> errorRef = new AtomicReference<>();
-		mockEnv.setExternalExceptionHandler(errorRef::set);
-		testHarness.invoke(mockEnv);
-		testHarness.waitForTaskRunning();
-
-		final OneInputStreamTask<String, String> task = testHarness.getTask();
-
-		task.triggerCheckpointAsync(new CheckpointMetaData(42, 17), CheckpointOptions.forCheckpointWithDefaultLocation(), false)
-			.get();
-
-		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
-
-		// now we allow the checkpoint
-		delayCheckpointLatch.trigger();
-
-		// wait for the checkpoint to go through
-		ensureCheckpointLatch.await();
-
-		testHarness.endInput();
-
-		ExecutorService threadPool = task.getAsyncOperationsThreadPool();
-		threadPool.shutdown();
-		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
-
-		testHarness.waitForTaskCompletion();
-		if (errorRef.get() != null) {
-			fail("Unexpected exception during execution.");
-		}
-	}
-
-	/**
-	 * This tests ensures that canceling of asynchronous snapshots works as expected and does not block.
-	 */
-	@Test
-	public void testCancelFullyAsyncCheckpoints() throws Exception {
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				OneInputStreamTask::new,
-				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.setupOutputForSingletonOperatorChain();
-
-		testHarness.configureForKeyedStream(value -> value, BasicTypeInfo.STRING_TYPE_INFO);
-
-		StreamConfig streamConfig = testHarness.getStreamConfig();
-
-		File dbDir = temporaryFolder.newFolder();
-
-		final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
-
-		final int skipStreams;
-
-		if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.HEAP) {
-			// we skip the first created stream, because it is used to checkpoint the timer service, which is
-			// currently not asynchronous.
-			skipStreams = 1;
-		} else if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
-			skipStreams = 0;
-		} else {
-			throw new AssertionError(String.format("Unknown timer service priority queue type %s.", timerServicePriorityQueueType));
-		}
-
-		// this is the proper instance that we need to call.
-		BlockerCheckpointStreamFactory blockerCheckpointStreamFactory =
-			new BlockerCheckpointStreamFactory(4 * 1024 * 1024) {
-
-			int count = skipStreams;
-
-			@Override
-			public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
-				if (count > 0) {
-					--count;
-					return new BlockingCheckpointOutputStream(
-						new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize),
-						null,
-						null,
-						Integer.MAX_VALUE);
-				} else {
-					return super.createCheckpointStateOutputStream(scope);
-				}
-			}
-		};
-
-		// to avoid serialization of the above factory instance, we need to pass it in
-		// through a static variable
-
-		StateBackend stateBackend = new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory));
-
-		RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
-		backend.setDbStoragePath(dbDir.getAbsolutePath());
-
-		streamConfig.setStateBackend(backend);
-
-		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
-		streamConfig.setOperatorID(new OperatorID());
-
-		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager();
-
-		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
-				testHarness.jobConfig,
-				testHarness.taskConfig,
-				testHarness.memorySize,
-				new MockInputSplitProvider(),
-				testHarness.bufferSize,
-				taskStateManagerTestMock);
-
-		blockerCheckpointStreamFactory.setBlockerLatch(new OneShotLatch());
-		blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());
-
-		testHarness.invoke(mockEnv);
-		testHarness.waitForTaskRunning();
-
-		final OneInputStreamTask<String, String> task = testHarness.getTask();
-
-		task.triggerCheckpointAsync(
-			new CheckpointMetaData(42, 17),
-			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			false)
-			.get();
-
-		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
-		blockerCheckpointStreamFactory.getWaiterLatch().await();
-		task.cancel();
-		blockerCheckpointStreamFactory.getBlockerLatch().trigger();
-		testHarness.endInput();
-
-		ExecutorService threadPool = task.getAsyncOperationsThreadPool();
-		threadPool.shutdown();
-		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
-
-		Set<BlockingCheckpointOutputStream> createdStreams = blockerCheckpointStreamFactory.getAllCreatedStreams();
-
-		for (BlockingCheckpointOutputStream stream : createdStreams) {
-			Assert.assertTrue(
-				"Not all of the " + createdStreams.size() + " created streams have been closed.",
-				stream.isClosed());
-		}
-
-		try {
-			testHarness.waitForTaskCompletion();
-			fail("Operation completed. Cancel failed.");
-		} catch (Exception expected) {
-
-			Throwable cause = expected.getCause();
-
-			if (!(cause instanceof CancelTaskException)) {
-				fail("Unexpected exception: " + expected);
-			}
-		}
-	}
-
-	/**
-	 * Test that the snapshot files are cleaned up in case of a failure during the snapshot
-	 * procedure.
-	 */
-	@Test
-	public void testCleanupOfSnapshotsInFailureCase() throws Exception {
-		long checkpointId = 1L;
-		long timestamp = 42L;
-
-		MockEnvironment env = MockEnvironment.builder().build();
-
-		final IOException testException = new IOException("Test exception");
-		CheckpointStateOutputStream outputStream = spy(new FailingStream(testException));
-
-		RocksDBStateBackend backend = new RocksDBStateBackend((StateBackend) new MemoryStateBackend());
-
-		backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
-
-		AbstractKeyedStateBackend<Void> keyedStateBackend = backend.createKeyedStateBackend(
-			env,
-			new JobID(),
-			"test operator",
-			VoidSerializer.INSTANCE,
-			1,
-			new KeyGroupRange(0, 0),
-			null,
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
-
-		try {
-			// register a state so that the state backend has to checkpoint something
-			keyedStateBackend.getPartitionedState(
-				"namespace",
-				StringSerializer.INSTANCE,
-				new ValueStateDescriptor<>("foobar", String.class));
-
-			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFuture = keyedStateBackend.snapshot(
-				checkpointId, timestamp,
-				new TestCheckpointStreamFactory(() -> outputStream),
-				CheckpointOptions.forCheckpointWithDefaultLocation());
-
-			try {
-				FutureUtils.runIfNotDoneAndGet(snapshotFuture);
-				fail("Expected an exception to be thrown here.");
-			} catch (ExecutionException e) {
-				Assert.assertEquals(testException, e.getCause());
-			}
-
-			verify(outputStream).close();
-		} finally {
-			IOUtils.closeQuietly(keyedStateBackend);
-			keyedStateBackend.dispose();
-			IOUtils.closeQuietly(env);
-		}
-	}
-
-	@Test
-	public void testConsistentSnapshotSerializationFlagsAndMasks() {
-
-		Assert.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
-		Assert.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
-
-		byte[] expectedKey = new byte[] {42, 42};
-		byte[] modKey = expectedKey.clone();
-
-		Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
-
-		setMetaDataFollowsFlagInKey(modKey);
-		Assert.assertTrue(hasMetaDataFollowsFlag(modKey));
-
-		clearMetaDataFollowsFlag(modKey);
-		Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
-
-		Assert.assertTrue(Arrays.equals(expectedKey, modKey));
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static class AsyncCheckpointOperator
-		extends AbstractStreamOperator<String>
-		implements OneInputStreamOperator<String, String> {
-
-		@Override
-		public void open() throws Exception {
-			super.open();
-
-			// also get the state in open, this way we are sure that it was created before
-			// we trigger the test checkpoint
-			ValueState<String> state = getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
-
-		}
-
-		@Override
-		public void processElement(StreamRecord<String> element) throws Exception {
-			// we also don't care
-
-			ValueState<String> state = getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
-
-			state.update(element.getValue());
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	// failing stream
-	// ------------------------------------------------------------------------
-
-	private static class StaticForwardFactory implements StreamFactory {
-
-		static CheckpointStreamFactory factory;
-
-		StaticForwardFactory(CheckpointStreamFactory factory) {
-			StaticForwardFactory.factory = factory;
-		}
-
-		@Override
-		public CheckpointStateOutputStream get() throws IOException {
-			return factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-		}
-	}
-
-	private static class FailingStream extends CheckpointStateOutputStream {
-
-		private final IOException testException;
-
-		FailingStream(IOException testException) {
-			this.testException = testException;
-		}
-
-		@Nullable
-		@Override
-		public StreamStateHandle closeAndGetHandle() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public long getPos() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void write(int b) throws IOException {
-			throw testException;
-		}
-
-		@Override
-		public void flush() throws IOException {
-			throw testException;
-		}
-
-		@Override
-		public void sync() throws IOException {
-			throw testException;
-		}
-
-		@Override
-		public void close() {
-			throw new UnsupportedOperationException();
-		}
-	}
+    /** Temporary fold for test. */
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    /**
+     * This ensures that asynchronous state handles are actually materialized asynchronously.
+     *
+     * <p>We use latches to block at various stages and see if the code still continues through the
+     * parts that are not asynchronous. If the checkpoint is not done asynchronously the test will
+     * simply lock forever.
+     */
+    @Test
+    public void testFullyAsyncSnapshot() throws Exception {
+
+        final OneInputStreamTaskTestHarness<String, String> testHarness =
+                new OneInputStreamTaskTestHarness<>(
+                        OneInputStreamTask::new,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+        testHarness.setupOutputForSingletonOperatorChain();
+
+        testHarness.configureForKeyedStream(
+                new KeySelector<String, String>() {
+                    @Override
+                    public String getKey(String value) throws Exception {
+                        return value;
+                    }
+                },
+                BasicTypeInfo.STRING_TYPE_INFO);
+
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+
+        File dbDir = temporaryFolder.newFolder();
+
+        RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
+        backend.setDbStoragePath(dbDir.getAbsolutePath());
+
+        streamConfig.setStateBackend(backend);
+
+        streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+        streamConfig.setOperatorID(new OperatorID());
+
+        final OneShotLatch delayCheckpointLatch = new OneShotLatch();
+        final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
+
+        CheckpointResponder checkpointResponderMock =
+                new CheckpointResponder() {
+
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+                        // block on the latch, to verify that triggerCheckpoint returns below,
+                        // even though the async checkpoint would not finish
+                        try {
+                            delayCheckpointLatch.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        boolean hasManagedKeyedState = false;
+                        for (Map.Entry<OperatorID, OperatorSubtaskState> entry :
+                                subtaskState.getSubtaskStateMappings()) {
+                            OperatorSubtaskState state = entry.getValue();
+                            if (state != null) {
+                                hasManagedKeyedState |= state.getManagedKeyedState() != null;
+                            }
+                        }
+
+                        // should be one k/v state
+                        assertTrue(hasManagedKeyedState);
+
+                        // we now know that the checkpoint went through
+                        ensureCheckpointLatch.trigger();
+                    }
+
+                    @Override
+                    public void reportCheckpointMetrics(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics) {}
+
+                    @Override
+                    public void declineCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointException checkpointException) {}
+                };
+
+        JobID jobID = new JobID();
+        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+        TestTaskStateManager taskStateManagerTestMock =
+                new TestTaskStateManager(
+                        jobID,
+                        executionAttemptID,
+                        checkpointResponderMock,
+                        TestLocalRecoveryConfig.disabled());
+
+        StreamMockEnvironment mockEnv =
+                new StreamMockEnvironment(
+                        testHarness.jobConfig,
+                        testHarness.taskConfig,
+                        testHarness.memorySize,
+                        new MockInputSplitProvider(),
+                        testHarness.bufferSize,
+                        taskStateManagerTestMock);
+
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        mockEnv.setExternalExceptionHandler(errorRef::set);
+        testHarness.invoke(mockEnv);
+        testHarness.waitForTaskRunning();
+
+        final OneInputStreamTask<String, String> task = testHarness.getTask();
+
+        task.triggerCheckpointAsync(
+                        new CheckpointMetaData(42, 17),
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
+                .get();
+
+        testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+
+        // now we allow the checkpoint
+        delayCheckpointLatch.trigger();
+
+        // wait for the checkpoint to go through
+        ensureCheckpointLatch.await();
+
+        testHarness.endInput();
+
+        ExecutorService threadPool = task.getAsyncOperationsThreadPool();
+        threadPool.shutdown();
+        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+
+        testHarness.waitForTaskCompletion();
+        if (errorRef.get() != null) {
+            fail("Unexpected exception during execution.");
+        }
+    }
+
+    /**
+     * This tests ensures that canceling of asynchronous snapshots works as expected and does not
+     * block.
+     */
+    @Test
+    public void testCancelFullyAsyncCheckpoints() throws Exception {
+        final OneInputStreamTaskTestHarness<String, String> testHarness =
+                new OneInputStreamTaskTestHarness<>(
+                        OneInputStreamTask::new,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
+
+        testHarness.setupOutputForSingletonOperatorChain();
+
+        testHarness.configureForKeyedStream(value -> value, BasicTypeInfo.STRING_TYPE_INFO);
+
+        StreamConfig streamConfig = testHarness.getStreamConfig();
+
+        File dbDir = temporaryFolder.newFolder();
+
+        final EmbeddedRocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType =
+                RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
+
+        final int skipStreams;
+
+        if (timerServicePriorityQueueType
+                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
+            // we skip the first created stream, because it is used to checkpoint the timer service,
+            // which is
+            // currently not asynchronous.
+            skipStreams = 1;
+        } else if (timerServicePriorityQueueType
+                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
+            skipStreams = 0;
+        } else {
+            throw new AssertionError(
+                    String.format(
+                            "Unknown timer service priority queue type %s.",
+                            timerServicePriorityQueueType));
+        }
+
+        // this is the proper instance that we need to call.
+        BlockerCheckpointStreamFactory blockerCheckpointStreamFactory =
+                new BlockerCheckpointStreamFactory(4 * 1024 * 1024) {
+
+                    int count = skipStreams;
+
+                    @Override
+                    public CheckpointStateOutputStream createCheckpointStateOutputStream(
+                            CheckpointedStateScope scope) throws IOException {
+                        if (count > 0) {
+                            --count;
+                            return new BlockingCheckpointOutputStream(
+                                    new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(
+                                            maxSize),
+                                    null,
+                                    null,
+                                    Integer.MAX_VALUE);
+                        } else {
+                            return super.createCheckpointStateOutputStream(scope);
+                        }
+                    }
+                };
+
+        // to avoid serialization of the above factory instance, we need to pass it in
+        // through a static variable
+
+        StateBackend stateBackend =
+                new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory));
+
+        RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
+        backend.setDbStoragePath(dbDir.getAbsolutePath());
+
+        streamConfig.setStateBackend(backend);
+
+        streamConfig.setStreamOperator(new AsyncCheckpointOperator());
+        streamConfig.setOperatorID(new OperatorID());
+
+        TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager();
+
+        StreamMockEnvironment mockEnv =
+                new StreamMockEnvironment(
+                        testHarness.jobConfig,
+                        testHarness.taskConfig,
+                        testHarness.memorySize,
+                        new MockInputSplitProvider(),
+                        testHarness.bufferSize,
+                        taskStateManagerTestMock);
+
+        blockerCheckpointStreamFactory.setBlockerLatch(new OneShotLatch());
+        blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());
+
+        testHarness.invoke(mockEnv);
+        testHarness.waitForTaskRunning();
+
+        final OneInputStreamTask<String, String> task = testHarness.getTask();
+
+        task.triggerCheckpointAsync(
+                        new CheckpointMetaData(42, 17),
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
+                .get();
+
+        testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+        blockerCheckpointStreamFactory.getWaiterLatch().await();
+        task.cancel();
+        blockerCheckpointStreamFactory.getBlockerLatch().trigger();
+        testHarness.endInput();
+
+        ExecutorService threadPool = task.getAsyncOperationsThreadPool();
+        threadPool.shutdown();
+        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+
+        Set<BlockingCheckpointOutputStream> createdStreams =
+                blockerCheckpointStreamFactory.getAllCreatedStreams();
+
+        for (BlockingCheckpointOutputStream stream : createdStreams) {
+            Assert.assertTrue(
+                    "Not all of the "
+                            + createdStreams.size()
+                            + " created streams have been closed.",
+                    stream.isClosed());
+        }
+
+        try {
+            testHarness.waitForTaskCompletion();
+            fail("Operation completed. Cancel failed.");
+        } catch (Exception expected) {
+
+            Throwable cause = expected.getCause();
+
+            if (!(cause instanceof CancelTaskException)) {
+                fail("Unexpected exception: " + expected);
+            }
+        }
+    }
+
+    /**
+     * Test that the snapshot files are cleaned up in case of a failure during the snapshot
+     * procedure.
+     */
+    @Test
+    public void testCleanupOfSnapshotsInFailureCase() throws Exception {
+        long checkpointId = 1L;
+        long timestamp = 42L;
+
+        MockEnvironment env = MockEnvironment.builder().build();
+
+        final IOException testException = new IOException("Test exception");
+        CheckpointStateOutputStream outputStream = spy(new FailingStream(testException));
+
+        RocksDBStateBackend backend =
+                new RocksDBStateBackend((StateBackend) new MemoryStateBackend());
+
+        backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
+
+        AbstractKeyedStateBackend<Void> keyedStateBackend =
+                backend.createKeyedStateBackend(
+                        env,
+                        new JobID(),
+                        "test operator",
+                        VoidSerializer.INSTANCE,
+                        1,
+                        new KeyGroupRange(0, 0),
+                        null,
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        Collections.emptyList(),
+                        new CloseableRegistry());
+
+        try {
+            // register a state so that the state backend has to checkpoint something
+            keyedStateBackend.getPartitionedState(
+                    "namespace",
+                    StringSerializer.INSTANCE,
+                    new ValueStateDescriptor<>("foobar", String.class));
+
+            RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFuture =
+                    keyedStateBackend.snapshot(
+                            checkpointId,
+                            timestamp,
+                            new TestCheckpointStreamFactory(() -> outputStream),
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            try {
+                FutureUtils.runIfNotDoneAndGet(snapshotFuture);
+                fail("Expected an exception to be thrown here.");
+            } catch (ExecutionException e) {
+                Assert.assertEquals(testException, e.getCause());
+            }
+
+            verify(outputStream).close();
+        } finally {
+            IOUtils.closeQuietly(keyedStateBackend);
+            keyedStateBackend.dispose();
+            IOUtils.closeQuietly(env);
+        }
+    }
+
+    @Test
+    public void testConsistentSnapshotSerializationFlagsAndMasks() {
+
+        Assert.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
+        Assert.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
+
+        byte[] expectedKey = new byte[] {42, 42};
+        byte[] modKey = expectedKey.clone();
+
+        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+
+        setMetaDataFollowsFlagInKey(modKey);
+        Assert.assertTrue(hasMetaDataFollowsFlag(modKey));
+
+        clearMetaDataFollowsFlag(modKey);
+        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+
+        Assert.assertTrue(Arrays.equals(expectedKey, modKey));
+    }
+
+    // ------------------------------------------------------------------------
+
+    private static class AsyncCheckpointOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+
+            // also get the state in open, this way we are sure that it was created before
+            // we trigger the test checkpoint
+            ValueState<String> state =
+                    getPartitionedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            // we also don't care
+
+            ValueState<String> state =
+                    getPartitionedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
+
+            state.update(element.getValue());
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // failing stream
+    // ------------------------------------------------------------------------
+
+    private static class StaticForwardFactory implements StreamFactory {
+
+        static CheckpointStreamFactory factory;
+
+        StaticForwardFactory(CheckpointStreamFactory factory) {
+            StaticForwardFactory.factory = factory;
+        }
+
+        @Override
+        public CheckpointStateOutputStream get() throws IOException {
+            return factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+        }
+    }
+
+    private static class FailingStream extends CheckpointStateOutputStream {
+
+        private final IOException testException;
+
+        FailingStream(IOException testException) {
+            this.testException = testException;
+        }
+
+        @Nullable
+        @Override
+        public StreamStateHandle closeAndGetHandle() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long getPos() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            throw testException;
+        }
+
+        @Override
+        public void flush() throws IOException {
+            throw testException;
+        }
+
+        @Override
+        public void sync() throws IOException {
+            throw testException;
+        }
+
+        @Override
+        public void close() {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

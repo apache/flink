@@ -45,6 +45,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
+		<target.java.version>@target.java.version@</target.java.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<scala.version>2.11.12</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
@@ -165,8 +166,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
+					<source>${target.java.version}</source>
+					<target>${target.java.version}</target>
 				</configuration>
 			</plugin>
 
@@ -186,6 +187,7 @@ under the License.
 				<configuration>
 					<args>
 						<arg>-nobootcp</arg>
+						<arg>-target:jvm-${target.java.version}</arg>
 					</args>
 				</configuration>
 			</plugin>

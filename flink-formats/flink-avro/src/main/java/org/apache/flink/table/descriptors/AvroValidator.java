@@ -21,29 +21,29 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
-/**
- * Validator for {@link Avro}.
- */
+/** Validator for {@link Avro}. */
 @Internal
 public class AvroValidator extends FormatDescriptorValidator {
 
-	public static final String FORMAT_TYPE_VALUE = "avro";
-	public static final String FORMAT_RECORD_CLASS = "format.record-class";
-	public static final String FORMAT_AVRO_SCHEMA = "format.avro-schema";
+    public static final String FORMAT_TYPE_VALUE = "avro";
+    public static final String FORMAT_RECORD_CLASS = "format.record-class";
+    public static final String FORMAT_AVRO_SCHEMA = "format.avro-schema";
 
-	@Override
-	public void validate(DescriptorProperties properties) {
-		super.validate(properties);
-		final boolean hasRecordClass = properties.containsKey(FORMAT_RECORD_CLASS);
-		final boolean hasAvroSchema = properties.containsKey(FORMAT_AVRO_SCHEMA);
-		if (hasRecordClass && hasAvroSchema) {
-			throw new ValidationException("A definition of both a schema and Avro schema is not allowed.");
-		} else if (hasRecordClass) {
-			properties.validateString(FORMAT_RECORD_CLASS, false, 1);
-		} else if (hasAvroSchema) {
-			properties.validateString(FORMAT_AVRO_SCHEMA, false, 1);
-		} else {
-			throw new ValidationException("A definition of an Avro specific record class or Avro schema is required.");
-		}
-	}
+    @Override
+    public void validate(DescriptorProperties properties) {
+        super.validate(properties);
+        final boolean hasRecordClass = properties.containsKey(FORMAT_RECORD_CLASS);
+        final boolean hasAvroSchema = properties.containsKey(FORMAT_AVRO_SCHEMA);
+        if (hasRecordClass && hasAvroSchema) {
+            throw new ValidationException(
+                    "A definition of both a schema and Avro schema is not allowed.");
+        } else if (hasRecordClass) {
+            properties.validateString(FORMAT_RECORD_CLASS, false, 1);
+        } else if (hasAvroSchema) {
+            properties.validateString(FORMAT_AVRO_SCHEMA, false, 1);
+        } else {
+            throw new ValidationException(
+                    "A definition of an Avro specific record class or Avro schema is required.");
+        }
+    }
 }

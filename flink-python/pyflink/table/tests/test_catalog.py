@@ -57,12 +57,12 @@ class CatalogTestBase(PyFlinkTestCase):
 
     def check_catalog_table_equals(self, t1, t2):
         self.assertEqual(t1.get_schema(), t2.get_schema())
-        self.assertEqual(t1.get_properties(), t2.get_properties())
+        self.assertEqual(t1.get_options(), t2.get_options())
         self.assertEqual(t1.get_comment(), t2.get_comment())
 
     def check_catalog_view_equals(self, v1, v2):
         self.assertEqual(v1.get_schema(), v1.get_schema())
-        self.assertEqual(v1.get_properties(), v2.get_properties())
+        self.assertEqual(v1.get_options(), v2.get_options())
         self.assertEqual(v1.get_comment(), v2.get_comment())
 
     def check_catalog_function_equals(self, f1, f2):
@@ -258,10 +258,10 @@ class CatalogTestBase(PyFlinkTestCase):
         new_db = self.create_another_db()
         self.catalog.alter_database(self.db1, new_db, False)
 
+        merged_properties = db.get_properties().copy()
+        merged_properties.update(new_db.get_properties())
         new_properties = self.catalog.get_database(self.db1).get_properties()
-        old_properties = db.get_properties()
-        self.assertFalse(all(k in new_properties for k in old_properties.keys()))
-        self.check_catalog_database_equals(new_db, self.catalog.get_database(self.db1))
+        self.assertTrue(all(kv in new_properties.items() for kv in merged_properties.items()))
 
     def test_alter_db_database_not_exist_exception(self):
         with self.assertRaises(DatabaseNotExistException):

@@ -33,35 +33,37 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Same as {@link org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectDecoder}
- * but returns HTTP 413 to the client if the payload exceeds {@link #maxContentLength}.
+ * Same as {@link org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectDecoder} but
+ * returns HTTP 413 to the client if the payload exceeds {@link #maxContentLength}.
  */
-public class FlinkHttpObjectAggregator extends org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator {
+public class FlinkHttpObjectAggregator
+        extends org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator {
 
-	private final Map<String, String> responseHeaders;
+    private final Map<String, String> responseHeaders;
 
-	public FlinkHttpObjectAggregator(final int maxContentLength, @Nonnull final Map<String, String> responseHeaders) {
-		super(maxContentLength);
-		this.responseHeaders = responseHeaders;
-	}
+    public FlinkHttpObjectAggregator(
+            final int maxContentLength, @Nonnull final Map<String, String> responseHeaders) {
+        super(maxContentLength);
+        this.responseHeaders = responseHeaders;
+    }
 
-	@Override
-	protected void decode(
-			final ChannelHandlerContext ctx,
-			final HttpObject msg,
-			final List<Object> out) throws Exception {
+    @Override
+    protected void decode(
+            final ChannelHandlerContext ctx, final HttpObject msg, final List<Object> out)
+            throws Exception {
 
-		try {
-			super.decode(ctx, msg, out);
-		} catch (final TooLongFrameException e) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				false,
-				new ErrorResponseBody(String.format(
-					e.getMessage() + " Try to raise [%s]",
-					RestOptions.SERVER_MAX_CONTENT_LENGTH.key())),
-				HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
-				responseHeaders);
-		}
-	}
+        try {
+            super.decode(ctx, msg, out);
+        } catch (final TooLongFrameException e) {
+            HandlerUtils.sendErrorResponse(
+                    ctx,
+                    false,
+                    new ErrorResponseBody(
+                            String.format(
+                                    e.getMessage() + " Try to raise [%s]",
+                                    RestOptions.SERVER_MAX_CONTENT_LENGTH.key())),
+                    HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
+                    responseHeaders);
+        }
+    }
 }

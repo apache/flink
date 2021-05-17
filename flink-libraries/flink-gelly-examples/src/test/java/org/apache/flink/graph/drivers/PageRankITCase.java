@@ -25,43 +25,51 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link PageRank}.
- */
+/** Tests for {@link PageRank}. */
 @RunWith(Parameterized.class)
 public class PageRankITCase extends DriverBaseITCase {
 
-	public PageRankITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    public PageRankITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	private String[] parameters(int scale, String output) {
-		return new String[] {
-			"--algorithm", "PageRank",
-			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", "directed",
-			"--output", output};
-	}
+    private String[] parameters(int scale, String output) {
+        return new String[] {
+            "--algorithm",
+            "PageRank",
+            "--input",
+            "RMatGraph",
+            "--scale",
+            Integer.toString(scale),
+            "--type",
+            idType,
+            "--simplify",
+            "directed",
+            "--output",
+            output
+        };
+    }
 
-	@Test
-	public void testLongDescription() throws Exception {
-		String expected = regexSubstring(new PageRank().getLongDescription());
+    @Test
+    public void testLongDescription() throws Exception {
+        String expected = regexSubstring(new PageRank().getLongDescription());
 
-		expectedOutputFromException(
-			new String[]{"--algorithm", "PageRank"},
-			expected,
-			ProgramParametrizationException.class);
-	}
+        expectedOutputFromException(
+                new String[] {"--algorithm", "PageRank"},
+                expected,
+                ProgramParametrizationException.class);
+    }
 
-	@Test
-	public void testPrintWithRMatGraph() throws Exception {
-		// skip 'char' since it is not printed as a number
-		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
+    @Test
+    public void testPrintWithRMatGraph() throws Exception {
+        // skip 'char' since it is not printed as a number
+        Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		expectedCount(parameters(8, "print"), 233);
-	}
+        expectedCount(parameters(8, "print"), 233);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		TestUtils.verifyParallelism(parameters(8, "print"));
-	}
+    @Test
+    public void testParallelism() throws Exception {
+        TestUtils.verifyParallelism(parameters(8, "print"));
+    }
 }

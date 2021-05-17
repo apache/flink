@@ -25,9 +25,10 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, ChangelogPlanUtils}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -35,7 +36,7 @@ import org.apache.calcite.rel.RelNode
 import java.util
 
 /**
-  * Rule that matches [[StreamExecGroupAggregate]] on [[StreamExecExchange]]
+  * Rule that matches [[StreamPhysicalGroupAggregate]] on [[StreamPhysicalExchange]]
   * with the following condition:
   * 1. mini-batch is enabled in given TableConfig,
   * 2. two-phase aggregation is enabled in given TableConfig,
@@ -44,33 +45,33 @@ import java.util
   *
   * and converts them to
   * {{{
-  *   StreamExecGlobalGroupAggregate
-  *   +- StreamExecExchange
-  *      +- StreamExecLocalGroupAggregate
+  *   StreamPhysicalGlobalGroupAggregate
+  *   +- StreamPhysicalExchange
+  *      +- StreamPhysicalLocalGroupAggregate
   *         +- input of exchange
   * }}}
   */
 class TwoStageOptimizedAggregateRule extends RelOptRule(
-  operand(classOf[StreamExecGroupAggregate],
-    operand(classOf[StreamExecExchange],
+  operand(classOf[StreamPhysicalGroupAggregate],
+    operand(classOf[StreamPhysicalExchange],
       operand(classOf[RelNode], any))),
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val agg: StreamExecGroupAggregate = call.rel(0)
+    val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
     val needRetraction = !ChangelogPlanUtils.isInsertOnly(
       realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
     val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      agg.grouping.length, needRetraction, monotonicity, agg.aggCalls)
+    val needRetractionArray = AggregateUtil.deriveAggCallNeedRetractions(
+      agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType( agg.getInput.getRowType),
       agg.aggCalls,
-      agg.getInput.getRowType,
       needRetractionArray,
       needRetraction,
       isStateBackendDataViews = true)
@@ -91,78 +92,50 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg: StreamExecGroupAggregate = call.rel(0)
+    val originalAgg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
     val needRetraction = !ChangelogPlanUtils.isInsertOnly(
       realInput.asInstanceOf[StreamPhysicalRel])
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(call.getMetadataQuery)
-    val monotonicity = fmq.getRelModifiedMonotonicity(agg)
-    val needRetractionArray = AggregateUtil.getNeedRetractions(
-      agg.grouping.length, needRetraction, monotonicity, agg.aggCalls)
-
-    val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-      agg.aggCalls,
-      realInput.getRowType,
-      needRetractionArray,
-      needRetraction,
-      isStateBackendDataViews = false)
-
-    val globalAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-      agg.aggCalls,
-      realInput.getRowType,
-      needRetractionArray,
-      needRetraction,
-      isStateBackendDataViews = true)
-
-    val globalHashAgg = createTwoStageAgg(realInput, localAggInfoList, globalAggInfoList, agg)
-    call.transformTo(globalHashAgg)
-  }
-
-  // the difference between localAggInfos and aggInfos is local agg use heap dataview,
-  // but global agg use state dataview
-  private def createTwoStageAgg(
-      input: RelNode,
-      localAggInfoList: AggregateInfoList,
-      globalAggInfoList: AggregateInfoList,
-      agg: StreamExecGroupAggregate): StreamExecGlobalGroupAggregate = {
-    val localAggRowType = AggregateUtil.inferLocalAggRowType(
-      localAggInfoList,
-      input.getRowType,
-      agg.grouping,
-      input.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
+    val monotonicity = fmq.getRelModifiedMonotonicity(originalAgg)
+    val aggCallNeedRetractions = AggregateUtil.deriveAggCallNeedRetractions(
+      originalAgg.grouping.length, originalAgg.aggCalls, needRetraction, monotonicity)
 
     // local agg shouldn't produce insert only messages
-    val localAggTraitSet = input.getTraitSet
+    val localAggTraitSet = realInput.getTraitSet
       .plus(ModifyKindSetTrait.INSERT_ONLY)
       .plus(UpdateKindTrait.NONE)
-    val localHashAgg = new StreamExecLocalGroupAggregate(
-      agg.getCluster,
+    val localHashAgg = new StreamPhysicalLocalGroupAggregate(
+      originalAgg.getCluster,
       localAggTraitSet,
-      input,
-      localAggRowType,
-      agg.grouping,
-      agg.aggCalls,
-      localAggInfoList,
-      agg.partialFinalType)
+      realInput,
+      originalAgg.grouping,
+      originalAgg.aggCalls,
+      aggCallNeedRetractions,
+      needRetraction,
+      originalAgg.partialFinalType)
 
     // grouping keys is forwarded by local agg, use indices instead of groupings
-    val globalGrouping = agg.grouping.indices.toArray
+    val globalGrouping = originalAgg.grouping.indices.toArray
     val globalDistribution = createDistribution(globalGrouping)
     // create exchange if needed
     val newInput = satisfyDistribution(
       FlinkConventions.STREAM_PHYSICAL, localHashAgg, globalDistribution)
-    val globalAggProvidedTraitSet = agg.getTraitSet
+    val globalAggProvidedTraitSet = originalAgg.getTraitSet
 
-    new StreamExecGlobalGroupAggregate(
-      agg.getCluster,
+   val globalAgg = new StreamPhysicalGlobalGroupAggregate(
+      originalAgg.getCluster,
       globalAggProvidedTraitSet,
       newInput,
-      input.getRowType,
-      agg.getRowType,
+      originalAgg.getRowType,
       globalGrouping,
-      localAggInfoList,
-      globalAggInfoList,
-      agg.partialFinalType)
+      originalAgg.aggCalls,
+      aggCallNeedRetractions,
+      realInput.getRowType,
+      needRetraction,
+      originalAgg.partialFinalType)
+
+    call.transformTo(globalAgg)
   }
 
   private def createDistribution(keys: Array[Int]): FlinkRelDistribution = {

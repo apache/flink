@@ -20,19 +20,16 @@ package org.apache.flink.table.catalog.exceptions;
 
 import org.apache.flink.table.catalog.ObjectPath;
 
-/**
- * Exception for trying to operate on a table (or view) that doesn't exist.
- */
+/** Exception for trying to operate on a table (or view) that doesn't exist. */
 public class TableNotExistException extends Exception {
 
-	private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
+    private static final String MSG = "Table (or view) %s does not exist in Catalog %s.";
 
-	public TableNotExistException(String catalogName, ObjectPath tablePath) {
-		this(catalogName, tablePath, null);
-	}
+    public TableNotExistException(String catalogName, ObjectPath tablePath) {
+        this(catalogName, tablePath, null);
+    }
 
-	public TableNotExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
-		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
-	}
-
+    public TableNotExistException(String catalogName, ObjectPath tablePath, Throwable cause) {
+        super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+    }
 }

@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, Recor
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
-import org.apache.flink.table.types.logical.{DistinctType, LogicalType}
+import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -35,6 +35,10 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
   private val RECORD_EQUALISER = className[RecordEqualiser]
   private val LEFT_INPUT = "left"
   private val RIGHT_INPUT = "right"
+
+  def this(rowType: RowType) = {
+    this(rowType.getChildren.asScala.toArray)
+  }
 
   def generateRecordEqualiser(name: String): GeneratedRecordEqualiser = {
     // ignore time zone

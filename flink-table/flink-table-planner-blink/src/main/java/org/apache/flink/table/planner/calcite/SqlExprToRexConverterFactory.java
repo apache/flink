@@ -18,16 +18,28 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.calcite.rel.type.RelDataType;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
-/**
- * Factory to create {@link SqlExprToRexConverter}.
- */
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+
+import javax.annotation.Nullable;
+
+/** Factory to create {@link SqlExprToRexConverter}. */
+@Internal
 public interface SqlExprToRexConverterFactory {
 
-	/**
-	 * Creates a new instance of {@link SqlExprToRexConverter} to convert SQL expression
-	 * to RexNode.
-	 */
-	SqlExprToRexConverter create(RelDataType tableRowType);
+    /**
+     * Creates a new instance of {@link SqlExprToRexConverter} to convert SQL expression to {@link
+     * RexNode}.
+     */
+    SqlExprToRexConverter create(RelDataType inputRowType, @Nullable RelDataType outputType);
+
+    /**
+     * Creates a new instance of {@link SqlExprToRexConverter} to convert SQL expression to {@link
+     * RexNode}.
+     */
+    SqlExprToRexConverter create(RowType inputRowType, @Nullable LogicalType outputType);
 }

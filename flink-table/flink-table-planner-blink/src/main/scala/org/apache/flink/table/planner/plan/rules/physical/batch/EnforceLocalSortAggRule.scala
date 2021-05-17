@@ -19,14 +19,14 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecSort, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalSort, BatchPhysicalSortAggregate}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 
 /**
-  * An [[EnforceLocalAggRuleBase]] that matches [[BatchExecSortAggregate]]
+  * An [[EnforceLocalAggRuleBase]] that matches [[BatchPhysicalSortAggregate]]
   *
   * for example: select count(*) from t group by rollup (a, b)
   * The physical plan
@@ -54,51 +54,51 @@ import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
   * }}}
   */
 class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
-  operand(classOf[BatchExecSortAggregate],
-    operand(classOf[BatchExecSort],
-      operand(classOf[BatchExecExchange],
-        operand(classOf[BatchExecExpand], any)))),
+  operand(classOf[BatchPhysicalSortAggregate],
+    operand(classOf[BatchPhysicalSort],
+      operand(classOf[BatchPhysicalExchange],
+        operand(classOf[BatchPhysicalExpand], any)))),
   "EnforceLocalSortAggRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val agg: BatchExecSortAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(3)
+    val agg: BatchPhysicalSortAggregate = call.rel(0)
+    val expand: BatchPhysicalExpand = call.rel(3)
 
     val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
 
-    val grouping = agg.getGrouping
+    val grouping = agg.grouping
     val constantShuffleKey = hasConstantShuffleKey(grouping, expand)
 
     grouping.nonEmpty && enableTwoPhaseAgg && constantShuffleKey
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg: BatchExecSortAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(3)
+    val agg: BatchPhysicalSortAggregate = call.rel(0)
+    val expand: BatchPhysicalExpand = call.rel(3)
 
-    val localGrouping = agg.getGrouping
+    val localGrouping = agg.grouping
     // create local sort
     val localSort = createSort(expand, localGrouping)
-    val localAgg = createLocalAgg(agg, localSort, call.builder)
+    val localAgg = createLocalAgg(agg, localSort)
 
     val exchange = createExchange(agg, localAgg)
 
     // create global sort
     val globalGrouping = localGrouping.indices.toArray
     val globalSort = createSort(exchange, globalGrouping)
-    val globalAgg = createGlobalAgg(agg, globalSort, call.builder)
+    val globalAgg = createGlobalAgg(agg, globalSort)
     call.transformTo(globalAgg)
   }
 
   private def createSort(
       input: RelNode,
-      sortKeys: Array[Int]): BatchExecSort = {
+      sortKeys: Array[Int]): BatchPhysicalSort = {
     val cluster = input.getCluster
     val collation = createRelCollation(sortKeys)
     val traitSet = cluster.getPlanner.emptyTraitSet
       .replace(FlinkConventions.BATCH_PHYSICAL)
       .replace(collation)
-    new BatchExecSort(
+    new BatchPhysicalSort(
       cluster,
       traitSet,
       input,

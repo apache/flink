@@ -22,64 +22,66 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisher;
 
-/**
- * A container for {@link PollingRecordPublisher}s to report metric values.
- */
+/** A container for {@link PollingRecordPublisher}s to report metric values. */
 @Internal
 public class PollingRecordPublisherMetricsReporter {
 
-	private volatile double loopFrequencyHz = 0.0;
-	private volatile double bytesPerRead = 0.0;
-	private volatile long runLoopTimeNanos = 0L;
-	private volatile long sleepTimeMillis = 0L;
-	private volatile int maxNumberOfRecordsPerFetch = 0;
+    private volatile double loopFrequencyHz = 0.0;
+    private volatile double bytesPerRead = 0.0;
+    private volatile long runLoopTimeNanos = 0L;
+    private volatile long sleepTimeMillis = 0L;
+    private volatile int maxNumberOfRecordsPerFetch = 0;
 
-	public PollingRecordPublisherMetricsReporter(final MetricGroup metricGroup) {
-		metricGroup.gauge(KinesisConsumerMetricConstants.MAX_RECORDS_PER_FETCH, this::getMaxNumberOfRecordsPerFetch);
-		metricGroup.gauge(KinesisConsumerMetricConstants.BYTES_PER_READ, this::getBytesPerRead);
-		metricGroup.gauge(KinesisConsumerMetricConstants.RUNTIME_LOOP_NANOS, this::getRunLoopTimeNanos);
-		metricGroup.gauge(KinesisConsumerMetricConstants.LOOP_FREQUENCY_HZ, this::getLoopFrequencyHz);
-		metricGroup.gauge(KinesisConsumerMetricConstants.SLEEP_TIME_MILLIS, this::getSleepTimeMillis);
-	}
+    public PollingRecordPublisherMetricsReporter(final MetricGroup metricGroup) {
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.MAX_RECORDS_PER_FETCH,
+                this::getMaxNumberOfRecordsPerFetch);
+        metricGroup.gauge(KinesisConsumerMetricConstants.BYTES_PER_READ, this::getBytesPerRead);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.RUNTIME_LOOP_NANOS, this::getRunLoopTimeNanos);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.LOOP_FREQUENCY_HZ, this::getLoopFrequencyHz);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.SLEEP_TIME_MILLIS, this::getSleepTimeMillis);
+    }
 
-	public double getLoopFrequencyHz() {
-		return loopFrequencyHz;
-	}
+    public double getLoopFrequencyHz() {
+        return loopFrequencyHz;
+    }
 
-	public void setLoopFrequencyHz(double loopFrequencyHz) {
-		this.loopFrequencyHz = loopFrequencyHz;
-	}
+    public void setLoopFrequencyHz(double loopFrequencyHz) {
+        this.loopFrequencyHz = loopFrequencyHz;
+    }
 
-	public double getBytesPerRead() {
-		return bytesPerRead;
-	}
+    public double getBytesPerRead() {
+        return bytesPerRead;
+    }
 
-	public void setBytesPerRead(double bytesPerRead) {
-		this.bytesPerRead = bytesPerRead;
-	}
+    public void setBytesPerRead(double bytesPerRead) {
+        this.bytesPerRead = bytesPerRead;
+    }
 
-	public long getRunLoopTimeNanos() {
-		return runLoopTimeNanos;
-	}
+    public long getRunLoopTimeNanos() {
+        return runLoopTimeNanos;
+    }
 
-	public void setRunLoopTimeNanos(long runLoopTimeNanos) {
-		this.runLoopTimeNanos = runLoopTimeNanos;
-	}
+    public void setRunLoopTimeNanos(long runLoopTimeNanos) {
+        this.runLoopTimeNanos = runLoopTimeNanos;
+    }
 
-	public long getSleepTimeMillis() {
-		return sleepTimeMillis;
-	}
+    public long getSleepTimeMillis() {
+        return sleepTimeMillis;
+    }
 
-	public void setSleepTimeMillis(long sleepTimeMillis) {
-		this.sleepTimeMillis = sleepTimeMillis;
-	}
+    public void setSleepTimeMillis(long sleepTimeMillis) {
+        this.sleepTimeMillis = sleepTimeMillis;
+    }
 
-	public int getMaxNumberOfRecordsPerFetch() {
-		return maxNumberOfRecordsPerFetch;
-	}
+    public int getMaxNumberOfRecordsPerFetch() {
+        return maxNumberOfRecordsPerFetch;
+    }
 
-	public void setMaxNumberOfRecordsPerFetch(int maxNumberOfRecordsPerFetch) {
-		this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
-	}
-
+    public void setMaxNumberOfRecordsPerFetch(int maxNumberOfRecordsPerFetch) {
+        this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
+    }
 }

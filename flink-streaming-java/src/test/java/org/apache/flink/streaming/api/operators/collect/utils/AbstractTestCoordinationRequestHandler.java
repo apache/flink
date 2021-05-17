@@ -43,104 +43,104 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * A {@link CoordinationRequestHandler} to test fetching SELECT query results.
- */
-public abstract class AbstractTestCoordinationRequestHandler<T> implements CoordinationRequestHandler {
+/** A {@link CoordinationRequestHandler} to test fetching SELECT query results. */
+public abstract class AbstractTestCoordinationRequestHandler<T>
+        implements CoordinationRequestHandler {
 
-	protected static final int BATCH_SIZE = 3;
+    protected static final int BATCH_SIZE = 3;
 
-	protected final TypeSerializer<T> serializer;
-	protected final String accumulatorName;
+    protected final TypeSerializer<T> serializer;
+    protected final String accumulatorName;
 
-	protected LinkedList<T> buffered;
-	protected String version;
-	protected long offset;
-	protected long checkpointedOffset;
+    protected LinkedList<T> buffered;
+    protected String version;
+    protected long offset;
+    protected long checkpointedOffset;
 
-	private final Map<String, OptionalFailure<Object>> accumulatorResults;
+    private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
-	protected final Random random;
-	protected boolean closed;
+    protected final Random random;
+    protected boolean closed;
 
-	public AbstractTestCoordinationRequestHandler(
-			TypeSerializer<T> serializer,
-			String accumulatorName) {
-		this.serializer = serializer;
-		this.accumulatorName = accumulatorName;
+    public AbstractTestCoordinationRequestHandler(
+            TypeSerializer<T> serializer, String accumulatorName) {
+        this.serializer = serializer;
+        this.accumulatorName = accumulatorName;
 
-		this.buffered = new LinkedList<>();
-		this.version = UUID.randomUUID().toString();
-		this.offset = 0;
-		this.checkpointedOffset = 0;
+        this.buffered = new LinkedList<>();
+        this.version = UUID.randomUUID().toString();
+        this.offset = 0;
+        this.checkpointedOffset = 0;
 
-		this.accumulatorResults = new HashMap<>();
+        this.accumulatorResults = new HashMap<>();
 
-		this.random = new Random();
-		this.closed = false;
-	}
+        this.random = new Random();
+        this.closed = false;
+    }
 
-	@Override
-	public CompletableFuture<CoordinationResponse> handleCoordinationRequest(CoordinationRequest request) {
-		if (closed) {
-			throw new RuntimeException("Handler closed");
-		}
+    @Override
+    public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+            CoordinationRequest request) {
+        if (closed) {
+            throw new RuntimeException("Handler closed");
+        }
 
-		Assert.assertTrue(request instanceof CollectCoordinationRequest);
-		CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
+        Assert.assertTrue(request instanceof CollectCoordinationRequest);
+        CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
-		updateBufferedResults();
-		Assert.assertTrue(offset <= collectRequest.getOffset());
+        updateBufferedResults();
+        Assert.assertTrue(offset <= collectRequest.getOffset());
 
-		List<T> subList = Collections.emptyList();
-		if (collectRequest.getVersion().equals(version)) {
-			while (buffered.size() > 0 && collectRequest.getOffset() > offset) {
-				buffered.removeFirst();
-				offset++;
-			}
-			subList = new ArrayList<>();
-			Iterator<T> iterator = buffered.iterator();
-			for (int i = 0; i < BATCH_SIZE && iterator.hasNext(); i++) {
-				subList.add(iterator.next());
-			}
-		}
-		List<byte[]> nextBatch = CollectTestUtils.toBytesList(subList, serializer);
+        List<T> subList = Collections.emptyList();
+        if (collectRequest.getVersion().equals(version)) {
+            while (buffered.size() > 0 && collectRequest.getOffset() > offset) {
+                buffered.removeFirst();
+                offset++;
+            }
+            subList = new ArrayList<>();
+            Iterator<T> iterator = buffered.iterator();
+            for (int i = 0; i < BATCH_SIZE && iterator.hasNext(); i++) {
+                subList.add(iterator.next());
+            }
+        }
+        List<byte[]> nextBatch = CollectTestUtils.toBytesList(subList, serializer);
 
-		CoordinationResponse response;
-		if (random.nextBoolean()) {
-			// with 50% chance we return valid result
-			response = new CollectCoordinationResponse(version, checkpointedOffset, nextBatch);
-		} else {
-			// with 50% chance we return invalid result
-			response = new CollectCoordinationResponse(
-				collectRequest.getVersion(),
-				-1,
-				Collections.emptyList());
-		}
-		return CompletableFuture.completedFuture(response);
-	}
+        CoordinationResponse response;
+        if (random.nextBoolean()) {
+            // with 50% chance we return valid result
+            response = new CollectCoordinationResponse(version, checkpointedOffset, nextBatch);
+        } else {
+            // with 50% chance we return invalid result
+            response =
+                    new CollectCoordinationResponse(
+                            collectRequest.getVersion(), -1, Collections.emptyList());
+        }
+        return CompletableFuture.completedFuture(response);
+    }
 
-	protected abstract void updateBufferedResults();
+    protected abstract void updateBufferedResults();
 
-	public boolean isClosed() {
-		return closed;
-	}
+    public boolean isClosed() {
+        return closed;
+    }
 
-	public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
-		return accumulatorResults;
-	}
+    public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
+        return accumulatorResults;
+    }
 
-	protected void buildAccumulatorResults() {
-		List<byte[]> finalResults = CollectTestUtils.toBytesList(buffered, serializer);
-		SerializedListAccumulator<byte[]> listAccumulator = new SerializedListAccumulator<>();
-		try {
-			byte[] serializedResult =
-				CollectSinkFunction.serializeAccumulatorResult(offset, version, checkpointedOffset, finalResults);
-			listAccumulator.add(serializedResult, BytePrimitiveArraySerializer.INSTANCE);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+    protected void buildAccumulatorResults() {
+        List<byte[]> finalResults = CollectTestUtils.toBytesList(buffered, serializer);
+        SerializedListAccumulator<byte[]> listAccumulator = new SerializedListAccumulator<>();
+        try {
+            byte[] serializedResult =
+                    CollectSinkFunction.serializeAccumulatorResult(
+                            offset, version, checkpointedOffset, finalResults);
+            listAccumulator.add(serializedResult, BytePrimitiveArraySerializer.INSTANCE);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-		accumulatorResults.put(accumulatorName, OptionalFailure.of(listAccumulator.getLocalValue()));
-	}
+        accumulatorResults.put(
+                accumulatorName, OptionalFailure.of(listAccumulator.getLocalValue()));
+    }
 }

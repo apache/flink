@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.testfunctions;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 
 public class IdentityMapper<T> extends RichMapFunction<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T map(T value) {
-		return value;
-	}
+    @Override
+    public T map(T value) {
+        return value;
+    }
 }

@@ -23,56 +23,56 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import java.io.IOException;
 
 /**
- * Concrete implementation of the {@link FSDataOutputStream} for Hadoop's input streams.
- * This supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
+ * Concrete implementation of the {@link FSDataOutputStream} for Hadoop's input streams. This
+ * supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
  */
 public class HadoopDataOutputStream extends FSDataOutputStream {
 
-	private final org.apache.hadoop.fs.FSDataOutputStream fdos;
+    private final org.apache.hadoop.fs.FSDataOutputStream fdos;
 
-	public HadoopDataOutputStream(org.apache.hadoop.fs.FSDataOutputStream fdos) {
-		if (fdos == null) {
-			throw new NullPointerException();
-		}
-		this.fdos = fdos;
-	}
+    public HadoopDataOutputStream(org.apache.hadoop.fs.FSDataOutputStream fdos) {
+        if (fdos == null) {
+            throw new NullPointerException();
+        }
+        this.fdos = fdos;
+    }
 
-	@Override
-	public void write(int b) throws IOException {
-		fdos.write(b);
-	}
+    @Override
+    public void write(int b) throws IOException {
+        fdos.write(b);
+    }
 
-	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
-		fdos.write(b, off, len);
-	}
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        fdos.write(b, off, len);
+    }
 
-	@Override
-	public void close() throws IOException {
-		fdos.close();
-	}
+    @Override
+    public void close() throws IOException {
+        fdos.close();
+    }
 
-	@Override
-	public long getPos() throws IOException {
-		return fdos.getPos();
-	}
+    @Override
+    public long getPos() throws IOException {
+        return fdos.getPos();
+    }
 
-	@Override
-	public void flush() throws IOException {
-		fdos.hflush();
-	}
+    @Override
+    public void flush() throws IOException {
+        fdos.hflush();
+    }
 
-	@Override
-	public void sync() throws IOException {
-		fdos.hsync();
-	}
+    @Override
+    public void sync() throws IOException {
+        fdos.hsync();
+    }
 
-	/**
-	 * Gets the wrapped Hadoop output stream.
-	 * @return The wrapped Hadoop output stream.
-	 */
-	public org.apache.hadoop.fs.FSDataOutputStream getHadoopOutputStream() {
-		return fdos;
-	}
-
+    /**
+     * Gets the wrapped Hadoop output stream.
+     *
+     * @return The wrapped Hadoop output stream.
+     */
+    public org.apache.hadoop.fs.FSDataOutputStream getHadoopOutputStream() {
+        return fdos;
+    }
 }

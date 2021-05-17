@@ -39,7 +39,6 @@ class GenericRelDataType(
     typeSystem,
     SqlTypeName.ANY) {
 
-  isNullable = nullable
   computeDigest()
 
   override def toString = s"RAW($genericType)"
@@ -58,6 +57,8 @@ class GenericRelDataType(
   override def hashCode(): Int = {
     genericType.hashCode()
   }
+
+  override def isNullable: Boolean = nullable
 
   /**
     * [[ArraySqlType]], [[MapSqlType]]... use generateTypeString to equals and hashcode.

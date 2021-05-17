@@ -29,7 +29,7 @@ import org.junit.Before
 /**
   * Test for [[LogicalUnnestRule]].
   */
-class LogicalUnnestRuleTest extends UnnestTestBase {
+class LogicalUnnestRuleTest extends UnnestTestBase(false) {
 
   override protected def getTableTestUtil: TableTestUtil = batchTestUtil()
 

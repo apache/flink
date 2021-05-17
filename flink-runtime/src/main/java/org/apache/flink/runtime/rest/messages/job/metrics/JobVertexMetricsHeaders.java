@@ -23,34 +23,34 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
-/**
- * {@link MessageHeaders} for {@link JobVertexMetricsHandler}.
- */
-public final class JobVertexMetricsHeaders extends
-	AbstractMetricsHeaders<JobVertexMetricsMessageParameters> {
+/** {@link MessageHeaders} for {@link JobVertexMetricsHandler}. */
+public final class JobVertexMetricsHeaders
+        extends AbstractMetricsHeaders<JobVertexMetricsMessageParameters> {
 
-	private static final JobVertexMetricsHeaders INSTANCE =
-		new JobVertexMetricsHeaders();
+    private static final JobVertexMetricsHeaders INSTANCE = new JobVertexMetricsHeaders();
 
-	private JobVertexMetricsHeaders() {
-	}
+    private JobVertexMetricsHeaders() {}
 
-	@Override
-	public JobVertexMetricsMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMetricsMessageParameters();
-	}
+    @Override
+    public JobVertexMetricsMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMetricsMessageParameters();
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/metrics";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jobs/:"
+                + JobIDPathParameter.KEY
+                + "/vertices/:"
+                + JobVertexIdPathParameter.KEY
+                + "/metrics";
+    }
 
-	public static JobVertexMetricsHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobVertexMetricsHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Provides access to task metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Provides access to task metrics.";
+    }
 }

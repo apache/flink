@@ -18,186 +18,102 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
-import org.apache.flink.table.planner.calcite.FlinkContext;
-import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
-import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.stream.Collectors;
-
 import scala.Tuple2;
 
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
-
 /**
- * Planner rule that tries to push a filter into a {@link LogicalTableScan}, which table is a {@link TableSourceTable}.
- * And the table source in the table is a {@link SupportsFilterPushDown}.
+ * Planner rule that tries to push a filter into a {@link LogicalTableScan}, which table is a {@link
+ * TableSourceTable}. And the table source in the table is a {@link SupportsFilterPushDown}.
  */
-public class PushFilterIntoTableSourceScanRule extends RelOptRule {
-	public static final PushFilterIntoTableSourceScanRule INSTANCE = new PushFilterIntoTableSourceScanRule();
+public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanRuleBase {
+    public static final PushFilterIntoTableSourceScanRule INSTANCE =
+            new PushFilterIntoTableSourceScanRule();
 
-	public PushFilterIntoTableSourceScanRule() {
-		super(operand(Filter.class,
-			operand(LogicalTableScan.class, none())),
-			"PushFilterIntoTableSourceScanRule");
-	}
+    public PushFilterIntoTableSourceScanRule() {
+        super(
+                operand(Filter.class, operand(LogicalTableScan.class, none())),
+                "PushFilterIntoTableSourceScanRule");
+    }
 
-	@Override
-	public boolean matches(RelOptRuleCall call) {
-		TableConfig config = call.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
-		if (!config.getConfiguration().getBoolean(
-			OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
-			return false;
-		}
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+        if (!super.matches(call)) {
+            return false;
+        }
 
-		Filter filter = call.rel(0);
-		if (filter.getCondition() == null) {
-			return false;
-		}
+        Filter filter = call.rel(0);
+        if (filter.getCondition() == null) {
+            return false;
+        }
 
-		LogicalTableScan scan = call.rel(1);
-		TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		// we can not push filter twice
-		return tableSourceTable != null
-			&& tableSourceTable.tableSource() instanceof SupportsFilterPushDown
-			&& Arrays.stream(tableSourceTable.extraDigests()).noneMatch(str -> str.startsWith("filter=["));
-	}
+        LogicalTableScan scan = call.rel(1);
+        TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
 
-	@Override
-	public void onMatch(RelOptRuleCall call) {
-		Filter filter = call.rel(0);
-		LogicalTableScan scan = call.rel(1);
-		TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
-		pushFilterIntoScan(call, filter, scan, table);
-	}
+        return canPushdownFilter(tableSourceTable);
+    }
 
-	private void pushFilterIntoScan(
-		RelOptRuleCall call,
-		Filter filter,
-		LogicalTableScan scan,
-		FlinkPreparingTableBase relOptTable) {
+    @Override
+    public void onMatch(RelOptRuleCall call) {
+        Filter filter = call.rel(0);
+        LogicalTableScan scan = call.rel(1);
+        TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
+        pushFilterIntoScan(call, filter, scan, table);
+    }
 
-		RelBuilder relBuilder = call.builder();
-		FlinkContext context = call.getPlanner().getContext().unwrap(FlinkContext.class);
-		int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan);
-		Tuple2<Expression[], RexNode[]> tuple2 =
-			RexNodeExtractor.extractConjunctiveConditions(
-				filter.getCondition(),
-				maxCnfNodeCount,
-				filter.getInput().getRowType().getFieldNames(),
-				relBuilder.getRexBuilder(),
-				context.getFunctionCatalog(),
-				context.getCatalogManager(),
-				TimeZone.getTimeZone(scan.getCluster().getPlanner().getContext()
-					.unwrap(FlinkContext.class).getTableConfig().getLocalTimeZone()));
-		Expression[] predicates = tuple2._1;
-		RexNode[] unconvertedRexNodes = tuple2._2;
-		if (predicates.length == 0) {
-			// no condition can be translated to expression
-			return;
-		}
+    private void pushFilterIntoScan(
+            RelOptRuleCall call,
+            Filter filter,
+            LogicalTableScan scan,
+            FlinkPreparingTableBase relOptTable) {
 
-		List<Expression> remainingPredicates = new LinkedList<>();
-		remainingPredicates.addAll(Arrays.asList(predicates));
-		// record size before applyFilters for update statistics
-		int originPredicatesSize = remainingPredicates.size();
+        RelBuilder relBuilder = call.builder();
+        Tuple2<RexNode[], RexNode[]> extractedPredicates =
+                extractPredicates(
+                        filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
+                        filter.getCondition(),
+                        scan,
+                        relBuilder.getRexBuilder());
 
-		// update DynamicTableSource
-		TableSourceTable oldTableSourceTable = relOptTable.unwrap(TableSourceTable.class);
-		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
-		ExpressionResolver resolver = ExpressionResolver.resolverFor(
-			context.getTableConfig(),
-			name -> Optional.empty(),
-			context.getFunctionCatalog().asLookup(str -> {
-				throw new TableException("We should not need to lookup any expressions at this point");
-			}),
-			context.getCatalogManager().getDataTypeFactory())
-			.build();
-		SupportsFilterPushDown.Result result = ((SupportsFilterPushDown) newTableSource).applyFilters(
-			resolver.resolve(remainingPredicates)
-		);
+        RexNode[] convertiblePredicates = extractedPredicates._1;
+        RexNode[] unconvertedPredicates = extractedPredicates._2;
+        if (convertiblePredicates.length == 0) {
+            // no condition can be translated to expression
+            return;
+        }
 
-		// record size after applyFilters for update statistics
-		int updatedPredicatesSize = result.getRemainingFilters().size();
-		// set the newStatistic newTableSource and extraDigests
-		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
-			newTableSource,
-			getNewFlinkStatistic(oldTableSourceTable, originPredicatesSize, updatedPredicatesSize),
-			getNewExtraDigests(result.getAcceptedFilters())
-		);
-		TableScan newScan = LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
-		// check whether framework still need to do a filter
-		if (result.getRemainingFilters().isEmpty() && unconvertedRexNodes.length == 0) {
-			call.transformTo(newScan);
-		} else {
-			relBuilder.push(scan);
-			ExpressionConverter converter = new ExpressionConverter(relBuilder);
-			List<RexNode> remainingConditions = result.getRemainingFilters()
-				.stream()
-				.map(e -> e.accept(converter))
-				.collect(Collectors.toList());
-			remainingConditions.addAll(Arrays.asList(unconvertedRexNodes));
-			RexNode remainingCondition = relBuilder.and(remainingConditions);
-			Filter newFilter = filter.copy(filter.getTraitSet(), newScan, remainingCondition);
-			call.transformTo(newFilter);
-		}
-	}
+        Tuple2<SupportsFilterPushDown.Result, TableSourceTable> scanAfterPushdownWithResult =
+                resolveFiltersAndCreateTableSourceTable(
+                        convertiblePredicates,
+                        relOptTable.unwrap(TableSourceTable.class),
+                        scan,
+                        relBuilder);
 
-	private FlinkStatistic getNewFlinkStatistic(TableSourceTable tableSourceTable, int originPredicatesSize, int updatedPredicatesSize) {
-		FlinkStatistic oldStatistic = tableSourceTable.getStatistic();
-		FlinkStatistic newStatistic = null;
-		if (originPredicatesSize == updatedPredicatesSize) {
-			// Keep all Statistics if no predicates can be pushed down
-			newStatistic = oldStatistic;
-		} else if (oldStatistic == FlinkStatistic.UNKNOWN()) {
-			newStatistic = oldStatistic;
-		} else {
-			// Remove tableStats after predicates pushed down
-			newStatistic = FlinkStatistic.builder().statistic(oldStatistic).tableStats(null).build();
-		}
-		return newStatistic;
-	}
+        SupportsFilterPushDown.Result result = scanAfterPushdownWithResult._1;
+        TableSourceTable tableSourceTable = scanAfterPushdownWithResult._2;
 
-	private String[] getNewExtraDigests(List<ResolvedExpression> acceptedFilters) {
-		String extraDigest = null;
-		if (!acceptedFilters.isEmpty()) {
-			// push filter successfully
-			String pushedExpr = acceptedFilters
-				.stream()
-				.reduce((l, r) -> new CallExpression(AND, Arrays.asList(l, r), DataTypes.BOOLEAN()))
-				.get()
-				.toString();
-			extraDigest = "filter=[" + pushedExpr + "]";
-		} else {
-			// try to push filter, but insuccess
-			extraDigest = "filter=[]";
-		}
-		return new String[]{extraDigest};
-	}
+        LogicalTableScan newScan =
+                LogicalTableScan.create(scan.getCluster(), tableSourceTable, scan.getHints());
+        if (result.getRemainingFilters().isEmpty() && unconvertedPredicates.length == 0) {
+            call.transformTo(newScan);
+        } else {
+            RexNode remainingCondition =
+                    createRemainingCondition(
+                            relBuilder, result.getRemainingFilters(), unconvertedPredicates);
+            RexNode simplifiedRemainingCondition =
+                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), remainingCondition);
+            Filter newFilter =
+                    filter.copy(filter.getTraitSet(), newScan, simplifiedRemainingCondition);
+            call.transformTo(newFilter);
+        }
+    }
 }

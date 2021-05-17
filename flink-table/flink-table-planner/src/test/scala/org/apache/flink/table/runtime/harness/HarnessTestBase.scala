@@ -362,10 +362,10 @@ class HarnessTestBase extends StreamingWithStateTestBase {
         if (one.getName.startsWith(prefixOperatorName)) {
           one
         } else {
-          extractExpectedTransformation(one.getInput, prefixOperatorName)
+          extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
       case union: UnionTransformation[_] => extractFromInputs(union.getInputs.toSeq: _*)
-      case p: PartitionTransformation[_] => extractFromInputs(p.getInput)
+      case p: PartitionTransformation[_] => extractFromInputs(p.getInputs.get(0))
       case _: LegacySourceTransformation[_] => null
       case _ => throw new UnsupportedOperationException("This should not happen.")
     }

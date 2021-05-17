@@ -25,47 +25,42 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-
-/**
- * Tests for {@link SystemResourcesCounter}.
- */
+/** Tests for {@link SystemResourcesCounter}. */
 public class SystemResourcesCounterTest {
 
-	private static final double EPSILON = 0.01;
+    private static final double EPSILON = 0.01;
 
-	@Test
-	public void testObtainAnyMetrics() throws InterruptedException {
-		SystemResourcesCounter systemResources = new SystemResourcesCounter(Time.milliseconds(10));
-		double initialCpuIdle = systemResources.getCpuIdle();
+    @Test
+    public void testObtainAnyMetrics() throws InterruptedException {
+        SystemResourcesCounter systemResources = new SystemResourcesCounter(Time.milliseconds(10));
+        double initialCpuIdle = systemResources.getCpuIdle();
 
-		systemResources.start();
-		// wait for stats to update/calculate
-		try {
-			double cpuIdle;
-			do {
-				Thread.sleep(1);
-				cpuIdle = systemResources.getCpuIdle();
-			}
-			while (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0);
-		}
-		finally {
-			systemResources.shutdown();
-			systemResources.join();
-		}
+        systemResources.start();
+        // wait for stats to update/calculate
+        try {
+            double cpuIdle;
+            do {
+                Thread.sleep(1);
+                cpuIdle = systemResources.getCpuIdle();
+            } while (initialCpuIdle == cpuIdle || Double.isNaN(cpuIdle) || cpuIdle == 0.0);
+        } finally {
+            systemResources.shutdown();
+            systemResources.join();
+        }
 
-		double totalCpuUsage = systemResources.getCpuIrq() +
-			systemResources.getCpuNice() +
-			systemResources.getCpuSoftIrq() +
-			systemResources.getCpuSys() +
-			systemResources.getCpuUser() +
-			systemResources.getIOWait();
+        double totalCpuUsage =
+                systemResources.getCpuIrq()
+                        + systemResources.getCpuNice()
+                        + systemResources.getCpuSoftIrq()
+                        + systemResources.getCpuSys()
+                        + systemResources.getCpuUser()
+                        + systemResources.getIOWait();
 
-		assertTrue(
-			"There should be at least one processor",
-			systemResources.getProcessorsCount() > 0);
-		assertTrue(
-			"There should be at least one network interface",
-			systemResources.getNetworkInterfaceNames().length > 0);
-		assertEquals(100.0, totalCpuUsage + systemResources.getCpuIdle(), EPSILON);
-	}
+        assertTrue(
+                "There should be at least one processor", systemResources.getProcessorsCount() > 0);
+        assertTrue(
+                "There should be at least one network interface",
+                systemResources.getNetworkInterfaceNames().length > 0);
+        assertEquals(100.0, totalCpuUsage + systemResources.getCpuIdle(), EPSILON);
+    }
 }

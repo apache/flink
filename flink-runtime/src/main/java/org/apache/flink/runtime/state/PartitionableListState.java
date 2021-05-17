@@ -35,101 +35,99 @@ import java.util.List;
  */
 public final class PartitionableListState<S> implements ListState<S> {
 
-	/**
-	 * Meta information of the state, including state name, assignment mode, and typeSerializer
-	 */
-	private RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo;
+    /** Meta information of the state, including state name, assignment mode, and typeSerializer */
+    private RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo;
 
-	/**
-	 * The internal list the holds the elements of the state
-	 */
-	private final ArrayList<S> internalList;
+    /** The internal list the holds the elements of the state */
+    private final ArrayList<S> internalList;
 
-	/**
-	 * A typeSerializer that allows to perform deep copies of internalList
-	 */
-	private final ArrayListSerializer<S> internalListCopySerializer;
+    /** A typeSerializer that allows to perform deep copies of internalList */
+    private final ArrayListSerializer<S> internalListCopySerializer;
 
-	PartitionableListState(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
-		this(stateMetaInfo, new ArrayList<S>());
-	}
+    PartitionableListState(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
+        this(stateMetaInfo, new ArrayList<S>());
+    }
 
-	private PartitionableListState(
-			RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo,
-			ArrayList<S> internalList) {
+    private PartitionableListState(
+            RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo, ArrayList<S> internalList) {
 
-		this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
-		this.internalList = Preconditions.checkNotNull(internalList);
-		this.internalListCopySerializer = new ArrayListSerializer<>(stateMetaInfo.getPartitionStateSerializer());
-	}
+        this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
+        this.internalList = Preconditions.checkNotNull(internalList);
+        this.internalListCopySerializer =
+                new ArrayListSerializer<>(stateMetaInfo.getPartitionStateSerializer());
+    }
 
-	private PartitionableListState(PartitionableListState<S> toCopy) {
+    private PartitionableListState(PartitionableListState<S> toCopy) {
 
-		this(toCopy.stateMetaInfo.deepCopy(), toCopy.internalListCopySerializer.copy(toCopy.internalList));
-	}
+        this(
+                toCopy.stateMetaInfo.deepCopy(),
+                toCopy.internalListCopySerializer.copy(toCopy.internalList));
+    }
 
-	public void setStateMetaInfo(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
-		this.stateMetaInfo = stateMetaInfo;
-	}
+    public void setStateMetaInfo(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
+        this.stateMetaInfo = stateMetaInfo;
+    }
 
-	public RegisteredOperatorStateBackendMetaInfo<S> getStateMetaInfo() {
-		return stateMetaInfo;
-	}
+    public RegisteredOperatorStateBackendMetaInfo<S> getStateMetaInfo() {
+        return stateMetaInfo;
+    }
 
-	public PartitionableListState<S> deepCopy() {
-		return new PartitionableListState<>(this);
-	}
+    public PartitionableListState<S> deepCopy() {
+        return new PartitionableListState<>(this);
+    }
 
-	@Override
-	public void clear() {
-		internalList.clear();
-	}
+    @Override
+    public void clear() {
+        internalList.clear();
+    }
 
-	@Override
-	public Iterable<S> get() {
-		return internalList;
-	}
+    @Override
+    public Iterable<S> get() {
+        return internalList;
+    }
 
-	@Override
-	public void add(S value) {
-		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
-		internalList.add(value);
-	}
+    @Override
+    public void add(S value) {
+        Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
+        internalList.add(value);
+    }
 
-	@Override
-	public String toString() {
-		return "PartitionableListState{" +
-				"stateMetaInfo=" + stateMetaInfo +
-				", internalList=" + internalList +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "PartitionableListState{"
+                + "stateMetaInfo="
+                + stateMetaInfo
+                + ", internalList="
+                + internalList
+                + '}';
+    }
 
-	public long[] write(FSDataOutputStream out) throws IOException {
+    public long[] write(FSDataOutputStream out) throws IOException {
 
-		long[] partitionOffsets = new long[internalList.size()];
+        long[] partitionOffsets = new long[internalList.size()];
 
-		DataOutputView dov = new DataOutputViewStreamWrapper(out);
+        DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
-		for (int i = 0; i < internalList.size(); ++i) {
-			S element = internalList.get(i);
-			partitionOffsets[i] = out.getPos();
-			getStateMetaInfo().getPartitionStateSerializer().serialize(element, dov);
-		}
+        for (int i = 0; i < internalList.size(); ++i) {
+            S element = internalList.get(i);
+            partitionOffsets[i] = out.getPos();
+            getStateMetaInfo().getPartitionStateSerializer().serialize(element, dov);
+        }
 
-		return partitionOffsets;
-	}
+        return partitionOffsets;
+    }
 
-	@Override
-	public void update(List<S> values) {
-		internalList.clear();
+    @Override
+    public void update(List<S> values) {
+        internalList.clear();
 
-		addAll(values);
-	}
+        addAll(values);
+    }
 
-	@Override
-	public void addAll(List<S> values) {
-		if (values != null && !values.isEmpty()) {
-			internalList.addAll(values);
-		}
-	}
+    @Override
+    public void addAll(List<S> values) {
+        if (values != null && !values.isEmpty()) {
+            internalList.addAll(values);
+        }
+    }
 }

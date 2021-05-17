@@ -25,46 +25,45 @@ import org.junit.Test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link IngestionTimeExtractor}.
- */
+/** Tests for {@link IngestionTimeExtractor}. */
 public class IngestionTimeExtractorTest {
 
-	@Test
-	public void testMonotonousTimestamps() {
-		AssignerWithPeriodicWatermarks<String> assigner = new IngestionTimeExtractor<>();
+    @Test
+    public void testMonotonousTimestamps() {
+        AssignerWithPeriodicWatermarks<String> assigner = new IngestionTimeExtractor<>();
 
-		long maxRecordSoFar = 0L;
-		long maxWatermarkSoFar = 0L;
+        long maxRecordSoFar = 0L;
+        long maxWatermarkSoFar = 0L;
 
-		for (int i = 0; i < 1343; i++) {
-			if (i % 7 == 1) {
-				Watermark mark = assigner.getCurrentWatermark();
-				assertNotNull(mark);
+        for (int i = 0; i < 1343; i++) {
+            if (i % 7 == 1) {
+                Watermark mark = assigner.getCurrentWatermark();
+                assertNotNull(mark);
 
-				// increasing watermarks
-				assertTrue(mark.getTimestamp() >= maxWatermarkSoFar);
-				maxWatermarkSoFar = mark.getTimestamp();
+                // increasing watermarks
+                assertTrue(mark.getTimestamp() >= maxWatermarkSoFar);
+                maxWatermarkSoFar = mark.getTimestamp();
 
-				// tight watermarks
-				assertTrue(mark.getTimestamp() >= maxRecordSoFar - 1);
-			} else {
-				long next = assigner.extractTimestamp("a", Long.MIN_VALUE);
+                // tight watermarks
+                assertTrue(mark.getTimestamp() >= maxRecordSoFar - 1);
+            } else {
+                long next = assigner.extractTimestamp("a", Long.MIN_VALUE);
 
-				// increasing timestamps
-				assertTrue(next >= maxRecordSoFar);
+                // increasing timestamps
+                assertTrue(next >= maxRecordSoFar);
 
-				// timestamps are never below or at the watermark
-				assertTrue(next > maxWatermarkSoFar);
+                // timestamps are never below or at the watermark
+                assertTrue(next > maxWatermarkSoFar);
 
-				maxRecordSoFar = next;
-			}
+                maxRecordSoFar = next;
+            }
 
-			if (i % 9 == 0) {
-				try {
-					Thread.sleep(1);
-				} catch (InterruptedException ignored) {}
-			}
-		}
-	}
+            if (i % 9 == 0) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
 }

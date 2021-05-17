@@ -153,6 +153,3 @@ execution:
 
 configuration:
   table.optimizer.join-reorder-enabled: false
-
-deployment:
-  response-timeout: 5000

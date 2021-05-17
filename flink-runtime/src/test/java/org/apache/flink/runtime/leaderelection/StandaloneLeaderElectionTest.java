@@ -21,41 +21,46 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class StandaloneLeaderElectionTest extends TestLogger {
-	private static final String TEST_URL = "akka://users/jobmanager";
+    private static final String TEST_URL = "akka://users/jobmanager";
 
-	/**
-	 * Tests that the standalone leader election and retrieval service return the same leader
-	 * URL.
-	 */
-	@Test
-	public void testStandaloneLeaderElectionRetrieval() throws Exception {
-		StandaloneLeaderElectionService leaderElectionService = new StandaloneLeaderElectionService();
-		StandaloneLeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(TEST_URL);
-		TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
-		TestingListener testingListener = new TestingListener();
+    /**
+     * Tests that the standalone leader election and retrieval service return the same leader URL.
+     */
+    @Test
+    public void testStandaloneLeaderElectionRetrieval() throws Exception {
+        StandaloneLeaderElectionService leaderElectionService =
+                new StandaloneLeaderElectionService();
+        StandaloneLeaderRetrievalService leaderRetrievalService =
+                new StandaloneLeaderRetrievalService(TEST_URL);
+        TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
+        TestingListener testingListener = new TestingListener();
 
-		try {
-			leaderElectionService.start(contender);
-			leaderRetrievalService.start(testingListener);
+        try {
+            leaderElectionService.start(contender);
+            leaderRetrievalService.start(testingListener);
 
-			contender.waitForLeader(1000l);
+            contender.waitForLeader(1000l);
 
-			assertTrue(contender.isLeader());
-			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
+            assertTrue(contender.isLeader());
+            assertEquals(
+                    HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
 
-			testingListener.waitForNewLeader(1000l);
+            testingListener.waitForNewLeader(1000l);
 
-			assertEquals(TEST_URL, testingListener.getAddress());
-			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, testingListener.getLeaderSessionID());
-		} finally {
-			leaderElectionService.stop();
-			leaderRetrievalService.stop();
-		}
-	}
+            assertEquals(TEST_URL, testingListener.getAddress());
+            assertEquals(
+                    HighAvailabilityServices.DEFAULT_LEADER_ID,
+                    testingListener.getLeaderSessionID());
+        } finally {
+            leaderElectionService.stop();
+            leaderRetrievalService.stop();
+        }
+    }
 }

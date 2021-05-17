@@ -29,10 +29,10 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,19 +42,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@code Transformation} represents the operation that creates a
- * DataStream. Every DataStream has an underlying
- * {@code Transformation} that is the origin of said DataStream.
+ * A {@code Transformation} represents the operation that creates a DataStream. Every DataStream has
+ * an underlying {@code Transformation} that is the origin of said DataStream.
  *
- * <p>API operations such as DataStream#map create
- * a tree of {@code Transformation}s underneath. When the stream program is to be executed
- * this graph is translated to a StreamGraph using StreamGraphGenerator.
+ * <p>API operations such as DataStream#map create a tree of {@code Transformation}s underneath.
+ * When the stream program is to be executed this graph is translated to a StreamGraph using
+ * StreamGraphGenerator.
  *
- * <p>A {@code Transformation} does not necessarily correspond to a physical operation
- * at runtime. Some operations are only logical concepts. Examples of this are union,
- * split/select data stream, partitioning.
+ * <p>A {@code Transformation} does not necessarily correspond to a physical operation at runtime.
+ * Some operations are only logical concepts. Examples of this are union, split/select data stream,
+ * partitioning.
  *
  * <p>The following graph of {@code Transformations}:
+ *
  * <pre>{@code
  *   Source              Source
  *      +                   +
@@ -83,20 +83,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * }</pre>
  *
  * <p>Would result in this graph of operations at runtime:
+ *
  * <pre>{@code
- *  Source              Source
- *    +                   +
- *    |                   |
- *    |                   |
- *    +------->Map<-------+
- *              +
- *              |
- *              v
- *             Sink
+ * Source              Source
+ *   +                   +
+ *   |                   |
+ *   |                   |
+ *   +------->Map<-------+
+ *             +
+ *             |
+ *             v
+ *            Sink
  * }</pre>
  *
- * <p>The information about partitioning, union, split/select end up being encoded in the edges
- * that connect the sources to the map operation.
+ * <p>The information about partitioning, union, split/select end up being encoded in the edges that
+ * connect the sources to the map operation.
  *
  * @param <T> The type of the elements that result from this {@code Transformation}
  */

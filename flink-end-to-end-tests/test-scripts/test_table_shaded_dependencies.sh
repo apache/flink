@@ -64,6 +64,9 @@ function checkCodeDependencies {
       grep -v "^\s*\-> org.apiguardian.api" |\
       grep -v "^\s*\-> org.apache.commons.io.input" |\
       grep -v "^\s*\-> com.ibm.icu" |\
+      `# org.reflections dependencies` \
+      grep -v "^\s*\-> org.apache.commons.vfs2" |\
+      grep -v "^\s*\-> org.dom4j" |\
       grep -v "^\s*\-> net.minidev.json" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted dependencies in the ${JAR} jar."
@@ -84,6 +87,7 @@ function checkAllowedPackages {
       grep -v "org/codehaus/janino" |\
       grep -v "org/codehaus/commons" |\
       grep -v "org/apache/calcite" |\
+      grep -v "com/esri/core" |\
       grep -v "com/ibm/icu" |\
       grep -v "org/apache/flink" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then

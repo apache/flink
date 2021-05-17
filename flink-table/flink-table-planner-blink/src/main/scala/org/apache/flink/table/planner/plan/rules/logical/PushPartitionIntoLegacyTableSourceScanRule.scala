@@ -146,6 +146,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
         catalogOption match {
           case Some(catalog) =>
             val converter = new RexNodeToExpressionConverter(
+              rexBuilder,
               inputFields,
               context.getFunctionCatalog,
               context.getCatalogManager,

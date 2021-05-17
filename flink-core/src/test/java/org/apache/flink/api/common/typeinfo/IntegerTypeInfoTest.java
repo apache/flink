@@ -20,18 +20,16 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link IntegerTypeInfo}.
- */
+/** Test for {@link IntegerTypeInfo}. */
 public class IntegerTypeInfoTest extends TypeInformationTestBase<IntegerTypeInfo<?>> {
 
-	@Override
-	protected IntegerTypeInfo<?>[] getTestData() {
-		return new IntegerTypeInfo<?>[] {
-			(IntegerTypeInfo<?>) BasicTypeInfo.BYTE_TYPE_INFO,
-			(IntegerTypeInfo<?>) BasicTypeInfo.SHORT_TYPE_INFO,
-			(IntegerTypeInfo<?>) BasicTypeInfo.INT_TYPE_INFO,
-			(IntegerTypeInfo<?>) BasicTypeInfo.LONG_TYPE_INFO
-		};
-	}
+    @Override
+    protected IntegerTypeInfo<?>[] getTestData() {
+        return new IntegerTypeInfo<?>[] {
+            (IntegerTypeInfo<?>) BasicTypeInfo.BYTE_TYPE_INFO,
+            (IntegerTypeInfo<?>) BasicTypeInfo.SHORT_TYPE_INFO,
+            (IntegerTypeInfo<?>) BasicTypeInfo.INT_TYPE_INFO,
+            (IntegerTypeInfo<?>) BasicTypeInfo.LONG_TYPE_INFO
+        };
+    }
 }

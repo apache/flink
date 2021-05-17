@@ -16,10 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
 
-class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
+class StreamTableColumnsOperationTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_add_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
@@ -40,8 +40,8 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
     def test_rename_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select("a, b, c").rename_columns(t.a.alias('d'), t.c.alias('f'), t.b.alias('e'))
-        table_schema = result._j_table.getQueryOperation().getTableSchema()
-        self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
+        resolved_schema = result._j_table.getQueryOperation().getResolvedSchema()
+        self.assertEqual(['d', 'e', 'f'], list(resolved_schema.getColumnNames()))
 
     def test_drop_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])

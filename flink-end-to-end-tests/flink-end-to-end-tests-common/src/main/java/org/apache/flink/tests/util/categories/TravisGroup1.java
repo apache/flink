@@ -18,8 +18,5 @@
 
 package org.apache.flink.tests.util.categories;
 
-/**
- * Marker interface for tests that should be run in the first build on Travis.
- */
-public interface TravisGroup1 {
-}
+/** Marker interface for tests that should be run in the first build on Travis. */
+public interface TravisGroup1 {}

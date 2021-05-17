@@ -30,119 +30,115 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Response type of the {@link SubtasksTimesHandler}.
- */
+/** Response type of the {@link SubtasksTimesHandler}. */
 public class SubtasksTimesInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_ID = "id";
-	public static final String FIELD_NAME_NAME = "name";
-	public static final String FIELD_NAME_NOW = "now";
-	public static final String FIELD_NAME_SUBTASKS = "subtasks";
+    public static final String FIELD_NAME_ID = "id";
+    public static final String FIELD_NAME_NAME = "name";
+    public static final String FIELD_NAME_NOW = "now";
+    public static final String FIELD_NAME_SUBTASKS = "subtasks";
 
-	@JsonProperty(FIELD_NAME_ID)
-	private final String id;
+    @JsonProperty(FIELD_NAME_ID)
+    private final String id;
 
-	@JsonProperty(FIELD_NAME_NAME)
-	private final String name;
+    @JsonProperty(FIELD_NAME_NAME)
+    private final String name;
 
-	@JsonProperty(FIELD_NAME_NOW)
-	private final long now;
+    @JsonProperty(FIELD_NAME_NOW)
+    private final long now;
 
-	@JsonProperty(FIELD_NAME_SUBTASKS)
-	private final List<SubtaskTimeInfo> subtasks;
+    @JsonProperty(FIELD_NAME_SUBTASKS)
+    private final List<SubtaskTimeInfo> subtasks;
 
-	@JsonCreator
-	public SubtasksTimesInfo(
-			@JsonProperty(FIELD_NAME_ID) String id,
-			@JsonProperty(FIELD_NAME_NAME) String name,
-			@JsonProperty(FIELD_NAME_NOW) long now,
-			@JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskTimeInfo> subtasks) {
-		this.id = checkNotNull(id);
-		this.name = checkNotNull(name);
-		this.now = now;
-		this.subtasks = checkNotNull(subtasks);
-	}
+    @JsonCreator
+    public SubtasksTimesInfo(
+            @JsonProperty(FIELD_NAME_ID) String id,
+            @JsonProperty(FIELD_NAME_NAME) String name,
+            @JsonProperty(FIELD_NAME_NOW) long now,
+            @JsonProperty(FIELD_NAME_SUBTASKS) List<SubtaskTimeInfo> subtasks) {
+        this.id = checkNotNull(id);
+        this.name = checkNotNull(name);
+        this.now = now;
+        this.subtasks = checkNotNull(subtasks);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (o == null || this.getClass() != o.getClass()) {
-			return false;
-		}
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
 
-		SubtasksTimesInfo that = (SubtasksTimesInfo) o;
-		return Objects.equals(id, that.id) &&
-			Objects.equals(name, that.name) &&
-			now == that.now &&
-			Objects.equals(subtasks, that.subtasks);
-	}
+        SubtasksTimesInfo that = (SubtasksTimesInfo) o;
+        return Objects.equals(id, that.id)
+                && Objects.equals(name, that.name)
+                && now == that.now
+                && Objects.equals(subtasks, that.subtasks);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(id, name, now, subtasks);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, now, subtasks);
+    }
 
-	//---------------------------------------------------------------------------------
-	// Static helper classes
-	//---------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------
+    // Static helper classes
+    // ---------------------------------------------------------------------------------
 
-	/**
-	 * Nested class to encapsulate the sub task times info.
-	 */
-	public static final class SubtaskTimeInfo {
+    /** Nested class to encapsulate the sub task times info. */
+    public static final class SubtaskTimeInfo {
 
-		public static final String FIELD_NAME_SUBTASK = "subtask";
-		public static final String FIELD_NAME_HOST = "host";
-		public static final String FIELD_NAME_DURATION = "duration";
-		public static final String FIELD_NAME_TIMESTAMPS = "timestamps";
+        public static final String FIELD_NAME_SUBTASK = "subtask";
+        public static final String FIELD_NAME_HOST = "host";
+        public static final String FIELD_NAME_DURATION = "duration";
+        public static final String FIELD_NAME_TIMESTAMPS = "timestamps";
 
-		@JsonProperty(FIELD_NAME_SUBTASK)
-		private final int subtask;
+        @JsonProperty(FIELD_NAME_SUBTASK)
+        private final int subtask;
 
-		@JsonProperty(FIELD_NAME_HOST)
-		private final String host;
+        @JsonProperty(FIELD_NAME_HOST)
+        private final String host;
 
-		@JsonProperty(FIELD_NAME_DURATION)
-		private final long duration;
+        @JsonProperty(FIELD_NAME_DURATION)
+        private final long duration;
 
-		@JsonProperty(FIELD_NAME_TIMESTAMPS)
-		private final Map<ExecutionState, Long> timestamps;
+        @JsonProperty(FIELD_NAME_TIMESTAMPS)
+        private final Map<ExecutionState, Long> timestamps;
 
-		public SubtaskTimeInfo(
-				@JsonProperty(FIELD_NAME_SUBTASK) int subtask,
-				@JsonProperty(FIELD_NAME_HOST) String host,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_TIMESTAMPS) Map<ExecutionState, Long> timestamps) {
-			this.subtask = subtask;
-			this.host = checkNotNull(host);
-			this.duration = duration;
-			this.timestamps = checkNotNull(timestamps);
-		}
+        public SubtaskTimeInfo(
+                @JsonProperty(FIELD_NAME_SUBTASK) int subtask,
+                @JsonProperty(FIELD_NAME_HOST) String host,
+                @JsonProperty(FIELD_NAME_DURATION) long duration,
+                @JsonProperty(FIELD_NAME_TIMESTAMPS) Map<ExecutionState, Long> timestamps) {
+            this.subtask = subtask;
+            this.host = checkNotNull(host);
+            this.duration = duration;
+            this.timestamps = checkNotNull(timestamps);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
 
-			if (null == o || this.getClass() != o.getClass()) {
-				return false;
-			}
+            if (null == o || this.getClass() != o.getClass()) {
+                return false;
+            }
 
-			SubtaskTimeInfo that = (SubtaskTimeInfo) o;
-			return subtask == that.subtask &&
-				Objects.equals(host, that.host) &&
-				duration == that.duration &&
-				Objects.equals(timestamps, that.timestamps);
-		}
+            SubtaskTimeInfo that = (SubtaskTimeInfo) o;
+            return subtask == that.subtask
+                    && Objects.equals(host, that.host)
+                    && duration == that.duration
+                    && Objects.equals(timestamps, that.timestamps);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(subtask, host, duration, timestamps);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(subtask, host, duration, timestamps);
+        }
+    }
 }

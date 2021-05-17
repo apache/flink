@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TraversableSerializer
 import org.junit.Assert._
-import org.junit.{Assert, Test}
+import org.junit.{Assert, Ignore, Test}
 
 import scala.collection.immutable.{BitSet, LinearSeq}
 import scala.collection.mutable
@@ -175,6 +175,7 @@ class Pojo(var name: String, var count: Int) {
   }
 }
 
+@Ignore("Prevents this class from being considered a test class by JUnit.")
 class TraversableSerializerTestInstance[T](
     serializer: TypeSerializer[T],
     typeClass: Class[T],

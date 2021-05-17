@@ -29,53 +29,56 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Unit test for {@link JoinedStreams}.
- */
+/** Unit test for {@link JoinedStreams}. */
 public class JoinedStreamsTest {
-	private DataStream<String> dataStream1;
-	private DataStream<String> dataStream2;
-	private KeySelector<String, String> keySelector;
-	private TumblingEventTimeWindows tsAssigner;
-	private JoinFunction<String, String, String> joinFunction;
+    private DataStream<String> dataStream1;
+    private DataStream<String> dataStream2;
+    private KeySelector<String, String> keySelector;
+    private TumblingEventTimeWindows tsAssigner;
+    private JoinFunction<String, String, String> joinFunction;
 
-	@Before
-	public void setUp() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		dataStream1 = env.fromElements("a1", "a2", "a3");
-		dataStream2 = env.fromElements("a1", "a2");
-		keySelector = element -> element;
-		tsAssigner = TumblingEventTimeWindows.of(Time.milliseconds(1));
-		joinFunction = (first, second) -> first + second;
-	}
+    @Before
+    public void setUp() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        dataStream1 = env.fromElements("a1", "a2", "a3");
+        dataStream2 = env.fromElements("a1", "a2");
+        keySelector = element -> element;
+        tsAssigner = TumblingEventTimeWindows.of(Time.milliseconds(1));
+        joinFunction = (first, second) -> first + second;
+    }
 
-	@Test
-	public void testDelegateToCoGrouped() {
-		Time lateness = Time.milliseconds(42L);
+    @Test
+    public void testDelegateToCoGrouped() {
+        Time lateness = Time.milliseconds(42L);
 
-		JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness = dataStream1
-			.join(dataStream2)
-			.where(keySelector)
-			.equalTo(keySelector)
-			.window(tsAssigner)
-			.allowedLateness(lateness);
+        JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
+                dataStream1
+                        .join(dataStream2)
+                        .where(keySelector)
+                        .equalTo(keySelector)
+                        .window(tsAssigner)
+                        .allowedLateness(lateness);
 
-		withLateness.apply(joinFunction, BasicTypeInfo.STRING_TYPE_INFO);
+        withLateness.apply(joinFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
-		Assert.assertEquals(lateness.toMilliseconds(), withLateness.getCoGroupedWindowedStream().getAllowedLateness().toMilliseconds());
-	}
+        Assert.assertEquals(
+                lateness.toMilliseconds(),
+                withLateness.getCoGroupedWindowedStream().getAllowedLateness().toMilliseconds());
+    }
 
-	@Test
-	public void testSetAllowedLateness() {
-		Time lateness = Time.milliseconds(42L);
+    @Test
+    public void testSetAllowedLateness() {
+        Time lateness = Time.milliseconds(42L);
 
-		JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness = dataStream1
-			.join(dataStream2)
-			.where(keySelector)
-			.equalTo(keySelector)
-			.window(tsAssigner)
-			.allowedLateness(lateness);
+        JoinedStreams.WithWindow<String, String, String, TimeWindow> withLateness =
+                dataStream1
+                        .join(dataStream2)
+                        .where(keySelector)
+                        .equalTo(keySelector)
+                        .window(tsAssigner)
+                        .allowedLateness(lateness);
 
-		Assert.assertEquals(lateness.toMilliseconds(), withLateness.getAllowedLateness().toMilliseconds());
-	}
+        Assert.assertEquals(
+                lateness.toMilliseconds(), withLateness.getAllowedLateness().toMilliseconds());
+    }
 }

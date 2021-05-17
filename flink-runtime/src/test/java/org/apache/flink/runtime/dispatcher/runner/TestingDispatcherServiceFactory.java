@@ -25,37 +25,62 @@ import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
 
-class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
-	private final TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction;
+class TestingDispatcherServiceFactory
+        implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+    private final TriFunction<
+                    DispatcherId,
+                    Collection<JobGraph>,
+                    JobGraphWriter,
+                    AbstractDispatcherLeaderProcess.DispatcherGatewayService>
+            createFunction;
 
-	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
-		this.createFunction = createFunction;
-	}
+    private TestingDispatcherServiceFactory(
+            TriFunction<
+                            DispatcherId,
+                            Collection<JobGraph>,
+                            JobGraphWriter,
+                            AbstractDispatcherLeaderProcess.DispatcherGatewayService>
+                    createFunction) {
+        this.createFunction = createFunction;
+    }
 
-	@Override
-	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter) {
-		return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
-	}
+    @Override
+    public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            JobGraphWriter jobGraphWriter) {
+        return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static class Builder {
-		private TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder().build();
+    public static class Builder {
+        private TriFunction<
+                        DispatcherId,
+                        Collection<JobGraph>,
+                        JobGraphWriter,
+                        AbstractDispatcherLeaderProcess.DispatcherGatewayService>
+                createFunction =
+                        (ignoredA, ignoredB, ignoredC) ->
+                                TestingDispatcherGatewayService.newBuilder().build();
 
-		private Builder() {}
+        private Builder() {}
 
-		Builder setCreateFunction(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherGatewayService> createFunction) {
-			this.createFunction = createFunction;
-			return this;
-		}
+        Builder setCreateFunction(
+                TriFunction<
+                                DispatcherId,
+                                Collection<JobGraph>,
+                                JobGraphWriter,
+                                AbstractDispatcherLeaderProcess.DispatcherGatewayService>
+                        createFunction) {
+            this.createFunction = createFunction;
+            return this;
+        }
 
-		public TestingDispatcherServiceFactory build() {
-			return new TestingDispatcherServiceFactory(createFunction);
-		}
-	}
+        public TestingDispatcherServiceFactory build() {
+            return new TestingDispatcherServiceFactory(createFunction);
+        }
+    }
 }

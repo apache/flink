@@ -29,35 +29,35 @@ import java.util.Objects;
  */
 public class OperationKey {
 
-	private final TriggerId triggerId;
+    private final TriggerId triggerId;
 
-	public OperationKey(TriggerId triggerId) {
-		this.triggerId = Preconditions.checkNotNull(triggerId);
-	}
+    public OperationKey(TriggerId triggerId) {
+        this.triggerId = Preconditions.checkNotNull(triggerId);
+    }
 
-	/**
-	 * Get the trigger id for the given operation key.
-	 *
-	 * @return trigger id
-	 */
-	public TriggerId getTriggerId() {
-		return triggerId;
-	}
+    /**
+     * Get the trigger id for the given operation key.
+     *
+     * @return trigger id
+     */
+    public TriggerId getTriggerId() {
+        return triggerId;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		OperationKey that = (OperationKey) o;
-		return Objects.equals(triggerId, that.triggerId);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OperationKey that = (OperationKey) o;
+        return Objects.equals(triggerId, that.triggerId);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(triggerId);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(triggerId);
+    }
 }

@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -29,7 +29,7 @@ LogicalMinus(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0}])
 +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
@@ -44,7 +44,7 @@ LogicalAggregate(group=[{0}])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -54,7 +54,7 @@ LogicalMinus(all=[false])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0}])
 +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
@@ -70,7 +70,7 @@ LogicalAggregate(group=[{0}])
     <Resource name="sql">
       <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalMinus(all=[false])
 :- LogicalProject(c=[$2])
@@ -80,7 +80,7 @@ LogicalMinus(all=[false])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalAggregate(group=[{0}])
 +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
@@ -96,7 +96,7 @@ LogicalAggregate(group=[{0}])
     <Resource name="sql">
       <![CDATA[SELECT c FROM (SELECT * FROM T1 EXCEPT (SELECT * FROM T2)) WHERE b < 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[<($1, 2)])
@@ -107,7 +107,7 @@ LogicalProject(c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[<($1, 2)])

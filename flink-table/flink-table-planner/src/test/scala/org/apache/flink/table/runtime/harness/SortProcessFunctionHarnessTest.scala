@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.runtime.RowComparator
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
@@ -183,7 +182,6 @@ class SortProcessFunctionHarnessTest {
 
    testHarness.open()
 
-   testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime)
    testHarness.processWatermark(3)
 
       // timestamp is ignored in processing time

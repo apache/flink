@@ -30,30 +30,28 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link SourceFunction}.
- */
+/** Tests for {@link SourceFunction}. */
 public class SourceFunctionTest {
 
-	@Test
-	public void fromElementsTest() throws Exception {
-		List<Integer> expectedList = Arrays.asList(1, 2, 3);
-		List<Integer> actualList = SourceFunctionUtil.runSourceFunction(CommonTestUtils.createCopySerializable(
-				new FromElementsFunction<Integer>(
-						IntSerializer.INSTANCE,
-						1,
-						2,
-						3)));
-		assertEquals(expectedList, actualList);
-	}
+    @Test
+    public void fromElementsTest() throws Exception {
+        List<Integer> expectedList = Arrays.asList(1, 2, 3);
+        List<Integer> actualList =
+                SourceFunctionUtil.runSourceFunction(
+                        CommonTestUtils.createCopySerializable(
+                                new FromElementsFunction<Integer>(
+                                        IntSerializer.INSTANCE, 1, 2, 3)));
+        assertEquals(expectedList, actualList);
+    }
 
-	@Test
-	public void fromCollectionTest() throws Exception {
-		List<Integer> expectedList = Arrays.asList(1, 2, 3);
-		List<Integer> actualList = SourceFunctionUtil.runSourceFunction(
-				CommonTestUtils.createCopySerializable(new FromElementsFunction<Integer>(
-						IntSerializer.INSTANCE,
-						Arrays.asList(1, 2, 3))));
-		assertEquals(expectedList, actualList);
-	}
+    @Test
+    public void fromCollectionTest() throws Exception {
+        List<Integer> expectedList = Arrays.asList(1, 2, 3);
+        List<Integer> actualList =
+                SourceFunctionUtil.runSourceFunction(
+                        CommonTestUtils.createCopySerializable(
+                                new FromElementsFunction<Integer>(
+                                        IntSerializer.INSTANCE, Arrays.asList(1, 2, 3))));
+        assertEquals(expectedList, actualList);
+    }
 }

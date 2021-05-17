@@ -17,19 +17,19 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testValuesAllEqualTypes">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalValues(tuples=[[{ 1, 2, _UTF-16LE'JKL' }, { 2, 3, _UTF-16LE'GHI' }, { 3, 4, _UTF-16LE'DEF' }, { 4, 5, _UTF-16LE'ABC' }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[{ 1, 2, _UTF-16LE'JKL' }, { 2, 3, _UTF-16LE'GHI' }, { 3, 4, _UTF-16LE'DEF' }, { 4, 5, _UTF-16LE'ABC' }]])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromLiterals">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalValues(tuples=[[{ null }]])
@@ -41,12 +41,12 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0])
 :- Values(tuples=[[{ null }]])
 :- Calc(select=[CAST(1:FLOAT) AS f0])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 :- Calc(select=[CAST(3.1E0:FLOAT) AS f0])
 :  +- Reused(reference_id=[1])
 +- Calc(select=[CAST(99:FLOAT) AS f0])
@@ -55,7 +55,7 @@ Union(all=[true], union=[f0])
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromMixedObjectsAndExpressions">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(f0=[1:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:INTEGER])
@@ -70,11 +70,11 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
 :- Calc(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 :- Calc(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1) AS f2])
 :  +- Reused(reference_id=[1])
 :- Calc(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2) AS f2])
@@ -87,7 +87,7 @@ Union(all=[true], union=[f0, f1, f2])
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromNestedRowObject">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(f0=[1:DOUBLE], f1=[ROW(_UTF-16LE'A':VARCHAR(3) CHARACTER SET "UTF-16LE", 2:DOUBLE)], f2=[ARRAY(1:BIGINT)])
@@ -96,18 +96,18 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
 :- Calc(select=[1:DOUBLE AS f0, ROW(_UTF-16LE'A':VARCHAR(3) CHARACTER SET "UTF-16LE", 2:DOUBLE) AS f1, ARRAY(1:BIGINT) AS f2])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 +- Calc(select=[3.141592653589793E0:DOUBLE AS f0, ROW(_UTF-16LE'ABC':VARCHAR(3) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f1, ARRAY(3:BIGINT) AS f2])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromRowExpression">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(f0=[CAST(+(1, 3)):DOUBLE NOT NULL], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE)])
@@ -124,12 +124,12 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
 :- Calc(select=[4E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
-:- Calc(select=[3E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", CAST(+(ABS(-5), -5))) AS f2])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
+:- Calc(select=[3E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'a':VARCHAR(4) CHARACTER SET "UTF-16LE", CAST((ABS(-5) + -5))) AS f2])
 :  +- Reused(reference_id=[1])
 :- Calc(select=[3.1415926535897931159E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, MAP(_UTF-16LE'abc':VARCHAR(4) CHARACTER SET "UTF-16LE", 3.0E0:DOUBLE) AS f2])
 :  +- Reused(reference_id=[1])
@@ -143,7 +143,7 @@ Union(all=[true], union=[f0, f1, f2])
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromRowObject">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(f0=[1:DOUBLE], f1=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], f2=[null:INTEGER])
@@ -158,11 +158,11 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[f0, f1, f2])
 :- Calc(select=[1:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, null:INTEGER AS f2])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 :- Calc(select=[3.141592653589793E0:DOUBLE AS f0, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(1) AS f2])
 :  +- Reused(reference_id=[1])
 :- Calc(select=[3.1E0:DOUBLE AS f0, _UTF-16LE'DEF':VARCHAR(4) CHARACTER SET "UTF-16LE" AS f1, CAST(2) AS f2])
@@ -175,7 +175,7 @@ Union(all=[true], union=[f0, f1, f2])
     </Resource>
   </TestCase>
   <TestCase name="testValuesOverrideSchema">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[CAST(+(1, 2)):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
@@ -184,18 +184,18 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[CAST(3:BIGINT) AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS b])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 +- Calc(select=[CAST(2:BIGINT) AS a, CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS b])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testValuesFromRowObjectInCollection">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[1:DECIMAL(10, 2)], b=[_UTF-16LE'ABC '])
@@ -210,11 +210,11 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[1:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 :- Calc(select=[3.141592653589793E0:DECIMAL(10, 2) AS a, _UTF-16LE'ABC ' AS b])
 :  +- Reused(reference_id=[1])
 :- Calc(select=[3.1E0:DECIMAL(10, 2) AS a, _UTF-16LE'DEF ' AS b])
@@ -227,7 +227,7 @@ Union(all=[true], union=[a, b])
     </Resource>
   </TestCase>
   <TestCase name="testValuesWithComplexNesting">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(number=[CAST(1:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00))], array=[ARRAY(1:BIGINT)])
@@ -236,24 +236,24 @@ LogicalUnion(all=[true])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[number, row, array])
 :- Calc(select=[CAST(1:DOUBLE) AS number, ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00)) AS row, ARRAY(1:BIGINT) AS array])
-:  +- Values(tuples=[[{ 0 }]], reuse_id=[1])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 +- Calc(select=[CAST(3.141592653589793E0:DOUBLE) AS number, ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00)) AS row, ARRAY(3:BIGINT) AS array])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testValuesOverrideNullability">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[CAST(+(1, 2)):BIGINT NOT NULL], b=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], c=[X'01020300':BINARY(4)])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[3:BIGINT AS a, _UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE" AS b, X'01020300':BINARY(4) AS c])
 +- Values(tuples=[[{ 0 }]])

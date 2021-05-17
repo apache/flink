@@ -18,41 +18,46 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.DoubleValue;
 
-/**
- * A test for the {@link DoubleValueSerializer}.
- */
+import java.util.Random;
+
+/** A test for the {@link DoubleValueSerializer}. */
 public class DoubleValueSerializerTest extends SerializerTestBase<DoubleValue> {
-	
-	@Override
-	protected TypeSerializer<DoubleValue> createSerializer() {
-		return new DoubleValueSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 8;
-	}
-	
-	@Override
-	protected Class<DoubleValue> getTypeClass() {
-		return DoubleValue.class;
-	}
-	
-	@Override
-	protected DoubleValue[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		Double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
-		
-		return new DoubleValue[] {new DoubleValue(0), new DoubleValue(1), new DoubleValue(-1),
-							new DoubleValue(Double.MAX_VALUE), new DoubleValue(Double.MIN_VALUE),
-							new DoubleValue(rndDouble), new DoubleValue(-rndDouble),
-							new DoubleValue(Double.NaN),
-							new DoubleValue(Double.NEGATIVE_INFINITY), new DoubleValue(Double.POSITIVE_INFINITY)};
-	}
-}	
+
+    @Override
+    protected TypeSerializer<DoubleValue> createSerializer() {
+        return new DoubleValueSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 8;
+    }
+
+    @Override
+    protected Class<DoubleValue> getTypeClass() {
+        return DoubleValue.class;
+    }
+
+    @Override
+    protected DoubleValue[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        Double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
+
+        return new DoubleValue[] {
+            new DoubleValue(0),
+            new DoubleValue(1),
+            new DoubleValue(-1),
+            new DoubleValue(Double.MAX_VALUE),
+            new DoubleValue(Double.MIN_VALUE),
+            new DoubleValue(rndDouble),
+            new DoubleValue(-rndDouble),
+            new DoubleValue(Double.NaN),
+            new DoubleValue(Double.NEGATIVE_INFINITY),
+            new DoubleValue(Double.POSITIVE_INFINITY)
+        };
+    }
+}

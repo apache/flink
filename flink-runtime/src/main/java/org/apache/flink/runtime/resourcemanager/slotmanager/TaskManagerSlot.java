@@ -38,117 +38,127 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TaskManagerSlot implements TaskManagerSlotInformation {
 
-	/** The unique identification of this slot. */
-	private final SlotID slotId;
+    /** The unique identification of this slot. */
+    private final SlotID slotId;
 
-	/** The resource profile of this slot. */
-	private final ResourceProfile resourceProfile;
+    /** The resource profile of this slot. */
+    private final ResourceProfile resourceProfile;
 
-	/** Gateway to the TaskExecutor which owns the slot. */
-	private final TaskExecutorConnection taskManagerConnection;
+    /** Gateway to the TaskExecutor which owns the slot. */
+    private final TaskExecutorConnection taskManagerConnection;
 
-	/** Allocation id for which this slot has been allocated. */
-	private AllocationID allocationId;
+    /** Allocation id for which this slot has been allocated. */
+    @Nullable private AllocationID allocationId;
 
-	/** Job id for which this slot has been allocated. */
-	@Nullable
-	private JobID jobId;
+    /** Job id for which this slot has been allocated. */
+    @Nullable private JobID jobId;
 
-	/** Assigned slot request if there is currently an ongoing request. */
-	private PendingSlotRequest assignedSlotRequest;
+    /** Assigned slot request if there is currently an ongoing request. */
+    private PendingSlotRequest assignedSlotRequest;
 
-	private SlotState state;
+    private SlotState state;
 
-	public TaskManagerSlot(
-			SlotID slotId,
-			ResourceProfile resourceProfile,
-			TaskExecutorConnection taskManagerConnection) {
-		this.slotId = checkNotNull(slotId);
-		this.resourceProfile = checkNotNull(resourceProfile);
-		this.taskManagerConnection = checkNotNull(taskManagerConnection);
+    public TaskManagerSlot(
+            SlotID slotId,
+            ResourceProfile resourceProfile,
+            TaskExecutorConnection taskManagerConnection) {
+        this.slotId = checkNotNull(slotId);
+        this.resourceProfile = checkNotNull(resourceProfile);
+        this.taskManagerConnection = checkNotNull(taskManagerConnection);
 
-		this.state = SlotState.FREE;
-		this.allocationId = null;
-		this.assignedSlotRequest = null;
-	}
+        this.state = SlotState.FREE;
+        this.allocationId = null;
+        this.assignedSlotRequest = null;
+    }
 
-	public SlotState getState() {
-		return state;
-	}
+    @Override
+    public SlotState getState() {
+        return state;
+    }
 
-	@Override
-	public SlotID getSlotId() {
-		return slotId;
-	}
+    @Override
+    public SlotID getSlotId() {
+        return slotId;
+    }
 
-	@Override
-	public ResourceProfile getResourceProfile() {
-		return resourceProfile;
-	}
+    @Override
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
 
-	@Override
-	public TaskExecutorConnection getTaskManagerConnection() {
-		return taskManagerConnection;
-	}
+    @Override
+    public TaskExecutorConnection getTaskManagerConnection() {
+        return taskManagerConnection;
+    }
 
-	public AllocationID getAllocationId() {
-		return allocationId;
-	}
+    @Nullable
+    @Override
+    public AllocationID getAllocationId() {
+        return allocationId;
+    }
 
-	@Nullable
-	public JobID getJobId() {
-		return jobId;
-	}
+    @Nullable
+    @Override
+    public JobID getJobId() {
+        return jobId;
+    }
 
-	public PendingSlotRequest getAssignedSlotRequest() {
-		return assignedSlotRequest;
-	}
+    public PendingSlotRequest getAssignedSlotRequest() {
+        return assignedSlotRequest;
+    }
 
-	@Override
-	public InstanceID getInstanceId() {
-		return taskManagerConnection.getInstanceID();
-	}
+    @Override
+    public InstanceID getInstanceId() {
+        return taskManagerConnection.getInstanceID();
+    }
 
-	public void freeSlot() {
-		Preconditions.checkState(state == SlotState.ALLOCATED, "Slot must be allocated before freeing it.");
+    public void freeSlot() {
+        Preconditions.checkState(
+                state == SlotState.ALLOCATED, "Slot must be allocated before freeing it.");
 
-		state = SlotState.FREE;
-		allocationId = null;
-		jobId = null;
-	}
+        state = SlotState.FREE;
+        allocationId = null;
+        jobId = null;
+    }
 
-	public void clearPendingSlotRequest() {
-		Preconditions.checkState(state == SlotState.PENDING, "No slot request to clear.");
+    public void clearPendingSlotRequest() {
+        Preconditions.checkState(state == SlotState.PENDING, "No slot request to clear.");
 
-		state = SlotState.FREE;
-		assignedSlotRequest = null;
-	}
+        state = SlotState.FREE;
+        assignedSlotRequest = null;
+    }
 
-	public void assignPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
-		Preconditions.checkState(state == SlotState.FREE, "Slot must be free to be assigned a slot request.");
+    public void assignPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
+        Preconditions.checkState(
+                state == SlotState.FREE, "Slot must be free to be assigned a slot request.");
 
-		state = SlotState.PENDING;
-		assignedSlotRequest = Preconditions.checkNotNull(pendingSlotRequest);
-	}
+        state = SlotState.PENDING;
+        assignedSlotRequest = Preconditions.checkNotNull(pendingSlotRequest);
+    }
 
-	public void completeAllocation(AllocationID allocationId, JobID jobId) {
-		Preconditions.checkNotNull(allocationId, "Allocation id must not be null.");
-		Preconditions.checkNotNull(jobId, "Job id must not be null.");
-		Preconditions.checkState(state == SlotState.PENDING, "In order to complete an allocation, the slot has to be allocated.");
-		Preconditions.checkState(Objects.equals(allocationId, assignedSlotRequest.getAllocationId()), "Mismatch between allocation id of the pending slot request.");
+    public void completeAllocation(AllocationID allocationId, JobID jobId) {
+        Preconditions.checkNotNull(allocationId, "Allocation id must not be null.");
+        Preconditions.checkNotNull(jobId, "Job id must not be null.");
+        Preconditions.checkState(
+                state == SlotState.PENDING,
+                "In order to complete an allocation, the slot has to be allocated.");
+        Preconditions.checkState(
+                Objects.equals(allocationId, assignedSlotRequest.getAllocationId()),
+                "Mismatch between allocation id of the pending slot request.");
 
-		state = SlotState.ALLOCATED;
-		this.allocationId = allocationId;
-		this.jobId = jobId;
-		assignedSlotRequest = null;
-	}
+        state = SlotState.ALLOCATED;
+        this.allocationId = allocationId;
+        this.jobId = jobId;
+        assignedSlotRequest = null;
+    }
 
-	public void updateAllocation(AllocationID allocationId, JobID jobId) {
-		Preconditions.checkState(state == SlotState.FREE, "The slot has to be free in order to set an allocation id.");
+    public void updateAllocation(AllocationID allocationId, JobID jobId) {
+        Preconditions.checkState(
+                state == SlotState.FREE,
+                "The slot has to be free in order to set an allocation id.");
 
-		state = SlotState.ALLOCATED;
-		this.allocationId = Preconditions.checkNotNull(allocationId);
-		this.jobId = Preconditions.checkNotNull(jobId);
-	}
-
+        state = SlotState.ALLOCATED;
+        this.allocationId = Preconditions.checkNotNull(allocationId);
+        this.jobId = Preconditions.checkNotNull(jobId);
+    }
 }

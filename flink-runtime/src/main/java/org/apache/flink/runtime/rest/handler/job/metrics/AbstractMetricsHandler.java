@@ -48,88 +48,85 @@ import java.util.stream.Collectors;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Request handler that returns for a given task a list of all available metrics or the values for a set of metrics.
+ * Request handler that returns for a given task a list of all available metrics or the values for a
+ * set of metrics.
  *
  * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
- * <p>If the query parameters do contain a "get" parameter, a comma-separated list of metric names is expected as a value.
- * {@code /metrics?get=X,Y}
- * The handler will then return a list containing the values of the requested metrics.
- * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
+ * <p>If the query parameters do contain a "get" parameter, a comma-separated list of metric names
+ * is expected as a value. {@code /metrics?get=X,Y} The handler will then return a list containing
+ * the values of the requested metrics. {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y",
+ * "value" : "T" } ] }
  *
  * @param <M> Type of the concrete {@link MessageParameters}
  */
-public abstract class AbstractMetricsHandler<M extends MessageParameters> extends
-	AbstractRestHandler<RestfulGateway, EmptyRequestBody, MetricCollectionResponseBody, M> {
+public abstract class AbstractMetricsHandler<M extends MessageParameters>
+        extends AbstractRestHandler<
+                RestfulGateway, EmptyRequestBody, MetricCollectionResponseBody, M> {
 
-	private final MetricFetcher metricFetcher;
+    private final MetricFetcher metricFetcher;
 
-	public AbstractMetricsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> headers,
-			MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> messageHeaders,
-			MetricFetcher metricFetcher) {
-		super(leaderRetriever, timeout, headers, messageHeaders);
-		this.metricFetcher = requireNonNull(metricFetcher, "metricFetcher must not be null");
-	}
+    public AbstractMetricsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> headers,
+            MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> messageHeaders,
+            MetricFetcher metricFetcher) {
+        super(leaderRetriever, timeout, headers, messageHeaders);
+        this.metricFetcher = requireNonNull(metricFetcher, "metricFetcher must not be null");
+    }
 
-	@Override
-	protected final CompletableFuture<MetricCollectionResponseBody> handleRequest(
-			@Nonnull HandlerRequest<EmptyRequestBody, M> request,
-			@Nonnull RestfulGateway gateway) throws RestHandlerException {
-		metricFetcher.update();
+    @Override
+    protected final CompletableFuture<MetricCollectionResponseBody> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, M> request, @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
+        metricFetcher.update();
 
-		final MetricStore.ComponentMetricStore componentMetricStore = getComponentMetricStore(
-			request,
-			metricFetcher.getMetricStore());
+        final MetricStore.ComponentMetricStore componentMetricStore =
+                getComponentMetricStore(request, metricFetcher.getMetricStore());
 
-		if (componentMetricStore == null || componentMetricStore.metrics == null) {
-			return CompletableFuture.completedFuture(
-				new MetricCollectionResponseBody(Collections.emptyList()));
-		}
+        if (componentMetricStore == null || componentMetricStore.metrics == null) {
+            return CompletableFuture.completedFuture(
+                    new MetricCollectionResponseBody(Collections.emptyList()));
+        }
 
-		final Set<String> requestedMetrics = new HashSet<>(request.getQueryParameter(
-			MetricsFilterParameter.class));
+        final Set<String> requestedMetrics =
+                new HashSet<>(request.getQueryParameter(MetricsFilterParameter.class));
 
-		if (requestedMetrics.isEmpty()) {
-			return CompletableFuture.completedFuture(
-				new MetricCollectionResponseBody(getAvailableMetrics(componentMetricStore)));
-		} else {
-			final List<Metric> metrics = getRequestedMetrics(componentMetricStore, requestedMetrics);
-			return CompletableFuture.completedFuture(new MetricCollectionResponseBody(metrics));
-		}
-	}
+        if (requestedMetrics.isEmpty()) {
+            return CompletableFuture.completedFuture(
+                    new MetricCollectionResponseBody(getAvailableMetrics(componentMetricStore)));
+        } else {
+            final List<Metric> metrics =
+                    getRequestedMetrics(componentMetricStore, requestedMetrics);
+            return CompletableFuture.completedFuture(new MetricCollectionResponseBody(metrics));
+        }
+    }
 
-	/**
-	 * Returns the {@link MetricStore.ComponentMetricStore} that should be queried for metrics.
-	 */
-	@Nullable
-	protected abstract MetricStore.ComponentMetricStore getComponentMetricStore(
-		HandlerRequest<EmptyRequestBody, M> request,
-		MetricStore metricStore);
+    /** Returns the {@link MetricStore.ComponentMetricStore} that should be queried for metrics. */
+    @Nullable
+    protected abstract MetricStore.ComponentMetricStore getComponentMetricStore(
+            HandlerRequest<EmptyRequestBody, M> request, MetricStore metricStore);
 
-	private static List<Metric> getAvailableMetrics(MetricStore.ComponentMetricStore componentMetricStore) {
-		return componentMetricStore.metrics
-			.keySet()
-			.stream()
-			.map(Metric::new)
-			.collect(Collectors.toList());
-	}
+    private static List<Metric> getAvailableMetrics(
+            MetricStore.ComponentMetricStore componentMetricStore) {
+        return componentMetricStore.metrics.keySet().stream()
+                .map(Metric::new)
+                .collect(Collectors.toList());
+    }
 
-	private static List<Metric> getRequestedMetrics(
-			MetricStore.ComponentMetricStore componentMetricStore,
-			Set<String> requestedMetrics) throws RestHandlerException {
+    private static List<Metric> getRequestedMetrics(
+            MetricStore.ComponentMetricStore componentMetricStore, Set<String> requestedMetrics)
+            throws RestHandlerException {
 
-		final List<Metric> metrics = new ArrayList<>(requestedMetrics.size());
-		for (final String requestedMetric : requestedMetrics) {
-			final String value = componentMetricStore.getMetric(requestedMetric, null);
-			if (value != null) {
-				metrics.add(new Metric(requestedMetric, value));
-			}
-		}
-		return metrics;
-	}
-
+        final List<Metric> metrics = new ArrayList<>(requestedMetrics.size());
+        for (final String requestedMetric : requestedMetrics) {
+            final String value = componentMetricStore.getMetric(requestedMetric, null);
+            if (value != null) {
+                metrics.add(new Metric(requestedMetric, value));
+            }
+        }
+        return metrics;
+    }
 }

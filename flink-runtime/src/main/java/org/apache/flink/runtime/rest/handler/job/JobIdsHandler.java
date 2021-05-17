@@ -35,40 +35,40 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * Handler for job IDs.
- */
-public class JobIdsHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
+/** Handler for job IDs. */
+public class JobIdsHandler
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                JobIdsWithStatusOverview,
+                EmptyMessageParameters> {
 
-	public JobIdsHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> messageHeaders) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders);
-	}
+    public JobIdsHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters>
+                    messageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	protected CompletableFuture<JobIdsWithStatusOverview> handleRequest(
-			@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-			@Nonnull RestfulGateway gateway) throws RestHandlerException {
+    @Override
+    protected CompletableFuture<JobIdsWithStatusOverview> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull RestfulGateway gateway)
+            throws RestHandlerException {
 
-		return gateway.requestMultipleJobDetails(timeout).thenApply(
-			multipleJobDetails -> new JobIdsWithStatusOverview(
-				multipleJobDetails
-					.getJobs()
-					.stream()
-					.map(
-						jobDetails ->
-							new JobIdsWithStatusOverview.JobIdWithStatus(
-								jobDetails.getJobId(),
-								jobDetails.getStatus()))
-					.collect(Collectors.toList())
-			)
-		);
-	}
+        return gateway.requestMultipleJobDetails(timeout)
+                .thenApply(
+                        multipleJobDetails ->
+                                new JobIdsWithStatusOverview(
+                                        multipleJobDetails.getJobs().stream()
+                                                .map(
+                                                        jobDetails ->
+                                                                new JobIdsWithStatusOverview
+                                                                        .JobIdWithStatus(
+                                                                        jobDetails.getJobId(),
+                                                                        jobDetails.getStatus()))
+                                                .collect(Collectors.toList())));
+    }
 }

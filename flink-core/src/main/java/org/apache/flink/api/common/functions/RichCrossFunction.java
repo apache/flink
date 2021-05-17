@@ -22,20 +22,20 @@ import org.apache.flink.annotation.Public;
 
 /**
  * Rich variant of the {@link CrossFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <IN1> The type of the elements in the first input.
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
 @Public
-public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements CrossFunction<IN1, IN2, OUT> {
+public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction
+        implements CrossFunction<IN1, IN2, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract OUT cross(IN1 first, IN2 second) throws Exception;
-
+    @Override
+    public abstract OUT cross(IN1 first, IN2 second) throws Exception;
 }

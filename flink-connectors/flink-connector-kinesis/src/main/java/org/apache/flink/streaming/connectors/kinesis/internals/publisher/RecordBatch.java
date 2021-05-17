@@ -30,61 +30,66 @@ import java.math.BigInteger;
 import java.util.List;
 
 /**
- * A batch of UserRecords received from Kinesis.
- * Input records are de-aggregated using KCL 1.x library.
- * It is expected that AWS SDK v2.x messages are converted to KCL 1.x {@link UserRecord}.
+ * A batch of UserRecords received from Kinesis. Input records are de-aggregated using KCL 1.x
+ * library. It is expected that AWS SDK v2.x messages are converted to KCL 1.x {@link UserRecord}.
  */
 @Internal
 public class RecordBatch {
 
-	private final int aggregatedRecordSize;
+    private final int aggregatedRecordSize;
 
-	private final List<UserRecord> deaggregatedRecords;
+    private final List<UserRecord> deaggregatedRecords;
 
-	private final long totalSizeInBytes;
+    private final long totalSizeInBytes;
 
-	private final Long millisBehindLatest;
+    private final Long millisBehindLatest;
 
-	public RecordBatch(
-			final List<Record> records,
-			final StreamShardHandle subscribedShard,
-			@Nullable final Long millisBehindLatest) {
-		Preconditions.checkNotNull(subscribedShard);
-		this.aggregatedRecordSize = Preconditions.checkNotNull(records).size();
-		this.deaggregatedRecords = deaggregateRecords(records, subscribedShard);
-		this.totalSizeInBytes = this.deaggregatedRecords.stream().mapToInt(r -> r.getData().remaining()).sum();
-		this.millisBehindLatest = millisBehindLatest;
-	}
+    public RecordBatch(
+            final List<Record> records,
+            final StreamShardHandle subscribedShard,
+            @Nullable final Long millisBehindLatest) {
+        Preconditions.checkNotNull(subscribedShard);
+        this.aggregatedRecordSize = Preconditions.checkNotNull(records).size();
+        this.deaggregatedRecords = deaggregateRecords(records, subscribedShard);
+        this.totalSizeInBytes =
+                this.deaggregatedRecords.stream().mapToInt(r -> r.getData().remaining()).sum();
+        this.millisBehindLatest = millisBehindLatest;
+    }
 
-	public int getAggregatedRecordSize() {
-		return aggregatedRecordSize;
-	}
+    public int getAggregatedRecordSize() {
+        return aggregatedRecordSize;
+    }
 
-	public int getDeaggregatedRecordSize() {
-		return deaggregatedRecords.size();
-	}
+    public int getDeaggregatedRecordSize() {
+        return deaggregatedRecords.size();
+    }
 
-	public List<UserRecord> getDeaggregatedRecords() {
-		return deaggregatedRecords;
-	}
+    public List<UserRecord> getDeaggregatedRecords() {
+        return deaggregatedRecords;
+    }
 
-	public long getTotalSizeInBytes() {
-		return totalSizeInBytes;
-	}
+    public long getTotalSizeInBytes() {
+        return totalSizeInBytes;
+    }
 
-	public long getAverageRecordSizeBytes() {
-		return deaggregatedRecords.isEmpty() ? 0 : getTotalSizeInBytes() / getDeaggregatedRecordSize();
-	}
+    public long getAverageRecordSizeBytes() {
+        return deaggregatedRecords.isEmpty()
+                ? 0
+                : getTotalSizeInBytes() / getDeaggregatedRecordSize();
+    }
 
-	@Nullable
-	public Long getMillisBehindLatest() {
-		return millisBehindLatest;
-	}
+    @Nullable
+    public Long getMillisBehindLatest() {
+        return millisBehindLatest;
+    }
 
-	private List<UserRecord> deaggregateRecords(final List<Record> records, final StreamShardHandle subscribedShard) {
-		BigInteger start = new BigInteger(subscribedShard.getShard().getHashKeyRange().getStartingHashKey());
-		BigInteger end = new BigInteger(subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
+    private List<UserRecord> deaggregateRecords(
+            final List<Record> records, final StreamShardHandle subscribedShard) {
+        BigInteger start =
+                new BigInteger(subscribedShard.getShard().getHashKeyRange().getStartingHashKey());
+        BigInteger end =
+                new BigInteger(subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
-		return UserRecord.deaggregate(records, start, end);
-	}
+        return UserRecord.deaggregate(records, start, end);
+    }
 }

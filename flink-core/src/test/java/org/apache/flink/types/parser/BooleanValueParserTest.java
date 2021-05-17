@@ -16,49 +16,44 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
 
 import org.apache.flink.types.BooleanValue;
 
-
 public class BooleanValueParserTest extends ParserTestBase<BooleanValue> {
 
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {"true", "false", "0", "1", "TRUE", "FALSE", "True", "False"};
+    }
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-				"true", "false", "0", "1", "TRUE", "FALSE", "True", "False"
-		};
-	}
+    @Override
+    public BooleanValue[] getValidTestResults() {
+        return new BooleanValue[] {
+            new BooleanValue(true), new BooleanValue(false), new BooleanValue(false),
+                    new BooleanValue(true),
+            new BooleanValue(true), new BooleanValue(false), new BooleanValue(true),
+                    new BooleanValue(false)
+        };
+    }
 
-	@Override
-	public BooleanValue[] getValidTestResults() {
-		return new BooleanValue[] {
-				new BooleanValue(true), new BooleanValue(false), new BooleanValue(false), new BooleanValue(true),
-				new BooleanValue(true), new BooleanValue(false), new BooleanValue(true), new BooleanValue(false)
-		};
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {"yes", "no", "2", "-1", "wahr", "falsch", "", "asdf"};
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[]{
-				"yes", "no", "2", "-1", "wahr", "falsch", "", "asdf"
-		};
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public FieldParser<BooleanValue> getParser() {
+        return new BooleanValueParser();
+    }
 
-	@Override
-	public FieldParser<BooleanValue> getParser() {
-		return new BooleanValueParser();
-	}
-
-	@Override
-	public Class<BooleanValue> getTypeClass() {
-		return BooleanValue.class;
-	}
+    @Override
+    public Class<BooleanValue> getTypeClass() {
+        return BooleanValue.class;
+    }
 }

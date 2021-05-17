@@ -45,148 +45,171 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/**
- * Resource which starts a {@link MiniCluster} for testing purposes.
- */
+/** Resource which starts a {@link MiniCluster} for testing purposes. */
 public class MiniClusterResource extends ExternalResource {
 
-	private static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("80m");
+    private static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("80m");
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
+    private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
-	private MiniCluster miniCluster = null;
+    private MiniCluster miniCluster = null;
 
-	private int numberSlots = -1;
+    private int numberSlots = -1;
 
-	private UnmodifiableConfiguration restClusterClientConfig;
+    private UnmodifiableConfiguration restClusterClientConfig;
 
-	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
-	}
+    public MiniClusterResource(
+            final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+        this.miniClusterResourceConfiguration =
+                Preconditions.checkNotNull(miniClusterResourceConfiguration);
+    }
 
-	public int getNumberSlots() {
-		return numberSlots;
-	}
+    public int getNumberSlots() {
+        return numberSlots;
+    }
 
-	public MiniCluster getMiniCluster() {
-		return miniCluster;
-	}
+    public MiniCluster getMiniCluster() {
+        return miniCluster;
+    }
 
-	public UnmodifiableConfiguration getClientConfiguration() {
-		return restClusterClientConfig;
-	}
+    public UnmodifiableConfiguration getClientConfiguration() {
+        return restClusterClientConfig;
+    }
 
-	public URI getRestAddres() {
-		return miniCluster.getRestAddress().join();
-	}
+    public URI getRestAddres() {
+        return miniCluster.getRestAddress().join();
+    }
 
-	@Override
-	public void before() throws Exception {
-		temporaryFolder.create();
+    @Override
+    public void before() throws Exception {
+        temporaryFolder.create();
 
-		startMiniCluster();
+        startMiniCluster();
 
-		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
-	}
+        numberSlots =
+                miniClusterResourceConfiguration.getNumberSlotsPerTaskManager()
+                        * miniClusterResourceConfiguration.getNumberTaskManagers();
+    }
 
-	@Override
-	public void after() {
-		Exception exception = null;
+    public void cancelAllJobs() {
+        try {
+            final Deadline jobCancellationDeadline =
+                    Deadline.fromNow(
+                            Duration.ofMillis(
+                                    miniClusterResourceConfiguration
+                                            .getShutdownTimeout()
+                                            .toMilliseconds()));
 
-		if (miniCluster != null) {
-			// try to cancel remaining jobs before shutting down cluster
-			try {
-				final Deadline jobCancellationDeadline =
-					Deadline.fromNow(
-						Duration.ofMillis(
-							miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds()));
+            final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
+                    miniCluster.listJobs()
+                            .get(
+                                    jobCancellationDeadline.timeLeft().toMillis(),
+                                    TimeUnit.MILLISECONDS)
+                            .stream()
+                            .filter(status -> !status.getJobState().isGloballyTerminalState())
+                            .map(status -> miniCluster.cancelJob(status.getJobId()))
+                            .collect(Collectors.toList());
 
-				final List<CompletableFuture<Acknowledge>> jobCancellationFutures = miniCluster
-					.listJobs()
-					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
-					.stream()
-					.filter(status -> !status.getJobState().isGloballyTerminalState())
-					.map(status -> miniCluster.cancelJob(status.getJobId()))
-					.collect(Collectors.toList());
+            FutureUtils.waitForAll(jobCancellationFutures)
+                    .get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-				FutureUtils
-					.waitForAll(jobCancellationFutures)
-					.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        final long unfinishedJobs =
+                                miniCluster.listJobs()
+                                        .get(
+                                                jobCancellationDeadline.timeLeft().toMillis(),
+                                                TimeUnit.MILLISECONDS)
+                                        .stream()
+                                        .filter(
+                                                status ->
+                                                        !status.getJobState()
+                                                                .isGloballyTerminalState())
+                                        .count();
+                        return unfinishedJobs == 0;
+                    },
+                    jobCancellationDeadline);
+        } catch (Exception e) {
+            log.warn("Exception while shutting down remaining jobs.", e);
+        }
+    }
 
-				CommonTestUtils.waitUntilCondition(() -> {
-					final long unfinishedJobs = miniCluster
-						.listJobs()
-						.get(jobCancellationDeadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS)
-						.stream()
-						.filter(status -> !status.getJobState().isGloballyTerminalState())
-						.count();
-					return unfinishedJobs == 0;
-				}, jobCancellationDeadline);
-			} catch (Exception e) {
-				log.warn("Exception while shutting down remaining jobs.", e);
-			}
+    @Override
+    public void after() {
+        Exception exception = null;
 
-			final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
+        if (miniCluster != null) {
+            // try to cancel remaining jobs before shutting down cluster
+            cancelAllJobs();
 
-			try {
-				terminationFuture.get(
-					miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
-					TimeUnit.MILLISECONDS);
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+            final CompletableFuture<?> terminationFuture = miniCluster.closeAsync();
 
-			miniCluster = null;
-		}
+            try {
+                terminationFuture.get(
+                        miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+                        TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-		if (exception != null) {
-			log.warn("Could not properly shut down the MiniClusterResource.", exception);
-		}
+            miniCluster = null;
+        }
 
-		temporaryFolder.delete();
-	}
+        if (exception != null) {
+            log.warn("Could not properly shut down the MiniClusterResource.", exception);
+        }
 
-	private void startMiniCluster() throws Exception {
-		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
-		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+        temporaryFolder.delete();
+    }
 
-		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
-		// enabled this by default
-		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
-			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-		}
+    private void startMiniCluster() throws Exception {
+        final Configuration configuration =
+                new Configuration(miniClusterResourceConfiguration.getConfiguration());
+        configuration.setString(
+                CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-			configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
-		}
+        // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+        // enabled this by default
+        if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+            configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        }
 
-		// set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
-		configuration.setInteger(JobManagerOptions.PORT, 0);
-		configuration.setString(RestOptions.BIND_PORT, "0");
+        if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+            configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+        }
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(miniClusterResourceConfiguration.getNumberTaskManagers())
-			.setNumSlotsPerTaskManager(miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
-			.setRpcServiceSharing(miniClusterResourceConfiguration.getRpcServiceSharing())
-			.build();
+        // set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
+        configuration.setInteger(JobManagerOptions.PORT, 0);
+        configuration.setString(RestOptions.BIND_PORT, "0");
 
-		miniCluster = new MiniCluster(miniClusterConfiguration);
+        final MiniClusterConfiguration miniClusterConfiguration =
+                new MiniClusterConfiguration.Builder()
+                        .setConfiguration(configuration)
+                        .setNumTaskManagers(
+                                miniClusterResourceConfiguration.getNumberTaskManagers())
+                        .setNumSlotsPerTaskManager(
+                                miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
+                        .setRpcServiceSharing(
+                                miniClusterResourceConfiguration.getRpcServiceSharing())
+                        .setHaServices(miniClusterResourceConfiguration.getHaServices())
+                        .build();
 
-		miniCluster.start();
+        miniCluster = new MiniCluster(miniClusterConfiguration);
 
-		final URI restAddress = miniCluster.getRestAddress().get();
-		createClientConfiguration(restAddress);
-	}
+        miniCluster.start();
 
-	private void createClientConfiguration(URI restAddress) {
-		Configuration restClientConfig = new Configuration();
-		restClientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
-		restClientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
-		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
-	}
+        final URI restAddress = miniCluster.getRestAddress().get();
+        createClientConfiguration(restAddress);
+    }
+
+    private void createClientConfiguration(URI restAddress) {
+        Configuration restClientConfig = new Configuration();
+        restClientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
+        restClientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
+        this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+    }
 }

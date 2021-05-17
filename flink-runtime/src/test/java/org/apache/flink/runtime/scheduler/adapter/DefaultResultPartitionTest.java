@@ -31,49 +31,46 @@ import java.util.function.Supplier;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Unit tests for {@link DefaultResultPartition}.
- */
+/** Unit tests for {@link DefaultResultPartition}. */
 public class DefaultResultPartitionTest extends TestLogger {
 
-	private static final TestResultPartitionStateSupplier resultPartitionState = new TestResultPartitionStateSupplier();
+    private static final TestResultPartitionStateSupplier resultPartitionState =
+            new TestResultPartitionStateSupplier();
 
-	private final IntermediateResultPartitionID resultPartitionId = new IntermediateResultPartitionID();
-	private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
+    private final IntermediateResultPartitionID resultPartitionId =
+            new IntermediateResultPartitionID();
+    private final IntermediateDataSetID intermediateResultId = new IntermediateDataSetID();
 
-	private DefaultResultPartition resultPartition;
+    private DefaultResultPartition resultPartition;
 
-	@Before
-	public void setUp() {
-		resultPartition = new DefaultResultPartition(
-			resultPartitionId,
-			intermediateResultId,
-			BLOCKING,
-			resultPartitionState);
-	}
+    @Before
+    public void setUp() {
+        resultPartition =
+                new DefaultResultPartition(
+                        resultPartitionId, intermediateResultId, BLOCKING, resultPartitionState);
+    }
 
-	@Test
-	public void testGetPartitionState() {
-		for (ResultPartitionState state : ResultPartitionState.values()) {
-			resultPartitionState.setResultPartitionState(state);
-			assertEquals(state, resultPartition.getState());
-		}
-	}
+    @Test
+    public void testGetPartitionState() {
+        for (ResultPartitionState state : ResultPartitionState.values()) {
+            resultPartitionState.setResultPartitionState(state);
+            assertEquals(state, resultPartition.getState());
+        }
+    }
 
-	/**
-	 * A test {@link ResultPartitionState} supplier.
-	 */
-	private static class TestResultPartitionStateSupplier implements Supplier<ResultPartitionState> {
+    /** A test {@link ResultPartitionState} supplier. */
+    private static class TestResultPartitionStateSupplier
+            implements Supplier<ResultPartitionState> {
 
-		private ResultPartitionState resultPartitionState;
+        private ResultPartitionState resultPartitionState;
 
-		void setResultPartitionState(ResultPartitionState state) {
-			resultPartitionState = state;
-		}
+        void setResultPartitionState(ResultPartitionState state) {
+            resultPartitionState = state;
+        }
 
-		@Override
-		public ResultPartitionState get() {
-			return resultPartitionState;
-		}
-	}
+        @Override
+        public ResultPartitionState get() {
+            return resultPartitionState;
+        }
+    }
 }

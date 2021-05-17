@@ -29,89 +29,85 @@ import java.math.BigDecimal;
 
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.fromBigDecimal;
 
-/**
- * {@link ArrowFieldWriter} for Decimal.
- */
+/** {@link ArrowFieldWriter} for Decimal. */
 @Internal
 public abstract class DecimalWriter<T> extends ArrowFieldWriter<T> {
 
-	public static DecimalWriter<RowData> forRow(DecimalVector decimalVector, int precision, int scale) {
-		return new DecimalWriterForRow(decimalVector, precision, scale);
-	}
+    public static DecimalWriter<RowData> forRow(
+            DecimalVector decimalVector, int precision, int scale) {
+        return new DecimalWriterForRow(decimalVector, precision, scale);
+    }
 
-	public static DecimalWriter<ArrayData> forArray(DecimalVector decimalVector, int precision, int scale) {
-		return new DecimalWriterForArray(decimalVector, precision, scale);
-	}
+    public static DecimalWriter<ArrayData> forArray(
+            DecimalVector decimalVector, int precision, int scale) {
+        return new DecimalWriterForArray(decimalVector, precision, scale);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	protected final int precision;
-	protected final int scale;
+    protected final int precision;
+    protected final int scale;
 
-	private DecimalWriter(DecimalVector decimalVector, int precision, int scale) {
-		super(decimalVector);
-		this.precision = precision;
-		this.scale = scale;
-	}
+    private DecimalWriter(DecimalVector decimalVector, int precision, int scale) {
+        super(decimalVector);
+        this.precision = precision;
+        this.scale = scale;
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract DecimalData readDecimal(T in, int ordinal);
+    abstract DecimalData readDecimal(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (isNullAt(in, ordinal)) {
-			((DecimalVector) getValueVector()).setNull(getCount());
-		} else {
-			BigDecimal bigDecimal = readDecimal(in, ordinal).toBigDecimal();
-			bigDecimal = fromBigDecimal(bigDecimal, precision, scale);
-			if (bigDecimal == null) {
-				((DecimalVector) getValueVector()).setNull(getCount());
-			} else {
-				((DecimalVector) getValueVector()).setSafe(getCount(), bigDecimal);
-			}
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((DecimalVector) getValueVector()).setNull(getCount());
+        } else {
+            BigDecimal bigDecimal = readDecimal(in, ordinal).toBigDecimal();
+            bigDecimal = fromBigDecimal(bigDecimal, precision, scale);
+            if (bigDecimal == null) {
+                ((DecimalVector) getValueVector()).setNull(getCount());
+            } else {
+                ((DecimalVector) getValueVector()).setSafe(getCount(), bigDecimal);
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link DecimalWriter} for {@link RowData} input.
-	 */
-	public static final class DecimalWriterForRow extends DecimalWriter<RowData> {
+    /** {@link DecimalWriter} for {@link RowData} input. */
+    public static final class DecimalWriterForRow extends DecimalWriter<RowData> {
 
-		private DecimalWriterForRow(DecimalVector decimalVector, int precision, int scale) {
-			super(decimalVector, precision, scale);
-		}
+        private DecimalWriterForRow(DecimalVector decimalVector, int precision, int scale) {
+            super(decimalVector, precision, scale);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		DecimalData readDecimal(RowData in, int ordinal) {
-			return in.getDecimal(ordinal, precision, scale);
-		}
-	}
+        @Override
+        DecimalData readDecimal(RowData in, int ordinal) {
+            return in.getDecimal(ordinal, precision, scale);
+        }
+    }
 
-	/**
-	 * {@link DecimalWriter} for {@link ArrayData} input.
-	 */
-	public static final class DecimalWriterForArray extends DecimalWriter<ArrayData> {
+    /** {@link DecimalWriter} for {@link ArrayData} input. */
+    public static final class DecimalWriterForArray extends DecimalWriter<ArrayData> {
 
-		private DecimalWriterForArray(DecimalVector decimalVector, int precision, int scale) {
-			super(decimalVector, precision, scale);
-		}
+        private DecimalWriterForArray(DecimalVector decimalVector, int precision, int scale) {
+            super(decimalVector, precision, scale);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		DecimalData readDecimal(ArrayData in, int ordinal) {
-			return in.getDecimal(ordinal, precision, scale);
-		}
-	}
+        @Override
+        DecimalData readDecimal(ArrayData in, int ordinal) {
+            return in.getDecimal(ordinal, precision, scale);
+        }
+    }
 }

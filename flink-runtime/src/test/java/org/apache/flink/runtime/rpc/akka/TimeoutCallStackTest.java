@@ -48,88 +48,88 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests that ask timeouts report the call stack of the calling function.
- */
+/** Tests that ask timeouts report the call stack of the calling function. */
 public class TimeoutCallStackTest {
 
-	private static ActorSystem actorSystem;
-	private static RpcService rpcService;
+    private static ActorSystem actorSystem;
+    private static RpcService rpcService;
 
-	private final List<RpcEndpoint> endpointsToStop = new ArrayList<>();
+    private final List<RpcEndpoint> endpointsToStop = new ArrayList<>();
 
-	@BeforeClass
-	public static void setup() {
-		actorSystem = AkkaUtils.createDefaultActorSystem();
-		rpcService = new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
-	}
+    @BeforeClass
+    public static void setup() {
+        actorSystem = AkkaUtils.createDefaultActorSystem();
+        rpcService =
+                new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    }
 
-	@AfterClass
-	public static void teardown() throws Exception {
+    @AfterClass
+    public static void teardown() throws Exception {
 
-		final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
-		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+        final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
+        final CompletableFuture<Terminated> actorSystemTerminationFuture =
+                FutureUtils.toJava(actorSystem.terminate());
 
-		FutureUtils
-			.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-			.get(10_000, TimeUnit.MILLISECONDS);
-	}
+        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
+                .get(10_000, TimeUnit.MILLISECONDS);
+    }
 
-	@After
-	public void stopTestEndpoints() {
-		endpointsToStop.forEach(IOUtils::closeQuietly);
-	}
+    @After
+    public void stopTestEndpoints() {
+        endpointsToStop.forEach(IOUtils::closeQuietly);
+    }
 
-	@Test
-	public void testTimeoutException() throws Exception {
-		final TestingGateway gateway = createTestingGateway();
+    @Test
+    public void testTimeoutException() throws Exception {
+        final TestingGateway gateway = createTestingGateway();
 
-		final CompletableFuture<Void> future = gateway.callThatTimesOut(Time.milliseconds(1));
+        final CompletableFuture<Void> future = gateway.callThatTimesOut(Time.milliseconds(1));
 
-		Throwable failureCause = null;
-		try {
-			future.get();
-			fail("test buggy: the call should never have completed");
-		} catch (ExecutionException e) {
-			failureCause = e.getCause();
-		}
+        Throwable failureCause = null;
+        try {
+            future.get();
+            fail("test buggy: the call should never have completed");
+        } catch (ExecutionException e) {
+            failureCause = e.getCause();
+        }
 
-		assertThat(failureCause, instanceOf(TimeoutException.class));
-		assertThat(failureCause.getMessage(), containsString("callThatTimesOut"));
-		assertThat(failureCause.getStackTrace()[0].getMethodName(), equalTo("testTimeoutException"));
-	}
+        assertThat(failureCause, instanceOf(TimeoutException.class));
+        assertThat(failureCause.getMessage(), containsString("callThatTimesOut"));
+        assertThat(
+                failureCause.getStackTrace()[0].getMethodName(), equalTo("testTimeoutException"));
+    }
 
-	// ------------------------------------------------------------------------
-	//  setup helpers
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  setup helpers
+    // ------------------------------------------------------------------------
 
-	private TestingGateway createTestingGateway() throws Exception {
-		final TestingRpcEndpoint endpoint = new TestingRpcEndpoint(rpcService, "test_name");
-		endpointsToStop.add(endpoint);
-		endpoint.start();
+    private TestingGateway createTestingGateway() throws Exception {
+        final TestingRpcEndpoint endpoint = new TestingRpcEndpoint(rpcService, "test_name");
+        endpointsToStop.add(endpoint);
+        endpoint.start();
 
-		return rpcService.connect(endpoint.getAddress(), TestingGateway.class).get();
-	}
+        return rpcService.connect(endpoint.getAddress(), TestingGateway.class).get();
+    }
 
-	// ------------------------------------------------------------------------
-	//  testing mocks / stubs
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  testing mocks / stubs
+    // ------------------------------------------------------------------------
 
-	private interface TestingGateway extends RpcGateway {
+    private interface TestingGateway extends RpcGateway {
 
-		CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout);
-	}
+        CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout);
+    }
 
-	private static final class TestingRpcEndpoint extends RpcEndpoint implements TestingGateway {
+    private static final class TestingRpcEndpoint extends RpcEndpoint implements TestingGateway {
 
-		TestingRpcEndpoint(RpcService rpcService, String endpointId) {
-			super(rpcService, endpointId);
-		}
+        TestingRpcEndpoint(RpcService rpcService, String endpointId) {
+            super(rpcService, endpointId);
+        }
 
-		@Override
-		public CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout) {
-			// return a future that never completes, so the call is guaranteed to time out
-			return new CompletableFuture<>();
-		}
-	}
+        @Override
+        public CompletableFuture<Void> callThatTimesOut(@RpcTimeout Time timeout) {
+            // return a future that never completes, so the call is guaranteed to time out
+            return new CompletableFuture<>();
+        }
+    }
 }

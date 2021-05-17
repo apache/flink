@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
@@ -39,126 +40,133 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
- */
+/** Implementation of {@link Output} that sends data using a {@link RecordWriter}. */
 @Internal
 public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
-	private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
+    private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
-	private SerializationDelegate<StreamElement> serializationDelegate;
+    private SerializationDelegate<StreamElement> serializationDelegate;
 
-	private final StreamStatusProvider streamStatusProvider;
+    private final StreamStatusProvider streamStatusProvider;
 
-	private final OutputTag outputTag;
+    private final boolean supportsUnalignedCheckpoints;
 
-	private final WatermarkGauge watermarkGauge = new WatermarkGauge();
+    private final OutputTag outputTag;
 
-	@SuppressWarnings("unchecked")
-	public RecordWriterOutput(
-			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
-			TypeSerializer<OUT> outSerializer,
-			OutputTag outputTag,
-			StreamStatusProvider streamStatusProvider) {
+    private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-		checkNotNull(recordWriter);
-		this.outputTag = outputTag;
-		// generic hack: cast the writer to generic Object type so we can use it
-		// with multiplexed records and watermarks
-		this.recordWriter = (RecordWriter<SerializationDelegate<StreamElement>>)
-				(RecordWriter<?>) recordWriter;
+    @SuppressWarnings("unchecked")
+    public RecordWriterOutput(
+            RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+            TypeSerializer<OUT> outSerializer,
+            OutputTag outputTag,
+            StreamStatusProvider streamStatusProvider,
+            boolean supportsUnalignedCheckpoints) {
 
-		TypeSerializer<StreamElement> outRecordSerializer =
-				new StreamElementSerializer<>(outSerializer);
+        checkNotNull(recordWriter);
+        this.outputTag = outputTag;
+        // generic hack: cast the writer to generic Object type so we can use it
+        // with multiplexed records and watermarks
+        this.recordWriter =
+                (RecordWriter<SerializationDelegate<StreamElement>>) (RecordWriter<?>) recordWriter;
 
-		if (outSerializer != null) {
-			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
-		}
+        TypeSerializer<StreamElement> outRecordSerializer =
+                new StreamElementSerializer<>(outSerializer);
 
-		this.streamStatusProvider = checkNotNull(streamStatusProvider);
-	}
+        if (outSerializer != null) {
+            serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
+        }
 
-	@Override
-	public void collect(StreamRecord<OUT> record) {
-		if (this.outputTag != null) {
-			// we are not responsible for emitting to the main output.
-			return;
-		}
+        this.streamStatusProvider = checkNotNull(streamStatusProvider);
 
-		pushToRecordWriter(record);
-	}
+        this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
-			pushToRecordWriter(record);
-		}
-	}
+    @Override
+    public void collect(StreamRecord<OUT> record) {
+        if (this.outputTag != null) {
+            // we are not responsible for emitting to the main output.
+            return;
+        }
 
-	private <X> void pushToRecordWriter(StreamRecord<X> record) {
-		serializationDelegate.setInstance(record);
+        pushToRecordWriter(record);
+    }
 
-		try {
-			recordWriter.emit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+            pushToRecordWriter(record);
+        }
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-		serializationDelegate.setInstance(mark);
+    private <X> void pushToRecordWriter(StreamRecord<X> record) {
+        serializationDelegate.setInstance(record);
 
-		if (streamStatusProvider.getStreamStatus().isActive()) {
-			try {
-				recordWriter.broadcastEmit(serializationDelegate);
-			} catch (Exception e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
-		}
-	}
+        try {
+            recordWriter.emit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	public void emitStreamStatus(StreamStatus streamStatus) {
-		serializationDelegate.setInstance(streamStatus);
+    @Override
+    public void emitWatermark(Watermark mark) {
+        watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+        serializationDelegate.setInstance(mark);
 
-		try {
-			recordWriter.broadcastEmit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+        if (streamStatusProvider.getStreamStatus().isActive()) {
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		serializationDelegate.setInstance(latencyMarker);
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        serializationDelegate.setInstance(streamStatus);
 
-		try {
-			recordWriter.randomEmit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+        try {
+            recordWriter.broadcastEmit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		recordWriter.broadcastEvent(event, isPriorityEvent);
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        serializationDelegate.setInstance(latencyMarker);
 
-	public void flush() throws IOException {
-		recordWriter.flushAll();
-	}
+        try {
+            recordWriter.randomEmit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public void close() {
-		recordWriter.close();
-	}
+    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+        if (isPriorityEvent
+                && event instanceof CheckpointBarrier
+                && !supportsUnalignedCheckpoints) {
+            final CheckpointBarrier barrier = (CheckpointBarrier) event;
+            event = barrier.withOptions(barrier.getCheckpointOptions().withUnalignedUnsupported());
+            isPriorityEvent = false;
+        }
+        recordWriter.broadcastEvent(event, isPriorityEvent);
+    }
 
-	@Override
-	public Gauge<Long> getWatermarkGauge() {
-		return watermarkGauge;
-	}
+    public void flush() throws IOException {
+        recordWriter.flushAll();
+    }
+
+    @Override
+    public void close() {
+        recordWriter.close();
+    }
+
+    @Override
+    public Gauge<Long> getWatermarkGauge() {
+        return watermarkGauge;
+    }
 }

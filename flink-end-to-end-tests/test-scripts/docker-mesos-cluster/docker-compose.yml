@@ -36,6 +36,7 @@ services:
     volumes:
       - ${END_TO_END_DIR}:${END_TO_END_DIR}
       - ${FLINK_DIR}:${FLINK_DIR}
+      - ${FLINK_LOG_DIR}:${FLINK_LOG_DIR}
       - ${MVN_REPO}:${MVN_REPO}
     environment:
       MESOS_PORT: 5050
@@ -43,6 +44,7 @@ services:
       MESOS_REGISTRY: in_memory
       MESOS_LOG_DIR: /var/log/mesos
       MESOS_WORK_DIR: /var/tmp/mesos
+      FLINK_LOG_DIR: ${FLINK_LOG_DIR}
 
   slave:
     image: flink/docker-mesos-cluster:latest
@@ -64,3 +66,4 @@ services:
       MESOS_LOG_DIR: /var/log/mesos
       MESOS_WORK_DIR: /var/tmp/mesos
       MESOS_SYSTEMD_ENABLE_SUPPORT: 'false'
+      FLINK_LOG_DIR: ${FLINK_LOG_DIR}

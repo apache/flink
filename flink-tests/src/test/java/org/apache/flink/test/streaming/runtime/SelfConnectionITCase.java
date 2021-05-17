@@ -33,100 +33,105 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Integration tests for connected streams.
- */
+/** Integration tests for connected streams. */
 @SuppressWarnings("serial")
 public class SelfConnectionITCase extends AbstractTestBase {
 
-	/**
-	 * We connect two different data streams in a chain to a CoMap.
-	 */
-	@Test
-	public void differentDataStreamSameChain() throws Exception {
+    /** We connect two different data streams in a chain to a CoMap. */
+    @Test
+    public void differentDataStreamSameChain() throws Exception {
 
-		TestListResultSink<String> resultSink = new TestListResultSink<>();
+        TestListResultSink<String> resultSink = new TestListResultSink<>();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataStream<Integer> src = env.fromElements(1, 3, 5);
+        DataStream<Integer> src = env.fromElements(1, 3, 5);
 
-		DataStream<String> stringMap = src.map(value -> "x " + value);
+        DataStream<String> stringMap = src.map(value -> "x " + value);
 
-		stringMap.connect(src).map(new CoMapFunction<String, Integer, String>() {
+        stringMap
+                .connect(src)
+                .map(
+                        new CoMapFunction<String, Integer, String>() {
 
-			@Override
-			public String map1(String value) {
-				return value;
-			}
+                            @Override
+                            public String map1(String value) {
+                                return value;
+                            }
 
-			@Override
-			public String map2(Integer value) {
-				return String.valueOf(value + 1);
-			}
-		}).addSink(resultSink);
+                            @Override
+                            public String map2(Integer value) {
+                                return String.valueOf(value + 1);
+                            }
+                        })
+                .addSink(resultSink);
 
-		env.execute();
+        env.execute();
 
-		List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
+        List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
 
-		List<String> result = resultSink.getResult();
+        List<String> result = resultSink.getResult();
 
-		Collections.sort(expected);
-		Collections.sort(result);
+        Collections.sort(expected);
+        Collections.sort(result);
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 
-	/**
-	 * We connect two different data streams in different chains to a CoMap.
-	 * (This is not actually self-connect.)
-	 */
-	@Test
-	public void differentDataStreamDifferentChain() throws Exception {
+    /**
+     * We connect two different data streams in different chains to a CoMap. (This is not actually
+     * self-connect.)
+     */
+    @Test
+    public void differentDataStreamDifferentChain() throws Exception {
 
-		TestListResultSink<String> resultSink = new TestListResultSink<>();
+        TestListResultSink<String> resultSink = new TestListResultSink<>();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(3);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(3);
 
-		DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
+        DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
 
-		DataStream<String> stringMap = src
-				.flatMap(new FlatMapFunction<Integer, String>() {
+        DataStream<String> stringMap =
+                src.flatMap(
+                                new FlatMapFunction<Integer, String>() {
 
-			@Override
-			public void flatMap(Integer value, Collector<String> out) throws Exception {
-				out.collect("x " + value);
-			}
-		}).keyBy(String::length);
+                                    @Override
+                                    public void flatMap(Integer value, Collector<String> out)
+                                            throws Exception {
+                                        out.collect("x " + value);
+                                    }
+                                })
+                        .keyBy(String::length);
 
-		DataStream<Long> longMap = src
-				.map(value -> (long) (value + 1))
-				.keyBy(Long::intValue);
+        DataStream<Long> longMap = src.map(value -> (long) (value + 1)).keyBy(Long::intValue);
 
-		stringMap.connect(longMap).map(new CoMapFunction<String, Long, String>() {
+        stringMap
+                .connect(longMap)
+                .map(
+                        new CoMapFunction<String, Long, String>() {
 
-			@Override
-			public String map1(String value) {
-				return value;
-			}
+                            @Override
+                            public String map1(String value) {
+                                return value;
+                            }
 
-			@Override
-			public String map2(Long value) {
-				return value.toString();
-			}
-		}).addSink(resultSink);
+                            @Override
+                            public String map2(Long value) {
+                                return value.toString();
+                            }
+                        })
+                .addSink(resultSink);
 
-		env.execute();
+        env.execute();
 
-		List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
-		List<String> result = resultSink.getResult();
+        List<String> expected = Arrays.asList("x 1", "x 3", "x 5", "2", "4", "6");
+        List<String> result = resultSink.getResult();
 
-		Collections.sort(expected);
-		Collections.sort(result);
+        Collections.sort(expected);
+        Collections.sort(result);
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 }

@@ -18,17 +18,14 @@
 
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.types.logical.IntType
-import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import java.lang.{Integer => JInt, Iterable => JIterable}
@@ -297,4 +294,19 @@ class EmptyTableAggFuncWithIntResultType extends TableAggregateFunction[JInt, To
   def accumulate(acc: Top3Accum, value: JInt): Unit = {}
 
   def emitValue(acc: Top3Accum, out: Collector[JInt]): Unit = {}
+}
+
+class PythonEmptyTableAggFunc
+  extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum]
+  with PythonFunction {
+
+  override def getSerializedPythonFunction: Array[Byte] = Array(0)
+
+  override def getPythonEnv: PythonEnv = null
+
+  override def createAccumulator(): Top3Accum = new Top3Accum
+
+  def accumulate(acc: Top3Accum, value1: JInt, value2: JInt): Unit = {}
+
+  def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
 }

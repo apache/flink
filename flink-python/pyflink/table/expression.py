@@ -21,7 +21,7 @@ from typing import Union, TypeVar, Generic
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_data_type
-from pyflink.util.utils import to_jarray
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
 
@@ -577,6 +577,22 @@ class Expression(Generic[T]):
         :param if_false: expression to be evaluated if condition does not hold
         """
         return _ternary_op("then")(self, if_true, if_false)
+
+    def if_null(self, null_replacement) -> 'Expression':
+        """
+        Returns null_replacement if the given expression is null; otherwise the expression is
+        returned.
+
+        This function returns a data type that is very specific in terms of nullability. The
+        returned type is the common type of both arguments but only nullable if the
+        null_replacement is nullable.
+
+        The function allows to pass nullable columns into a function or table that is declared
+        with a NOT NULL constraint.
+
+        e.g. col("nullable_column").if_null(5) returns never null.
+        """
+        return _binary_op("ifNull")(self, null_replacement)
 
     @property
     def is_null(self) -> 'Expression[bool]':
@@ -1212,7 +1228,7 @@ class Expression(Generic[T]):
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
 
-        .. seealso:: :py:attr:`~Expression.proctime`
+        .. seealso:: :py:attr:`~Expression.rowtime`
         """
         return _unary_op("rowtime")(self)
 
@@ -1222,7 +1238,7 @@ class Expression(Generic[T]):
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
 
-        .. seealso:: :py:attr:`~Expression.rowtime`
+        .. seealso:: :py:attr:`~Expression.proctime`
         """
         return _unary_op("proctime")(self)
 

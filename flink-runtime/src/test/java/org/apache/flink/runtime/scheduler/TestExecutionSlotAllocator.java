@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,117 +36,126 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Test {@link ExecutionSlotAllocator} implementation.
- */
+/** Test {@link ExecutionSlotAllocator} implementation. */
 public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotOwner {
 
-	private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests = new HashMap<>();
+    private final Map<ExecutionVertexID, SlotExecutionVertexAssignment> pendingRequests =
+            new HashMap<>();
 
-	private final TestingLogicalSlotBuilder logicalSlotBuilder = new TestingLogicalSlotBuilder();
+    private final TestingLogicalSlotBuilder logicalSlotBuilder;
 
-	private boolean autoCompletePendingRequests = true;
+    private boolean autoCompletePendingRequests = true;
 
-	private final List<LogicalSlot> returnedSlots = new ArrayList<>();
+    private final List<LogicalSlot> returnedSlots = new ArrayList<>();
 
-	public TestExecutionSlotAllocator() {}
+    public TestExecutionSlotAllocator() {
+        this(new TestingLogicalSlotBuilder());
+    }
 
-	public TestExecutionSlotAllocator(TaskManagerGateway taskManagerGateway) {
-		logicalSlotBuilder.setTaskManagerGateway(taskManagerGateway);
-	}
+    public TestExecutionSlotAllocator(TaskManagerGateway taskManagerGateway) {
+        this(new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway));
+    }
 
-	@Override
-	public List<SlotExecutionVertexAssignment> allocateSlotsFor(final List<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
-		final List<SlotExecutionVertexAssignment> slotVertexAssignments = createSlotVertexAssignments(schedulingRequirementsCollection);
-		registerPendingRequests(slotVertexAssignments);
-		maybeCompletePendingRequests();
-		return slotVertexAssignments;
-	}
+    public TestExecutionSlotAllocator(TestingLogicalSlotBuilder logicalSlotBuilder) {
+        this.logicalSlotBuilder = logicalSlotBuilder;
+    }
 
-	private void registerPendingRequests(final List<SlotExecutionVertexAssignment> slotVertexAssignments) {
-		for (SlotExecutionVertexAssignment slotVertexAssignment : slotVertexAssignments) {
-			pendingRequests.put(slotVertexAssignment.getExecutionVertexId(), slotVertexAssignment);
-		}
-	}
+    @Override
+    public List<SlotExecutionVertexAssignment> allocateSlotsFor(
+            final List<ExecutionVertexID> executionVertexIds) {
+        final List<SlotExecutionVertexAssignment> slotVertexAssignments =
+                createSlotVertexAssignments(executionVertexIds);
+        registerPendingRequests(slotVertexAssignments);
+        maybeCompletePendingRequests();
+        return slotVertexAssignments;
+    }
 
-	private List<SlotExecutionVertexAssignment> createSlotVertexAssignments(
-		final Collection<ExecutionVertexSchedulingRequirements> schedulingRequirementsCollection) {
+    private void registerPendingRequests(
+            final List<SlotExecutionVertexAssignment> slotVertexAssignments) {
+        for (SlotExecutionVertexAssignment slotVertexAssignment : slotVertexAssignments) {
+            pendingRequests.put(slotVertexAssignment.getExecutionVertexId(), slotVertexAssignment);
+        }
+    }
 
-		final List<SlotExecutionVertexAssignment> result = new ArrayList<>();
-		for (ExecutionVertexSchedulingRequirements schedulingRequirements : schedulingRequirementsCollection) {
-			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
-			final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
-			result.add(new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture));
-		}
-		return result;
-	}
+    private List<SlotExecutionVertexAssignment> createSlotVertexAssignments(
+            final Collection<ExecutionVertexID> executionVertexIds) {
 
-	private void maybeCompletePendingRequests() {
-		if (autoCompletePendingRequests) {
-			completePendingRequests();
-		}
-	}
+        final List<SlotExecutionVertexAssignment> result = new ArrayList<>();
+        for (ExecutionVertexID executionVertexId : executionVertexIds) {
+            final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
+            result.add(new SlotExecutionVertexAssignment(executionVertexId, logicalSlotFuture));
+        }
+        return result;
+    }
 
-	public void completePendingRequests() {
-		final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
-		vertexIds.forEach(this::completePendingRequest);
-	}
+    private void maybeCompletePendingRequests() {
+        if (autoCompletePendingRequests) {
+            completePendingRequests();
+        }
+    }
 
-	public void completePendingRequest(final ExecutionVertexID executionVertexId) {
-		final SlotExecutionVertexAssignment slotVertexAssignment = removePendingRequest(executionVertexId);
-		checkState(slotVertexAssignment != null);
-		slotVertexAssignment
-			.getLogicalSlotFuture()
-			.complete(logicalSlotBuilder
-				.setSlotOwner(this)
-				.createTestingLogicalSlot());
-	}
+    public void completePendingRequests() {
+        final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
+        vertexIds.forEach(this::completePendingRequest);
+    }
 
-	private SlotExecutionVertexAssignment removePendingRequest(final ExecutionVertexID executionVertexId) {
-		return pendingRequests.remove(executionVertexId);
-	}
+    public LogicalSlot completePendingRequest(final ExecutionVertexID executionVertexId) {
+        final LogicalSlot slot = logicalSlotBuilder.setSlotOwner(this).createTestingLogicalSlot();
+        final SlotExecutionVertexAssignment slotVertexAssignment =
+                removePendingRequest(executionVertexId);
+        checkState(slotVertexAssignment != null);
+        slotVertexAssignment.getLogicalSlotFuture().complete(slot);
+        return slot;
+    }
 
-	public void timeoutPendingRequests() {
-		final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
-		vertexIds.forEach(this::timeoutPendingRequest);
-	}
+    private SlotExecutionVertexAssignment removePendingRequest(
+            final ExecutionVertexID executionVertexId) {
+        return pendingRequests.remove(executionVertexId);
+    }
 
-	public void timeoutPendingRequest(final ExecutionVertexID executionVertexId) {
-		final SlotExecutionVertexAssignment slotVertexAssignment = removePendingRequest(executionVertexId);
-		checkState(slotVertexAssignment != null);
-		slotVertexAssignment
-			.getLogicalSlotFuture()
-			.completeExceptionally(new TimeoutException());
-	}
+    public void timeoutPendingRequests() {
+        final Collection<ExecutionVertexID> vertexIds = new ArrayList<>(pendingRequests.keySet());
+        vertexIds.forEach(this::timeoutPendingRequest);
+    }
 
-	public void enableAutoCompletePendingRequests() {
-		autoCompletePendingRequests = true;
-	}
+    public void timeoutPendingRequest(final ExecutionVertexID executionVertexId) {
+        final SlotExecutionVertexAssignment slotVertexAssignment =
+                removePendingRequest(executionVertexId);
+        checkState(slotVertexAssignment != null);
+        slotVertexAssignment.getLogicalSlotFuture().completeExceptionally(new TimeoutException());
+    }
 
-	public void disableAutoCompletePendingRequests() {
-		autoCompletePendingRequests = false;
-	}
+    public void enableAutoCompletePendingRequests() {
+        autoCompletePendingRequests = true;
+    }
 
-	@Override
-	public void cancel(final ExecutionVertexID executionVertexId) {
-		final SlotExecutionVertexAssignment slotVertexAssignment = removePendingRequest(executionVertexId);
-		if (slotVertexAssignment != null) {
-			slotVertexAssignment
-				.getLogicalSlotFuture()
-				.cancel(false);
-		}
-	}
+    public void disableAutoCompletePendingRequests() {
+        autoCompletePendingRequests = false;
+    }
 
-	@Override
-	public void returnLogicalSlot(final LogicalSlot logicalSlot) {
-		returnedSlots.add(logicalSlot);
-	}
+    @Override
+    public void cancel(final ExecutionVertexID executionVertexId) {
+        final SlotExecutionVertexAssignment slotVertexAssignment =
+                removePendingRequest(executionVertexId);
+        if (slotVertexAssignment != null) {
+            slotVertexAssignment.getLogicalSlotFuture().cancel(false);
+        }
+    }
 
-	public List<LogicalSlot> getReturnedSlots() {
-		return new ArrayList<>(returnedSlots);
-	}
+    @Override
+    public void returnLogicalSlot(final LogicalSlot logicalSlot) {
+        returnedSlots.add(logicalSlot);
+    }
 
-	public TestingLogicalSlotBuilder getLogicalSlotBuilder() {
-		return logicalSlotBuilder;
-	}
+    public List<LogicalSlot> getReturnedSlots() {
+        return new ArrayList<>(returnedSlots);
+    }
+
+    public TestingLogicalSlotBuilder getLogicalSlotBuilder() {
+        return logicalSlotBuilder;
+    }
+
+    public Map<ExecutionVertexID, SlotExecutionVertexAssignment> getPendingRequests() {
+        return Collections.unmodifiableMap(pendingRequests);
+    }
 }

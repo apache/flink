@@ -27,75 +27,73 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Specialized serializer for {@code ShortValueArray}.
- */
+/** Specialized serializer for {@code ShortValueArray}. */
 public final class ShortValueArraySerializer extends TypeSerializerSingleton<ShortValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public ShortValueArray createInstance() {
-		return new ShortValueArray();
-	}
+    @Override
+    public ShortValueArray createInstance() {
+        return new ShortValueArray();
+    }
 
-	@Override
-	public ShortValueArray copy(ShortValueArray from) {
-		return copy(from, new ShortValueArray());
-	}
+    @Override
+    public ShortValueArray copy(ShortValueArray from) {
+        return copy(from, new ShortValueArray());
+    }
 
-	@Override
-	public ShortValueArray copy(ShortValueArray from, ShortValueArray reuse) {
-		reuse.setValue(from);
-		return reuse;
-	}
+    @Override
+    public ShortValueArray copy(ShortValueArray from, ShortValueArray reuse) {
+        reuse.setValue(from);
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(ShortValueArray record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(ShortValueArray record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public ShortValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new ShortValueArray(), source);
-	}
+    @Override
+    public ShortValueArray deserialize(DataInputView source) throws IOException {
+        return deserialize(new ShortValueArray(), source);
+    }
 
-	@Override
-	public ShortValueArray deserialize(ShortValueArray reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public ShortValueArray deserialize(ShortValueArray reuse, DataInputView source)
+            throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		ShortValueArray.copyInternal(source, target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        ShortValueArray.copyInternal(source, target);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<ShortValueArray> snapshotConfiguration() {
-		return new ShortValueArraySerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<ShortValueArray> snapshotConfiguration() {
+        return new ShortValueArraySerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class ShortValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<ShortValueArray> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class ShortValueArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<ShortValueArray> {
 
-		public ShortValueArraySerializerSnapshot() {
-			super(ShortValueArraySerializer::new);
-		}
-	}
+        public ShortValueArraySerializerSnapshot() {
+            super(ShortValueArraySerializer::new);
+        }
+    }
 }

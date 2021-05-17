@@ -26,27 +26,28 @@ import java.util.Collection;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-/**
- * Test for (un)marshalling of the {@link ThreadDumpInfo}.
- */
+/** Test for (un)marshalling of the {@link ThreadDumpInfo}. */
 public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo> {
 
-	@Override
-	protected Class<ThreadDumpInfo> getTestResponseClass() {
-		return ThreadDumpInfo.class;
-	}
+    @Override
+    protected Class<ThreadDumpInfo> getTestResponseClass() {
+        return ThreadDumpInfo.class;
+    }
 
-	@Override
-	protected ThreadDumpInfo getTestResponseInstance() throws Exception {
-		final Collection<ThreadDumpInfo.ThreadInfo> threadInfos = Arrays.asList(
-			ThreadDumpInfo.ThreadInfo.create("foobar", "barfoo"),
-			ThreadDumpInfo.ThreadInfo.create("bar", "foo"));
+    @Override
+    protected ThreadDumpInfo getTestResponseInstance() throws Exception {
+        final Collection<ThreadDumpInfo.ThreadInfo> threadInfos =
+                Arrays.asList(
+                        ThreadDumpInfo.ThreadInfo.create("foobar", "barfoo"),
+                        ThreadDumpInfo.ThreadInfo.create("bar", "foo"));
 
-		return ThreadDumpInfo.create(threadInfos);
-	}
+        return ThreadDumpInfo.create(threadInfos);
+    }
 
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(ThreadDumpInfo expected, ThreadDumpInfo actual) {
-		assertThat(actual.getThreadInfos(), containsInAnyOrder(expected.getThreadInfos().toArray()));
-	}
+    @Override
+    protected void assertOriginalEqualsToUnmarshalled(
+            ThreadDumpInfo expected, ThreadDumpInfo actual) {
+        assertThat(
+                actual.getThreadInfos(), containsInAnyOrder(expected.getThreadInfos().toArray()));
+    }
 }

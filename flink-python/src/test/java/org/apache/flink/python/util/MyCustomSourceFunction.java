@@ -27,18 +27,16 @@ import java.util.Random;
  */
 public class MyCustomSourceFunction implements SourceFunction<Row> {
 
-	private static final String[] NAMES = {"Bob", "Marry", "Henry", "Mike", "Ted", "Jack"};
+    private static final String[] NAMES = {"Bob", "Marry", "Henry", "Mike", "Ted", "Jack"};
 
-	public void run(SourceContext sourceContext) {
-		Random random = new Random();
-		for (int i = 0; i < NAMES.length; i++) {
-			Row row = Row.of(i, NAMES[i]);
-			sourceContext.collect(row);
-		}
-	}
+    public void run(SourceContext sourceContext) {
+        Random random = new Random();
+        for (int i = 0; i < NAMES.length; i++) {
+            Row row = Row.of(i, NAMES[i]);
+            sourceContext.collect(row);
+        }
+    }
 
-	@Override
-	public void cancel() {
-
-	}
+    @Override
+    public void cancel() {}
 }

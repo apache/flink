@@ -36,9 +36,9 @@ object FlinkRuleSets {
     * Convert sub-queries before query decorrelation.
     */
   val TABLE_SUBQUERY_RULES: RuleSet = RuleSets.ofList(
-    SubQueryRemoveRule.FILTER,
-    SubQueryRemoveRule.PROJECT,
-    SubQueryRemoveRule.JOIN)
+    CoreRules.FILTER_SUB_QUERY_TO_CORRELATE,
+    CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE,
+    CoreRules.JOIN_SUB_QUERY_TO_CORRELATE)
 
   /**
     * Expand plan by replacing references to tables into a proper plan sub trees. Those rules
@@ -53,22 +53,22 @@ object FlinkRuleSets {
   val LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
 
     // push a filter into a join
-    FilterJoinRule.FILTER_ON_JOIN,
+    CoreRules.FILTER_INTO_JOIN,
     // push filter into the children of a join
-    FilterJoinRule.JOIN,
+    CoreRules.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
-    FilterAggregateTransposeRule.INSTANCE,
+    CoreRules.FILTER_AGGREGATE_TRANSPOSE,
     // push filter through set operation
-    FilterSetOpTransposeRule.INSTANCE,
+    CoreRules.FILTER_SET_OP_TRANSPOSE,
     // push project through set operation
-    ProjectSetOpTransposeRule.INSTANCE,
+    CoreRules.PROJECT_SET_OP_TRANSPOSE,
 
     // aggregation and projection rules
-    AggregateProjectMergeRule.INSTANCE,
-    AggregateProjectPullUpConstantsRule.INSTANCE,
+    CoreRules.AGGREGATE_PROJECT_MERGE,
+    CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push a projection past a filter or vice versa
-    ProjectFilterTransposeRule.INSTANCE,
-    FilterProjectTransposeRule.INSTANCE,
+    CoreRules.PROJECT_FILTER_TRANSPOSE,
+    CoreRules.FILTER_PROJECT_TRANSPOSE,
     // push a projection to the children of a join
     // push all expressions to handle the time indicator correctly
     new ProjectJoinTransposeRule(
@@ -77,34 +77,33 @@ object FlinkRuleSets {
       PushProjector.ExprCondition.FALSE,
       RelFactories.LOGICAL_BUILDER),
     // merge projections
-    ProjectMergeRule.INSTANCE,
+    CoreRules.PROJECT_MERGE,
     // remove identity project
-    ProjectRemoveRule.INSTANCE,
+    CoreRules.PROJECT_REMOVE,
     // reorder sort and projection
-    SortProjectTransposeRule.INSTANCE,
-    ProjectSortTransposeRule.INSTANCE,
+    CoreRules.SORT_PROJECT_TRANSPOSE,
 
     // join rules
-    JoinPushExpressionsRule.INSTANCE,
+    CoreRules.JOIN_PUSH_EXPRESSIONS,
 
     // remove union with only a single child
-    UnionEliminatorRule.INSTANCE,
+    CoreRules.UNION_REMOVE,
     // convert non-all union into all-union + distinct
-    UnionToDistinctRule.INSTANCE,
+    CoreRules.UNION_TO_DISTINCT,
 
     // remove aggregation if it does not aggregate and input is already distinct
-    AggregateRemoveRule.INSTANCE,
+    CoreRules.AGGREGATE_REMOVE,
     // push aggregate through join
-    AggregateJoinTransposeRule.EXTENDED,
+    CoreRules.AGGREGATE_JOIN_TRANSPOSE,
     // aggregate union rule
-    AggregateUnionAggregateRule.INSTANCE,
+    CoreRules.AGGREGATE_UNION_AGGREGATE,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
-    AggregateReduceFunctionsRule.INSTANCE,
+    CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
     WindowAggregateReduceFunctionsRule.INSTANCE,
 
     // remove unnecessary sort rule
-    SortRemoveRule.INSTANCE,
+    CoreRules.SORT_REMOVE,
 
     // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
@@ -116,11 +115,11 @@ object FlinkRuleSets {
     PruneEmptyRules.UNION_INSTANCE,
 
     // calc rules
-    FilterCalcMergeRule.INSTANCE,
-    ProjectCalcMergeRule.INSTANCE,
-    FilterToCalcRule.INSTANCE,
-    ProjectToCalcRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
+    CoreRules.FILTER_CALC_MERGE,
+    CoreRules.PROJECT_CALC_MERGE,
+    CoreRules.FILTER_TO_CALC,
+    CoreRules.PROJECT_TO_CALC,
+    CoreRules.CALC_MERGE,
 
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
@@ -163,7 +162,7 @@ object FlinkRuleSets {
     CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
-    CalcMergeRule.INSTANCE,
+    CoreRules.CALC_MERGE,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
@@ -176,7 +175,7 @@ object FlinkRuleSets {
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
-    ProjectToWindowRule.PROJECT,
+    CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
 
     // Transform grouping sets
     DecomposeGroupingSetRule.INSTANCE,
@@ -186,14 +185,14 @@ object FlinkRuleSets {
     WindowPropertiesHavingRule.INSTANCE,
 
     // expand distinct aggregate to normal aggregate with groupby
-    AggregateExpandDistinctAggregatesRule.JOIN,
+    CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN,
 
     ExtendedAggregateExtractProjectRule.INSTANCE,
     // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
+    CoreRules.FILTER_REDUCE_EXPRESSIONS,
+    CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+    CoreRules.CALC_REDUCE_EXPRESSIONS,
+    CoreRules.JOIN_REDUCE_EXPRESSIONS,
 
     // merge a cascade of predicates to IN or NOT_IN
     ConvertToNotInOrInRule.IN_INSTANCE,
@@ -235,10 +234,10 @@ object FlinkRuleSets {
 
     ExtendedAggregateExtractProjectRule.INSTANCE,
     // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ProjectToWindowRule.PROJECT,
+    CoreRules.FILTER_REDUCE_EXPRESSIONS,
+    CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+    CoreRules.CALC_REDUCE_EXPRESSIONS,
+    CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
 
     // merge a cascade of predicates to IN or NOT_IN
     ConvertToNotInOrInRule.IN_INSTANCE,

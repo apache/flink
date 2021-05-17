@@ -36,58 +36,64 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * End to end test for Elasticsearch5Sink.
- */
+/** End to end test for Elasticsearch5Sink. */
 public class Elasticsearch5SinkExample {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 3) {
-			System.out.println("Missing parameters!\n" +
-				"Usage: --numRecords <numRecords> --index <index> --type <type>");
-			return;
-		}
+        if (parameterTool.getNumberOfParameters() < 3) {
+            System.out.println(
+                    "Missing parameters!\n"
+                            + "Usage: --numRecords <numRecords> --index <index> --type <type>");
+            return;
+        }
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				env.enableCheckpointing(5000);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(5000);
 
-		DataStream<String> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
-			.map(new MapFunction<Long, String>() {
-				@Override
-				public String map(Long value) throws Exception {
-					return "message #" + value;
-				}
-			});
+        DataStream<String> source =
+                env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
+                        .map(
+                                new MapFunction<Long, String>() {
+                                    @Override
+                                    public String map(Long value) throws Exception {
+                                        return "message #" + value;
+                                    }
+                                });
 
-		Map<String, String> userConfig = new HashMap<>();
-		userConfig.put("cluster.name", "elasticsearch");
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+        Map<String, String> userConfig = new HashMap<>();
+        userConfig.put("cluster.name", "elasticsearch");
+        // This instructs the sink to emit after every element, otherwise they would be buffered
+        userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
-		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+        List<InetSocketAddress> transports = new ArrayList<>();
+        transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>() {
-			@Override
-			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-				indexer.add(createIndexRequest(element, parameterTool));
-			}
-		}));
+        source.addSink(
+                new ElasticsearchSink<>(
+                        userConfig,
+                        transports,
+                        new ElasticsearchSinkFunction<String>() {
+                            @Override
+                            public void process(
+                                    String element, RuntimeContext ctx, RequestIndexer indexer) {
+                                indexer.add(createIndexRequest(element, parameterTool));
+                            }
+                        }));
 
-		env.execute("Elasticsearch5.x end to end sink test example");
-	}
+        env.execute("Elasticsearch5.x end to end sink test example");
+    }
 
-	private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
-		Map<String, Object> json = new HashMap<>();
-		json.put("data", element);
+    private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
+        Map<String, Object> json = new HashMap<>();
+        json.put("data", element);
 
-		return Requests.indexRequest()
-			.index(parameterTool.getRequired("index"))
-			.type(parameterTool.getRequired("type"))
-			.id(element)
-			.source(json);
-	}
+        return Requests.indexRequest()
+                .index(parameterTool.getRequired("index"))
+                .type(parameterTool.getRequired("type"))
+                .id(element)
+                .source(json);
+    }
 }

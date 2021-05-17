@@ -29,66 +29,67 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The OutputCollector collects records, and emits them to the  {@link RecordWriter}s.
- * The OutputCollector tracks to which writers a deep-copy must be given and which not.
+ * The OutputCollector collects records, and emits them to the {@link RecordWriter}s. The
+ * OutputCollector tracks to which writers a deep-copy must be given and which not.
  */
 public class OutputCollector<T> implements Collector<T> {
 
-	// list of writers
-	private final RecordWriter<SerializationDelegate<T>>[] writers;
+    // list of writers
+    private final RecordWriter<SerializationDelegate<T>>[] writers;
 
-	private final SerializationDelegate<T> delegate;
+    private final SerializationDelegate<T> delegate;
 
-	
-	/**
-	 * Initializes the output collector with a set of writers. 
-	 * To specify for a writer that it must be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that 
-	 * corresponds to the position of the writer within the {@link List}.
-	 * 
-	 * @param writers List of all writers.
-	 */
-	@SuppressWarnings("unchecked")
-	public OutputCollector(List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer) {
-		this.delegate = new SerializationDelegate<T>(serializer);
-		this.writers = (RecordWriter<SerializationDelegate<T>>[]) writers.toArray(new RecordWriter[writers.size()]);
-	}
+    /**
+     * Initializes the output collector with a set of writers. To specify for a writer that it must
+     * be fed with a deep-copy, set the bit in the copy flag bit mask to 1 that corresponds to the
+     * position of the writer within the {@link List}.
+     *
+     * @param writers List of all writers.
+     */
+    @SuppressWarnings("unchecked")
+    public OutputCollector(
+            List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer) {
+        this.delegate = new SerializationDelegate<T>(serializer);
+        this.writers =
+                (RecordWriter<SerializationDelegate<T>>[])
+                        writers.toArray(new RecordWriter[writers.size()]);
+    }
 
-	/**
-	 * Collects a record and emits it to all writers.
-	 */
-	@Override
-	public void collect(T record)  {
-		if (record != null) {
-			this.delegate.setInstance(record);
-			try {
-				for (RecordWriter<SerializationDelegate<T>> writer : writers) {
-					writer.emit(this.delegate);
-				}
-			}
-			catch (IOException e) {
-				throw new RuntimeException("Emitting the record caused an I/O exception: " + e.getMessage(), e);
-			}
-		}
-		else {
-			throw new NullPointerException("The system does not support records that are null. "
-								+ "Null values are only supported as fields inside other objects.");
-		}
-	}
+    /** Collects a record and emits it to all writers. */
+    @Override
+    public void collect(T record) {
+        if (record != null) {
+            this.delegate.setInstance(record);
+            try {
+                for (RecordWriter<SerializationDelegate<T>> writer : writers) {
+                    writer.emit(this.delegate);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Emitting the record caused an I/O exception: " + e.getMessage(), e);
+            }
+        } else {
+            throw new NullPointerException(
+                    "The system does not support records that are null. "
+                            + "Null values are only supported as fields inside other objects.");
+        }
+    }
 
-	@Override
-	public void close() {
-		for (RecordWriter<?> writer : writers) {
-			writer.close();
-			writer.flushAll();
-		}
-	}
+    @Override
+    public void close() {
+        for (RecordWriter<?> writer : writers) {
+            writer.close();
+            writer.flushAll();
+        }
+    }
 
-	/**
-	 * List of writers that are associated with this output collector
-	 * @return list of writers
-	 */
-	@SuppressWarnings("unchecked")
-	public List<RecordWriter<SerializationDelegate<T>>> getWriters() {
-		return Collections.unmodifiableList(Arrays.asList(this.writers));
-	}
+    /**
+     * List of writers that are associated with this output collector
+     *
+     * @return list of writers
+     */
+    @SuppressWarnings("unchecked")
+    public List<RecordWriter<SerializationDelegate<T>>> getWriters() {
+        return Collections.unmodifiableList(Arrays.asList(this.writers));
+    }
 }

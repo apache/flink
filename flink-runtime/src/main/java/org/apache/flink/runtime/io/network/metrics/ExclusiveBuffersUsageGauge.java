@@ -24,34 +24,32 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Gauge metric measuring the exclusive buffers usage gauge for {@link SingleInputGate}s.
- */
+/** Gauge metric measuring the exclusive buffers usage gauge for {@link SingleInputGate}s. */
 public class ExclusiveBuffersUsageGauge extends AbstractBuffersUsageGauge {
 
-	public ExclusiveBuffersUsageGauge(SingleInputGate[] inputGates) {
-		super(checkNotNull(inputGates));
-	}
+    public ExclusiveBuffersUsageGauge(SingleInputGate[] inputGates) {
+        super(checkNotNull(inputGates));
+    }
 
-	@Override
-	public int calculateUsedBuffers(SingleInputGate inputGate) {
-		int usedBuffers = 0;
-		for (InputChannel ic : inputGate.getInputChannels().values()) {
-			if (ic instanceof RemoteInputChannel) {
-				usedBuffers += ((RemoteInputChannel) ic).unsynchronizedGetExclusiveBuffersUsed();
-			}
-		}
-		return usedBuffers;
-	}
+    @Override
+    public int calculateUsedBuffers(SingleInputGate inputGate) {
+        int usedBuffers = 0;
+        for (InputChannel ic : inputGate.getInputChannels().values()) {
+            if (ic instanceof RemoteInputChannel) {
+                usedBuffers += ((RemoteInputChannel) ic).unsynchronizedGetExclusiveBuffersUsed();
+            }
+        }
+        return usedBuffers;
+    }
 
-	@Override
-	public int calculateTotalBuffers(SingleInputGate inputGate) {
-		int totalExclusiveBuffers = 0;
-		for (InputChannel ic : inputGate.getInputChannels().values()) {
-			if (ic instanceof RemoteInputChannel) {
-				totalExclusiveBuffers += ((RemoteInputChannel) ic).getInitialCredit();
-			}
-		}
-		return totalExclusiveBuffers;
-	}
+    @Override
+    public int calculateTotalBuffers(SingleInputGate inputGate) {
+        int totalExclusiveBuffers = 0;
+        for (InputChannel ic : inputGate.getInputChannels().values()) {
+            if (ic instanceof RemoteInputChannel) {
+                totalExclusiveBuffers += ((RemoteInputChannel) ic).getInitialCredit();
+            }
+        }
+        return totalExclusiveBuffers;
+    }
 }

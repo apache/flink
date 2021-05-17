@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -37,6 +38,9 @@ import scala.collection.{Seq, mutable}
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Test
   def testFunctionSplitWhenCodegenOverLengthLimit(): Unit = {
@@ -90,7 +94,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @Test
   def testSelectStar(): Unit = {
-    val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv).select('*)
+    val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv, '_1, '_2).select('*)
 
     val sink = new TestingAppendSink
     ds.toAppendStream[Row].addSink(sink)
@@ -516,7 +520,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ((0, 0), "0"),
       ((1, 1), "1"),
       ((2, 2), "2")
-    ))).select('*)
+    )), '_1, '_2).select('*)
 
     val sink = new TestingAppendSink
     table.toAppendStream[Row].addSink(sink)

@@ -19,9 +19,13 @@
 package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.io.InputStreamFSInputWrapper;
+import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.connector.file.src.FileSourceSplit;
+import org.apache.flink.connector.file.src.compression.StandardDeCompressors;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -41,229 +45,257 @@ import static org.apache.flink.connector.file.src.util.Utils.doWithCleanupOnExce
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Adapter to turn a {@link StreamFormat} into a {@link BulkFormat}.
- */
+/** Adapter to turn a {@link StreamFormat} into a {@link BulkFormat}. */
 @Internal
-public final class StreamFormatAdapter<T> implements BulkFormat<T> {
+public final class StreamFormatAdapter<T> implements BulkFormat<T, FileSourceSplit> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final StreamFormat<T> streamFormat;
+    private final StreamFormat<T> streamFormat;
 
-	public StreamFormatAdapter(StreamFormat<T> streamFormat) {
-		this.streamFormat = checkNotNull(streamFormat);
-	}
+    public StreamFormatAdapter(StreamFormat<T> streamFormat) {
+        this.streamFormat = checkNotNull(streamFormat);
+    }
 
-	@Override
-	public BulkFormat.Reader<T> createReader(
-			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength) throws IOException {
+    @Override
+    public BulkFormat.Reader<T> createReader(
+            final Configuration config, final FileSourceSplit split) throws IOException {
 
-		final TrackingFsDataInputStream trackingStream = openStream(filePath, config, splitOffset);
+        final TrackingFsDataInputStream trackingStream =
+                openStream(split.path(), config, split.offset());
+        final long splitEnd = split.offset() + split.length();
 
-		return doWithCleanupOnException(trackingStream, () -> {
-			final StreamFormat.Reader<T> streamReader = streamFormat.createReader(
-					config, trackingStream, trackingStream.getFileLength(), splitOffset + splitLength);
-			return new Reader<>(streamReader, trackingStream, CheckpointedPosition.NO_OFFSET, 0L);
-		});
-	}
+        return doWithCleanupOnException(
+                trackingStream,
+                () -> {
+                    final StreamFormat.Reader<T> streamReader =
+                            streamFormat.createReader(
+                                    config,
+                                    trackingStream,
+                                    trackingStream.getFileLength(),
+                                    splitEnd);
+                    return new Reader<>(
+                            streamReader, trackingStream, CheckpointedPosition.NO_OFFSET, 0L);
+                });
+    }
 
-	@Override
-	public BulkFormat.Reader<T> restoreReader(
-			final Configuration config,
-			final Path filePath,
-			final long splitOffset,
-			final long splitLength,
-			final CheckpointedPosition checkpointedPosition) throws IOException {
+    @Override
+    public BulkFormat.Reader<T> restoreReader(
+            final Configuration config, final FileSourceSplit split) throws IOException {
 
-		final TrackingFsDataInputStream trackingStream = openStream(filePath, config, splitOffset);
+        assert split.getReaderPosition().isPresent();
+        final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
 
-		return doWithCleanupOnException(trackingStream, () -> {
-			// if there never was a checkpointed offset, yet, we need to initialize the reader like a fresh reader.
-			// see the JavaDocs on StreamFormat.restoreReader() for details
-			final StreamFormat.Reader<T> streamReader = checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
-					? streamFormat.createReader(
-							config, trackingStream, trackingStream.getFileLength(), splitOffset + splitLength)
-					: streamFormat.restoreReader(
-							config, trackingStream, checkpointedPosition.getOffset(),
-							trackingStream.getFileLength(), splitOffset + splitLength);
+        final TrackingFsDataInputStream trackingStream =
+                openStream(split.path(), config, split.offset());
+        final long splitEnd = split.offset() + split.length();
 
-			// skip the records to skip, but make sure we close the reader if something goes wrong
-			doWithCleanupOnException(streamReader, () -> {
-				long toSkip = checkpointedPosition.getRecordsAfterOffset();
-				while (toSkip > 0 && streamReader.read() != null) {
-					toSkip--;
-				}
-			});
+        return doWithCleanupOnException(
+                trackingStream,
+                () -> {
+                    // if there never was a checkpointed offset, yet, we need to initialize the
+                    // reader like a fresh reader.
+                    // see the JavaDocs on StreamFormat.restoreReader() for details
+                    final StreamFormat.Reader<T> streamReader =
+                            checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET
+                                    ? streamFormat.createReader(
+                                            config,
+                                            trackingStream,
+                                            trackingStream.getFileLength(),
+                                            splitEnd)
+                                    : streamFormat.restoreReader(
+                                            config,
+                                            trackingStream,
+                                            checkpointedPosition.getOffset(),
+                                            trackingStream.getFileLength(),
+                                            splitEnd);
 
-			return new Reader<>(
-					streamReader, trackingStream,
-					checkpointedPosition.getOffset(), checkpointedPosition.getRecordsAfterOffset());
-		});
-	}
+                    // skip the records to skip, but make sure we close the reader if something goes
+                    // wrong
+                    doWithCleanupOnException(
+                            streamReader,
+                            () -> {
+                                long toSkip = checkpointedPosition.getRecordsAfterOffset();
+                                while (toSkip > 0 && streamReader.read() != null) {
+                                    toSkip--;
+                                }
+                            });
 
-	@Override
-	public boolean isSplittable() {
-		return streamFormat.isSplittable();
-	}
+                    return new Reader<>(
+                            streamReader,
+                            trackingStream,
+                            checkpointedPosition.getOffset(),
+                            checkpointedPosition.getRecordsAfterOffset());
+                });
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return streamFormat.getProducedType();
-	}
+    @Override
+    public boolean isSplittable() {
+        return streamFormat.isSplittable();
+    }
 
-	private static TrackingFsDataInputStream openStream(
-			final Path file,
-			final Configuration config,
-			final long seekPosition) throws IOException {
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return streamFormat.getProducedType();
+    }
 
-		final FileSystem fs = file.getFileSystem();
-		final long fileLength = fs.getFileStatus(file).getLen();
+    private static TrackingFsDataInputStream openStream(
+            final Path file, final Configuration config, final long seekPosition)
+            throws IOException {
 
-		final int fetchSize = MathUtils.checkedDownCast(config.get(StreamFormat.FETCH_IO_SIZE).getBytes());
-		if (fetchSize <= 0) {
-			throw new IllegalConfigurationException(
-					String.format("The fetch size (%s) must be > 0, but is %d",
-							StreamFormat.FETCH_IO_SIZE.key(), fetchSize));
-		}
+        final FileSystem fs = file.getFileSystem();
+        final long fileLength = fs.getFileStatus(file).getLen();
 
-		final FSDataInputStream inStream = fs.open(file);
-		return doWithCleanupOnException(inStream, () -> {
-			inStream.seek(seekPosition);
-			return new TrackingFsDataInputStream(inStream, fileLength, fetchSize);
-		});
+        final int fetchSize =
+                MathUtils.checkedDownCast(config.get(StreamFormat.FETCH_IO_SIZE).getBytes());
+        if (fetchSize <= 0) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "The fetch size (%s) must be > 0, but is %d",
+                            StreamFormat.FETCH_IO_SIZE.key(), fetchSize));
+        }
 
-	}
+        final InflaterInputStreamFactory<?> deCompressor =
+                StandardDeCompressors.getDecompressorForFileName(file.getPath());
 
-	// ----------------------------------------------------------------------------------
+        final FSDataInputStream inStream = fs.open(file);
+        return doWithCleanupOnException(
+                inStream,
+                () -> {
+                    final FSDataInputStream in =
+                            deCompressor == null
+                                    ? inStream
+                                    : new InputStreamFSInputWrapper(deCompressor.create(inStream));
+                    in.seek(seekPosition);
+                    return new TrackingFsDataInputStream(in, fileLength, fetchSize);
+                });
+    }
 
-	/**
-	 * The reader adapter, from {@link StreamFormat.Reader} to {@link BulkFormat.Reader}.
-	 */
-	public static final class Reader<T> implements BulkFormat.Reader<T> {
+    // ----------------------------------------------------------------------------------
 
-		private final StreamFormat.Reader<T> reader;
-		private final TrackingFsDataInputStream stream;
-		private long lastOffset;
-		private long lastRecordsAfterOffset;
+    /** The reader adapter, from {@link StreamFormat.Reader} to {@link BulkFormat.Reader}. */
+    public static final class Reader<T> implements BulkFormat.Reader<T> {
 
-		Reader(
-				final StreamFormat.Reader<T> reader,
-				final TrackingFsDataInputStream stream,
-				final long initialOffset,
-				final long initialSkipCount) {
+        private final StreamFormat.Reader<T> reader;
+        private final TrackingFsDataInputStream stream;
+        private long lastOffset;
+        private long lastRecordsAfterOffset;
 
-			this.reader = checkNotNull(reader);
-			this.stream = checkNotNull(stream);
-			this.lastOffset = initialOffset;
-			this.lastRecordsAfterOffset = initialSkipCount;
-		}
+        Reader(
+                final StreamFormat.Reader<T> reader,
+                final TrackingFsDataInputStream stream,
+                final long initialOffset,
+                final long initialSkipCount) {
 
-		@Nullable
-		@Override
-		public RecordIterator<T> readBatch() throws IOException {
-			updateCheckpointedPosition();
-			stream.newBatch();
+            this.reader = checkNotNull(reader);
+            this.stream = checkNotNull(stream);
+            this.lastOffset = initialOffset;
+            this.lastRecordsAfterOffset = initialSkipCount;
+        }
 
-			final ArrayList<T> result = new ArrayList<>();
-			T next;
-			while (stream.hasRemainingInBatch() && (next = reader.read()) != null) {
-				result.add(next);
-			}
+        @Nullable
+        @Override
+        public RecordIterator<T> readBatch() throws IOException {
+            updateCheckpointedPosition();
+            stream.newBatch();
 
-			if (result.isEmpty()) {
-				return null;
-			}
+            final ArrayList<T> result = new ArrayList<>();
+            T next;
+            while (stream.hasRemainingInBatch() && (next = reader.read()) != null) {
+                result.add(next);
+            }
 
-			final RecordIterator<T> iter = new IteratorResultIterator<>(
-					result.iterator(), lastOffset, lastRecordsAfterOffset);
-			lastRecordsAfterOffset += result.size();
-			return iter;
-		}
+            if (result.isEmpty()) {
+                return null;
+            }
 
-		@Override
-		public void close() throws IOException {
-			try {
-				reader.close();
-			} finally {
-				// this is just in case, to guard against resource leaks
-				IOUtils.closeQuietly(stream);
-			}
-		}
+            final RecordIterator<T> iter =
+                    new IteratorResultIterator<>(
+                            result.iterator(), lastOffset, lastRecordsAfterOffset);
+            lastRecordsAfterOffset += result.size();
+            return iter;
+        }
 
-		private void updateCheckpointedPosition() {
-			final CheckpointedPosition position = reader.getCheckpointedPosition();
-			if (position != null) {
-				this.lastOffset = position.getOffset();
-				this.lastRecordsAfterOffset = position.getRecordsAfterOffset();
-			}
-		}
-	}
+        @Override
+        public void close() throws IOException {
+            try {
+                reader.close();
+            } finally {
+                // this is just in case, to guard against resource leaks
+                IOUtils.closeQuietly(stream);
+            }
+        }
 
-	// ----------------------------------------------------------------------------------
+        private void updateCheckpointedPosition() {
+            final CheckpointedPosition position = reader.getCheckpointedPosition();
+            if (position != null) {
+                this.lastOffset = position.getOffset();
+                this.lastRecordsAfterOffset = position.getRecordsAfterOffset();
+            }
+        }
+    }
 
-	/**
-	 * Utility stream that tracks how much has been read. This is used to decide when the reader
-	 * should finish the current batch and start the next batch. That way we make the batch sizes
-	 * dependent on the consumed data volume, which is more robust than making it dependent on a
-	 * record count.
-	 */
-	private static final class TrackingFsDataInputStream extends FSDataInputStream {
+    // ----------------------------------------------------------------------------------
 
-		private final FSDataInputStream stream;
-		private final long fileLength;
-		private final int batchSize;
-		private int remainingInBatch;
+    /**
+     * Utility stream that tracks how much has been read. This is used to decide when the reader
+     * should finish the current batch and start the next batch. That way we make the batch sizes
+     * dependent on the consumed data volume, which is more robust than making it dependent on a
+     * record count.
+     */
+    private static final class TrackingFsDataInputStream extends FSDataInputStream {
 
-		TrackingFsDataInputStream(FSDataInputStream stream, long fileLength, int batchSize) {
-			checkArgument(fileLength > 0L);
-			checkArgument(batchSize > 0);
-			this.stream = stream;
-			this.fileLength = fileLength;
-			this.batchSize = batchSize;
-		}
+        private final FSDataInputStream stream;
+        private final long fileLength;
+        private final int batchSize;
+        private int remainingInBatch;
 
-		@Override
-		public void seek(long desired) throws IOException {
-			stream.seek(desired);
-			remainingInBatch = 0;  // after each seek, we need to start a new batch
-		}
+        TrackingFsDataInputStream(FSDataInputStream stream, long fileLength, int batchSize) {
+            checkArgument(fileLength > 0L);
+            checkArgument(batchSize > 0);
+            this.stream = stream;
+            this.fileLength = fileLength;
+            this.batchSize = batchSize;
+        }
 
-		@Override
-		public long getPos() throws IOException {
-			return stream.getPos();
-		}
+        @Override
+        public void seek(long desired) throws IOException {
+            stream.seek(desired);
+            remainingInBatch = 0; // after each seek, we need to start a new batch
+        }
 
-		@Override
-		public int read() throws IOException {
-			remainingInBatch--;
-			return stream.read();
-		}
+        @Override
+        public long getPos() throws IOException {
+            return stream.getPos();
+        }
 
-		@Override
-		public int read(byte[] b, int off, int len) throws IOException {
-			remainingInBatch -= len;
-			return stream.read(b, off, len);
-		}
+        @Override
+        public int read() throws IOException {
+            remainingInBatch--;
+            return stream.read();
+        }
 
-		@Override
-		public void close() throws IOException {
-			stream.close();
-		}
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            remainingInBatch -= len;
+            return stream.read(b, off, len);
+        }
 
-		boolean hasRemainingInBatch() {
-			return remainingInBatch > 0;
-		}
+        @Override
+        public void close() throws IOException {
+            stream.close();
+        }
 
-		void newBatch() {
-			remainingInBatch = batchSize;
-		}
+        boolean hasRemainingInBatch() {
+            return remainingInBatch > 0;
+        }
 
-		long getFileLength() {
-			return fileLength;
-		}
-	}
+        void newBatch() {
+            remainingInBatch = batchSize;
+        }
+
+        long getFileLength() {
+            return fileLength;
+        }
+    }
 }

@@ -17,24 +17,26 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import java.util
-import java.util.{SortedSet => JSortedSet}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.CalcitePair
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 
-import com.google.common.collect.ImmutableMap
+import com.google.common.collect.{ImmutableList, ImmutableMap}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+
+import java.util
+import java.util.{SortedSet => JSortedSet}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -45,11 +47,11 @@ import scala.collection.mutable
 object RelExplainUtil {
 
   /**
-    * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
-    * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
-    * The [[RelDescriptionWriterImpl]] is mainly used to generate
-    * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
-    */
+   * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
+   * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
+   * The [[RelDescriptionWriterImpl]] is mainly used to generate
+   * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
+   */
   def preferExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
     // infix format is more readable for displaying
     case _: RelDescriptionWriterImpl => ExpressionFormat.Infix
@@ -260,45 +262,23 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
-  def streamGroupAggregationToString(
+  def streamWindowAggregationToString(
       inputRowType: RelDataType,
       outputRowType: RelDataType,
-      aggCalls: Seq[AggregateCall],
-      grouping: Array[Int]): String = {
-    val inputFieldNames = inputRowType.getFieldNames
-    val outputFieldNames = outputRowType.getFieldNames
-    val aggStrings = aggCalls.map { call =>
-      val distinct = if (call.isDistinct) {
-        if (call.getArgList.size() == 0) {
-          "DISTINCT"
-        } else {
-          "DISTINCT "
-        }
-      } else {
-        ""
-      }
-      val newArgList = call.getArgList.map(_.toInt).toList
-      val argListNames = if (newArgList.nonEmpty) {
-        newArgList.map(inputFieldNames(_)).mkString(", ")
-      } else {
-        "*"
-      }
-
-      if (call.filterArg >= 0 && call.filterArg < inputFieldNames.size) {
-        s"${call.getAggregation}($distinct$argListNames) FILTER " +
-          s"${inputFieldNames(call.filterArg)}"
-      } else {
-        s"${call.getAggregation}($distinct$argListNames)"
-      }
-    }
-    (grouping.map(inputFieldNames(_)) ++ aggStrings).zip(
-      grouping.indices.map(outputFieldNames(_)) ++ outputFieldNames).map {
-      case (f, o) => if (f == o) {
-        f
-      } else {
-        s"$f AS $o"
-      }
-    }.mkString(", ")
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean = false,
+      isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey = None,
+      windowProperties,
+      isLocal,
+      isGlobal)
   }
 
   def streamGroupAggregationToString(
@@ -309,8 +289,29 @@ object RelExplainUtil {
       shuffleKey: Option[Array[Int]] = None,
       isLocal: Boolean = false,
       isGlobal: Boolean = false): String = {
+    stringifyStreamAggregationToString(
+      inputRowType,
+      outputRowType,
+      aggInfoList,
+      grouping,
+      shuffleKey,
+      windowProperties = Seq(),
+      isLocal,
+      isGlobal)
+  }
+
+  private def stringifyStreamAggregationToString(
+      inputRowType: RelDataType,
+      outputRowType: RelDataType,
+      aggInfoList: AggregateInfoList,
+      grouping: Array[Int],
+      shuffleKey: Option[Array[Int]],
+      windowProperties: Seq[PlannerNamedWindowProperty],
+      isLocal: Boolean,
+      isGlobal: Boolean): String = {
 
     val aggInfos = aggInfoList.aggInfos
+    val actualAggInfos = aggInfoList.getActualAggregateInfos
     val distinctInfos = aggInfoList.distinctInfos
     val distinctFieldNames = distinctInfos.indices.map(index => s"distinct$$$index")
     // aggIndex -> distinctFieldName
@@ -344,7 +345,7 @@ object RelExplainUtil {
       val aggOutputFieldNames = localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
       stringifyGlobalAggregates(aggInfos, distinctAggs, aggOutputFieldNames)
     } else {
-      stringifyAggregates(aggInfos, distinctAggs, aggFilters, inFieldNames)
+      stringifyAggregates(actualAggInfos, distinctAggs, aggFilters, inFieldNames)
     }
 
     val isTableAggregate =
@@ -355,13 +356,19 @@ object RelExplainUtil {
       val accFieldNames = inputRowType.getFieldNames.toList.toArray
       grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
     } else if (isTableAggregate) {
-      outFieldNames.slice(0, grouping.length) ++
-        Seq(s"(${outFieldNames.drop(grouping.length).mkString(", ")})")
+      val groupingOutNames = outFieldNames.slice(0, grouping.length)
+      val aggOutNames = List(s"(${outFieldNames.drop(grouping.length)
+        .dropRight(windowProperties.length).mkString(", ")})")
+      val propertyOutNames = outFieldNames.slice(
+        outFieldNames.length - windowProperties.length,
+        outFieldNames.length)
+      groupingOutNames ++ aggOutNames ++ propertyOutNames
     } else {
       outFieldNames
     }
 
-    (groupingNames ++ aggStrings).zip(outputFieldNames).map {
+    val propStrings = windowProperties.map(_.getProperty.toString)
+    (groupingNames ++ aggStrings ++ propStrings).zip(outputFieldNames).map {
       case (f, o) if f == o => f
       case (f, o) => s"$f AS $o"
     }.mkString(", ")
@@ -742,7 +749,11 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
-  def streamWindowAggregationToString(
+  /**
+   * @deprecated please use [[streamWindowAggregationToString()]] instead.
+   */
+  @Deprecated
+  def legacyStreamWindowAggregationToString(
       inputType: RelDataType,
       grouping: Array[Int],
       rowType: RelDataType,
@@ -762,9 +773,9 @@ object RelExplainUtil {
     }
     val groupStrings = grouping.map(inFields(_))
 
-    val aggStrings = aggs.map(a => {
-      val distinct = if (a.isDistinct) {
-        if (a.getArgList.size() == 0) {
+    val aggStrings = aggs.map(call => {
+      val distinct = if (call.isDistinct) {
+        if (call.getArgList.size() == 0) {
           "DISTINCT"
         } else {
           "DISTINCT "
@@ -772,15 +783,22 @@ object RelExplainUtil {
       } else {
         ""
       }
-      val argList = if (a.getArgList.size() > 0) {
-        a.getArgList.map(inFields(_)).mkString(", ")
+      val argList = if (call.getArgList.size() > 0) {
+        call.getArgList.map(inFields(_)).mkString(", ")
       } else {
         "*"
       }
-      s"${a.getAggregation}($distinct$argList)"
+
+      val filter = if (call.filterArg >= 0 && call.filterArg < inFields.size) {
+        s" FILTER ${inFields(call.filterArg)}"
+      } else {
+        ""
+      }
+
+      s"${call.getAggregation}($distinct$argList)$filter"
     })
 
-    val propStrings = namedProperties.map(_.property.toString)
+    val propStrings = namedProperties.map(_.getProperty.toString)
     (groupStrings ++ aggStrings ++ propStrings).zip(outFields).map {
       case (f, o) => if (f == o) {
         f
@@ -841,4 +859,28 @@ object RelExplainUtil {
       case (k, v) => s"$k = (${v.mkString(", ")})"
     }.mkString(", ")
 
+  /**
+   * Converts [[RelHint]]s to String.
+   */
+  def hintsToString(hints: util.List[RelHint]): String = {
+    val sb = new StringBuilder
+    sb.append("[")
+    hints.foreach { hint =>
+      sb.append("[").append(hint.hintName)
+      if (!hint.inheritPath.isEmpty) {
+        sb.append(" inheritPath:").append(hint.inheritPath)
+      }
+      if (hint.listOptions.size() > 0 || hint.kvOptions.size() > 0) {
+        sb.append(" options:")
+        if (hint.listOptions.size > 0) {
+          sb.append(hint.listOptions.toString)
+        } else {
+          sb.append(hint.kvOptions.toString)
+        }
+      }
+      sb.append("]")
+    }
+    sb.append("]")
+    sb.toString
+  }
 }

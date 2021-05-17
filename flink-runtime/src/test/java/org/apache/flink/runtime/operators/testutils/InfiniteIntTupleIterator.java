@@ -21,18 +21,16 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.MutableObjectIterator;
 
-/**
- * A simple iterator that returns an infinite amount of (0, 0) tuples.
- */
+/** A simple iterator that returns an infinite amount of (0, 0) tuples. */
 public class InfiniteIntTupleIterator implements MutableObjectIterator<Tuple2<Integer, Integer>> {
-	
-	@Override
-	public Tuple2<Integer, Integer> next(Tuple2<Integer, Integer> reuse) {
-		return next();
-	}
 
-	@Override
-	public Tuple2<Integer, Integer> next() {
-		return new Tuple2<Integer, Integer>(0, 0);
-	}
+    @Override
+    public Tuple2<Integer, Integer> next(Tuple2<Integer, Integer> reuse) {
+        return next();
+    }
+
+    @Override
+    public Tuple2<Integer, Integer> next() {
+        return new Tuple2<Integer, Integer>(0, 0);
+    }
 }

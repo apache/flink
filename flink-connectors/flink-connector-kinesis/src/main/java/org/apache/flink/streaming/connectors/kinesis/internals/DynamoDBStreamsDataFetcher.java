@@ -17,13 +17,17 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
-import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.model.DynamoDBStreamsShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.DynamoDBStreamsProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
@@ -35,80 +39,90 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Dynamodb streams data fetcher.
+ *
  * @param <T> type of fetched data.
  */
 public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
-	private boolean shardIdFormatCheck = false;
+    private final RecordPublisherFactory recordPublisherFactory;
 
-	/**
-	 * Constructor.
-	 *
-	 * @param streams list of streams to fetch data
-	 * @param sourceContext source context
-	 * @param runtimeContext runtime context
-	 * @param configProps config properties
-	 * @param deserializationSchema deserialization schema
-	 * @param shardAssigner shard assigner
-	 */
-	public DynamoDBStreamsDataFetcher(List<String> streams,
-		SourceFunction.SourceContext<T> sourceContext,
-		RuntimeContext runtimeContext,
-		Properties configProps,
-		KinesisDeserializationSchema<T> deserializationSchema,
-		KinesisShardAssigner shardAssigner) {
+    /**
+     * Constructor.
+     *
+     * @param streams list of streams to fetch data
+     * @param sourceContext source context
+     * @param runtimeContext runtime context
+     * @param configProps config properties
+     * @param deserializationSchema deserialization schema
+     * @param shardAssigner shard assigner
+     */
+    public DynamoDBStreamsDataFetcher(
+            List<String> streams,
+            SourceFunction.SourceContext<T> sourceContext,
+            RuntimeContext runtimeContext,
+            Properties configProps,
+            KinesisDeserializationSchema<T> deserializationSchema,
+            KinesisShardAssigner shardAssigner) {
 
-		super(streams,
-			sourceContext,
-			sourceContext.getCheckpointLock(),
-			runtimeContext,
-			configProps,
-			deserializationSchema,
-			shardAssigner,
-			null,
-			null,
-			new AtomicReference<>(),
-			new ArrayList<>(),
-			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
-			// use DynamoDBStreamsProxy
-			DynamoDBStreamsProxy::create,
-			null);
-	}
+        this(
+                streams,
+                sourceContext,
+                runtimeContext,
+                configProps,
+                deserializationSchema,
+                shardAssigner,
+                DynamoDBStreamsProxy::create);
+    }
 
-	@Override
-	protected boolean shouldAdvanceLastDiscoveredShardId(String shardId, String lastSeenShardIdOfStream) {
-		if (DynamoDBStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
-			// shardID update is valid only if the given shard id is greater
-			// than the previous last seen shard id of the stream.
-			return false;
-		}
+    @VisibleForTesting
+    DynamoDBStreamsDataFetcher(
+            List<String> streams,
+            SourceFunction.SourceContext<T> sourceContext,
+            RuntimeContext runtimeContext,
+            Properties configProps,
+            KinesisDeserializationSchema<T> deserializationSchema,
+            KinesisShardAssigner shardAssigner,
+            FlinkKinesisProxyFactory flinkKinesisProxyFactory) {
+        super(
+                streams,
+                sourceContext,
+                sourceContext.getCheckpointLock(),
+                runtimeContext,
+                configProps,
+                deserializationSchema,
+                shardAssigner,
+                null,
+                null,
+                new AtomicReference<>(),
+                new ArrayList<>(),
+                createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
+                flinkKinesisProxyFactory,
+                null);
 
-		return true;
-	}
+        this.recordPublisherFactory = new PollingRecordPublisherFactory(flinkKinesisProxyFactory);
+    }
 
-	/**
-	 * Create a new DynamoDB streams shard consumer.
-	 *
-	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
-	 * @param handle stream handle
-	 * @param lastSeqNum last sequence number
-	 * @param metricGroup the metric group to report metrics to
-	 * @return
-	 */
-	@Override
-	protected ShardConsumer<T> createShardConsumer(
-		Integer subscribedShardStateIndex,
-		StreamShardHandle handle,
-		SequenceNumber lastSeqNum,
-		MetricGroup metricGroup,
-		KinesisDeserializationSchema<T> shardDeserializer) throws InterruptedException {
+    @Override
+    protected boolean shouldAdvanceLastDiscoveredShardId(
+            String shardId, String lastSeenShardIdOfStream) {
+        if (DynamoDBStreamsShardHandle.compareShardIds(shardId, lastSeenShardIdOfStream) <= 0) {
+            // shardID update is valid only if the given shard id is greater
+            // than the previous last seen shard id of the stream.
+            return false;
+        }
 
-		return new ShardConsumer<T>(
-			this,
-			createRecordPublisher(lastSeqNum, getConsumerConfiguration(), metricGroup, handle),
-			subscribedShardStateIndex,
-			handle,
-			lastSeqNum,
-			new ShardConsumerMetricsReporter(metricGroup),
-			shardDeserializer);
-	}
+        return true;
+    }
+
+    @Override
+    protected RecordPublisher createRecordPublisher(
+            SequenceNumber sequenceNumber,
+            Properties configProps,
+            MetricGroup metricGroup,
+            StreamShardHandle subscribedShard)
+            throws InterruptedException {
+        StartingPosition startingPosition =
+                StartingPosition.continueFromSequenceNumber(sequenceNumber);
+        return recordPublisherFactory.create(
+                startingPosition, getConsumerConfiguration(), metricGroup, subscribedShard);
+    }
 }

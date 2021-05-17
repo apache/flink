@@ -26,27 +26,29 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 /**
- * A wrapper the wraps a function that implements both {@link CombineFunction} and {@link GroupReduceFunction} interfaces
- * and makes it look like a function that implements {@link GroupCombineFunction} and {@link GroupReduceFunction} to the runtime.
+ * A wrapper the wraps a function that implements both {@link CombineFunction} and {@link
+ * GroupReduceFunction} interfaces and makes it look like a function that implements {@link
+ * GroupCombineFunction} and {@link GroupReduceFunction} to the runtime.
  */
 @Internal
-public class CombineToGroupCombineWrapper<IN, OUT, F extends CombineFunction<IN, IN> & GroupReduceFunction<IN, OUT>>
-	implements GroupCombineFunction<IN, IN>, GroupReduceFunction<IN, OUT> {
+public class CombineToGroupCombineWrapper<
+                IN, OUT, F extends CombineFunction<IN, IN> & GroupReduceFunction<IN, OUT>>
+        implements GroupCombineFunction<IN, IN>, GroupReduceFunction<IN, OUT> {
 
-	private final F wrappedFunction;
+    private final F wrappedFunction;
 
-	public CombineToGroupCombineWrapper(F wrappedFunction) {
-		this.wrappedFunction = Preconditions.checkNotNull(wrappedFunction);
-	}
+    public CombineToGroupCombineWrapper(F wrappedFunction) {
+        this.wrappedFunction = Preconditions.checkNotNull(wrappedFunction);
+    }
 
-	@Override
-	public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
-		IN outValue = wrappedFunction.combine(values);
-		out.collect(outValue);
-	}
+    @Override
+    public void combine(Iterable<IN> values, Collector<IN> out) throws Exception {
+        IN outValue = wrappedFunction.combine(values);
+        out.collect(outValue);
+    }
 
-	@Override
-	public void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
-		wrappedFunction.reduce(values, out);
-	}
+    @Override
+    public void reduce(Iterable<IN> values, Collector<OUT> out) throws Exception {
+        wrappedFunction.reduce(values, out);
+    }
 }

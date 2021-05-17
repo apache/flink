@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 
 import javax.annotation.Nonnull;
@@ -27,7 +28,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 
 /**
  * This class represents the snapshot of a {@link NestedStateMap}.
@@ -37,70 +42,92 @@ import java.util.Map;
  * @param <S> type of state
  */
 public class NestedStateMapSnapshot<K, N, S>
-	extends StateMapSnapshot<K, N, S, NestedStateMap<K, N, S>> {
+        extends StateMapSnapshot<K, N, S, NestedStateMap<K, N, S>> {
 
-	/**
-	 * Creates a new {@link NestedStateMapSnapshot}.
-	 *
-	 * @param owningStateMap the {@link NestedStateMap} for which this object represents a snapshot.
-	 */
-	public NestedStateMapSnapshot(NestedStateMap<K, N, S> owningStateMap) {
-		super(owningStateMap);
-	}
+    /**
+     * Creates a new {@link NestedStateMapSnapshot}.
+     *
+     * @param owningStateMap the {@link NestedStateMap} for which this object represents a snapshot.
+     */
+    public NestedStateMapSnapshot(NestedStateMap<K, N, S> owningStateMap) {
+        super(owningStateMap);
+    }
 
-	@Override
-	public void writeState(
-		TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<S> stateSerializer,
-		@Nonnull DataOutputView dov,
-		@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) throws IOException {
-		Map<N, Map<K, S>> mappings = filterMappingsIfNeeded(owningStateMap.getNamespaceMap(), stateSnapshotTransformer);
-		int numberOfEntries = countMappingsInKeyGroup(mappings);
+    @Override
+    public Iterator<StateEntry<K, N, S>> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        if (stateSnapshotTransformer == null) {
+            return owningStateMap.iterator();
+        } else {
+            return StreamSupport.stream(
+                            Spliterators.spliteratorUnknownSize(owningStateMap.iterator(), 0),
+                            false)
+                    .map(entry -> entry.filterOrTransform(stateSnapshotTransformer))
+                    .filter(Objects::nonNull)
+                    .iterator();
+        }
+    }
 
-		dov.writeInt(numberOfEntries);
-		for (Map.Entry<N, Map<K, S>> namespaceEntry : mappings.entrySet()) {
-			N namespace = namespaceEntry.getKey();
-			for (Map.Entry<K, S> entry : namespaceEntry.getValue().entrySet()) {
-				namespaceSerializer.serialize(namespace, dov);
-				keySerializer.serialize(entry.getKey(), dov);
-				stateSerializer.serialize(entry.getValue(), dov);
-			}
-		}
-	}
+    @Override
+    public void writeState(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<S> stateSerializer,
+            @Nonnull DataOutputView dov,
+            @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer)
+            throws IOException {
+        Map<N, Map<K, S>> mappings =
+                filterMappingsIfNeeded(owningStateMap.getNamespaceMap(), stateSnapshotTransformer);
+        int numberOfEntries = countMappingsInKeyGroup(mappings);
 
-	private Map<N, Map<K, S>> filterMappingsIfNeeded(
-		final Map<N, Map<K, S>> keyGroupMap,
-		StateSnapshotTransformer<S> stateSnapshotTransformer) {
-		if (stateSnapshotTransformer == null) {
-			return keyGroupMap;
-		}
+        dov.writeInt(numberOfEntries);
+        for (Map.Entry<N, Map<K, S>> namespaceEntry : mappings.entrySet()) {
+            N namespace = namespaceEntry.getKey();
+            for (Map.Entry<K, S> entry : namespaceEntry.getValue().entrySet()) {
+                namespaceSerializer.serialize(namespace, dov);
+                keySerializer.serialize(entry.getKey(), dov);
+                stateSerializer.serialize(entry.getValue(), dov);
+            }
+        }
+    }
 
-		Map<N, Map<K, S>> filtered = new HashMap<>();
-		for (Map.Entry<N, Map<K, S>> namespaceEntry : keyGroupMap.entrySet()) {
-			N namespace = namespaceEntry.getKey();
-			Map<K, S> filteredNamespaceMap = filtered.computeIfAbsent(namespace, n -> new HashMap<>());
-			for (Map.Entry<K, S> keyEntry : namespaceEntry.getValue().entrySet()) {
-				K key = keyEntry.getKey();
-				S transformedvalue = stateSnapshotTransformer.filterOrTransform(keyEntry.getValue());
-				if (transformedvalue != null) {
-					filteredNamespaceMap.put(key, transformedvalue);
-				}
-			}
-			if (filteredNamespaceMap.isEmpty()) {
-				filtered.remove(namespace);
-			}
-		}
+    private Map<N, Map<K, S>> filterMappingsIfNeeded(
+            final Map<N, Map<K, S>> keyGroupMap,
+            StateSnapshotTransformer<S> stateSnapshotTransformer) {
+        if (stateSnapshotTransformer == null) {
+            return keyGroupMap;
+        }
 
-		return filtered;
-	}
+        Map<N, Map<K, S>> filtered = new HashMap<>();
+        for (Map.Entry<N, Map<K, S>> namespaceEntry : keyGroupMap.entrySet()) {
+            N namespace = namespaceEntry.getKey();
+            Map<K, S> filteredNamespaceMap =
+                    filtered.computeIfAbsent(namespace, n -> new HashMap<>());
+            for (Map.Entry<K, S> keyEntry : namespaceEntry.getValue().entrySet()) {
+                K key = keyEntry.getKey();
+                S transformedvalue =
+                        stateSnapshotTransformer.filterOrTransform(keyEntry.getValue());
+                if (transformedvalue != null) {
+                    filteredNamespaceMap.put(key, transformedvalue);
+                }
+            }
+            if (filteredNamespaceMap.isEmpty()) {
+                filtered.remove(namespace);
+            }
+        }
 
-	private int countMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
-		int count = 0;
-		for (Map<K, S> namespaceMap : keyGroupMap.values()) {
-			count += namespaceMap.size();
-		}
+        return filtered;
+    }
 
-		return count;
-	}
+    private int countMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
+        int count = 0;
+        for (Map<K, S> namespaceMap : keyGroupMap.values()) {
+            count += namespaceMap.size();
+        }
+
+        return count;
+    }
 }

@@ -21,17 +21,14 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * This interface provides a context in which user functions can initialize by registering to managed state (i.e. state
- * that is managed by state backends).
+ * This interface provides a context in which user functions can initialize by registering to
+ * managed state (i.e. state that is managed by state backends).
  *
- * <p>
- * Operator state is available to all functions, while keyed state is only available for functions after keyBy.
+ * <p>Operator state is available to all functions, while keyed state is only available for
+ * functions after keyBy.
  *
- * <p>
- * For the purpose of initialization, the context signals if the state is empty or was restored from a previous
- * execution.
- *
+ * <p>For the purpose of initialization, the context signals if the state is empty or was restored
+ * from a previous execution.
  */
 @PublicEvolving
-public interface FunctionInitializationContext extends ManagedInitializationContext {
-}
+public interface FunctionInitializationContext extends ManagedInitializationContext {}

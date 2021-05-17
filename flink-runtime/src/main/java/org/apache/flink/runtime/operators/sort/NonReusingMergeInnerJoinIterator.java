@@ -29,31 +29,46 @@ import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
+public class NonReusingMergeInnerJoinIterator<T1, T2, O>
+        extends AbstractMergeInnerJoinIterator<T1, T2, O> {
 
-public class NonReusingMergeInnerJoinIterator<T1, T2, O> extends AbstractMergeInnerJoinIterator<T1, T2, O> {
+    public NonReusingMergeInnerJoinIterator(
+            MutableObjectIterator<T1> input1,
+            MutableObjectIterator<T2> input2,
+            TypeSerializer<T1> serializer1,
+            TypeComparator<T1> comparator1,
+            TypeSerializer<T2> serializer2,
+            TypeComparator<T2> comparator2,
+            TypePairComparator<T1, T2> pairComparator,
+            MemoryManager memoryManager,
+            IOManager ioManager,
+            int numMemoryPages,
+            AbstractInvokable parentTask)
+            throws MemoryAllocationException {
+        super(
+                input1,
+                input2,
+                serializer1,
+                comparator1,
+                serializer2,
+                comparator2,
+                pairComparator,
+                memoryManager,
+                ioManager,
+                numMemoryPages,
+                parentTask);
+    }
 
-	public NonReusingMergeInnerJoinIterator(
-			MutableObjectIterator<T1> input1,
-			MutableObjectIterator<T2> input2,
-			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
-			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
-			TypePairComparator<T1, T2> pairComparator,
-			MemoryManager memoryManager,
-			IOManager ioManager,
-			int numMemoryPages,
-			AbstractInvokable parentTask)
-			throws MemoryAllocationException {
-		super(input1, input2, serializer1, comparator1, serializer2, comparator2, pairComparator, memoryManager, ioManager, numMemoryPages, parentTask);
-	}
+    @Override
+    protected <T> KeyGroupedIterator<T> createKeyGroupedIterator(
+            MutableObjectIterator<T> input,
+            TypeSerializer<T> serializer,
+            TypeComparator<T> comparator) {
+        return new NonReusingKeyGroupedIterator<T>(input, comparator);
+    }
 
-	@Override
-	protected <T> KeyGroupedIterator<T> createKeyGroupedIterator(MutableObjectIterator<T> input, TypeSerializer<T> serializer, TypeComparator<T> comparator) {
-		return new NonReusingKeyGroupedIterator<T>(input, comparator);
-	}
-
-	@Override
-	protected <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse) {
-		return serializer.copy(value);
-	}
-
+    @Override
+    protected <T> T createCopy(TypeSerializer<T> serializer, T value, T reuse) {
+        return serializer.copy(value);
+    }
 }

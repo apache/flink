@@ -38,42 +38,44 @@ import java.util.List;
  */
 @Internal
 public class StreamExecutor implements Executor {
-	private final StreamExecutionEnvironment executionEnvironment;
+    private final StreamExecutionEnvironment executionEnvironment;
 
-	@VisibleForTesting
-	public StreamExecutor(StreamExecutionEnvironment executionEnvironment) {
-		this.executionEnvironment = executionEnvironment;
-	}
+    @VisibleForTesting
+    public StreamExecutor(StreamExecutionEnvironment executionEnvironment) {
+        this.executionEnvironment = executionEnvironment;
+    }
 
-	@Override
-	public Pipeline createPipeline(List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
-		if (transformations.size() <= 0) {
-			throw new IllegalStateException("No operators defined in streaming topology. Cannot generate StreamGraph.");
-		}
-		return new StreamGraphGenerator(
-				transformations,
-				executionEnvironment.getConfig(),
-				executionEnvironment.getCheckpointConfig())
-			.setStateBackend(executionEnvironment.getStateBackend())
-			.setChaining(executionEnvironment.isChainingEnabled())
-			.setUserArtifacts(executionEnvironment.getCachedFiles())
-			.setTimeCharacteristic(executionEnvironment.getStreamTimeCharacteristic())
-			.setDefaultBufferTimeout(executionEnvironment.getBufferTimeout())
-			.setJobName(jobName)
-			.generate();
-	}
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+        if (transformations.size() <= 0) {
+            throw new IllegalStateException(
+                    "No operators defined in streaming topology. Cannot generate StreamGraph.");
+        }
+        return new StreamGraphGenerator(
+                        transformations,
+                        executionEnvironment.getConfig(),
+                        executionEnvironment.getCheckpointConfig())
+                .setStateBackend(executionEnvironment.getStateBackend())
+                .setChaining(executionEnvironment.isChainingEnabled())
+                .setUserArtifacts(executionEnvironment.getCachedFiles())
+                .setTimeCharacteristic(executionEnvironment.getStreamTimeCharacteristic())
+                .setDefaultBufferTimeout(executionEnvironment.getBufferTimeout())
+                .setJobName(jobName)
+                .generate();
+    }
 
-	@Override
-	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
-		return executionEnvironment.execute((StreamGraph) pipeline);
-	}
+    @Override
+    public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+        return executionEnvironment.execute((StreamGraph) pipeline);
+    }
 
-	@Override
-	public JobClient executeAsync(Pipeline pipeline) throws Exception {
-		return executionEnvironment.executeAsync((StreamGraph) pipeline);
-	}
+    @Override
+    public JobClient executeAsync(Pipeline pipeline) throws Exception {
+        return executionEnvironment.executeAsync((StreamGraph) pipeline);
+    }
 
-	public StreamExecutionEnvironment getExecutionEnvironment() {
-		return executionEnvironment;
-	}
+    public StreamExecutionEnvironment getExecutionEnvironment() {
+        return executionEnvironment;
+    }
 }

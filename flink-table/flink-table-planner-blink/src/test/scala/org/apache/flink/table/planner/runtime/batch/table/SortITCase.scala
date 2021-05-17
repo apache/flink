@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.SortTestUtils.{sortExpectedly, tupleDataSetStrings}
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, CollectionBatchExecTable}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._
@@ -28,6 +29,9 @@ import org.junit._
 import scala.collection.JavaConverters._
 
 class SortITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   def compare(t: Table, expected: String): Unit = {
     TestBaseUtils.compareOrderedResultAsText(executeQuery(t).asJava, expected)

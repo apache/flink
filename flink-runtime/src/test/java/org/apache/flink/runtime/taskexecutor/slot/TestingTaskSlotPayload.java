@@ -26,53 +26,54 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import java.util.concurrent.CompletableFuture;
 
 class TestingTaskSlotPayload implements TaskSlotPayload {
-	private final JobID jobId;
-	private final ExecutionAttemptID executionAttemptID;
-	private final AllocationID allocationID;
-	private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
-	private final OneShotLatch failLatch = new OneShotLatch();
+    private final JobID jobId;
+    private final ExecutionAttemptID executionAttemptID;
+    private final AllocationID allocationID;
+    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+    private final OneShotLatch failLatch = new OneShotLatch();
 
-	TestingTaskSlotPayload() {
-		this(new JobID(), new ExecutionAttemptID(), new AllocationID());
-	}
+    TestingTaskSlotPayload() {
+        this(new JobID(), new ExecutionAttemptID(), new AllocationID());
+    }
 
-	TestingTaskSlotPayload(JobID jobId, ExecutionAttemptID executionAttemptID, AllocationID allocationID) {
-		this.jobId = jobId;
-		this.executionAttemptID = executionAttemptID;
-		this.allocationID = allocationID;
-	}
+    TestingTaskSlotPayload(
+            JobID jobId, ExecutionAttemptID executionAttemptID, AllocationID allocationID) {
+        this.jobId = jobId;
+        this.executionAttemptID = executionAttemptID;
+        this.allocationID = allocationID;
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-	@Override
-	public ExecutionAttemptID getExecutionId() {
-		return executionAttemptID;
-	}
+    @Override
+    public ExecutionAttemptID getExecutionId() {
+        return executionAttemptID;
+    }
 
-	@Override
-	public AllocationID getAllocationId() {
-		return allocationID;
-	}
+    @Override
+    public AllocationID getAllocationId() {
+        return allocationID;
+    }
 
-	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
 
-	@Override
-	public void failExternally(Throwable cause) {
-		failLatch.trigger();
-	}
+    @Override
+    public void failExternally(Throwable cause) {
+        failLatch.trigger();
+    }
 
-	void waitForFailure() throws InterruptedException {
-		failLatch.await();
-	}
+    void waitForFailure() throws InterruptedException {
+        failLatch.await();
+    }
 
-	TestingTaskSlotPayload terminate() {
-		terminationFuture.complete(null);
-		return this;
-	}
+    TestingTaskSlotPayload terminate() {
+        terminationFuture.complete(null);
+        return this;
+    }
 }

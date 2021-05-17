@@ -24,28 +24,27 @@ import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * The set of configuration options relating to JMX server.
- */
+/** The set of configuration options relating to JMX server. */
 @PublicEvolving
 public class JMXServerOptions {
 
-	/** Port configured to enable JMX server for metrics and debugging. */
-	@Documentation.Section(Documentation.Sections.EXPERT_DEBUGGING_AND_TUNING)
-	public static final ConfigOption<String>JMX_SERVER_PORT =
-		key("jmx.server.port")
-			.noDefaultValue()
-			.withDescription(
-			new Description.DescriptionBuilder()
-				.text("The port range for the JMX server to start the registry. The " +
-					"port config can be a single port: \"9123\", a range of ports: \"50100-50200\", " +
-					"or a list of ranges and ports: \"50100-50200,50300-50400,51234\". ")
-				.linebreak()
-				.text("This option overrides metrics.reporter.*.port option.")
-				.build());
+    /** Port configured to enable JMX server for metrics and debugging. */
+    @Documentation.Section(Documentation.Sections.EXPERT_DEBUGGING_AND_TUNING)
+    public static final ConfigOption<String> JMX_SERVER_PORT =
+            key("jmx.server.port")
+                    .noDefaultValue()
+                    .withDescription(
+                            new Description.DescriptionBuilder()
+                                    .text(
+                                            "The port range for the JMX server to start the registry. The "
+                                                    + "port config can be a single port: \"9123\", a range of ports: \"50100-50200\", "
+                                                    + "or a list of ranges and ports: \"50100-50200,50300-50400,51234\". ")
+                                    .linebreak()
+                                    .text("This option overrides metrics.reporter.*.port option.")
+                                    .build());
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated. */
-	private JMXServerOptions() {}
+    /** Not intended to be instantiated. */
+    private JMXServerOptions() {}
 }

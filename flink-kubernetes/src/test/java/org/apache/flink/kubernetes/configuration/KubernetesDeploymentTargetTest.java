@@ -27,49 +27,52 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link KubernetesDeploymentTarget}.
- */
+/** Tests for the {@link KubernetesDeploymentTarget}. */
 public class KubernetesDeploymentTargetTest {
 
-	@Test
-	public void testCorrectInstantiationFromConfiguration() {
-		for (KubernetesDeploymentTarget t : KubernetesDeploymentTarget.values()) {
-			testCorrectInstantiationFromConfigurationHelper(t);
-		}
-	}
+    @Test
+    public void testCorrectInstantiationFromConfiguration() {
+        for (KubernetesDeploymentTarget t : KubernetesDeploymentTarget.values()) {
+            testCorrectInstantiationFromConfigurationHelper(t);
+        }
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testInvalidInstantiationFromConfiguration() {
-		final Configuration configuration = getConfigurationWithTarget("invalid-target");
-		KubernetesDeploymentTarget.fromConfig(configuration);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testInvalidInstantiationFromConfiguration() {
+        final Configuration configuration = getConfigurationWithTarget("invalid-target");
+        KubernetesDeploymentTarget.fromConfig(configuration);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testNullInstantiationFromConfiguration() {
-		KubernetesDeploymentTarget.fromConfig(new Configuration());
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testNullInstantiationFromConfiguration() {
+        KubernetesDeploymentTarget.fromConfig(new Configuration());
+    }
 
-	@Test
-	public void testThatAValidOptionIsValid() {
-		assertTrue(KubernetesDeploymentTarget.isValidKubernetesTarget(KubernetesDeploymentTarget.APPLICATION.getName()));
-	}
+    @Test
+    public void testThatAValidOptionIsValid() {
+        assertTrue(
+                KubernetesDeploymentTarget.isValidKubernetesTarget(
+                        KubernetesDeploymentTarget.APPLICATION.getName()));
+    }
 
-	@Test
-	public void testThatAnInvalidOptionIsInvalid() {
-		assertFalse(KubernetesDeploymentTarget.isValidKubernetesTarget("invalid-target"));
-	}
+    @Test
+    public void testThatAnInvalidOptionIsInvalid() {
+        assertFalse(KubernetesDeploymentTarget.isValidKubernetesTarget("invalid-target"));
+    }
 
-	private void testCorrectInstantiationFromConfigurationHelper(final KubernetesDeploymentTarget expectedDeploymentTarget) {
-		final Configuration configuration = getConfigurationWithTarget(expectedDeploymentTarget.getName().toUpperCase());
-		final KubernetesDeploymentTarget actualDeploymentTarget = KubernetesDeploymentTarget.fromConfig(configuration);
+    private void testCorrectInstantiationFromConfigurationHelper(
+            final KubernetesDeploymentTarget expectedDeploymentTarget) {
+        final Configuration configuration =
+                getConfigurationWithTarget(expectedDeploymentTarget.getName().toUpperCase());
+        final KubernetesDeploymentTarget actualDeploymentTarget =
+                KubernetesDeploymentTarget.fromConfig(configuration);
 
-		assertSame(actualDeploymentTarget, expectedDeploymentTarget);
-	}
+        assertSame(actualDeploymentTarget, expectedDeploymentTarget);
+    }
 
-	private Configuration getConfigurationWithTarget(final String target) {
-		final Configuration configuration = new Configuration();
-		configuration.set(DeploymentOptions.TARGET,  target);
-		return configuration;
-	}
+    private Configuration getConfigurationWithTarget(final String target) {
+        final Configuration configuration = new Configuration();
+        configuration.set(DeploymentOptions.TARGET, target);
+        return configuration;
+    }
 }

@@ -36,39 +36,38 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertFalse;
 
-/**
- * Test for {@link BatchExecutor}.
- */
+/** Test for {@link BatchExecutor}. */
 public class BatchExecutorTest extends TestLogger {
 
-	private final BatchExecutor batchExecutor;
+    private final BatchExecutor batchExecutor;
 
-	private final StreamGraph streamGraph;
+    private final StreamGraph streamGraph;
 
-	public BatchExecutorTest() {
-		batchExecutor = new BatchExecutor(LocalStreamEnvironment.getExecutionEnvironment());
+    public BatchExecutorTest() {
+        batchExecutor = new BatchExecutor(LocalStreamEnvironment.getExecutionEnvironment());
 
-		final Transformation testTransform = new LegacySourceTransformation<>(
-			"MockTransform",
-			new StreamSource<>(new SourceFunction<String>() {
-				@Override
-				public void run(SourceContext<String> ctx) {
-				}
+        final Transformation testTransform =
+                new LegacySourceTransformation<>(
+                        "MockTransform",
+                        new StreamSource<>(
+                                new SourceFunction<String>() {
+                                    @Override
+                                    public void run(SourceContext<String> ctx) {}
 
-				@Override
-				public void cancel() {
-				}
-			}),
-			BasicTypeInfo.STRING_TYPE_INFO,
-			1,
-			Boundedness.BOUNDED);
-		Pipeline pipeline = batchExecutor.createPipeline(
-			Collections.singletonList(testTransform), new TableConfig(), "Test Job");
-		streamGraph = (StreamGraph) pipeline;
-	}
+                                    @Override
+                                    public void cancel() {}
+                                }),
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        1,
+                        Boundedness.BOUNDED);
+        Pipeline pipeline =
+                batchExecutor.createPipeline(
+                        Collections.singletonList(testTransform), new TableConfig(), "Test Job");
+        streamGraph = (StreamGraph) pipeline;
+    }
 
-	@Test
-	public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
-		assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
-	}
+    @Test
+    public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
+        assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
+    }
 }

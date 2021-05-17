@@ -19,33 +19,36 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 
 import java.util.Map;
 
 /**
- * A factory to create configured table sink instances in a batch environment based on
- * string-based properties. See also {@link TableSinkFactory} for more information.
+ * A factory to create configured table sink instances in a batch environment based on string-based
+ * properties. See also {@link TableSinkFactory} for more information.
  *
  * @param <T> type of records that the factory consumes
+ * @deprecated This interface has been replaced by {@link DynamicTableSinkFactory}. The new
+ *     interface creates instances of {@link DynamicTableSink} and only works with the Blink
+ *     planner. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface BatchTableSinkFactory<T> extends TableSinkFactory<T> {
 
-	/**
-	 * Creates and configures a {@link BatchTableSink} using the given properties.
-	 *
-	 * @param properties normalized properties describing a table sink.
-	 * @return the configured table sink.
-	 */
-	BatchTableSink<T> createBatchTableSink(Map<String, String> properties);
+    /**
+     * Creates and configures a {@link BatchTableSink} using the given properties.
+     *
+     * @param properties normalized properties describing a table sink.
+     * @return the configured table sink.
+     */
+    BatchTableSink<T> createBatchTableSink(Map<String, String> properties);
 
-	/**
-	 * Only create batch table sink.
-	 */
-	@Override
-	default TableSink<T> createTableSink(Map<String, String> properties) {
-		return createBatchTableSink(properties);
-	}
+    /** Only create batch table sink. */
+    @Override
+    default TableSink<T> createTableSink(Map<String, String> properties) {
+        return createBatchTableSink(properties);
+    }
 }

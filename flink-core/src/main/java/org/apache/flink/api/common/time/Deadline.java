@@ -19,78 +19,95 @@
 package org.apache.flink.api.common.time;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeoutException;
 
-/**
- * This class stores a deadline, as obtained via {@link #now()} or from {@link #plus(Duration)}.
- */
+/** This class stores a deadline, as obtained via {@link #now()} or from {@link #plus(Duration)}. */
 @Internal
 public class Deadline {
 
-	/** The deadline, relative to {@link System#nanoTime()}. */
-	private final long timeNanos;
+    /** The deadline, relative to {@link System#nanoTime()}. */
+    private final long timeNanos;
 
-	private Deadline(long deadline) {
-		this.timeNanos = deadline;
-	}
+    /** Clock providing the time for this deadline. */
+    private final Clock clock;
 
-	public Deadline plus(Duration other) {
-		return new Deadline(Math.addExact(timeNanos, other.toNanos()));
-	}
+    private Deadline(long deadline, Clock clock) {
+        this.timeNanos = deadline;
+        this.clock = clock;
+    }
 
-	/**
-	 * Returns the time left between the deadline and now. The result is negative if the deadline
-	 * has passed.
-	 */
-	public Duration timeLeft() {
-		return Duration.ofNanos(Math.subtractExact(timeNanos, System.nanoTime()));
-	}
+    public Deadline plus(Duration other) {
+        return new Deadline(Math.addExact(timeNanos, other.toNanos()), this.clock);
+    }
 
-	/**
-	 * Returns the time left between the deadline and now. If no time is left, a {@link TimeoutException} will be thrown.
-	 *
-	 * @throws TimeoutException if no time is left
-	 */
-	public Duration timeLeftIfAny() throws TimeoutException {
-		long nanos = Math.subtractExact(timeNanos, System.nanoTime());
-		if (nanos <= 0) {
-			throw new TimeoutException();
-		}
-		return Duration.ofNanos(nanos);
-	}
+    /**
+     * Returns the time left between the deadline and now. The result is negative if the deadline
+     * has passed.
+     */
+    public Duration timeLeft() {
+        return Duration.ofNanos(Math.subtractExact(timeNanos, clock.relativeTimeNanos()));
+    }
 
-	/**
-	 * Returns whether there is any time left between the deadline and now.
-	 */
-	public boolean hasTimeLeft() {
-		return !isOverdue();
-	}
+    /**
+     * Returns the time left between the deadline and now. If no time is left, a {@link
+     * TimeoutException} will be thrown.
+     *
+     * @throws TimeoutException if no time is left
+     */
+    public Duration timeLeftIfAny() throws TimeoutException {
+        long nanos = Math.subtractExact(timeNanos, clock.relativeTimeNanos());
+        if (nanos <= 0) {
+            throw new TimeoutException();
+        }
+        return Duration.ofNanos(nanos);
+    }
 
-	/**
-	 * Determines whether the deadline is in the past, i.e. whether the time left is negative.
-	 */
-	public boolean isOverdue() {
-		return timeNanos < System.nanoTime();
-	}
+    /** Returns whether there is any time left between the deadline and now. */
+    public boolean hasTimeLeft() {
+        return !isOverdue();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Creating Deadlines
-	// ------------------------------------------------------------------------
+    /** Determines whether the deadline is in the past, i.e. whether the time left is negative. */
+    public boolean isOverdue() {
+        return timeNanos < clock.relativeTimeNanos();
+    }
 
-	/**
-	 * Constructs a {@link Deadline} that has now as the deadline. Use this and then extend via
-	 * {@link #plus(Duration)} to specify a deadline in the future.
-	 */
-	public static Deadline now() {
-		return new Deadline(System.nanoTime());
-	}
+    // ------------------------------------------------------------------------
+    //  Creating Deadlines
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Constructs a Deadline that is a given duration after now.
-	 */
-	public static Deadline fromNow(Duration duration) {
-		return new Deadline(Math.addExact(System.nanoTime(), duration.toNanos()));
-	}
+    /**
+     * Constructs a {@link Deadline} that has now as the deadline. Use this and then extend via
+     * {@link #plus(Duration)} to specify a deadline in the future.
+     */
+    public static Deadline now() {
+        return new Deadline(System.nanoTime(), SystemClock.getInstance());
+    }
+
+    /** Constructs a Deadline that is a given duration after now. */
+    public static Deadline fromNow(Duration duration) {
+        return new Deadline(
+                Math.addExact(System.nanoTime(), duration.toNanos()), SystemClock.getInstance());
+    }
+
+    /**
+     * Constructs a Deadline that is a given duration after now, where now and all other times from
+     * this deadline are defined by the given {@link Clock}.
+     *
+     * @param duration Duration for this deadline.
+     * @param clock Time provider for this deadline.
+     */
+    public static Deadline fromNowWithClock(Duration duration, Clock clock) {
+        return new Deadline(Math.addExact(clock.relativeTimeNanos(), duration.toNanos()), clock);
+    }
+
+    @Override
+    public String toString() {
+        return LocalDateTime.now().plus(timeLeft()).toString();
+    }
 }

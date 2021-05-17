@@ -23,20 +23,16 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 
 /**
- * A RichCoMapFunction represents a Map transformation with two different input
- * types. In addition to that the user can use the features provided by the
- * {@link RichFunction} interface.
+ * A RichCoMapFunction represents a Map transformation with two different input types. In addition
+ * to that the user can use the features provided by the {@link RichFunction} interface.
  *
- * @param <IN1>
- *            Type of the first input.
- * @param <IN2>
- *            Type of the second input.
- * @param <OUT>
- *            Output type.
+ * @param <IN1> Type of the first input.
+ * @param <IN2> Type of the second input.
+ * @param <OUT> Output type.
  */
 @Public
-public abstract class RichCoMapFunction<IN1, IN2, OUT> extends AbstractRichFunction implements
-		CoMapFunction<IN1, IN2, OUT> {
+public abstract class RichCoMapFunction<IN1, IN2, OUT> extends AbstractRichFunction
+        implements CoMapFunction<IN1, IN2, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 }

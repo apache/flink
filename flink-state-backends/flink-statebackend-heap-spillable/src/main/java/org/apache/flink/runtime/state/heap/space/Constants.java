@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.state.heap.space;
 
-/**
- * constants.
- */
+/** constants. */
 public class Constants {
-	public static final int NO_SPACE = -1;
-	public static final int BUCKET_SIZE = 1024 * 1024;
-	public static final int FOUR_BYTES_BITS = 32;
-	public static final long FOUR_BYTES_MARK = 0xFFFFFFFFL;
+    public static final int NO_SPACE = -1;
+    public static final int BUCKET_SIZE = 1024 * 1024;
+    public static final int FOUR_BYTES_BITS = 32;
+    public static final long FOUR_BYTES_MARK = 0xFFFFFFFFL;
 }

@@ -31,16 +31,16 @@ import java.util.Iterator;
  * {@link #advanceNext()} method.
  */
 public interface RowIterator<T extends RowData> {
-	/**
-	 * Advance this iterator by a single row. Returns `false` if this iterator has no more rows
-	 * and `true` otherwise. If this returns `true`, then the new row can be retrieved by calling
-	 * {@link #getRow()}.
-		*/
-	boolean advanceNext();
+    /**
+     * Advance this iterator by a single row. Returns `false` if this iterator has no more rows and
+     * `true` otherwise. If this returns `true`, then the new row can be retrieved by calling {@link
+     * #getRow()}.
+     */
+    boolean advanceNext();
 
-	/**
-	 * Retrieve the row from this iterator. This method is idempotent. It is illegal to call this
-	 * method after [[advanceNext()]] has returned `false`.
-	 */
-	T getRow();
+    /**
+     * Retrieve the row from this iterator. This method is idempotent. It is illegal to call this
+     * method after [[advanceNext()]] has returned `false`.
+     */
+    T getRow();
 }

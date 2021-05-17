@@ -18,76 +18,62 @@
 
 package org.apache.flink.connector.jdbc.catalog.factory;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.connector.jdbc.catalog.JdbcCatalog;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.JdbcCatalogValidator;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_BASE_URL;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_PASSWORD;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_JDBC_USERNAME;
-import static org.apache.flink.table.descriptors.JdbcCatalogValidator.CATALOG_TYPE_VALUE_JDBC;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.BASE_URL;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.DEFAULT_DATABASE;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.PASSWORD;
+import static org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactoryOptions.USERNAME;
+import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 
-/**
- * Factory for {@link JdbcCatalog}.
- */
+/** Factory for {@link JdbcCatalog}. */
 public class JdbcCatalogFactory implements CatalogFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcCatalogFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcCatalogFactory.class);
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CATALOG_TYPE, CATALOG_TYPE_VALUE_JDBC); // jdbc
-		context.put(CATALOG_PROPERTY_VERSION, "1"); // backwards compatibility
-		return context;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return JdbcCatalogFactoryOptions.IDENTIFIER;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(DEFAULT_DATABASE);
+        options.add(USERNAME);
+        options.add(PASSWORD);
+        options.add(BASE_URL);
+        return options;
+    }
 
-		// default database
-		properties.add(CATALOG_DEFAULT_DATABASE);
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(PROPERTY_VERSION);
+        return options;
+    }
 
-		properties.add(CATALOG_JDBC_BASE_URL);
-		properties.add(CATALOG_JDBC_USERNAME);
-		properties.add(CATALOG_JDBC_PASSWORD);
+    @Override
+    public Catalog createCatalog(Context context) {
+        final FactoryUtil.CatalogFactoryHelper helper =
+                FactoryUtil.createCatalogFactoryHelper(this, context);
+        helper.validate();
 
-		return properties;
-	}
-
-	@Override
-	public Catalog createCatalog(String name, Map<String, String> properties) {
-		final DescriptorProperties prop = getValidatedProperties(properties);
-
-		return new JdbcCatalog(
-			name,
-			prop.getString(CATALOG_DEFAULT_DATABASE),
-			prop.getString(CATALOG_JDBC_USERNAME),
-			prop.getString(CATALOG_JDBC_PASSWORD),
-			prop.getString(CATALOG_JDBC_BASE_URL));
-	}
-
-	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putProperties(properties);
-
-		new JdbcCatalogValidator().validate(descriptorProperties);
-
-		return descriptorProperties;
-	}
-
+        return new JdbcCatalog(
+                context.getName(),
+                helper.getOptions().get(DEFAULT_DATABASE),
+                helper.getOptions().get(USERNAME),
+                helper.getOptions().get(PASSWORD),
+                helper.getOptions().get(BASE_URL));
+    }
 }

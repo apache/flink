@@ -38,11 +38,12 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+    image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
+  E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
@@ -50,6 +51,8 @@ variables:
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
   SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
   SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
+  SECRET_GLUE_SCHEMA_ACCESS_KEY: $[variables.IT_CASE_GLUE_SCHEMA_ACCESS_KEY]
+  SECRET_GLUE_SCHEMA_SECRET_KEY: $[variables.IT_CASE_GLUE_SCHEMA_SECRET_KEY]
 
 stages:
   # CI / PR triggered stage:
@@ -68,6 +71,29 @@ stages:
           run_end_to_end: false
           container: flink-build-container
           jdk: jdk8
+      - job: docs_404_check # run on a MSFT provided machine
+        pool:
+          vmImage: 'ubuntu-16.04'
+        steps:
+          # Skip docs check if this is a pull request that doesn't contain a documentation change
+          - bash: |
+              source ./tools/azure-pipelines/build_properties.sh
+              pr_contains_docs_changes
+              if [[ "$?" == 0 ]] ; then
+                echo "##[debug]This pull request doesn't contain a documentation change. Skipping docs check."
+                echo "##vso[task.setvariable variable=skip;]1"
+              else
+                echo "##[debug]This pull request contains a documentation change. Running docs check."
+                echo "##vso[task.setvariable variable=skip;]0"
+              fi
+            displayName: Check if PR contains docs change
+          - task: UseRubyVersion@0
+            condition: not(eq(variables['SKIP'], '1'))
+            inputs:
+              versionSpec: '= 2.4'
+              addToPath: true
+          - script: ./tools/ci/docs.sh
+            condition: not(eq(variables['SKIP'], '1'))
   # Special stage for nightly builds:
   - stage: cron_build
     displayName: "Cron build"
@@ -134,15 +160,26 @@ stages:
           run_end_to_end: true
           container: flink-build-container
           jdk: jdk11
+      - template: jobs-template.yml
+        parameters:
+          stage_name: cron_adaptive_scheduler
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Penable-adaptive-scheduler"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: jdk8
       - job: docs_404_check # run on a MSFT provided machine
-        pool: 
+        pool:
           vmImage: 'ubuntu-16.04'
         steps:
-        - task: UseRubyVersion@0
-          inputs:
-            versionSpec: '= 2.4'
-            addToPath: true
-        - script: ./tools/ci/docs.sh
+          - task: UseRubyVersion@0
+            inputs:
+              versionSpec: '= 2.4'
+              addToPath: true
+          - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
