@@ -38,8 +38,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests of {@link WatermarkAssignerOperator}. */
@@ -56,36 +58,42 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
         testHarness.open();
 
+        ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+        List<Object> expectedOutput = new ArrayList<>();
+
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
         testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
         // trigger watermark emit
         testHarness.setProcessingTime(51);
-        ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-        List<Watermark> watermarks = extractWatermarks(output);
-        assertEquals(1, watermarks.size());
-        assertEquals(new Watermark(3), watermarks.get(0));
-        assertEquals(StreamStatus.ACTIVE, testHarness.getStreamStatus());
-        output.clear();
+        expectedOutput.add(new Watermark(3));
+        assertThat(filterOutRecords(output), equalTo(expectedOutput));
 
         testHarness.setProcessingTime(1001);
-        assertEquals(StreamStatus.IDLE, testHarness.getStreamStatus());
+        expectedOutput.add(StreamStatus.IDLE);
+        assertThat(filterOutRecords(output), equalTo(expectedOutput));
 
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
+        expectedOutput.add(StreamStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
-        assertEquals(StreamStatus.ACTIVE, testHarness.getStreamStatus());
         testHarness.setProcessingTime(1060);
-        output = testHarness.getOutput();
-        watermarks = extractWatermarks(output);
-        assertEquals(1, watermarks.size());
-        assertEquals(new Watermark(7), watermarks.get(0));
+        expectedOutput.add(new Watermark(7));
+        assertThat(filterOutRecords(output), equalTo(expectedOutput));
     }
 
     @Test

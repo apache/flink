@@ -50,7 +50,6 @@ import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
@@ -87,8 +86,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     operator.
  */
 @Internal
-public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
-        implements StreamStatusMaintainer, BoundedMultiInput {
+public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements BoundedMultiInput {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 
@@ -363,12 +361,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
          * Chained sources are closed when {@link
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
-        return new ChainingOutput<>(input, metricGroup, this, outputTag, null);
-    }
-
-    @Override
-    public StreamStatus getStreamStatus() {
-        return streamStatus;
+        return new ChainingOutput<>(input, metricGroup, outputTag, null);
     }
 
     public OperatorEventDispatcher getOperatorEventDispatcher() {
@@ -378,13 +371,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event)
             throws FlinkException {
         operatorEventDispatcher.dispatchEventToHandlers(operator, event);
-    }
-
-    @Override
-    public void toggleStreamStatus(StreamStatus status) {
-        if (!status.equals(this.streamStatus)) {
-            this.streamStatus = status;
-        }
     }
 
     public void broadcastEvent(AbstractEvent event) throws IOException {
@@ -471,7 +457,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return mainOperatorOutput;
     }
 
-    public Output<StreamRecord<?>> getChainedSourceOutput(SourceInputConfig sourceInput) {
+    public WatermarkGaugeExposingOutput<StreamRecord<?>> getChainedSourceOutput(
+            SourceInputConfig sourceInput) {
         checkArgument(
                 chainedSources.containsKey(sourceInput),
                 "Chained source with sourcedId = [%s] was not found",
@@ -585,9 +572,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             // If the chaining output does not copy we need to copy in the broadcast output,
             // otherwise multi-chaining would not work correctly.
             if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-                return new CopyingBroadcastingOutputCollector<>(asArray, this);
+                return new CopyingBroadcastingOutputCollector<>(asArray);
             } else {
-                return new BroadcastingOutputCollector<>(asArray, this);
+                return new BroadcastingOutputCollector<>(asArray);
             }
         }
     }
@@ -677,12 +664,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
         WatermarkGaugeExposingOutput<StreamRecord<IN>> currentOperatorOutput;
         if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            currentOperatorOutput = new ChainingOutput<>(operator, this, outputTag);
+            currentOperatorOutput = new ChainingOutput<>(operator, outputTag);
         } else {
             TypeSerializer<IN> inSerializer =
                     operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-            currentOperatorOutput =
-                    new CopyingChainingOutput<>(operator, inSerializer, outputTag, this);
+            currentOperatorOutput = new CopyingChainingOutput<>(operator, inSerializer, outputTag);
         }
 
         // wrap watermark gauges since registered metrics must be unique
@@ -717,11 +703,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         }
 
         return new RecordWriterOutput<>(
-                recordWriter,
-                outSerializer,
-                sideOutputTag,
-                this,
-                edge.supportsUnalignedCheckpoints());
+                recordWriter, outSerializer, sideOutputTag, edge.supportsUnalignedCheckpoints());
     }
 
     /**
@@ -778,7 +760,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             this.sourceTaskInput = sourceTaskInput;
         }
 
-        public Output<StreamRecord<?>> getSourceOutput() {
+        public WatermarkGaugeExposingOutput<StreamRecord<?>> getSourceOutput() {
             return chainedSourceOutput;
         }
 
