@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -561,7 +562,7 @@ public abstract class Transformation<T> {
         if (!name.equals(that.name)) {
             return false;
         }
-        return outputType != null ? outputType.equals(that.outputType) : that.outputType == null;
+        return Objects.equals(outputType, that.outputType);
     }
 
     @Override
