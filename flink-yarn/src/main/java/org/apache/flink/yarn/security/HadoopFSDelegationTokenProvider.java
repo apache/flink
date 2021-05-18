@@ -79,7 +79,8 @@ public class HadoopFSDelegationTokenProvider implements HadoopDelegationTokenPro
                                     renewer);
                             fs.addDelegationTokens(renewer, credentials);
                         } catch (IOException e) {
-                            LOG.warn("Failed to get token for {}.", fs);
+                            throw new FlinkRuntimeException(
+                                    "Failed to get FS token for  " + fs.getUri(), e);
                         }
                     });
         } catch (IOException e) {
