@@ -40,7 +40,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 jobs 的反压行�
 
 ## Task 性能指标
 
-Task（SubTask）的每个平行实例都可以用三个一组的指标评价：
+Task（SubTask）的每个并行实例都可以用三个一组的指标评价：
 - `backPressureTimeMsPerSecond`，subtask 被反压的时间
 - `idleTimeMsPerSecond`，subtask 等待某类处理的时间
 - `busyTimeMsPerSecond`，subtask 实际工作时间
@@ -49,7 +49,7 @@ Task（SubTask）的每个平行实例都可以用三个一组的指标评价：
 这些指标每两秒更新一次，上报的值表示 subtask 在最近两秒被反压（或闲或忙）的平均时长。
 当你的工作负荷是变化的时需要尤其引起注意。比如，一个以恒定50%负载工作的 subtask 和另一个每秒钟在满负载和闲置切换的 subtask 的`busyTimeMsPerSecond`值相同，都是`500ms`。 
 
-在内部，被压时根据输出 buffers 的可用性来进行判断的。
+在内部，反压根据输出 buffers 的可用性来进行判断的。
 如果一个 task 没有可用的输出 buffers，那么这个 task 就被认定是在被反压。
 相反，如果有可用的输入，则可认定为闲置，
 
@@ -59,7 +59,7 @@ WebUI 集合了所有 subTasks 的反压和繁忙指标的最大值，并在 Job
 {{< img src="/fig/back_pressure_job_graph.png" class="img-responsive" >}}
 
 闲置的 tasks 为蓝色，完全被反压的 tasks 为黑色，完全繁忙的 tasks 被标记为红色。
-中间的所有值都表示为这三种颜色之间的颜色。
+中间的所有值都表示为这三种颜色之间的过渡色。
 
 ## 反压状态
 
