@@ -221,7 +221,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQL</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
