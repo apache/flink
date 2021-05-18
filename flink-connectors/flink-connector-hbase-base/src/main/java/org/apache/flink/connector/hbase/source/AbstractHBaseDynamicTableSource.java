@@ -29,36 +29,45 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.hadoop.conf.Configuration;
 
+import javax.annotation.Nullable;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** HBase table source implementation. */
 @Internal
 public abstract class AbstractHBaseDynamicTableSource
-        implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
+        implements ScanTableSource,
+                LookupTableSource,
+                SupportsProjectionPushDown,
+                SupportsLimitPushDown {
 
     protected final Configuration conf;
     protected final String tableName;
     protected HBaseTableSchema hbaseSchema;
     protected final String nullStringLiteral;
     protected final HBaseLookupOptions lookupOptions;
+    @Nullable protected Long limit;
 
     public AbstractHBaseDynamicTableSource(
             Configuration conf,
             String tableName,
             HBaseTableSchema hbaseSchema,
             String nullStringLiteral,
-            HBaseLookupOptions lookupOptions) {
+            HBaseLookupOptions lookupOptions,
+            @Nullable Long limit) {
         this.conf = conf;
         this.tableName = tableName;
         this.hbaseSchema = hbaseSchema;
         this.nullStringLiteral = nullStringLiteral;
         this.lookupOptions = lookupOptions;
+        this.limit = limit;
     }
 
     @Override
@@ -101,6 +110,11 @@ public abstract class AbstractHBaseDynamicTableSource
                 TableSchemaUtils.projectSchema(
                         hbaseSchema.convertsToTableSchema(), projectedFields);
         this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
+    }
+
+    @Override
+    public void applyLimit(long limit) {
+        this.limit = limit;
     }
 
     @Override

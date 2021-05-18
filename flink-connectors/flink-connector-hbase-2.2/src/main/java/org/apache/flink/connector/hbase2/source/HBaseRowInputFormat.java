@@ -55,7 +55,8 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row>
 
     public HBaseRowInputFormat(
             org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
-        super(conf);
+        // we don't support limit push down for the legacy one
+        super(conf, null);
         this.tableName = tableName;
         this.schema = schema;
     }

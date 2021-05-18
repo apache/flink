@@ -59,6 +59,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -100,6 +102,36 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
     @Test
     public void testTableSourceFullScan() {
+
+        List<Row> results = testTableSourceScanBase(null);
+
+        String expected =
+                "+I[10, Hello-1, 100, 1.01, false, Welt-1]\n"
+                        + "+I[20, Hello-2, 200, 2.02, true, Welt-2]\n"
+                        + "+I[30, Hello-3, 300, 3.03, false, Welt-3]\n"
+                        + "+I[40, null, 400, 4.04, true, Welt-4]\n"
+                        + "+I[50, Hello-5, 500, 5.05, false, Welt-5]\n"
+                        + "+I[60, Hello-6, 600, 6.06, true, Welt-6]\n"
+                        + "+I[70, Hello-7, 700, 7.07, false, Welt-7]\n"
+                        + "+I[80, null, 800, 8.08, true, Welt-8]\n";
+
+        TestBaseUtils.compareResultAsText(results, expected);
+    }
+
+    @Test
+    public void testTableSourceScanWithLimit() {
+        // we don't support limit push down for the legacy one.
+        if (isLegacyConnector) {
+            return;
+        }
+        final int loopTimes = 3;
+        for (int i = 1; i <= loopTimes; i++) {
+            List<Row> results = testTableSourceScanBase((long) i);
+            assertEquals(i, results.size());
+        }
+    }
+
+    private List<Row> testTableSourceScanBase(@Nullable Long limit) {
         TableEnvironment tEnv = createBatchTableEnv();
         if (isLegacyConnector) {
             HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
@@ -113,7 +145,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
             ((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
         } else {
             tEnv.executeSql(
-                    "CREATE TABLE hTable ("
+                    "CREATE TABLE IF NOT EXISTS hTable ("
                             + " family1 ROW<col1 INT>,"
                             + " family2 ROW<col1 STRING, col2 BIGINT>,"
                             + " family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>,"
@@ -130,29 +162,22 @@ public class HBaseConnectorITCase extends HBaseTestBase {
                             + ")");
         }
 
-        Table table =
-                tEnv.sqlQuery(
-                        "SELECT "
-                                + "  h.family1.col1, "
-                                + "  h.family2.col1, "
-                                + "  h.family2.col2, "
-                                + "  h.family3.col1, "
-                                + "  h.family3.col2, "
-                                + "  h.family3.col3 "
-                                + "FROM hTable AS h");
+        String querySql =
+                "SELECT "
+                        + "  h.family1.col1, "
+                        + "  h.family2.col1, "
+                        + "  h.family2.col2, "
+                        + "  h.family3.col1, "
+                        + "  h.family3.col2, "
+                        + "  h.family3.col3 "
+                        + "FROM hTable AS h";
 
-        List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
-        String expected =
-                "+I[10, Hello-1, 100, 1.01, false, Welt-1]\n"
-                        + "+I[20, Hello-2, 200, 2.02, true, Welt-2]\n"
-                        + "+I[30, Hello-3, 300, 3.03, false, Welt-3]\n"
-                        + "+I[40, null, 400, 4.04, true, Welt-4]\n"
-                        + "+I[50, Hello-5, 500, 5.05, false, Welt-5]\n"
-                        + "+I[60, Hello-6, 600, 6.06, true, Welt-6]\n"
-                        + "+I[70, Hello-7, 700, 7.07, false, Welt-7]\n"
-                        + "+I[80, null, 800, 8.08, true, Welt-8]\n";
+        if (limit != null) {
+            querySql = querySql + " LIMIT " + limit;
+        }
+        Table table = tEnv.sqlQuery(querySql);
 
-        TestBaseUtils.compareResultAsText(results, expected);
+        return CollectionUtil.iteratorToList(table.execute().collect());
     }
 
     @Test
@@ -524,7 +549,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
         if (isLegacyConnector) {
             inputFormat = new HBaseRowInputFormat(getConf(), TEST_TABLE_1, tableSchema);
         } else {
-            inputFormat = new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null");
+            inputFormat =
+                    new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null", null);
         }
         inputFormat.open(inputFormat.createInputSplits(1)[0]);
         assertNotNull(inputFormat.getConnection());
