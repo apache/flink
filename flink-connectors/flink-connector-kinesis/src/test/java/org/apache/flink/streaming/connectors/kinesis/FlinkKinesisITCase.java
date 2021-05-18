@@ -30,6 +30,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -86,6 +87,7 @@ public class FlinkKinesisITCase extends TestLogger {
      *   <li>With the fix, the job proceeds and we can lift the backpressure.
      * </ol>
      */
+    @Ignore("Ignored until FLINK-22613 is fixed")
     @Test
     public void testStopWithSavepoint() throws Exception {
         client.createTopic(TEST_STREAM, 1, new Properties());
