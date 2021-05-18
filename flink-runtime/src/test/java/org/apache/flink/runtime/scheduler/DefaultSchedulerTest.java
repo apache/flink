@@ -1132,6 +1132,48 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void testExceptionHistoryWithPreDeployFailure() {
+        // disable auto-completing slot requests to simulate timeout
+        executionSlotAllocatorFactory
+                .getTestExecutionSlotAllocator()
+                .disableAutoCompletePendingRequests();
+        final DefaultScheduler scheduler =
+                createSchedulerAndStartScheduling(singleNonParallelJobVertexJobGraph());
+
+        executionSlotAllocatorFactory.getTestExecutionSlotAllocator().timeoutPendingRequests();
+
+        final ArchivedExecutionVertex taskFailureExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+
+        // pending slot request timeout triggers a task failure that needs to be processed
+        taskRestartExecutor.triggerNonPeriodicScheduledTask();
+
+        // sanity check that the TaskManagerLocation of the failed task is indeed null, as expected
+        assertThat(
+                taskFailureExecutionVertex.getCurrentAssignedResourceLocation(), is(nullValue()));
+
+        final ErrorInfo failureInfo =
+                taskFailureExecutionVertex
+                        .getFailureInfo()
+                        .orElseThrow(() -> new AssertionError("A failureInfo should be set."));
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                scheduler.getExceptionHistory();
+        assertThat(
+                actualExceptionHistory,
+                IsIterableContainingInOrder.contains(
+                        ExceptionHistoryEntryMatcher.matchesFailure(
+                                failureInfo.getException(),
+                                failureInfo.getTimestamp(),
+                                taskFailureExecutionVertex.getTaskNameWithSubtaskIndex(),
+                                taskFailureExecutionVertex.getCurrentAssignedResourceLocation())));
+    }
+
+    @Test
     public void testExceptionHistoryConcurrentRestart() throws Exception {
         final JobGraph jobGraph = singleJobVertexJobGraph(2);
 
