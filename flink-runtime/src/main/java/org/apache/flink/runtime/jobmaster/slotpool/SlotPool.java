@@ -151,9 +151,8 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
      * @param slotRequestId identifying the requested slot
      * @param allocationID the allocation id of the requested available slot
      * @param requirementProfile resource profile of the requirement for which to allocate the slot
-     *
      * @return the previously available slot with the given allocation id, if a slot with this
-     *         allocation id exists
+     *     allocation id exists
      */
     Optional<PhysicalSlot> allocateAvailableSlot(
             @Nonnull SlotRequestId slotRequestId,

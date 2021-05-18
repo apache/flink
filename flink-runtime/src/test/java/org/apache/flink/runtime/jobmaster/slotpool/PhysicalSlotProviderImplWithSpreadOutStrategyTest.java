@@ -28,11 +28,15 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
@@ -45,8 +49,33 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
             new PhysicalSlotProviderResource(
                     LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut());
 
+    /**
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
     @Test
-    public void testSlotAllocationFulfilledWithWorkloadSpreadOut()
+    public void testDeclarativeSlotAllocationFulfilledWithWorkloadSpreadOut()
+            throws InterruptedException, ExecutionException {
+        PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
+        PhysicalSlotRequest request1 = physicalSlotProviderResource.createSimpleRequest();
+
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture0 =
+                physicalSlotProviderResource.allocateSlot(request0);
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture1 =
+                physicalSlotProviderResource.allocateSlot(request1);
+
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+
+        PhysicalSlotRequest.Result result0 = resultCompletableFuture0.get();
+        PhysicalSlotRequest.Result result1 = resultCompletableFuture1.get();
+        assertThat(
+                result0.getPhysicalSlot().getTaskManagerLocation(),
+                not(result1.getPhysicalSlot().getTaskManagerLocation()));
+    }
+
+    @Test
+    public void testDeclarativeSlotAllocationFulfilledSameWithWorkloadSpreadOut()
             throws InterruptedException, ExecutionException {
         PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
         PhysicalSlotRequest request1 = physicalSlotProviderResource.createSimpleRequest();
@@ -57,23 +86,55 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
                 physicalSlotProviderResource.allocateSlot(request1);
 
         physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY, ResourceProfile.ANY);
+                ResourceProfile.ANY, ResourceProfile.ANY);
 
         PhysicalSlotRequest.Result result0 = resultCompletableFuture0.get();
         PhysicalSlotRequest.Result result1 = resultCompletableFuture1.get();
         assertThat(
                 result0.getPhysicalSlot().getTaskManagerLocation(),
-                not(result1.getPhysicalSlot().getTaskManagerLocation()));
+                is(result1.getPhysicalSlot().getTaskManagerLocation()));
     }
 
+    @Test(expected = CompletionException.class)
+    public void testDeclarativeSlotAllocationTimeout()
+            throws InterruptedException, ExecutionException {
+        try {
+            physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+            fail("registerSlotOffersFromNewTaskExecutor failed");
+        } catch (AssertionError e) {
+            // expected
+        }
+
+        PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
+
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture0 =
+                physicalSlotProviderResource.allocateSlot(request0);
+        try {
+            resultCompletableFuture0.get(1, TimeUnit.SECONDS);
+            fail("cannot get the result");
+        } catch (TimeoutException e) {
+            // expected
+        }
+    }
+
+    /**
+     * physicalSlotProviderResource contain DeclarativeSlotPoolBridge, only slot requirement for
+     * SlotPool then physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor can be
+     * inserted.
+     *
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
     @Test
-    public void testSlotAllocationFulfilledWithPreferredInputOverwrittingSpreadOut()
+    public void testDeclarativeSlotAllocationFulfilledWithPreferredInputOverwrittingSpreadOut()
             throws ExecutionException, InterruptedException {
         PhysicalSlotRequest request0 = physicalSlotProviderResource.createSimpleRequest();
-        PhysicalSlotRequest.Result result0 =
-                physicalSlotProviderResource.allocateSlot(request0).get();
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture =
+                physicalSlotProviderResource.allocateSlot(request0);
+
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+
+        PhysicalSlotRequest.Result result0 = resultCompletableFuture.get();
         TaskManagerLocation preferredTaskManagerLocation =
                 result0.getPhysicalSlot().getTaskManagerLocation();
 
@@ -84,17 +145,13 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
                                 ResourceProfile.ANY,
                                 Collections.singleton(preferredTaskManagerLocation)),
                         false);
-        PhysicalSlotRequest.Result result1 =
-                physicalSlotProviderResource.allocateSlot(request1).get();
-
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(
-                ResourceProfile.ANY, ResourceProfile.ANY);
-
+        CompletableFuture<PhysicalSlotRequest.Result> resultCompletableFuture1 =
+                physicalSlotProviderResource.allocateSlot(request1);
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
+        PhysicalSlotRequest.Result result1 = resultCompletableFuture1.get();
         assertThat(
                 result1.getPhysicalSlot().getTaskManagerLocation(),
-                is(preferredTaskManagerLocation));
+                not(preferredTaskManagerLocation));
     }
 
     @Test

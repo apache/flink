@@ -57,8 +57,8 @@ public class SlotPoolUtils {
             @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
         return (DeclarativeSlotPoolBridge)
                 new SlotPoolBuilder(
-                        org.apache.flink.runtime.concurrent
-                                .ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                org.apache.flink.runtime.concurrent
+                                        .ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setResourceManagerGateway(resourceManagerGateway)
                         .build();
     }
