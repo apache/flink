@@ -27,6 +27,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableReset;
 import org.apache.flink.sql.parser.ddl.SqlAlterView;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
 import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
@@ -159,6 +160,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -382,6 +384,9 @@ public class SqlToOperationConverter {
                     tableIdentifier,
                     (CatalogTable) baseTable,
                     (SqlAlterTableOptions) sqlAlterTable);
+        } else if (sqlAlterTable instanceof SqlAlterTableReset) {
+            return convertAlterTableReset(
+                    tableIdentifier, (CatalogTable) baseTable, (SqlAlterTableReset) sqlAlterTable);
         } else if (sqlAlterTable instanceof SqlAlterTableAddConstraint) {
             SqlTableConstraint constraint =
                     ((SqlAlterTableAddConstraint) sqlAlterTable).getConstraint();
@@ -493,6 +498,21 @@ public class SqlToOperationConverter {
                     OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList()));
             return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
         }
+    }
+
+    private Operation convertAlterTableReset(
+            ObjectIdentifier tableIdentifier,
+            CatalogTable oldTable,
+            SqlAlterTableReset alterTableReset) {
+        Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
+        // reset empty key is not allowed
+        Set<String> resetKeys = alterTableReset.getResetKeys();
+        if (resetKeys.isEmpty()) {
+            throw new ValidationException("ALTER TABLE RESET does not support empty key");
+        }
+        // reset table option keys
+        resetKeys.forEach(newOptions::remove);
+        return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
     }
 
     /** Convert CREATE FUNCTION statement. */

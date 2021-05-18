@@ -27,21 +27,21 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.catalog.{Column, GenericInMemoryCatalog, ObjectPath, ResolvedSchema}
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.module.ModuleEntry
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -167,6 +167,117 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableResetEmtpyOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "ALTER TABLE RESET does not support empty key")
+    tableEnv.executeSql("ALTER TABLE MyTable RESET ()")
+  }
+
+  @Test
+  def testAlterTableResetInvalidOptionKey(): Unit = {
+    // prepare DDL with invalid table option key
+    val statementWithTypo =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'datagen',
+        |  'invalid-key' = 'invalid-value'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statementWithTypo)
+    try {
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
+      fail("Expected an exception")
+    } catch {
+      case t: Throwable =>
+        assertThat(t,
+          containsMessage("Unable to create a source for reading table " +
+            "'default_catalog.default_database.MyTable'.\n\n" +
+            "Table options are:\n\n'connector'='datagen'\n" +
+            "'invalid-key'='invalid-value'" ))
+    }
+    // remove invalid key by RESET
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map("connector" -> "datagen").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+  }
+
+  @Test
+  def testAlterTableResetOptionalOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    checkTableSource("MyTable", false)
+
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('is-bounded')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map.apply("connector" -> "COLLECTION").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    checkTableSource("MyTable", true)
+  }
+
+  @Test
+  def testAlterTableResetRequiredOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('connector')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map.empty.asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """
@@ -210,7 +321,7 @@ class TableEnvironmentTest {
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
-    // test crate table twice
+    // test create table twice
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     val tableResult2 = tableEnv.executeSql(createTableStmt)
@@ -1452,5 +1563,17 @@ class TableEnvironmentTest {
         new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
         actual.apply(i).asInstanceOf[Object])
     }
+  }
+
+  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
+    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
+    val context =
+      new TableSourceFactoryContextImpl(
+        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
+      resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
+    val source = TableFactoryUtil.findAndCreateTableSource(context)
+    assertTrue(source.isInstanceOf[CollectionTableSource])
+    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 }
