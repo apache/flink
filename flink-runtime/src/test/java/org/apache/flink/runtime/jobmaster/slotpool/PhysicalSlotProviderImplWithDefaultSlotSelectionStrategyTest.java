@@ -61,4 +61,16 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
         physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
         slotFuture.get();
     }
+
+    @Test
+    public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
+            throws Exception {
+        SlotPool slotPool =
+                new SlotPoolBuilder(physicalSlotProviderResource.getMainThreadExecutor()).build();
+        //        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
+
+        new PhysicalSlotProviderImpl(
+                LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+        //        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+    }
 }

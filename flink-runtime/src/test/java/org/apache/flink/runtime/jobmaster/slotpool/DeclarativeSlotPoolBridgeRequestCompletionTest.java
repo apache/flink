@@ -49,7 +49,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 /** Tests how the {@link SlotPool} completes slot requests. */
-public class SlotPoolRequestCompletionTest extends TestLogger {
+public class DeclarativeSlotPoolBridgeRequestCompletionTest extends TestLogger {
 
     private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
 
@@ -125,7 +125,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPool() throws Exception {
-        return SlotPoolUtils.createAndSetUpSlotPool(resourceManagerGateway);
+        return SlotPoolUtils.createAndSetUpDeclarativeSlotPoolBridge(resourceManagerGateway);
     }
 
     private void connectToResourceManager(SlotPool slotPool) {
@@ -133,6 +133,6 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-        return SlotPoolUtils.createAndSetUpSlotPool(null);
+        return SlotPoolUtils.createAndSetUpDeclarativeSlotPoolBridge(null);
     }
 }

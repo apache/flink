@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -54,11 +53,14 @@ public class SlotPoolUtils {
         throw new UnsupportedOperationException("Cannot instantiate this class.");
     }
 
-    static SlotPool createAndSetUpSlotPool(
+    static DeclarativeSlotPoolBridge createAndSetUpDeclarativeSlotPoolBridge(
             @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
-        return new SlotPoolBuilder(ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                .setResourceManagerGateway(resourceManagerGateway)
-                .build();
+        return (DeclarativeSlotPoolBridge)
+                new SlotPoolBuilder(
+                        org.apache.flink.runtime.concurrent
+                                .ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setResourceManagerGateway(resourceManagerGateway)
+                        .build();
     }
 
     static CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(

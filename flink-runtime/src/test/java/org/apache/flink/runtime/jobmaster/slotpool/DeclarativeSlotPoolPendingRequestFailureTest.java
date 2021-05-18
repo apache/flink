@@ -43,7 +43,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.fail;
 
 /** Tests for the failing of pending slot requests at the {@link SlotPool}. */
-public class SlotPoolPendingRequestFailureTest extends TestLogger {
+public class DeclarativeSlotPoolPendingRequestFailureTest extends TestLogger {
 
     private TestingResourceManagerGateway resourceManagerGateway;
 
