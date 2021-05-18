@@ -72,9 +72,12 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression[] retractExpressions() {
-        // TODO FLINK-12295, ignore exception now
-        //		throw new TableException("This function does not support retraction, Please choose
-        // MaxWithRetractAggFunction.");
+        // See optimization in FlinkRelMdModifiedMonotonicity.
+        // This function can ignore retraction message:
+        // SQL: SELECT MAX(cnt), SUM(cnt) FROM (SELECT count(a) as cnt FROM T GROUP BY b)
+        // The cnt is modified increasing, so the MAX(cnt) can ignore retraction message. But this
+        // doesn't mean that the node won't receive the retraction message, because there are other
+        // aggregate operators that need retraction message, such as SUM(cnt).
         return new Expression[0];
     }
 
