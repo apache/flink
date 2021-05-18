@@ -28,11 +28,7 @@ import apache_beam.runners.worker.sdk_worker_main
 
 def print_to_logging(logging_func, msg, *args, **kwargs):
     if msg != '\n':
-        _temp_current_frame = logging.currentframe
-        frame = logging.currentframe()
-        logging.currentframe = lambda: frame
         logging_func(msg, *args, **kwargs)
-        logging.currentframe = _temp_current_frame
 
 
 class CustomPrint(object):
