@@ -26,9 +26,13 @@ import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-imp
 import apache_beam.runners.worker.sdk_worker_main
 
 
-def custom_logging(logging_func, msg, *args, **kwargs):
+def print_to_logging(logging_func, msg, *args, **kwargs):
     if msg != '\n':
+        _temp_current_frame = logging.currentframe
+        frame = logging.currentframe()
+        logging.currentframe = lambda: frame
         logging_func(msg, *args, **kwargs)
+        logging.currentframe = _temp_current_frame
 
 
 class CustomPrint(object):
@@ -58,11 +62,10 @@ if __name__ == '__main__':
     # redirect stdout to logging.info, stderr to logging.error
     _info = logging.getLogger().info
     _error = logging.getLogger().error
-    sys.stdout.write = partial(custom_logging, _info)
-    sys.stderr.write = partial(custom_logging, _error)
+    sys.stdout.write = partial(print_to_logging, _info)
+    sys.stderr.write = partial(print_to_logging, _error)
 
-    _print = print
-    custom_print = CustomPrint(_print)
+    custom_print = CustomPrint(print)
     builtins.print = custom_print.print
     apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
     custom_print.close()
