@@ -157,7 +157,7 @@ public class StreamGraphGenerator {
 
     private String jobName = DEFAULT_JOB_NAME;
 
-    private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
+    private SavepointRestoreSettings savepointRestoreSettings;
 
     private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
@@ -228,6 +228,7 @@ public class StreamGraphGenerator {
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
         this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
+        this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
     public StreamGraphGenerator setRuntimeExecutionMode(
