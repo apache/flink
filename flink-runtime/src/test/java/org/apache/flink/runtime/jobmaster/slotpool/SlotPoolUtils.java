@@ -55,12 +55,11 @@ public class SlotPoolUtils {
 
     static DeclarativeSlotPoolBridge createAndSetUpDeclarativeSlotPoolBridge(
             @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
-        return (DeclarativeSlotPoolBridge)
-                new SlotPoolBuilder(
-                                org.apache.flink.runtime.concurrent
-                                        .ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                        .setResourceManagerGateway(resourceManagerGateway)
-                        .build();
+        return new SlotPoolBuilder(
+                        org.apache.flink.runtime.concurrent
+                                .ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                .setResourceManagerGateway(resourceManagerGateway)
+                .build();
     }
 
     static CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(

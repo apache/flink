@@ -94,10 +94,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     }
 
     private SlotPool createSlotPoolImpl() throws Exception {
-        return new SlotPoolBuilder(mainThreadExecutor)
-                .setJobId(TEST_JOB_ID)
-                .setResourceManagerGateway(null)
-                .build();
+        return new SlotPoolBuilder(mainThreadExecutor).setJobId(TEST_JOB_ID).build();
     }
 
     @Test
@@ -153,7 +150,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
             assertEquals(JobStatus.RUNNING, graph.getState());
 
-            switchAllTasksToRunning(graph);
+            ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);
 
             scheduler.handleGlobalFailure(new Exception("test"));
 

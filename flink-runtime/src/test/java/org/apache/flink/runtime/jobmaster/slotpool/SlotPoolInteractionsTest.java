@@ -142,6 +142,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
         try (SlotPool pool =
                 new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
                         .setResourceManagerGateway(resourceManagerGateway)
+                        .disableAutoLoadRequirements()
                         .build()) {
 
             final CompletableFuture<PhysicalSlot> future =

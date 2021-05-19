@@ -122,8 +122,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private volatile BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>>
             declareRequiredResourcesFunction =
-                    (ignoredA, ignoredB) ->
-                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
+                    (ignoredA, ignoredB) -> {
+                        CompletableFuture<Acknowledge> completableFuture =
+                                new CompletableFuture<>();
+                        completableFuture.complete(Acknowledge.get());
+                        return completableFuture;
+                    };
 
     public TestingResourceManagerGateway() {
         this(

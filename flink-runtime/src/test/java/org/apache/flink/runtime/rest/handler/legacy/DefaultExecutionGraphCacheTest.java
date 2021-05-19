@@ -27,7 +27,6 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -148,8 +147,7 @@ public class DefaultExecutionGraphCacheTest extends TestLogger {
 
                 fail("The execution graph future should have been completed exceptionally.");
             } catch (ExecutionException ee) {
-                ee.printStackTrace();
-                assertTrue(ee.getCause() instanceof FlinkException);
+                assertTrue(ee.getCause() instanceof FlinkJobNotFoundException);
             }
 
             CompletableFuture<ExecutionGraphInfo> executionGraphFuture2 =

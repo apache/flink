@@ -48,6 +48,8 @@ public class SlotPoolBuilder {
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+    private boolean autoLoadRequirement = true;
+    private int resourceRequirementCount = 100;
 
     public SlotPoolBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.componentMainThreadExecutor = componentMainThreadExecutor;
@@ -90,8 +92,12 @@ public class SlotPoolBuilder {
                         batchSlotTimeout);
 
         slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
-        slotPool.getDeclarativeSlotPool()
-                .setResourceRequirements(ResourceCounter.withResource(ResourceProfile.ANY, 1));
+        if(this.autoLoadRequirement) {
+            slotPool.getDeclarativeSlotPool()
+                    .setResourceRequirements(ResourceCounter.withResource(
+                            ResourceProfile.ANY,
+                            this.resourceRequirementCount));
+        }
         if (resourceManagerGateway != null) {
             CompletableFuture.runAsync(
                             () -> slotPool.connectToResourceManager(resourceManagerGateway),
@@ -100,5 +106,15 @@ public class SlotPoolBuilder {
         }
 
         return slotPool;
+    }
+
+    public SlotPoolBuilder setAutoLoadRequirementCount(int resourceRequirementCount) {
+        this.resourceRequirementCount = resourceRequirementCount;
+        return this;
+    }
+
+    public SlotPoolBuilder disableAutoLoadRequirements() {
+        this.autoLoadRequirement = false;
+        return this;
     }
 }
