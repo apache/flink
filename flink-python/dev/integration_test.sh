@@ -36,9 +36,6 @@ FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 # test common module
 test_module "common"
 
-# test dataset module
-test_module "dataset"
-
 # test datastream module
 test_module "datastream"
 

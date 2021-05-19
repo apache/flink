@@ -26,7 +26,6 @@ Welcome to Flink Python API Docs!
    pyflink
    pyflink.common
    pyflink.table
-   pyflink.dataset
    pyflink.datastream
    pyflink.metrics
 

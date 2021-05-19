@@ -81,8 +81,7 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
-from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
-                                             BatchTableEnvironment)
+from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment)
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
@@ -91,7 +90,6 @@ from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, Ag
 
 __all__ = [
     'AggregateFunction',
-    'BatchTableEnvironment',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',

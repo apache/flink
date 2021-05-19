@@ -19,22 +19,19 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
-import org.apache.flink.table.api.internal.BatchTableEnvImpl;
-import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
@@ -664,7 +661,6 @@ public final class ArrowUtils {
         ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
         arrowStreamWriter.start();
 
-        ArrowWriter arrowWriter;
         Iterator<Row> results = table.execute().collect();
         Iterator<Row> appendOnlyResults;
         if (isAppendOnlyTable(table)) {
@@ -673,28 +669,21 @@ public final class ArrowUtils {
             appendOnlyResults = filterOutRetractRows(results);
         }
 
-        Iterator convertedResults;
-        if (isBlinkPlanner(table)) {
-            arrowWriter = createRowDataArrowWriter(root, rowType);
-            convertedResults =
-                    new Iterator<RowData>() {
-                        @Override
-                        public boolean hasNext() {
-                            return appendOnlyResults.hasNext();
-                        }
+        ArrowWriter arrowWriter = createRowDataArrowWriter(root, rowType);
+        Iterator convertedResults =
+                new Iterator<RowData>() {
+                    @Override
+                    public boolean hasNext() {
+                        return appendOnlyResults.hasNext();
+                    }
 
-                        @Override
-                        public RowData next() {
-                            DataFormatConverters.DataFormatConverter converter =
-                                    DataFormatConverters.getConverterForDataType(
-                                            defaultRowDataType);
-                            return (RowData) converter.toInternal(appendOnlyResults.next());
-                        }
-                    };
-        } else {
-            arrowWriter = createRowArrowWriter(root, rowType);
-            convertedResults = appendOnlyResults;
-        }
+                    @Override
+                    public RowData next() {
+                        DataFormatConverters.DataFormatConverter converter =
+                                DataFormatConverters.getConverterForDataType(defaultRowDataType);
+                        return (RowData) converter.toInternal(appendOnlyResults.next());
+                    }
+                };
 
         return new CustomIterator<byte[]>() {
             @Override
@@ -750,39 +739,22 @@ public final class ArrowUtils {
         return result.iterator();
     }
 
-    private static boolean isBlinkPlanner(Table table) {
+    private static boolean isStreamingMode(Table table) {
         TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-        if (tableEnv instanceof TableEnvImpl) {
-            return false;
-        } else if (tableEnv instanceof TableEnvironmentImpl) {
-            Planner planner = ((TableEnvironmentImpl) tableEnv).getPlanner();
-            return planner instanceof PlannerBase;
+        if (tableEnv instanceof TableEnvironmentImpl) {
+            final RuntimeExecutionMode mode =
+                    tableEnv.getConfig().getConfiguration().get(ExecutionOptions.RUNTIME_MODE);
+            if (mode == RuntimeExecutionMode.AUTOMATIC) {
+                throw new RuntimeException(
+                        String.format("Runtime execution mode '%s' is not supported yet.", mode));
+            }
+            return mode == RuntimeExecutionMode.STREAMING;
         } else {
-            throw new RuntimeException(
-                    String.format(
-                            "Could not determine the planner type for table environment class %s.",
-                            tableEnv.getClass()));
+            return false;
         }
     }
 
-    private static boolean isStreamingMode(Table table) throws Exception {
-        TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-        if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof BatchTableEnvImpl) {
-            return false;
-        } else if (tableEnv instanceof TableEnvironmentImpl) {
-            java.lang.reflect.Field isStreamingModeMethod =
-                    TableEnvironmentImpl.class.getDeclaredField("isStreamingMode");
-            isStreamingModeMethod.setAccessible(true);
-            return (boolean) isStreamingModeMethod.get(tableEnv);
-        } else {
-            throw new RuntimeException(
-                    String.format(
-                            "Could not determine the streaming mode for table environment class %s",
-                            tableEnv.getClass()));
-        }
-    }
-
-    private static boolean isAppendOnlyTable(Table table) throws Exception {
+    private static boolean isAppendOnlyTable(Table table) {
         if (isStreamingMode(table)) {
             TableEnvironmentImpl tableEnv =
                     (TableEnvironmentImpl) ((TableImpl) table).getTableEnvironment();
