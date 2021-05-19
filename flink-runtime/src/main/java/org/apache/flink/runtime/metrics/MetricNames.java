@@ -75,4 +75,8 @@ public class MetricNames {
     public static final String ESTIMATED_TIME_TO_CONSUME_BUFFERS =
             "estimatedTimeToConsumerBuffersMs";
     public static final String DEBLOATED_BUFFER_SIZE = "debloatedBufferSize";
+
+    // FLIP-33 sink
+    public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    public static final String CURRENT_SEND_TIME = "currentSendTime";
 }
