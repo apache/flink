@@ -221,26 +221,35 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                     zooKeeperHaServices.getResourceManagerLeaderRetriever();
             final LeaderElectionService resourceManagerLeaderElectionService =
                     zooKeeperHaServices.getResourceManagerLeaderElectionService();
+
+            final LeaderRetrievalService jobManagerLeaderRetriever =
+                    zooKeeperHaServices.getJobManagerLeaderRetriever(jobId);
+            final LeaderElectionService jobManagerLeaderElectionService =
+                    zooKeeperHaServices.getJobManagerLeaderElectionService(jobId);
+
             final RunningJobsRegistry runningJobsRegistry =
                     zooKeeperHaServices.getRunningJobsRegistry();
 
-            final LeaderRetrievalUtils.LeaderConnectionInfoListener listener =
+            final LeaderRetrievalUtils.LeaderConnectionInfoListener resourceManagerLeaderListener =
                     new LeaderRetrievalUtils.LeaderConnectionInfoListener();
-            resourceManagerLeaderRetriever.start(listener);
             resourceManagerLeaderElectionService.start(
-                    new TestingContender("foobar", resourceManagerLeaderElectionService));
-            LeaderElectionService jobManagerLeaderElectionService =
-                    zooKeeperHaServices.getJobManagerLeaderElectionService(jobId);
+                    new TestingContender(
+                            "unused-resourcemanager-address",
+                            resourceManagerLeaderElectionService));
+            resourceManagerLeaderRetriever.start(resourceManagerLeaderListener);
+
+            final LeaderRetrievalUtils.LeaderConnectionInfoListener jobManagerLeaderListener =
+                    new LeaderRetrievalUtils.LeaderConnectionInfoListener();
             jobManagerLeaderElectionService.start(
-                    new TestingContender("", jobManagerLeaderElectionService));
-            LeaderRetrievalService jobManagerLeaderRetriever =
-                    zooKeeperHaServices.getJobManagerLeaderRetriever(jobId);
-            jobManagerLeaderRetriever.start(
-                    new LeaderRetrievalUtils.LeaderConnectionInfoListener());
+                    new TestingContender(
+                            "unused-jobmanager-address", jobManagerLeaderElectionService));
+            jobManagerLeaderRetriever.start(jobManagerLeaderListener);
 
             runningJobsRegistry.setJobRunning(jobId);
 
-            listener.getLeaderConnectionInfoFuture().join();
+            // Make sure that the respective zNodes have been properly created
+            resourceManagerLeaderListener.getLeaderConnectionInfoFuture().join();
+            jobManagerLeaderListener.getLeaderConnectionInfoFuture().join();
 
             resourceManagerLeaderRetriever.stop();
             resourceManagerLeaderElectionService.stop();
