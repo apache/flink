@@ -24,6 +24,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 
 import java.io.IOException;
 
+/**
+ * We are performing aligned checkpoints with time out. We have seen at least a single aligned
+ * barrier.
+ */
 final class AlternatingCollectingBarriers extends AbstractAlternatingAlignedBarrierHandlerState {
 
     AlternatingCollectingBarriers(ChannelState context) {

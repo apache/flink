@@ -25,6 +25,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 
 import java.io.IOException;
 
+/**
+ * We either timed out before seeing any barriers or started unaligned. We might've seen some
+ * announcements if we started aligned.
+ */
 final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandlerState {
 
     private final boolean alternating;
@@ -58,8 +62,8 @@ final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandler
             CheckpointBarrier checkpointBarrier)
             throws CheckpointException, IOException {
 
-        // we received an out of order aligned barrier, we should resume consumption for the
-        // channel, as it is being blocked by the credit-based network
+        // we received an out of order aligned barrier, we should book keep this channel as blocked,
+        // as it is being blocked by the credit-based network
         if (!checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint()) {
             channelState.blockChannel(channelInfo);
         }
@@ -89,7 +93,7 @@ final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandler
         if (alternating) {
             return new AlternatingWaitingForFirstBarrier(channelState.emptyState());
         } else {
-            return this;
+            return new AlternatingWaitingForFirstBarrierUnaligned(false, channelState.emptyState());
         }
     }
 }
