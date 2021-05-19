@@ -25,9 +25,7 @@ from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafk
                                        CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkOldStreamTableTestCase,
-                                             PyFlinkOldBatchTableTestCase,
-                                             _load_specific_flink_module_jars)
+from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
 
 
 class FileSystemDescriptorTests(PyFlinkTestCase):
@@ -1078,58 +1076,6 @@ class AbstractTableDescriptorTests(object):
         with open(sink_path, 'r') as f:
             lines = f.read()
             assert lines == '2,Hi,Hello\n' + "3,Hello,Hello\n"
-
-
-class StreamTableDescriptorTests(PyFlinkOldStreamTableTestCase, AbstractTableDescriptorTests):
-
-    def test_in_append_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor\
-            .with_format(OldCsv())\
-            .in_append_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'append',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_retract_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_retract_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'retract',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_upsert_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_upsert_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'upsert',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-
-class BatchTableDescriptorTests(PyFlinkOldBatchTableTestCase, AbstractTableDescriptorTests):
-    pass
 
 
 if __name__ == '__main__':

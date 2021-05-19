@@ -44,7 +44,7 @@ class Table(object):
 
     """
     A :class:`~pyflink.table.Table` is the core component of the Table API.
-    Similar to how the batch and streaming APIs have DataSet and DataStream,
+    Similar to how the DataStream API has DataStream,
     the Table API is built around :class:`~pyflink.table.Table`.
 
     Use the methods of :class:`~pyflink.table.Table` to transform data.

@@ -269,7 +269,6 @@ try:
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',
-                'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',

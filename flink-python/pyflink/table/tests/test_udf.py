@@ -24,9 +24,8 @@ import pytz
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkOldBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkBlinkBatchTableTestCase
 
 
 class UserDefinedFunctionTests(object):
@@ -637,24 +636,6 @@ class UserDefinedFunctionTests(object):
 # decide whether two floats are equal
 def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
-
-
-class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class PyFlinkBatchUserDefinedFunctionTests(PyFlinkOldBatchTableTestCase):
-
-    def test_chaining_scalar_function(self):
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
-        subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
-
-        t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
-        t = t.select(add(add_one(t.a), subtract_one(t.b)), t.c, expr.lit(1))
-
-        result = self.collect(t)
-        self.assertEqual(result, ["+I[3, 1, 1]", "+I[7, 2, 1]", "+I[4, 3, 1]"])
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
