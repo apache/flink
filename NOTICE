@@ -23,6 +23,7 @@ This project bundles the following dependencies under SIL OFL 1.1 license (https
 See bundled license files for details.
 
 - font-awesome:4.6.3 (Font) (https://fontawesome.com/) - Created by Dave Gandy
+    -> css in "docs/static/font-awesome/css"
     -> fonts in "docs/static/font-awesome/fonts"
 
 The Apache Flink project contains or reuses code that is licensed under the ISC license from the following projects.
