@@ -26,8 +26,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
@@ -653,6 +655,47 @@ public class StreamGraphGeneratorTest extends TestLogger {
                                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
                         .get(),
                 equalTo(resourceProfile3));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettings() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        final StreamGraph streamGraph =
+                new StreamGraphGenerator(
+                                Collections.emptyList(),
+                                new ExecutionConfig(),
+                                new CheckpointConfig(),
+                                config)
+                        .generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint")));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettingsSetterOverrides() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        StreamGraphGenerator generator =
+                new StreamGraphGenerator(
+                        Collections.emptyList(),
+                        new ExecutionConfig(),
+                        new CheckpointConfig(),
+                        config);
+        generator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("/tmp/savepoint1"));
+        final StreamGraph streamGraph = generator.generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint1")));
     }
 
     private static class OutputTypeConfigurableFunction<T>
