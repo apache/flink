@@ -27,6 +27,8 @@ import java.util.Optional;
  *
  * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link
  * Object#equals(Object)}.
+ *
+ * @see ConstantArgumentCount
  */
 @PublicEvolving
 public interface ArgumentCount {
