@@ -23,7 +23,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
 import org.slf4j.Logger;
@@ -140,7 +140,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
     }
 
     /** Sets the metric group for this RecordWriter. */
-    public void setMetricGroup(TaskIOMetricGroup metrics) {
+    public void setMetricGroup(InternalTaskIOMetricGroup metrics) {
         targetPartition.setMetricGroup(metrics);
     }
 

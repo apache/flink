@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
@@ -34,7 +35,8 @@ import java.util.List;
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
  * forwarded to the parent task metric group.
  */
-public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
+public class InternalTaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup>
+        implements TaskIOMetricGroup {
 
     private final Counter numBytesIn;
     private final Counter numBytesOut;
@@ -53,7 +55,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private volatile boolean busyTimeEnabled;
 
-    public TaskIOMetricGroup(TaskMetricGroup parent) {
+    public InternalTaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
 
         this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);

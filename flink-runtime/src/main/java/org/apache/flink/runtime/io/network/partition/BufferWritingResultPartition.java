@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -189,7 +189,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void setMetricGroup(TaskIOMetricGroup metrics) {
+    public void setMetricGroup(InternalTaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
         backPressuredTimeMsPerSecond = metrics.getBackPressuredTimePerSecond();
     }

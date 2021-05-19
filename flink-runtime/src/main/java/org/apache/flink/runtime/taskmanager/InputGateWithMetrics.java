@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class wraps {@link InputGate} provided by shuffle service and it is mainly used for
- * increasing general input metrics from {@link TaskIOMetricGroup}.
+ * increasing general input metrics from {@link InternalTaskIOMetricGroup}.
  */
 public class InputGateWithMetrics extends IndexedInputGate {
 

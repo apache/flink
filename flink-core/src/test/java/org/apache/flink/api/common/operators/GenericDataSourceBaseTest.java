@@ -96,7 +96,8 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup
+                                            .createUnregisteredOperatorMetricGroup()),
                             executionConfig);
 
             assertEquals(true, in.hasBeenClosed());
@@ -115,7 +116,8 @@ public class GenericDataSourceBaseTest implements java.io.Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup
+                                            .createUnregisteredOperatorMetricGroup()),
                             executionConfig);
 
             assertEquals(true, in.hasBeenClosed());

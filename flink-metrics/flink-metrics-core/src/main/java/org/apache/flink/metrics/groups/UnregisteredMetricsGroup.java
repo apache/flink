@@ -89,4 +89,47 @@ public class UnregisteredMetricsGroup implements MetricGroup {
     public String getMetricIdentifier(String metricName, CharacterFilter filter) {
         return metricName;
     }
+
+    public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
+        return new UnregisteredOperatorMetricGroup();
+    }
+
+    private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public TaskIOMetricGroup getTaskIOMetricGroup() {
+            return new UnregisteredTaskIOMetricGroup();
+        }
+    }
+
+    private static class UnregisteredOperatorIOMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorIOMetricGroup {
+        @Override
+        public Counter getNumRecordsInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsOutCounter() {
+            return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredTaskIOMetricGroup extends UnregisteredMetricsGroup
+            implements TaskIOMetricGroup {
+        @Override
+        public Counter getNumBytesInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesOutCounter() {
+            return new SimpleCounter();
+        }
+    }
 }
