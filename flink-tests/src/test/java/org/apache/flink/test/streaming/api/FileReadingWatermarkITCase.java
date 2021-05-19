@@ -19,6 +19,7 @@ package org.apache.flink.test.streaming.api;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -104,9 +105,12 @@ public class FileReadingWatermarkITCase {
             }
 
             @Override
-            public void invoke(String value, SinkFunction.Context context) {
-                if (context.currentWatermark() != lastWatermark) {
-                    lastWatermark = context.currentWatermark();
+            public void invoke(String value, SinkFunction.Context context) {}
+
+            @Override
+            public void writeWatermark(Watermark watermark) throws Exception {
+                if (watermark.getTimestamp() != lastWatermark) {
+                    lastWatermark = watermark.getTimestamp();
                     numWatermarks.add(1);
                 }
             }

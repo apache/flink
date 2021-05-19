@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.functions.Function;
 
 import java.io.Serializable;
@@ -48,6 +49,17 @@ public interface SinkFunction<IN> extends Function, Serializable {
     default void invoke(IN value, Context context) throws Exception {
         invoke(value);
     }
+
+    /**
+     * Writes the given watermark to the sink. This function is called for every watermark.
+     *
+     * <p>This method is intended for advanced sinks that propagate watermarks.
+     *
+     * @param watermark The watermark.
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    default void writeWatermark(Watermark watermark) throws Exception {}
 
     /**
      * Context that {@link SinkFunction SinkFunctions } can use for getting additional data about an
