@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -584,7 +584,7 @@ public class SubtaskCheckpointCoordinatorTest {
         public void setKeyContextElement2(StreamRecord<?> record) {}
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             return null;
         }
 

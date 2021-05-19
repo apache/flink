@@ -53,7 +53,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -625,9 +624,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
         try {
-            return ((OperatorMetricGroup) streamOperator.getMetricGroup())
-                    .getIOMetricGroup()
-                    .getNumRecordsInCounter();
+            return streamOperator.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
         } catch (Exception e) {
             LOG.warn("An exception occurred during the metrics setup.", e);
             return new SimpleCounter();

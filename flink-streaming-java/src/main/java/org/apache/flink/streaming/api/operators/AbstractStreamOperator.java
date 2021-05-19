@@ -33,10 +33,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -138,7 +139,7 @@ public abstract class AbstractStreamOperator<OUT>
     // --------------- Metrics ---------------------------
 
     /** Metric group for the operator. */
-    protected transient OperatorMetricGroup metrics;
+    protected transient InternalOperatorMetricGroup metrics;
 
     protected transient LatencyStats latencyStats;
 
@@ -159,7 +160,7 @@ public abstract class AbstractStreamOperator<OUT>
         this.container = containingTask;
         this.config = config;
         try {
-            OperatorMetricGroup operatorMetricGroup =
+            InternalOperatorMetricGroup operatorMetricGroup =
                     environment
                             .getMetricGroup()
                             .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
@@ -248,7 +249,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 

@@ -33,10 +33,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -92,7 +93,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     private final IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** Metric group for the operator. */
-    protected final OperatorMetricGroup metrics;
+    protected final InternalOperatorMetricGroup metrics;
 
     protected final LatencyStats latencyStats;
     protected final ProcessingTimeService processingTimeService;
@@ -104,7 +105,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
         final Environment environment = parameters.getContainingTask().getEnvironment();
         config = parameters.getStreamConfig();
         CountingOutput<OUT> countingOutput;
-        OperatorMetricGroup operatorMetricGroup;
+        InternalOperatorMetricGroup operatorMetricGroup;
         try {
             operatorMetricGroup =
                     environment
@@ -200,7 +201,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 

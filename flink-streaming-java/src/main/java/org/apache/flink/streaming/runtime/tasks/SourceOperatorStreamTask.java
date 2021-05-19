@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -88,9 +87,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         }
 
         Counter numRecordsOut =
-                ((OperatorMetricGroup) sourceOperator.getMetricGroup())
-                        .getIOMetricGroup()
-                        .getNumRecordsOutCounter();
+                sourceOperator.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
         // The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
         // a WatermarkGauge on the input.

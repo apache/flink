@@ -48,7 +48,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.OptionalFailure;
@@ -197,7 +197,7 @@ public class CollectionExecutor {
     }
 
     private RuntimeUDFContext createContext(int superStep, TaskInfo taskInfo, JobID jobID) {
-        MetricGroup metrics = new UnregisteredMetricsGroup();
+        OperatorMetricGroup metrics = UnregisteredMetricsGroup.createOperatorMetricGroup();
         return superStep == 0
                 ? new RuntimeUDFContext(
                         taskInfo,
@@ -588,7 +588,7 @@ public class CollectionExecutor {
                 ExecutionConfig executionConfig,
                 Map<String, Future<Path>> cpTasks,
                 Map<String, Accumulator<?, ?>> accumulators,
-                MetricGroup metrics,
+                OperatorMetricGroup metrics,
                 JobID jobID) {
             super(taskInfo, classloader, executionConfig, cpTasks, accumulators, metrics, jobID);
         }

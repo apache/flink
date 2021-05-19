@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -548,7 +548,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             sourceInputConfig,
                             userCodeClassloader,
                             getFinishedOnRestoreInputOrDefault(operatorInputs.get(inputId)),
-                            (OperatorMetricGroup) multipleInputOperator.getMetricGroup(),
+                            multipleInputOperator.getMetricGroup(),
                             outputTag);
 
             SourceOperator<?, ?> sourceOperator =
