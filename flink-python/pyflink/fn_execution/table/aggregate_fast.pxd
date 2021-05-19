@@ -59,7 +59,7 @@ cdef class SimpleAggsHandleFunction(SimpleAggsHandleFunctionBase):
     cdef size_t _get_value_indexes_length
 
 cdef class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase):
-    pass
+    cdef list _convert_to_row(self, data)
 
 cdef class RecordCounter:
     cdef bint record_count_is_zero(self, list acc)

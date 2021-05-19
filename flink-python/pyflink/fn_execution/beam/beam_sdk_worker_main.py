@@ -25,5 +25,43 @@ import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-imp
 
 import apache_beam.runners.worker.sdk_worker_main
 
+
+def print_to_logging(logging_func, msg, *args, **kwargs):
+    if msg != '\n':
+        logging_func(msg, *args, **kwargs)
+
+
+class CustomPrint(object):
+    def __init__(self, _print):
+        self._msg_buffer = []
+        self._print = _print
+
+    def print(self, *args, sep=' ', end='\n', file=None):
+        self._msg_buffer.append(sep.join([str(arg) for arg in args]))
+        if end == '\n':
+            self._print(''.join(self._msg_buffer), sep=sep, end=end, file=file)
+            self._msg_buffer.clear()
+        else:
+            self._msg_buffer.append(end)
+
+    def close(self):
+        if self._msg_buffer:
+            self._print(''.join(self._msg_buffer), sep='', end='\n')
+            self._msg_buffer.clear()
+
+
 if __name__ == '__main__':
+    import builtins
+    import logging
+    from functools import partial
+
+    # redirect stdout to logging.info, stderr to logging.error
+    _info = logging.getLogger().info
+    _error = logging.getLogger().error
+    sys.stdout.write = partial(print_to_logging, _info)
+    sys.stderr.write = partial(print_to_logging, _error)
+
+    custom_print = CustomPrint(print)
+    builtins.print = custom_print.print
     apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
+    custom_print.close()

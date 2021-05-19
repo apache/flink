@@ -87,7 +87,6 @@ public class ResourceManagerHATest extends TestLogger {
                                 new CPUResource(Double.MAX_VALUE),
                                 MemorySize.MAX_VALUE,
                                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()),
-                        ClusterOptions.isDeclarativeResourceManagementEnabled(configuration),
                         ClusterOptions.isFineGrainedResourceManagementEnabled(configuration));
         ResourceManagerRuntimeServices resourceManagerRuntimeServices =
                 ResourceManagerRuntimeServices.fromConfiguration(

@@ -205,6 +205,22 @@ public class ResourceTest extends TestLogger {
         resource1.compareTo(resource2);
     }
 
+    /** This test assume that the scale limitation is 8. */
+    @Test
+    public void testValueScaleLimited() {
+        final Resource v1 = new TestResource(0.100000001);
+        assertTestResourceValueEquals(0.1, v1);
+
+        final Resource v2 = new TestResource(1.0).divide(3);
+        assertTestResourceValueEquals(0.33333333, v2);
+    }
+
+    @Test
+    public void testStripTrailingZeros() {
+        final Resource v = new TestResource(0.25).multiply(2);
+        assertThat(v.getValue().toString(), is("0.5"));
+    }
+
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {
         assertEquals(new TestResource(value), resource);
     }

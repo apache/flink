@@ -38,37 +38,47 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 
 import java.lang.reflect.Constructor;
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Base {@link ExecNode} which matches along with join a Python user defined table function. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_JOIN_TYPE = "joinType";
+    public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
+
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.table.RowDataPythonTableFunctionOperator";
 
+    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
+
+    @JsonProperty(FIELD_NAME_FUNCTION_CALL)
     private final RexCall invocation;
 
     public CommonExecPythonCorrelate(
             FlinkJoinType joinType,
             RexCall invocation,
-            RexNode condition,
-            InputProperty inputProperty,
+            int id,
+            List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
         this.joinType = joinType;
         this.invocation = invocation;
-        if (joinType == FlinkJoinType.LEFT && condition != null) {
-            throw new TableException(
-                    "Currently Python correlate does not support conditions in left join.");
-        }
     }
 
     @SuppressWarnings("unchecked")

@@ -75,7 +75,6 @@ class StreamPhysicalPythonGroupWindowAggregate(
       aggCalls.toArray,
       window,
       namedWindowProperties.toArray,
-      emitStrategy,
       generateUpdateBefore,
       needRetraction,
       InputProperty.DEFAULT,

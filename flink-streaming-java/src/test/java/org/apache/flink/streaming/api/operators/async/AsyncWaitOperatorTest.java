@@ -56,6 +56,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -73,6 +75,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -82,11 +85,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -238,6 +245,29 @@ public class AsyncWaitOperatorTest extends TestLogger {
         @Override
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
             resultFuture.complete(Collections.singletonList(input * 3));
+        }
+    }
+
+    /** Completes input at half the TIMEOUT and registers timeouts. */
+    private static class TimeoutAfterCompletionTestFunction
+            implements AsyncFunction<Integer, Integer> {
+        static final AtomicBoolean TIMED_OUT = new AtomicBoolean(false);
+        static final CountDownLatch COMPLETION_TRIGGER = new CountDownLatch(1);
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            ForkJoinPool.commonPool()
+                    .submit(
+                            () -> {
+                                COMPLETION_TRIGGER.await();
+                                resultFuture.complete(Collections.singletonList(input));
+                                return null;
+                            });
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            TIMED_OUT.set(true);
         }
     }
 
@@ -781,6 +811,45 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         // check that we have cancelled our registered timeout
         assertEquals(0, harness.getProcessingTimeService().getNumActiveTimers());
+    }
+
+    /**
+     * Checks if timeout has been called after the element has been completed within the timeout.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/FLINK-22573">FLINK-22573</a>
+     */
+    @Test
+    public void testTimeoutAfterComplete() throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new TimeoutAfterCompletionTestFunction(),
+                                        TIMEOUT,
+                                        1,
+                                        AsyncDataStream.OutputMode.UNORDERED))
+                        .build()) {
+            harness.processElement(new StreamRecord<>(1));
+            // add a timer after AsyncIO added its timer to verify that AsyncIO timer is processed
+            ScheduledFuture<?> testTimer =
+                    harness.getTimerService()
+                            .registerTimer(
+                                    harness.getTimerService().getCurrentProcessingTime() + TIMEOUT,
+                                    ts -> {});
+            // trigger the regular completion in AsyncIO
+            TimeoutAfterCompletionTestFunction.COMPLETION_TRIGGER.countDown();
+            // wait until all timers have been processed
+            testTimer.get();
+            // handle normal completion call outputting the element in mailbox thread
+            harness.processAll();
+            assertEquals(
+                    Collections.singleton(new StreamRecord<>(1)),
+                    new HashSet<>(harness.getOutput()));
+            assertFalse("no timeout expected", TimeoutAfterCompletionTestFunction.TIMED_OUT.get());
+        }
     }
 
     /**

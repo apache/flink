@@ -173,9 +173,8 @@ When converting a dynamic table into a stream or writing it to an external syste
 
 * **Upsert stream:** An upsert stream is a stream with two types of messages, *upsert messages* and *delete messages*. A dynamic table that is converted into an upsert stream requires a (possibly composite) unique key. A dynamic table with a unique key is transformed into a stream by encoding `INSERT` and `UPDATE` changes as upsert messages and `DELETE` changes as delete messages. The stream consuming operator needs to be aware of the unique key attribute to apply messages correctly. The main difference to a retract stream is that `UPDATE` changes are encoded with a single message and hence more efficient. The following figure visualizes the conversion of a dynamic table into an upsert stream.
 
-<center>
-<img alt="Dynamic tables" src="{% link /fig/table-streaming/redo-mode.png %}" width="85%">
-</center>
+{{< img alt="Dynamic tables" src="/fig/table-streaming/redo-mode.png" width="85%">}}
+
 <br><br>
 
 The API to convert a dynamic table into a `DataStream` is discussed on the [Common Concepts]({{< ref "docs/dev/table/common" >}}#convert-a-table-into-a-datastream) page. Please note that only append and retract streams are supported when converting a dynamic table into a `DataStream`. The `TableSink` interface to emit a dynamic table to an external system are discussed on the [TableSources and TableSinks](../sourceSinks.html#define-a-tablesink) page.

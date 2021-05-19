@@ -129,7 +129,7 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.children="append">
+						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>io.fabric8:kubernetes-client</include>
@@ -156,7 +156,6 @@ under the License.
 									<artifact>*:*</artifact>
 									<excludes>
 										<exclude>*.aut</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/services/*com.fasterxml*</exclude>
 										<exclude>META-INF/proguard/**</exclude>
 										<exclude>OSGI-INF/**</exclude>

@@ -24,6 +24,7 @@ from typing import List, Dict
 
 from apache_beam.coders import PickleCoder, Coder
 
+from pyflink.common import Row
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -379,11 +380,19 @@ cdef class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase):
         results = []
         for x in udf.emit_value(self._accumulators[0]):
             if is_retract:
-                result = join_row(current_key, x._values, InternalRowKind.DELETE)
+                result = join_row(current_key, self._convert_to_row(x), InternalRowKind.DELETE)
             else:
-                result = join_row(current_key, x._values, InternalRowKind.INSERT)
+                result = join_row(current_key, self._convert_to_row(x), InternalRowKind.INSERT)
             results.append(result)
         return results
+
+    cdef list _convert_to_row(self, data):
+        if isinstance(data, Row):
+            return data._values
+        elif isinstance(data, tuple):
+            return list(data)
+        else:
+            return [data]
 
 cdef class RecordCounter:
     """

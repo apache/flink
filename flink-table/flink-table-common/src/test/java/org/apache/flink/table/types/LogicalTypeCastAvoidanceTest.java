@@ -230,7 +230,7 @@ public class LogicalTypeCastAvoidanceTest {
                         true
                     },
 
-                    // row and structure type
+                    // row and structured type
                     {
                         RowType.of(new IntType(), new VarCharType()),
                         createUserType("User2", new IntType(), new VarCharType()),
@@ -251,6 +251,46 @@ public class LogicalTypeCastAvoidanceTest {
                         RowType.of(new BigIntType(), new VarCharType()),
                         false
                     },
+
+                    // test slightly different children of anonymous structured types
+                    {
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredType.StructuredAttribute(
+                                                        "f1", new TimestampType()),
+                                                new StructuredType.StructuredAttribute(
+                                                        "diff", new TinyIntType(false))))
+                                .build(),
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredType.StructuredAttribute(
+                                                        "f1", new TimestampType()),
+                                                new StructuredType.StructuredAttribute(
+                                                        "diff", new TinyIntType(true))))
+                                .build(),
+                        true
+                    },
+                    {
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredType.StructuredAttribute(
+                                                        "f1", new TimestampType()),
+                                                new StructuredType.StructuredAttribute(
+                                                        "diff", new TinyIntType(true))))
+                                .build(),
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredType.StructuredAttribute(
+                                                        "f1", new TimestampType()),
+                                                new StructuredType.StructuredAttribute(
+                                                        "diff", new TinyIntType(false))))
+                                .build(),
+                        false
+                    }
                 });
     }
 

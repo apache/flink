@@ -1,0 +1,1657 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`rowtime` - INTERVAL '1' SECOND",
+        "schema.4.expr" : "PROCTIME()",
+        "schema.0.data-type" : "INT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.4.name" : "proctime",
+        "schema.1.data-type" : "BIGINT",
+        "schema.3.data-type" : "TIMESTAMP(3)",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "rowtime",
+        "connector" : "values",
+        "schema.watermark.0.rowtime" : "rowtime",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.3.expr" : "TO_TIMESTAMP(`c`)",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
+        "schema.0.name" : "a"
+      }
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "TO_TIMESTAMP",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : {
+          "typeName" : "VARCHAR",
+          "nullable" : true,
+          "precision" : 2147483647
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "PROCTIME",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ ],
+      "type" : {
+        "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "watermarkExpr" : {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "-",
+        "kind" : "MINUS",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : {
+          "typeName" : "TIMESTAMP",
+          "nullable" : true,
+          "precision" : 3
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : 1000,
+        "type" : {
+          "typeName" : "INTERVAL_SECOND",
+          "nullable" : false,
+          "precision" : 2,
+          "scale" : 6
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    },
+    "rowtimeFieldIndex" : 3,
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "timestampKind" : "ROWTIME",
+        "typeName" : "TIMESTAMP",
+        "nullable" : true
+      }
+    } ],
+    "condition" : null,
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[a, c, rowtime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "uv",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "windowing" : {
+      "strategy" : "TimeAttribute",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "timeAttributeIndex" : 2,
+      "isRowtime" : true
+    },
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgAOAX5xAH4AEXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAGQklHSU5UeHEAfgAafnIASW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZSRTdHJ1Y3R1cmVkQ29tcGFyaXNpb24AAAAAAAAAABIAAHhxAH4AEnQABE5PTkVxAH4AB3BzcQB+ABkAAAABdwQAAAABc3IALW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuS2V5VmFsdWVEYXRhVHlwZY4kybjNPKCeAgACTAALa2V5RGF0YVR5cGV0ACdMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9EYXRhVHlwZTtMAA12YWx1ZURhdGFUeXBlcQB+AC94cQB+AAJ2cgANamF2YS51dGlsLk1hcAAAAAAAAAAAAAAAeHBxAH4AH3NyACtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkF0b21pY0RhdGFUeXBlGohTKfp6IzICAAB4cQB+AAJ2cgAmb3JnLmFwYWNoZS5mbGluay50YWJsZS5kYXRhLlN0cmluZ0RhdGEAAAAAAAAAAAAAAHhwcQB+ACNzcQB+ADN2cgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwcQB+ACd4AAAUV/0AAAABAAAAAQBUb3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5Sb3dEYXRhU2VyaWFsaXplciRSb3dEYXRhU2VyaWFsaXplclNuYXBzaG90AAAAAwAAAAGs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5NYXBUeXBlAAAAAAAAAAECAAJMAAdrZXlUeXBldAAyTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZTtMAAl2YWx1ZVR5cGVxAH4AAXhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgACAX5xAH4ABXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AAIAfnEAfgAFdAAGQklHSU5UABRX/QAAAAEAAAABAFRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLk1hcERhdGFTZXJpYWxpemVyJE1hcERhdGFTZXJpYWxpemVyU25hcHNob3QAAAADrO0ABXNyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuVmFyQ2hhclR5cGUAAAAAAAAAAQIAAUkABmxlbmd0aHhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAAHVkFSQ0hBUn////+s7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA9b3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5TdHJpbmdEYXRhU2VyaWFsaXplcgAAAAAAAAABAgAAeHIAQm9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuYmFzZS5UeXBlU2VyaWFsaXplclNpbmdsZXRvbnmph6rHLndFAgAAeHIANG9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwrO0ABXNyADlvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuTG9uZ1NlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cA==')"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgAOAX5xAH4AEXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAGQklHSU5UeHEAfgAafnIASW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZSRTdHJ1Y3R1cmVkQ29tcGFyaXNpb24AAAAAAAAAABIAAHhxAH4AEnQABE5PTkVxAH4AB3BzcQB+ABkAAAABdwQAAAABc3IALW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuS2V5VmFsdWVEYXRhVHlwZY4kybjNPKCeAgACTAALa2V5RGF0YVR5cGV0ACdMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9EYXRhVHlwZTtMAA12YWx1ZURhdGFUeXBlcQB+AC94cQB+AAJ2cgANamF2YS51dGlsLk1hcAAAAAAAAAAAAAAAeHBxAH4AH3NyACtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkF0b21pY0RhdGFUeXBlGohTKfp6IzICAAB4cQB+AAJ2cgAmb3JnLmFwYWNoZS5mbGluay50YWJsZS5kYXRhLlN0cmluZ0RhdGEAAAAAAAAAAAAAAHhwcQB+ACNzcQB+ADN2cgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwcQB+ACd4AAAUV/0AAAABAAAAAQBUb3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5Sb3dEYXRhU2VyaWFsaXplciRSb3dEYXRhU2VyaWFsaXplclNuYXBzaG90AAAAAwAAAAGs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5NYXBUeXBlAAAAAAAAAAECAAJMAAdrZXlUeXBldAAyTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZTtMAAl2YWx1ZVR5cGVxAH4AAXhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgACAX5xAH4ABXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AAIAfnEAfgAFdAAGQklHSU5UABRX/QAAAAEAAAABAFRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLk1hcERhdGFTZXJpYWxpemVyJE1hcERhdGFTZXJpYWxpemVyU25hcHNob3QAAAADrO0ABXNyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuVmFyQ2hhclR5cGUAAAAAAAAAAQIAAUkABmxlbmd0aHhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAAHVkFSQ0hBUn////+s7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA9b3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5TdHJpbmdEYXRhU2VyaWFsaXplcgAAAAAAAAABAgAAeHIAQm9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuYmFzZS5UeXBlU2VyaWFsaXplclNpbmdsZXRvbnmph6rHLndFAgAAeHIANG9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwrO0ABXNyADlvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuTG9uZ1NlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cA==')"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "uv",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "windowing" : {
+      "strategy" : "SliceAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "sliceEnd" : 4,
+      "isRowtime" : true
+    },
+    "namedWindowProperties" : [ {
+      "name" : "window_start",
+      "property" : {
+        "kind" : "WindowStart",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "window_end",
+      "property" : {
+        "kind" : "WindowEnd",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "window_time",
+      "property" : {
+        "kind" : "Rowtime",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    } ],
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 8,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[a, window_start, window_end, cnt, uv])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 9,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable2"
+      },
+      "catalogTable" : {
+        "schema.watermark.0.strategy.expr" : "`rowtime` - INTERVAL '1' SECOND",
+        "schema.4.expr" : "PROCTIME()",
+        "schema.0.data-type" : "INT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.4.name" : "proctime",
+        "schema.1.data-type" : "BIGINT",
+        "schema.3.data-type" : "TIMESTAMP(3)",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "rowtime",
+        "connector" : "values",
+        "schema.watermark.0.rowtime" : "rowtime",
+        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
+        "schema.3.expr" : "TO_TIMESTAMP(`c`)",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
+        "schema.0.name" : "a"
+      }
+    },
+    "id" : 10,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "TO_TIMESTAMP",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : {
+          "typeName" : "VARCHAR",
+          "nullable" : true,
+          "precision" : 2147483647
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "PROCTIME",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ ],
+      "type" : {
+        "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 11,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "watermarkExpr" : {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "-",
+        "kind" : "MINUS",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : {
+          "typeName" : "TIMESTAMP",
+          "nullable" : true,
+          "precision" : 3
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : 1000,
+        "type" : {
+          "typeName" : "INTERVAL_SECOND",
+          "nullable" : false,
+          "precision" : 2,
+          "scale" : 6
+        }
+      } ],
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : true,
+        "precision" : 3
+      }
+    },
+    "rowtimeFieldIndex" : 3,
+    "id" : 12,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "proctime" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "timestampKind" : "ROWTIME",
+        "typeName" : "TIMESTAMP",
+        "nullable" : true
+      }
+    } ],
+    "condition" : null,
+    "id" : 13,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[a, c, rowtime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "uv",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "windowing" : {
+      "strategy" : "TimeAttribute",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "timeAttributeIndex" : 2,
+      "isRowtime" : true
+    },
+    "id" : 14,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgAOAX5xAH4AEXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAGQklHSU5UeHEAfgAafnIASW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZSRTdHJ1Y3R1cmVkQ29tcGFyaXNpb24AAAAAAAAAABIAAHhxAH4AEnQABE5PTkVxAH4AB3BzcQB+ABkAAAABdwQAAAABc3IALW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuS2V5VmFsdWVEYXRhVHlwZY4kybjNPKCeAgACTAALa2V5RGF0YVR5cGV0ACdMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9EYXRhVHlwZTtMAA12YWx1ZURhdGFUeXBlcQB+AC94cQB+AAJ2cgANamF2YS51dGlsLk1hcAAAAAAAAAAAAAAAeHBxAH4AH3NyACtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkF0b21pY0RhdGFUeXBlGohTKfp6IzICAAB4cQB+AAJ2cgAmb3JnLmFwYWNoZS5mbGluay50YWJsZS5kYXRhLlN0cmluZ0RhdGEAAAAAAAAAAAAAAHhwcQB+ACNzcQB+ADN2cgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwcQB+ACd4AAAUV/0AAAABAAAAAQBUb3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5Sb3dEYXRhU2VyaWFsaXplciRSb3dEYXRhU2VyaWFsaXplclNuYXBzaG90AAAAAwAAAAGs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5NYXBUeXBlAAAAAAAAAAECAAJMAAdrZXlUeXBldAAyTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZTtMAAl2YWx1ZVR5cGVxAH4AAXhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgACAX5xAH4ABXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AAIAfnEAfgAFdAAGQklHSU5UABRX/QAAAAEAAAABAFRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLk1hcERhdGFTZXJpYWxpemVyJE1hcERhdGFTZXJpYWxpemVyU25hcHNob3QAAAADrO0ABXNyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuVmFyQ2hhclR5cGUAAAAAAAAAAQIAAUkABmxlbmd0aHhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAAHVkFSQ0hBUn////+s7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA9b3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5TdHJpbmdEYXRhU2VyaWFsaXplcgAAAAAAAAABAgAAeHIAQm9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuYmFzZS5UeXBlU2VyaWFsaXplclNpbmdsZXRvbnmph6rHLndFAgAAeHIANG9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwrO0ABXNyADlvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuTG9uZ1NlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cA==')"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 15,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgAOAX5xAH4AEXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAGQklHSU5UeHEAfgAafnIASW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZSRTdHJ1Y3R1cmVkQ29tcGFyaXNpb24AAAAAAAAAABIAAHhxAH4AEnQABE5PTkVxAH4AB3BzcQB+ABkAAAABdwQAAAABc3IALW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuS2V5VmFsdWVEYXRhVHlwZY4kybjNPKCeAgACTAALa2V5RGF0YVR5cGV0ACdMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9EYXRhVHlwZTtMAA12YWx1ZURhdGFUeXBlcQB+AC94cQB+AAJ2cgANamF2YS51dGlsLk1hcAAAAAAAAAAAAAAAeHBxAH4AH3NyACtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkF0b21pY0RhdGFUeXBlGohTKfp6IzICAAB4cQB+AAJ2cgAmb3JnLmFwYWNoZS5mbGluay50YWJsZS5kYXRhLlN0cmluZ0RhdGEAAAAAAAAAAAAAAHhwcQB+ACNzcQB+ADN2cgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhwcQB+ACd4AAAUV/0AAAABAAAAAQBUb3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5Sb3dEYXRhU2VyaWFsaXplciRSb3dEYXRhU2VyaWFsaXplclNuYXBzaG90AAAAAwAAAAGs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5NYXBUeXBlAAAAAAAAAAECAAJMAAdrZXlUeXBldAAyTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZTtMAAl2YWx1ZVR5cGVxAH4AAXhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAADTUFQc3IAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5WYXJDaGFyVHlwZQAAAAAAAAABAgABSQAGbGVuZ3RoeHEAfgACAX5xAH4ABXQAB1ZBUkNIQVJ/////c3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cQB+AAIAfnEAfgAFdAAGQklHSU5UABRX/QAAAAEAAAABAFRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLk1hcERhdGFTZXJpYWxpemVyJE1hcERhdGFTZXJpYWxpemVyU25hcHNob3QAAAADrO0ABXNyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuVmFyQ2hhclR5cGUAAAAAAAAAAQIAAUkABmxlbmd0aHhyADBvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGUAAAAAAAAAAQIAAloACmlzTnVsbGFibGVMAAh0eXBlUm9vdHQANkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGVSb290O3hwAX5yADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTG9naWNhbFR5cGVSb290AAAAAAAAAAASAAB4cgAOamF2YS5sYW5nLkVudW0AAAAAAAAAABIAAHhwdAAHVkFSQ0hBUn////+s7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA9b3JnLmFwYWNoZS5mbGluay50YWJsZS5ydW50aW1lLnR5cGV1dGlscy5TdHJpbmdEYXRhU2VyaWFsaXplcgAAAAAAAAABAgAAeHIAQm9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuYmFzZS5UeXBlU2VyaWFsaXplclNpbmdsZXRvbnmph6rHLndFAgAAeHIANG9yZy5hcGFjaGUuZmxpbmsuYXBpLmNvbW1vbi50eXBldXRpbHMuVHlwZVNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhwrO0ABXNyADlvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuTG9uZ1NlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cA==')"
+      }, {
+        "$slice_end" : "BIGINT"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "uv",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "windowing" : {
+      "strategy" : "SliceAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "sliceEnd" : 4,
+      "isRowtime" : true
+    },
+    "namedWindowProperties" : [ {
+      "name" : "window_start",
+      "property" : {
+        "kind" : "WindowStart",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "window_end",
+      "property" : {
+        "kind" : "WindowEnd",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    }, {
+      "name" : "window_time",
+      "property" : {
+        "kind" : "Rowtime",
+        "reference" : {
+          "name" : "w$",
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "nullable" : true,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }
+      }
+    } ],
+    "id" : 16,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "rowtime" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : true,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_time" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 17,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[a, window_start, window_end, cnt, uv])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 18,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "leftWindowing" : {
+      "strategy" : "WindowAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "windowStart" : 1,
+      "windowEnd" : 2,
+      "isRowtime" : true
+    },
+    "rightWindowing" : {
+      "strategy" : "WindowAttached",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT15M"
+      },
+      "timeAttributeType" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable" : true,
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      },
+      "windowStart" : 1,
+      "windowEnd" : 2,
+      "isRowtime" : true
+    },
+    "id" : 19,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      }, {
+        "a0" : "INT"
+      }, {
+        "window_start0" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end0" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt0" : "BIGINT NOT NULL"
+      }, {
+        "uv0" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[(a = a0)], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "TIMESTAMP",
+        "nullable" : false,
+        "precision" : 3
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 8,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 9,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 20,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      }, {
+        "a0" : "INT"
+      }, {
+        "cnt0" : "BIGINT NOT NULL"
+      }, {
+        "uv0" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "schema.5.name" : "r_a",
+        "schema.7.data-type" : "BIGINT",
+        "schema.0.data-type" : "INT",
+        "schema.2.name" : "window_end",
+        "schema.1.name" : "window_start",
+        "schema.6.data-type" : "BIGINT",
+        "schema.4.name" : "l_uv",
+        "schema.1.data-type" : "TIMESTAMP(3)",
+        "schema.3.data-type" : "BIGINT",
+        "schema.2.data-type" : "TIMESTAMP(3)",
+        "schema.3.name" : "l_cnt",
+        "schema.7.name" : "r_uv",
+        "connector" : "values",
+        "schema.6.name" : "r_cnt",
+        "schema.5.data-type" : "INT",
+        "schema.4.data-type" : "BIGINT",
+        "schema.0.name" : "l_a"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 21,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "INT"
+      }, {
+        "window_start" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "window_end" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "REGULAR"
+        }
+      }, {
+        "cnt" : "BIGINT NOT NULL"
+      }, {
+        "uv" : "BIGINT NOT NULL"
+      }, {
+        "a0" : "INT"
+      }, {
+        "cnt0" : "BIGINT NOT NULL"
+      }, {
+        "uv0" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 15,
+    "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 16,
+    "target" : 17,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 17,
+    "target" : 18,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 18,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 19,
+    "target" : 20,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 20,
+    "target" : 21,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

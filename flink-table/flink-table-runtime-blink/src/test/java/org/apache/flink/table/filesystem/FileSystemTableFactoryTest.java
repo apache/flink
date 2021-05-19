@@ -166,7 +166,7 @@ public class FileSystemTableFactoryTest {
                             .contains(
                                     "The supported watermark time zone is either a full name such "
                                             + "as 'America/Los_Angeles', or a custom time zone id such "
-                                            + "as 'GMT-8:00', but configured time zone is 'UTC+8'."));
+                                            + "as 'GMT-08:00', but configured time zone is 'UTC+8'."));
             return;
         }
 

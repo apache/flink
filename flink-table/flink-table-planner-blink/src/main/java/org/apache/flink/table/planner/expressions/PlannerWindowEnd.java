@@ -36,7 +36,7 @@ public class PlannerWindowEnd extends AbstractPlannerWindowProperty {
 
     @Override
     public LogicalType getResultType() {
-        return new TimestampType(3);
+        return new TimestampType(false, 3);
     }
 
     @Override

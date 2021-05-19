@@ -250,7 +250,10 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
             // field is accessible with a getter
             final Method getter =
                     getStructuredFieldGetter(implementationClass, field)
-                            .orElseThrow(IllegalStateException::new);
+                            .orElseThrow(
+                                    () ->
+                                            fieldNotReadableException(
+                                                    implementationClass, fieldName));
             accessExpr = expr("external.", getter.getName(), "()");
         }
         accessExpr = castExpr(accessExpr, fieldClass);
@@ -262,6 +265,25 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
                 "].toInternalOrNull(",
                 accessExpr,
                 "))");
+    }
+
+    private static IllegalStateException fieldNotReadableException(
+            Class<?> implementationClass, String fieldName) {
+        return new IllegalStateException(
+                String.format(
+                        "Could not find a getter for field '%s' in class '%s'. "
+                                + "Make sure that the field is readable (via public visibility or getter).",
+                        fieldName, implementationClass.getName()));
+    }
+
+    private static IllegalStateException fieldNotWritableException(
+            Class<?> implementationClass, String fieldName) {
+        return new IllegalStateException(
+                String.format(
+                        "Could not find a setter for field '%s' in class '%s'. "
+                                + "Make sure that the field is writable (via public visibility, "
+                                + "setter, or full constructor).",
+                        fieldName, implementationClass.getName()));
     }
 
     private static String parameterExpr(int pos, Class<?> fieldClass) {
@@ -295,7 +317,10 @@ public class StructuredObjectConverter<T> implements DataStructureConverter<RowD
             // field is accessible with a setter
             final Method setter =
                     getStructuredFieldSetter(implementationClass, field)
-                            .orElseThrow(IllegalStateException::new);
+                            .orElseThrow(
+                                    () ->
+                                            fieldNotWritableException(
+                                                    implementationClass, fieldName));
             return expr(
                     "structured.",
                     setter.getName(),

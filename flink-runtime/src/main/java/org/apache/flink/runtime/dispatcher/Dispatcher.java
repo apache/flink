@@ -748,13 +748,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     private void cleanUpJobData(JobID jobId, boolean cleanupHA) {
         jobManagerMetricGroup.removeJob(jobId);
 
-        boolean cleanupHABlobs = false;
+        boolean jobGraphRemoved = false;
         if (cleanupHA) {
             try {
                 jobGraphWriter.removeJobGraph(jobId);
 
-                // only clean up the HA blobs if we could remove the job from HA storage
-                cleanupHABlobs = true;
+                // only clean up the HA blobs and ha service data for the particular job
+                // if we could remove the job from HA storage
+                jobGraphRemoved = true;
             } catch (Exception e) {
                 log.warn(
                         "Could not properly remove job {} from submitted job graph store.",
@@ -770,6 +771,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         jobId,
                         e);
             }
+
+            if (jobGraphRemoved) {
+                try {
+                    highAvailabilityServices.cleanupJobData(jobId);
+                } catch (Exception e) {
+                    log.warn(
+                            "Could not properly clean data for job {} stored by ha services",
+                            jobId,
+                            e);
+                }
+            }
         } else {
             try {
                 jobGraphWriter.releaseJobGraph(jobId);
@@ -781,7 +793,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             }
         }
 
-        blobServer.cleanupJob(jobId, cleanupHABlobs);
+        blobServer.cleanupJob(jobId, jobGraphRemoved);
     }
 
     /** Terminate all currently running {@link JobManagerRunner}s. */

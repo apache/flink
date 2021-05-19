@@ -1,6 +1,6 @@
 ---
 title: "Vectorized User-defined Functions"
-weight: 2
+weight: 10
 type: docs
 aliases:
   - /dev/python/table-api-users-guide/udfs/vectorized_python_udfs.html

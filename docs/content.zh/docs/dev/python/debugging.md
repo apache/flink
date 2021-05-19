@@ -28,13 +28,16 @@ under the License.
 
 ## 打印日志信息
 
-Python UDF可以通过标准的Python logging模块记录上下文和调试信息。
+Python UDF 可以通过 `print` 或者标准的 Python logging 模块记录上下文和调试信息。
 
 ```python
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
+@udf(result_type=DataTypes.BIGINT())
 def add(i, j):
+    # 使用 logging 模块
     import logging
     logging.info("debug")
+    # 使用 print 函数
+    print('debug')
     return i + j
 ```
 

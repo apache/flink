@@ -695,6 +695,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setCheckpointsCleaner(
+                CheckpointsCleaner checkpointsCleaner) {
+            this.checkpointsCleaner = checkpointsCleaner;
+            return this;
+        }
+
         public CheckpointCoordinatorBuilder setCheckpointIDCounter(
                 CheckpointIDCounter checkpointIDCounter) {
             this.checkpointIDCounter = checkpointIDCounter;
@@ -805,7 +811,7 @@ public class CheckpointCoordinatorTestingUtils {
 
     // ----------------- Mock class builders ---------------
 
-    public static final class MockOperatorCheckpointCoordinatorContextBuilder {
+    static final class MockOperatorCheckpointCoordinatorContextBuilder {
         private BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator = null;
         private Consumer<Long> onCallingAfterSourceBarrierInjection = null;
         private OperatorID operatorID = null;

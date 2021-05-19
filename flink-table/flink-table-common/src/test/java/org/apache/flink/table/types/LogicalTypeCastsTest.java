@@ -218,6 +218,42 @@ public class LogicalTypeCastsTest {
                         false,
                         true
                     },
+
+                    // test slightly different children of anonymous structured types
+                    {
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute(
+                                                        "diff", new TinyIntType(false))))
+                                .build(),
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute(
+                                                        "diff", new TinyIntType(true))))
+                                .build(),
+                        true,
+                        true
+                    },
+                    {
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("diff", new IntType())))
+                                .build(),
+                        StructuredType.newBuilder(Void.class)
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("diff", new TinyIntType())))
+                                .build(),
+                        false,
+                        true
+                    }
                 });
     }
 

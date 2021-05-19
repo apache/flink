@@ -407,4 +407,30 @@ class CalcITCase extends StreamingTestBase {
       List("1,HI,1111,true,111","2,HELLO,2222,false,222", "3,HELLO WORLD,3333,true,333")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testDecimalArrayWithDifferentPrecision(): Unit = {
+    val sqlQuery = "SELECT ARRAY[0.12, 0.5, 0.99]"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("[0.12, 0.50, 0.99]")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDecimalMapWithDifferentPrecision(): Unit = {
+    val sqlQuery = "SELECT Map['a', 0.12, 'b', 0.5]"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("{a=0.12, b=0.50}")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }

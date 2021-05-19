@@ -675,11 +675,12 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>shade-dist</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>${project.artifactId}-${project.version}</finalName>
@@ -688,11 +689,6 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
 										<exclude>org/apache/flink/runtime/util/bash/BashJavaUtils.class</exclude>
 									</excludes>
 								</filter>
@@ -708,12 +704,6 @@ under the License.
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
 									<resource>reference.conf</resource>
-								</transformer>
-								<!-- The service transformer is needed to merge META-INF/services files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
 						</configuration>
@@ -734,22 +724,11 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
+						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<finalName>bash-java-utils</finalName>
 							<filters>
-								<!-- Globally exclude log4j.properties from our JAR files. -->
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-									</excludes>
-								</filter>
 								<!-- Include only the BashJavaUtils, other required classes should come from the flink-dist-->
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
@@ -769,13 +748,6 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
 									<resource>log4j2.properties</resource>
 									<file>src/main/resources/log4j-bash-utils.properties</file>
-								</transformer>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>reference.conf</resource>
-								</transformer>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
 								</transformer>
 							</transformers>
 						</configuration>

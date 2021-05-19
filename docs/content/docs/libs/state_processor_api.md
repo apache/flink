@@ -219,7 +219,7 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 
 Along with reading registered state values, each key has access to a `Context` with metadata such as registered event time and processing time timers.
 
-{% panel **Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`. %}
+**Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`.
 
 ### Window State
 

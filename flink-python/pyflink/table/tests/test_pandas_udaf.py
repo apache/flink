@@ -760,6 +760,76 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[3, 2.0, 4]"])
         os.remove(source_path)
 
+    def test_execute_over_aggregate_from_json_plan(self):
+        # create source file path
+        tmp_dir = self.tempdir
+        data = [
+            '1,1,2013-01-01 03:10:00',
+            '3,2,2013-01-01 03:10:00',
+            '2,1,2013-01-01 03:10:00',
+            '1,5,2013-01-01 03:10:00',
+            '1,8,2013-01-01 04:20:00',
+            '2,3,2013-01-01 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_execute_over_aggregate_from_json_plan.csv'
+        sink_path = tmp_dir + '/test_execute_over_aggregate_from_json_plan'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        source_table = """
+            CREATE TABLE source_table (
+                a TINYINT,
+                b SMALLINT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+
+        self.t_env.execute_sql("""
+            CREATE TABLE sink_table (
+                a TINYINT,
+                b FLOAT,
+                c SMALLINT
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % sink_path)
+
+        max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
+                                result_type=DataTypes.SMALLINT(),
+                                func_type='pandas')
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
+
+        json_plan = self.t_env._j_tenv.getJsonPlan("""
+        insert into sink_table
+            select a,
+             mean_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+             max_add_min_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+            from source_table
+        """)
+        from py4j.java_gateway import get_method
+        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+
+        import glob
+        lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
+        lines.sort()
+        self.assertEqual(lines, ['1,1.0,2', '1,3.0,6', '1,6.5,13', '2,1.0,2', '2,2.0,4', '3,2.0,4'])
+
 
 @udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
 def mean_udaf(v):

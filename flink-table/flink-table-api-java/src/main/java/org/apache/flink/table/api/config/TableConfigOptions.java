@@ -90,7 +90,7 @@ public class TableConfigOptions {
                                     + "<code>TIMESTAMP WITH LOCAL TIME ZONE</code>. Internally, timestamps with local time zone are always represented in the UTC time zone. "
                                     + "However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), "
                                     + "the session time zone is used during conversion. The input of option is either a full name "
-                                    + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-8:00\".");
+                                    + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-08:00\".");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> MAX_LENGTH_GENERATED_CODE =

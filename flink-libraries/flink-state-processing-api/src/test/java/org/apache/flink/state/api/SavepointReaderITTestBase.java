@@ -55,6 +55,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.state.api.utils.SavepointTestBase.waitForAllRunningOrSomeTerminal;
+
 /** IT case for reading state. */
 public abstract class SavepointReaderITTestBase extends AbstractTestBase {
     static final String UID = "stateful-operator";
@@ -88,8 +90,9 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 
         DataStream<Integer> data = streamEnv.addSource(new SavepointSource()).rebalance();
 
+        StatefulOperator statefulOperator = new StatefulOperator(list, union, broadcast);
         data.connect(data.broadcast(broadcast))
-                .process(new StatefulOperator(list, union, broadcast))
+                .process(statefulOperator)
                 .uid(UID)
                 .addSink(new DiscardingSink<>());
 
@@ -178,6 +181,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         try {
             JobID jobID = client.submitJob(jobGraph).get();
 
+            waitForAllRunningOrSomeTerminal(jobID, miniClusterResource);
             boolean finished = false;
             while (deadline.hasTimeLeft()) {
                 if (SavepointSource.isFinished()) {
@@ -250,7 +254,6 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 
     private static class StatefulOperator extends BroadcastProcessFunction<Integer, Integer, Void>
             implements CheckpointedFunction {
-
         private final ListStateDescriptor<Integer> list;
         private final ListStateDescriptor<Integer> union;
         private final MapStateDescriptor<Integer, String> broadcast;

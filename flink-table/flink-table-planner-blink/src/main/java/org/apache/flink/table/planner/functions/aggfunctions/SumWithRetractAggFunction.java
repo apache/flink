@@ -20,12 +20,14 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
@@ -33,6 +35,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.liter
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /** built-in sum aggregate function with retraction. */
 public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunction {
@@ -62,10 +65,11 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
-                    isNull(operand(0)),
-                    sum,
-                    ifThenElse(isNull(sum), operand(0), plus(sum, operand(0)))),
+            /* sum = */ adjustSumType(
+                    ifThenElse(
+                            isNull(operand(0)),
+                            sum,
+                            ifThenElse(isNull(sum), operand(0), plus(sum, operand(0))))),
             /* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L)))
         };
     }
@@ -73,11 +77,14 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
-                    isNull(operand(0)),
-                    sum,
+            /* sum = */ adjustSumType(
                     ifThenElse(
-                            isNull(sum), minus(zeroLiteral(), operand(0)), minus(sum, operand(0)))),
+                            isNull(operand(0)),
+                            sum,
+                            ifThenElse(
+                                    isNull(sum),
+                                    minus(zeroLiteral(), operand(0)),
+                                    minus(sum, operand(0))))),
             /* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L)))
         };
     }
@@ -85,12 +92,18 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
-                    isNull(mergeOperand(sum)),
-                    sum,
-                    ifThenElse(isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum)))),
+            /* sum = */ adjustSumType(
+                    ifThenElse(
+                            isNull(mergeOperand(sum)),
+                            sum,
+                            ifThenElse(
+                                    isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum))))),
             /* count = */ plus(count, mergeOperand(count))
         };
+    }
+
+    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
+        return cast(sumExpr, typeLiteral(getResultType()));
     }
 
     @Override
