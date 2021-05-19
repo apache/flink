@@ -50,19 +50,23 @@ public class CliStatementSplitter {
         for (String line : content.split("\n")) {
             if (isEndOfStatement(line)) {
                 buffer.add(line);
-                statements.add(
-                        buffer.stream()
-                                .map(statementLine -> statementLine.replaceAll(MASK, ""))
-                                .collect(Collectors.joining("\n")));
+                statements.add(cleanLine(buffer));
                 buffer.clear();
             } else {
                 buffer.add(line);
             }
         }
         if (!buffer.isEmpty()) {
-            statements.add(String.join("\n", buffer));
+            statements.add(cleanLine(buffer));
         }
         return statements;
+    }
+
+    private static String cleanLine(List<String> buffer) {
+        return buffer.stream()
+                .map(statementLine -> statementLine.replaceAll(MASK, ""))
+                .filter(filterLine -> !filterLine.isEmpty())
+                .collect(Collectors.joining("\n"));
     }
 
     private static boolean isEndOfStatement(String line) {
