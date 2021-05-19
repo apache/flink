@@ -19,6 +19,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -50,7 +51,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
+import static org.apache.flink.configuration.JobManagerOptions.SchedulerType.Adaptive;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.junit.Assume.assumeFalse;
 
 /**
  * Test that failure on recovery leads to job restart if configured, so that transient recovery
@@ -58,15 +61,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class CheckpointStoreITCase extends TestLogger {
 
+    private static final Configuration CONFIGURATION =
+            new Configuration()
+                    .set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+
     @ClassRule
     public static final MiniClusterWithClientResource CLUSTER =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(
-                                    new Configuration()
-                                            .set(
-                                                    HighAvailabilityOptions.HA_MODE,
-                                                    TestingHAFactory.class.getName()))
+                            .setConfiguration(CONFIGURATION)
                             .build());
 
     @Before
@@ -77,6 +80,10 @@ public class CheckpointStoreITCase extends TestLogger {
 
     @Test
     public void testRestartOnRecoveryFailure() throws Exception {
+        assumeFalse(
+                // TODO: remove after FLINK-22483
+                "Adaptive scheduler doesn't retry after failures on recovery",
+                ClusterOptions.getSchedulerType(CONFIGURATION) == Adaptive);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
         env.setRestartStrategy(fixedDelayRestart(2 /* failure on processing + on recovery */, 0));
