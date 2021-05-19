@@ -205,6 +205,9 @@ public class CheckpointCoordinator {
 
     private boolean isPreferCheckpointForRecovery;
 
+    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
+    private final long checkpointIdOfIgnoredInFlightData;
+
     private final CheckpointFailureManager failureManager;
 
     private final Clock clock;
@@ -308,6 +311,7 @@ public class CheckpointCoordinator {
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
         this.alignmentTimeout = chkConfig.getAlignmentTimeout();
+        this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
         this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
         this.masterHooks = new HashMap<>();
@@ -1557,7 +1561,7 @@ public class CheckpointCoordinator {
             LOG.info("Restoring job {} from {}.", job, latest);
 
             // re-assign the task states
-            final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
+            final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
@@ -1597,6 +1601,33 @@ public class CheckpointCoordinator {
 
             return OptionalLong.of(latest.getCheckpointID());
         }
+    }
+
+    private Map<OperatorID, OperatorState> extractOperatorStates(CompletedCheckpoint checkpoint) {
+        Map<OperatorID, OperatorState> operatorStates = checkpoint.getOperatorStates();
+
+        if (checkpoint.getCheckpointID() == checkpointIdOfIgnoredInFlightData) {
+            // rewrite the operator state with empty in-flight data.
+            for (OperatorState operatorState : operatorStates.values()) {
+                for (Map.Entry<Integer, OperatorSubtaskState> subtaskStateEntry :
+                        operatorState.getSubtaskStates().entrySet()) {
+
+                    OperatorSubtaskState subtaskState = subtaskStateEntry.getValue();
+                    if (!subtaskState.getResultSubpartitionState().isEmpty()
+                            || !subtaskState.getInputChannelState().isEmpty()) {
+                        operatorState.putState(
+                                subtaskStateEntry.getKey(),
+                                subtaskState
+                                        .toBuilder()
+                                        .setResultSubpartitionState(StateObjectCollection.empty())
+                                        .setInputChannelState(StateObjectCollection.empty())
+                                        .build());
+                    }
+                }
+            }
+        }
+
+        return operatorStates;
     }
 
     /**
