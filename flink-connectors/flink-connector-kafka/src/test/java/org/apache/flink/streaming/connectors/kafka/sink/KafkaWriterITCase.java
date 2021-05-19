@@ -22,7 +22,9 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -121,7 +123,8 @@ public class KafkaWriterITCase {
                 guarantee,
                 config,
                 "test-prefix",
-                new SinkInitContext(metricListener.getMetricGroup()),
+                new SinkInitContext(
+                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup())),
                 new DummyRecordSerializer(),
                 new DummySchemaContext(),
                 ImmutableList.of());
@@ -140,9 +143,9 @@ public class KafkaWriterITCase {
 
     private static class SinkInitContext implements Sink.InitContext {
 
-        private final MetricGroup metricGroup;
+        private final SinkWriterMetricGroup metricGroup;
 
-        SinkInitContext(MetricGroup metricGroup) {
+        SinkInitContext(SinkWriterMetricGroup metricGroup) {
             this.metricGroup = metricGroup;
         }
 
@@ -172,7 +175,7 @@ public class KafkaWriterITCase {
         }
 
         @Override
-        public MetricGroup metricGroup() {
+        public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
         }
     }

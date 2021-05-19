@@ -221,7 +221,8 @@ public class TestSink<T> implements Sink<T, String, String, String> {
     // -------------------------------------- Sink Writer ------------------------------------------
 
     /** Base class for out testing {@link SinkWriter Writers}. */
-    static class DefaultSinkWriter<T> implements SinkWriter<T, String, String>, Serializable {
+    public static class DefaultSinkWriter<T>
+            implements SinkWriter<T, String, String>, Serializable {
 
         protected List<String> elements;
 
@@ -229,7 +230,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
         protected ProcessingTimeService processingTimerService;
 
-        DefaultSinkWriter() {
+        protected DefaultSinkWriter() {
             this.elements = new ArrayList<>();
             this.watermarks = new ArrayList<>();
         }

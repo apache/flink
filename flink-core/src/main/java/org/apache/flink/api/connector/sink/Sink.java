@@ -22,7 +22,7 @@ package org.apache.flink.api.connector.sink;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
@@ -162,7 +162,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
         int getNumberOfParallelSubtasks();
 
         /** @return The metric group this writer belongs to. */
-        MetricGroup metricGroup();
+        SinkWriterMetricGroup metricGroup();
     }
 
     /**
