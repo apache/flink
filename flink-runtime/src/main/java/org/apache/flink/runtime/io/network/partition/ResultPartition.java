@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
@@ -271,7 +271,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     }
 
     @Override
-    public void setMetricGroup(TaskIOMetricGroup metrics) {
+    public void setMetricGroup(InternalTaskIOMetricGroup metrics) {
         numBytesOut = metrics.getNumBytesOutCounter();
         numBuffersOut = metrics.getNumBuffersOutCounter();
     }

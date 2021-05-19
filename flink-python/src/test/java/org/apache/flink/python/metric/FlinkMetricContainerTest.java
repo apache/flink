@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
@@ -58,7 +59,7 @@ import static org.mockito.Mockito.when;
 public class FlinkMetricContainerTest {
 
     @Mock private RuntimeContext runtimeContext;
-    @Mock private MetricGroup metricGroup;
+    @Mock private OperatorMetricGroup metricGroup;
 
     private FlinkMetricContainer container;
 

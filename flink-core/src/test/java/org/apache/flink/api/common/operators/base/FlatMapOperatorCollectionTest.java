@@ -90,7 +90,8 @@ public class FlatMapOperatorCollectionTest implements Serializable {
                                         executionConfig,
                                         new HashMap<String, Future<Path>>(),
                                         new HashMap<String, Accumulator<?, ?>>(),
-                                        new UnregisteredMetricsGroup()),
+                                        UnregisteredMetricsGroup
+                                                .createUnregisteredOperatorMetricGroup()),
                                 executionConfig);
 
         Assert.assertEquals(input.size(), result.size());

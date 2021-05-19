@@ -51,8 +51,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.state.CheckpointStorage;
@@ -439,7 +438,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             return;
         }
 
-        TaskIOMetricGroup ioMetrics = getEnvironment().getMetricGroup().getIOMetricGroup();
+        InternalTaskIOMetricGroup ioMetrics = getEnvironment().getMetricGroup().getIOMetricGroup();
         TimerGauge timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
@@ -533,9 +532,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
         try {
-            return ((OperatorMetricGroup) streamOperator.getMetricGroup())
-                    .getIOMetricGroup()
-                    .getNumRecordsInCounter();
+            return streamOperator.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
         } catch (Exception e) {
             LOG.warn("An exception occurred during the metrics setup.", e);
             return new SimpleCounter();

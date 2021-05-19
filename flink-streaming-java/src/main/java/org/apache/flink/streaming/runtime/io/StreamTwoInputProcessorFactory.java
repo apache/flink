@@ -29,7 +29,7 @@ import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
@@ -60,7 +60,7 @@ public class StreamTwoInputProcessorFactory {
             CheckpointedInputGate[] checkpointedInputGates,
             IOManager ioManager,
             MemoryManager memoryManager,
-            TaskIOMetricGroup taskIOMetricGroup,
+            InternalTaskIOMetricGroup taskIOMetricGroup,
             TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
             WatermarkGauge input1WatermarkGauge,
             WatermarkGauge input2WatermarkGauge,

@@ -29,12 +29,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
-/** Tests for the {@link TaskIOMetricGroup}. */
-public class TaskIOMetricGroupTest {
+/** Tests for the {@link InternalTaskIOMetricGroup}. */
+public class InternalTaskIOMetricGroupTest {
     @Test
     public void testTaskIOMetricGroup() throws InterruptedException {
         TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-        TaskIOMetricGroup taskIO = task.getIOMetricGroup();
+        InternalTaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
         // test counter forwarding
         assertNotNull(taskIO.getNumRecordsInCounter());

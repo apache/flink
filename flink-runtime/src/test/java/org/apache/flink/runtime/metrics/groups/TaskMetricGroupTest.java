@@ -213,7 +213,8 @@ public class TaskMetricGroupTest extends TestLogger {
                         registry, job, new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
 
         String originalName = new String(new char[100]).replace("\0", "-");
-        OperatorMetricGroup operatorMetricGroup = taskMetricGroup.getOrAddOperator(originalName);
+        InternalOperatorMetricGroup operatorMetricGroup =
+                taskMetricGroup.getOrAddOperator(originalName);
 
         String storedName = operatorMetricGroup.getScopeComponents()[0];
         Assert.assertEquals(TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH, storedName.length());

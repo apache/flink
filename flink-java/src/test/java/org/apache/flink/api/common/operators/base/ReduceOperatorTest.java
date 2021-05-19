@@ -164,7 +164,8 @@ public class ReduceOperatorTest extends TestLogger implements Serializable {
                                     executionConfig,
                                     new HashMap<>(),
                                     new HashMap<>(),
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup
+                                            .createUnregisteredOperatorMetricGroup()),
                             executionConfig);
 
             executionConfig.enableObjectReuse();
@@ -177,7 +178,8 @@ public class ReduceOperatorTest extends TestLogger implements Serializable {
                                     executionConfig,
                                     new HashMap<>(),
                                     new HashMap<>(),
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup
+                                            .createUnregisteredOperatorMetricGroup()),
                             executionConfig);
 
             Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<>(resultMutableSafe);

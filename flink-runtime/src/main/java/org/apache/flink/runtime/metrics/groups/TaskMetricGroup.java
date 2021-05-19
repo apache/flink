@@ -43,11 +43,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
-    private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
+    private final Map<String, InternalOperatorMetricGroup> operators = new HashMap<>();
 
     static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
-    private final TaskIOMetricGroup ioMetrics;
+    private final InternalTaskIOMetricGroup ioMetrics;
 
     /**
      * The execution Id uniquely identifying the executed task represented by this metrics group.
@@ -91,7 +91,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
         this.subtaskIndex = subtaskIndex;
         this.attemptNumber = attemptNumber;
 
-        this.ioMetrics = new TaskIOMetricGroup(this);
+        this.ioMetrics = new InternalTaskIOMetricGroup(this);
     }
 
     // ------------------------------------------------------------------------
@@ -129,7 +129,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
      *
      * @return TaskIOMetricGroup for this task.
      */
-    public TaskIOMetricGroup getIOMetricGroup() {
+    public InternalTaskIOMetricGroup getIOMetricGroup() {
         return ioMetrics;
     }
 
@@ -144,11 +144,12 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     //  operators and cleanup
     // ------------------------------------------------------------------------
 
-    public OperatorMetricGroup getOrAddOperator(String operatorName) {
+    public InternalOperatorMetricGroup getOrAddOperator(String operatorName) {
         return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), operatorName);
     }
 
-    public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String operatorName) {
+    public InternalOperatorMetricGroup getOrAddOperator(
+            OperatorID operatorID, String operatorName) {
         final String truncatedOperatorName;
         if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
             LOG.warn(
@@ -168,7 +169,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
             return operators.computeIfAbsent(
                     key,
                     operator ->
-                            new OperatorMetricGroup(
+                            new InternalOperatorMetricGroup(
                                     this.registry, this, operatorID, truncatedOperatorName));
         }
     }

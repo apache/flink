@@ -34,7 +34,7 @@ import java.util.List;
  * Metric group that contains shareable pre-defined IO-related metrics. The metrics registration is
  * forwarded to the parent task metric group.
  */
-public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
+public class InternalTaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private final Counter numBytesIn;
     private final Counter numBytesOut;
@@ -53,7 +53,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private volatile boolean busyTimeEnabled;
 
-    public TaskIOMetricGroup(TaskMetricGroup parent) {
+    public InternalTaskIOMetricGroup(TaskMetricGroup parent) {
         super(parent);
 
         this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
