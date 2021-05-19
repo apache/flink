@@ -246,9 +246,10 @@ The following BNF-grammar describes the superset of supported SQL features in ba
 {{< expand Grammar >}}
 ```sql
 query:
-  values
+    values
+  | WITH withItem [ , withItem ]* query
   | {
-      select
+        select
       | selectWithoutFrom
       | query UNION [ ALL ] query
       | query EXCEPT query
@@ -259,64 +260,70 @@ query:
     [ OFFSET start { ROW | ROWS } ]
     [ FETCH { FIRST | NEXT } [ count ] { ROW | ROWS } ONLY]
 
+withItem:
+    name
+    [ '(' column [, column ]* ')' ]
+    AS '(' query ')'
+
 orderItem:
-  expression [ ASC | DESC ]
+    expression [ ASC | DESC ]
 
 select:
-  SELECT [ ALL | DISTINCT ]
-  { * | projectItem [, projectItem ]* }
-  FROM tableExpression
-  [ WHERE booleanExpression ]
-  [ GROUP BY { groupItem [, groupItem ]* } ]
-  [ HAVING booleanExpression ]
-  [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
+    SELECT [ ALL | DISTINCT ]
+    { * | projectItem [, projectItem ]* }
+    FROM tableExpression
+    [ WHERE booleanExpression ]
+    [ GROUP BY { groupItem [, groupItem ]* } ]
+    [ HAVING booleanExpression ]
+    [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
 
 selectWithoutFrom:
-  SELECT [ ALL | DISTINCT ]
-  { * | projectItem [, projectItem ]* }
+    SELECT [ ALL | DISTINCT ]
+    { * | projectItem [, projectItem ]* }
 
 projectItem:
-  expression [ [ AS ] columnAlias ]
+    expression [ [ AS ] columnAlias ]
   | tableAlias . *
 
 tableExpression:
-  tableReference [, tableReference ]*
+    tableReference [, tableReference ]*
   | tableExpression [ NATURAL ] [ LEFT | RIGHT | FULL ] JOIN tableExpression [ joinCondition ]
 
 joinCondition:
-  ON booleanExpression
+    ON booleanExpression
   | USING '(' column [, column ]* ')'
 
 tableReference:
-  tablePrimary
-  [ matchRecognize ]
-  [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
+    tablePrimary
+    [ matchRecognize ]
+    [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
+    [ TABLE ] tablePath [ dynamicTableOptions ] [systemTimePeriod] [[AS] correlationName]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
+  | [ LATERAL ] '(' query ')'
   | UNNEST '(' expression ')'
 
 tablePath:
-  [ [ catalogName . ] schemaName . ] tableName
+    [ [ catalogName . ] databaseName . ] tableName
 
 systemTimePeriod:
-  FOR SYSTEM_TIME AS OF dateTimeExpression
+    FOR SYSTEM_TIME AS OF dateTimeExpression
 
 dynamicTableOptions:
-  /*+ OPTIONS(key=val [, key=val]*) */
+    /*+ OPTIONS(key=val [, key=val]*) */
 
 key:
-  stringLiteral
+    stringLiteral
 
 val:
-  stringLiteral
+    stringLiteral
 
 values:
-  VALUES expression [, expression ]*
+    VALUES expression [, expression ]*
 
 groupItem:
-  expression
+    expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
   | CUBE '(' expression [, expression ]* ')'
@@ -339,45 +346,44 @@ windowSpec:
     ')'
 
 matchRecognize:
-      MATCH_RECOGNIZE '('
-      [ PARTITION BY expression [, expression ]* ]
-      [ ORDER BY orderItem [, orderItem ]* ]
-      [ MEASURES measureColumn [, measureColumn ]* ]
-      [ ONE ROW PER MATCH ]
-      [ AFTER MATCH
-            ( SKIP TO NEXT ROW
-            | SKIP PAST LAST ROW
-            | SKIP TO FIRST variable
-            | SKIP TO LAST variable
-            | SKIP TO variable )
-      ]
-      PATTERN '(' pattern ')'
-      [ WITHIN intervalLiteral ]
-      DEFINE variable AS condition [, variable AS condition ]*
-      ')'
+    MATCH_RECOGNIZE '('
+    [ PARTITION BY expression [, expression ]* ]
+    [ ORDER BY orderItem [, orderItem ]* ]
+    [ MEASURES measureColumn [, measureColumn ]* ]
+    [ ONE ROW PER MATCH ]
+    [ AFTER MATCH
+      ( SKIP TO NEXT ROW
+      | SKIP PAST LAST ROW
+      | SKIP TO FIRST variable
+      | SKIP TO LAST variable
+      | SKIP TO variable )
+    ]
+    PATTERN '(' pattern ')'
+    [ WITHIN intervalLiteral ]
+    DEFINE variable AS condition [, variable AS condition ]*
+    ')'
 
 measureColumn:
-      expression AS alias
+    expression AS alias
 
 pattern:
-      patternTerm [ '|' patternTerm ]*
+    patternTerm [ '|' patternTerm ]*
 
 patternTerm:
-      patternFactor [ patternFactor ]*
+    patternFactor [ patternFactor ]*
 
 patternFactor:
-      variable [ patternQuantifier ]
+    variable [ patternQuantifier ]
 
 patternQuantifier:
-      '*'
-  |   '*?'
-  |   '+'
-  |   '+?'
-  |   '?'
-  |   '??'
-  |   '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
-  |   '{' repeat '}'
-
+    '*'
+  | '*?'
+  | '+'
+  | '+?'
+  | '?'
+  | '??'
+  | '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
+  | '{' repeat '}'
 ```
 {{< /expand >}}
 
