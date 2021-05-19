@@ -21,6 +21,12 @@
             <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>. In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">state.checkpoints.dir</code>.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.id-of-ignored-in-flight-data</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Long</td>
+            <td>Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.<br /><br />It is better to keep this value empty until there is explicit needs to restore from the specific checkpoint without in-flight data.<br /></td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.interval</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Duration</td>

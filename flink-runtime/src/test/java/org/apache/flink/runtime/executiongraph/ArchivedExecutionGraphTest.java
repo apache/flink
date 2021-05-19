@@ -101,6 +101,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         true,
                         false,
                         false,
+                        0,
                         0);
         JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);
