@@ -711,6 +711,7 @@ curl localhost:8081/jobs/<jod-id>
   "plan": {
     "jid": "<job-id>",
     "name": "Click Event Count",
+    "type": "STREAMING",
     "nodes": [
       {
         "id": "<vertex-id>",

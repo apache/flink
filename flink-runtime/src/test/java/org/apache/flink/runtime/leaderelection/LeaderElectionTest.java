@@ -201,7 +201,7 @@ public class LeaderElectionTest extends TestLogger {
 
         @Override
         public LeaderElectionService createLeaderElectionService() throws Exception {
-            return ZooKeeperUtils.createLeaderElectionService(client, configuration);
+            return ZooKeeperUtils.createLeaderElectionService(client);
         }
     }
 

@@ -187,7 +187,7 @@ public final class ExtractionUtils {
             }
         }
         throw extractionError(
-                "Could not to find a field named '%s' in class '%s' for structured type.",
+                "Could not find a field named '%s' in class '%s' for structured type.",
                 fieldName, clazz.getName());
     }
 

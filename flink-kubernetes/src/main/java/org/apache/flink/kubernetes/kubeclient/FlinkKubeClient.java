@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 
 import java.io.File;
 import java.util.List;
@@ -151,7 +152,12 @@ public interface FlinkKubeClient extends AutoCloseable {
      *     one. If the returned optional is empty, we will not do the update.
      * @return Return the ConfigMap update future. The boolean result indicates whether the
      *     ConfigMap is updated. The returned future will be completed exceptionally if the
-     *     ConfigMap does not exist.
+     *     ConfigMap does not exist. A failure during the update operation will result in the future
+     *     failing with a {@link PossibleInconsistentStateException} indicating that no clear
+     *     decision can be made on whether the update was successful or not. The {@code
+     *     PossibleInconsistentStateException} not being present indicates that the failure happened
+     *     before writing the updated ConfigMap to Kubernetes. For the latter case, it can be
+     *     assumed that the ConfigMap was not updated.
      */
     CompletableFuture<Boolean> checkAndUpdateConfigMap(
             String configMapName,

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
@@ -40,7 +39,6 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
     public void testFallsBackToDefaultSchedulerIfBatchJob() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(
@@ -58,7 +56,6 @@ public class DefaultSlotPoolServiceSchedulerFactoryTest extends TestLogger {
     public void testAdaptiveSchedulerForReactiveMode() {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
-        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
 
         final DefaultSlotPoolServiceSchedulerFactory defaultSlotPoolServiceSchedulerFactory =
                 DefaultSlotPoolServiceSchedulerFactory.fromConfiguration(

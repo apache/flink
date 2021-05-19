@@ -50,7 +50,7 @@ public class MixedKubernetesServer extends ExternalResource {
     }
 
     public void before() {
-        HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
+        final HashMap<ServerRequest, Queue<ServerResponse>> response = new HashMap<>();
         mock =
                 crudMode
                         ? new KubernetesMockServer(
@@ -75,6 +75,10 @@ public class MixedKubernetesServer extends ExternalResource {
 
     public RecordedRequest takeRequest(long timeout, TimeUnit unit) throws Exception {
         return mockWebServer.takeRequest(timeout, unit);
+    }
+
+    public int getRequestCount() {
+        return mockWebServer.getRequestCount();
     }
 
     public MockServerExpectation expect() {

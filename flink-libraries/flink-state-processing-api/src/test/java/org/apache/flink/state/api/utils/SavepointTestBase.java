@@ -23,30 +23,34 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 
 /** A test base that includes utilities for taking a savepoint. */
 public abstract class SavepointTestBase extends AbstractTestBase {
 
-    public <T extends WaitingFunction> String takeSavepoint(
-            T waitingFunction, Function<T, StreamExecutionEnvironment> jobGraphFactory) {
-
+    public String takeSavepoint(StreamExecutionEnvironment executionEnvironment) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().disableClosureCleaner();
 
-        StreamExecutionEnvironment executionEnvironment = jobGraphFactory.apply(waitingFunction);
         JobGraph jobGraph = executionEnvironment.getStreamGraph().getJobGraph();
 
         JobID jobId = jobGraph.getJobID();
@@ -56,9 +60,9 @@ public abstract class SavepointTestBase extends AbstractTestBase {
         try {
             JobID jobID = client.submitJob(jobGraph).get();
 
-            return CompletableFuture.runAsync(waitingFunction::await)
-                    .thenCompose(ignore -> triggerSavepoint(client, jobID))
-                    .get(5, TimeUnit.MINUTES);
+            waitForAllRunningOrSomeTerminal(jobID, miniClusterResource);
+
+            return triggerSavepoint(client, jobID).get(5, TimeUnit.MINUTES);
         } catch (Exception e) {
             throw new RuntimeException("Failed to take savepoint", e);
         } finally {
@@ -66,11 +70,29 @@ public abstract class SavepointTestBase extends AbstractTestBase {
         }
     }
 
-    public <T> WaitingSource<T> createSource(T[] data) {
+    public static void waitForAllRunningOrSomeTerminal(
+            JobID jobID, MiniClusterWithClientResource miniClusterResource) throws Exception {
+        while (true) {
+            JobDetailsInfo jobInfo =
+                    miniClusterResource.getRestClusterClient().getJobDetails(jobID).get();
+            Set<ExecutionState> vertexStates =
+                    jobInfo.getJobVertexInfos().stream()
+                            .map(JobDetailsInfo.JobVertexDetailsInfo::getExecutionState)
+                            .collect(Collectors.toSet());
+            if (vertexStates.equals(EnumSet.of(RUNNING))
+                    || vertexStates.stream().anyMatch(ExecutionState::isTerminal)) {
+                return;
+            } else {
+                Thread.sleep(500);
+            }
+        }
+    }
+
+    public <T> SourceFunction<T> createSource(T[] data) {
         return createSource(Arrays.asList(data));
     }
 
-    public <T> WaitingSource<T> createSource(Collection<T> data) {
+    public <T> SourceFunction<T> createSource(Collection<T> data) {
         T first = data.iterator().next();
         if (first == null) {
             throw new IllegalArgumentException("Collection must not contain null elements");

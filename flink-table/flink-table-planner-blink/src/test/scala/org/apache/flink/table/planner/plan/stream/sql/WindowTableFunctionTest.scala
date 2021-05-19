@@ -140,4 +140,59 @@ class WindowTableFunctionTest extends TableTestBase {
     util.verifyExplain(sql)
   }
 
+  @Test
+  def testInvalidTumbleParameters(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE, INTERVAL '5' MINUTE))
+        |""".stripMargin
+
+    thrown.expectMessage("Supported form(s): " +
+      "TUMBLE(TABLE table_name, DESCRIPTOR(timecol), datetime interval)")
+    thrown.expect(classOf[ValidationException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testInvalidHopParameters(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |  HOP(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(rowtime),
+        |    INTERVAL '1' MINUTE,
+        |    INTERVAL '15' MINUTE,
+        |    INTERVAL '5' MINUTE))
+        |""".stripMargin
+
+    thrown.expectMessage("Supported form(s): " +
+      "HOP(TABLE table_name, DESCRIPTOR(timecol), datetime interval, datetime interval)")
+    thrown.expect(classOf[ValidationException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testInvalidCumulateParameters(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |  CUMULATE(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(rowtime),
+        |    INTERVAL '1' MINUTE,
+        |    INTERVAL '15' MINUTE,
+        |    INTERVAL '5' MINUTE))
+        |""".stripMargin
+
+    thrown.expectMessage("Supported form(s): " +
+      "CUMULATE(TABLE table_name, DESCRIPTOR(timecol), datetime interval, datetime interval)")
+    thrown.expect(classOf[ValidationException])
+    util.verifyExplain(sql)
+  }
+
 }

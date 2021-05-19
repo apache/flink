@@ -182,7 +182,7 @@ public class TableConfig {
             throw new IllegalArgumentException(
                     String.format(
                             "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                    + " or a custom timezone id such as 'GMT-8:00', but configured Zone ID is '%s'.",
+                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
                             zone));
         }
     }

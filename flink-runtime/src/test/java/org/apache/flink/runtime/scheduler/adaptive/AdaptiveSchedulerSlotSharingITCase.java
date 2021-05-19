@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -53,7 +52,6 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
 
         // The test failed occasionally due to a race condition between the task being
         // freed by the TaskManager (calling TaskSlotTableImpl.freeSlotInternal(..) through

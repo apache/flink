@@ -70,7 +70,7 @@ public class NoticeFileChecker {
             Pattern.compile(
                     "- ([^ :]+):([^:]+):([^ ]+)($| )|.*bundles \"([^:]+):([^:]+):([^\"]+)\".*");
 
-    int run(File buildResult, Path root) throws IOException {
+    static int run(File buildResult, Path root) throws IOException {
         int severeIssueCount = 0;
         // parse included dependencies from build output
         Multimap<String, IncludedDependency> modulesWithBundledDependencies =

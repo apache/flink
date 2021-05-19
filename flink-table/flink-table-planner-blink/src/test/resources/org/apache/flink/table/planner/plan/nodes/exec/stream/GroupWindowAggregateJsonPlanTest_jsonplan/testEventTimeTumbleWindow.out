@@ -385,14 +385,14 @@
       }, {
         "w$start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
       }, {
         "w$end" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
@@ -427,7 +427,7 @@
       "inputIndex" : 5,
       "type" : {
         "typeName" : "TIMESTAMP",
-        "nullable" : true,
+        "nullable" : false,
         "precision" : 3
       }
     }, {
@@ -435,7 +435,7 @@
       "inputIndex" : 6,
       "type" : {
         "typeName" : "TIMESTAMP",
-        "nullable" : true,
+        "nullable" : false,
         "precision" : 3
       }
     }, {
@@ -485,14 +485,14 @@
       }, {
         "window_start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
@@ -550,14 +550,14 @@
       }, {
         "window_start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }
       }, {
         "window_end" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
+          "nullable" : false,
           "precision" : 3,
           "kind" : "REGULAR"
         }

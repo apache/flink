@@ -31,13 +31,15 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
@@ -270,57 +272,6 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
-    /** Tests running the runnable in the main thread of the underlying RPC endpoint. */
-    @Test
-    public void testRunAsync() throws InterruptedException, ExecutionException, TimeoutException {
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final CompletableFuture<Void> asyncExecutionFuture = new CompletableFuture<>();
-        try {
-            endpoint.start();
-            endpoint.getMainThreadExecutor()
-                    .runAsync(
-                            () -> {
-                                // no need to catch the validation failure
-                                // if the validation fail, the future will never complete
-                                endpoint.validateRunsInMainThread();
-                                asyncExecutionFuture.complete(null);
-                            });
-            asyncExecutionFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
-    }
-
-    /**
-     * Tests scheduling the runnable in the main thread of the underlying RPC endpoint, with a delay
-     * of the given number of milliseconds.
-     */
-    @Test
-    public void testScheduleRunAsync()
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final long expectedDelayMs = 100L;
-        final CompletableFuture<Long> actualDelayMsFuture = new CompletableFuture<>();
-        try {
-            endpoint.start();
-            final long startTime = System.currentTimeMillis();
-            endpoint.getMainThreadExecutor()
-                    .scheduleRunAsync(
-                            () -> {
-                                endpoint.validateRunsInMainThread();
-                                actualDelayMsFuture.complete(
-                                        System.currentTimeMillis() - startTime);
-                            },
-                            expectedDelayMs);
-            final long actualDelayMs =
-                    actualDelayMsFuture.get(expectedDelayMs * 2, TimeUnit.MILLISECONDS);
-            assertTrue(actualDelayMs > expectedDelayMs * 0.5);
-            assertTrue(actualDelayMs < expectedDelayMs * 1.5);
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
-    }
-
     /** Tests executing the runnable in the main thread of the underlying RPC endpoint. */
     @Test
     public void testExecute() throws InterruptedException, ExecutionException, TimeoutException {
@@ -340,108 +291,54 @@ public class RpcEndpointTest extends TestLogger {
         }
     }
 
-    /** Tests scheduling runnable with delay specified in number and TimeUnit. */
     @Test
-    public void testScheduleRunnable()
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final Time expectedDelay1 = Time.seconds(1);
-        final Time expectedDelay2 = Time.milliseconds(500);
-        final CompletableFuture<Long> actualDelayMsFuture1 = new CompletableFuture<>();
-        final CompletableFuture<Long> actualDelayMsFuture2 = new CompletableFuture<>();
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        try {
-            endpoint.start();
-            final long startTime = System.currentTimeMillis();
-            endpoint.getMainThreadExecutor()
-                    .schedule(
-                            () -> {
-                                endpoint.validateRunsInMainThread();
-                                actualDelayMsFuture1.complete(
-                                        System.currentTimeMillis() - startTime);
-                            },
-                            expectedDelay1.getSize(),
-                            expectedDelay1.getUnit());
-            endpoint.getMainThreadExecutor()
-                    .schedule(
-                            () -> {
-                                endpoint.validateRunsInMainThread();
-                                actualDelayMsFuture2.complete(
-                                        System.currentTimeMillis() - startTime);
-                            },
-                            expectedDelay2.getSize(),
-                            expectedDelay2.getUnit());
-            final long actualDelayMs1 =
-                    actualDelayMsFuture1.get(
-                            expectedDelay1.getSize() * 2, expectedDelay1.getUnit());
-            final long actualDelayMs2 =
-                    actualDelayMsFuture2.get(
-                            expectedDelay2.getSize() * 2, expectedDelay2.getUnit());
-            assertTrue(actualDelayMs1 > expectedDelay1.toMilliseconds() * 0.8);
-            assertTrue(actualDelayMs1 < expectedDelay1.toMilliseconds() * 1.2);
-            assertTrue(actualDelayMs2 > expectedDelay2.toMilliseconds() * 0.8);
-            assertTrue(actualDelayMs2 < expectedDelay2.toMilliseconds() * 1.2);
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
+    public void testScheduleRunnableWithDelayInMilliseconds() throws Exception {
+        testScheduleWithDelay(
+                (mainThreadExecutor, expectedDelay) ->
+                        mainThreadExecutor.schedule(
+                                () -> {}, expectedDelay.toMillis(), TimeUnit.MILLISECONDS));
     }
 
-    /** Tests scheduling callable with delay specified in number and TimeUnit. */
     @Test
-    public void testScheduleCallable()
-            throws InterruptedException, ExecutionException, TimeoutException {
-        final Time expectedDelay1 = Time.seconds(1);
-        final Time expectedDelay2 = Time.milliseconds(500);
-        final CompletableFuture<Long> actualDelayMsFuture1 = new CompletableFuture<>();
-        final CompletableFuture<Long> actualDelayMsFuture2 = new CompletableFuture<>();
-        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
-        final int expectedInt = 12345;
-        final String expectedString = "Flink";
-        try {
-            endpoint.start();
-            final long startTime = System.currentTimeMillis();
-            final ScheduledFuture<Integer> intScheduleFuture =
-                    endpoint.getMainThreadExecutor()
-                            .schedule(
-                                    () -> {
-                                        endpoint.validateRunsInMainThread();
-                                        actualDelayMsFuture1.complete(
-                                                System.currentTimeMillis() - startTime);
-                                        return expectedInt;
-                                    },
-                                    expectedDelay1.getSize(),
-                                    expectedDelay1.getUnit());
-            final ScheduledFuture<String> stringScheduledFuture =
-                    endpoint.getMainThreadExecutor()
-                            .schedule(
-                                    () -> {
-                                        endpoint.validateRunsInMainThread();
-                                        actualDelayMsFuture2.complete(
-                                                System.currentTimeMillis() - startTime);
-                                        return expectedString;
-                                    },
-                                    expectedDelay2.getSize(),
-                                    expectedDelay2.getUnit());
+    public void testScheduleRunnableWithDelayInSeconds() throws Exception {
+        testScheduleWithDelay(
+                (mainThreadExecutor, expectedDelay) ->
+                        mainThreadExecutor.schedule(
+                                () -> {}, expectedDelay.toMillis() / 1000, TimeUnit.SECONDS));
+    }
 
-            final long actualDelayMs1 =
-                    actualDelayMsFuture1.get(
-                            expectedDelay1.getSize() * 2, expectedDelay1.getUnit());
-            final long actualDelayMs2 =
-                    actualDelayMsFuture2.get(
-                            expectedDelay2.getSize() * 2, expectedDelay2.getUnit());
-            final int actualInteger =
-                    intScheduleFuture.get(expectedDelay1.getSize() * 2, expectedDelay1.getUnit());
-            final String actualString =
-                    stringScheduledFuture.get(
-                            expectedDelay2.getSize() * 2, expectedDelay2.getUnit());
-            assertTrue(actualDelayMs1 > expectedDelay1.toMilliseconds() * 0.8);
-            assertTrue(actualDelayMs1 < expectedDelay1.toMilliseconds() * 1.2);
-            assertTrue(actualDelayMs2 > expectedDelay2.toMilliseconds() * 0.8);
-            assertTrue(actualDelayMs2 < expectedDelay2.toMilliseconds() * 1.2);
-            assertEquals(expectedInt, actualInteger);
-            assertEquals(expectedString, actualString);
-        } finally {
-            RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
-        }
+    @Test
+    public void testScheduleCallableWithDelayInMilliseconds() throws Exception {
+        testScheduleWithDelay(
+                (mainThreadExecutor, expectedDelay) ->
+                        mainThreadExecutor.schedule(
+                                () -> 1, expectedDelay.toMillis(), TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void testScheduleCallableWithDelayInSeconds() throws Exception {
+        testScheduleWithDelay(
+                (mainThreadExecutor, expectedDelay) ->
+                        mainThreadExecutor.schedule(
+                                () -> 1, expectedDelay.toMillis() / 1000, TimeUnit.SECONDS));
+    }
+
+    private static void testScheduleWithDelay(
+            BiConsumer<RpcEndpoint.MainThreadExecutor, Duration> scheduler) throws Exception {
+        final CompletableFuture<Long> actualDelayMsFuture = new CompletableFuture<>();
+
+        final MainThreadExecutable mainThreadExecutable =
+                new TestMainThreadExecutable(
+                        (runnable, delay) -> actualDelayMsFuture.complete(delay));
+
+        final RpcEndpoint.MainThreadExecutor mainThreadExecutor =
+                new RpcEndpoint.MainThreadExecutor(mainThreadExecutable, () -> {});
+
+        final Duration expectedDelay = Duration.ofSeconds(1);
+
+        scheduler.accept(mainThreadExecutor, expectedDelay);
+
+        assertThat(actualDelayMsFuture.get(), is(expectedDelay.toMillis()));
     }
 
     /**
@@ -494,6 +391,30 @@ public class RpcEndpointTest extends TestLogger {
             assertTrue(throwable instanceof TimeoutException);
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
+        }
+    }
+
+    private static class TestMainThreadExecutable implements MainThreadExecutable {
+
+        private final BiConsumer<Runnable, Long> scheduleRunAsyncConsumer;
+
+        private TestMainThreadExecutable(BiConsumer<Runnable, Long> scheduleRunAsyncConsumer) {
+            this.scheduleRunAsyncConsumer = scheduleRunAsyncConsumer;
+        }
+
+        @Override
+        public void runAsync(Runnable runnable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <V> CompletableFuture<V> callAsync(Callable<V> callable, Time callTimeout) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void scheduleRunAsync(Runnable runnable, long delay) {
+            scheduleRunAsyncConsumer.accept(runnable, delay);
         }
     }
 }

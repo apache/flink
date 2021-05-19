@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -57,7 +59,7 @@ public class ZooKeeperLeaderRetrievalDriver
     /** Curator recipe to watch changes of a specific ZooKeeper node. */
     private final NodeCache cache;
 
-    private final String retrievalPath;
+    private final String connectionInformationPath;
 
     private final ConnectionStateListener connectionStateListener =
             (client, newState) -> handleStateChange(newState);
@@ -72,19 +74,19 @@ public class ZooKeeperLeaderRetrievalDriver
      * Creates a leader retrieval service which uses ZooKeeper to retrieve the leader information.
      *
      * @param client Client which constitutes the connection to the ZooKeeper quorum
-     * @param retrievalPath Path of the ZooKeeper node which contains the leader information
+     * @param path Path of the ZooKeeper node which contains the leader information
      * @param leaderRetrievalEventHandler Handler to notify the leader changes.
      * @param fatalErrorHandler Fatal error handler
      */
     public ZooKeeperLeaderRetrievalDriver(
             CuratorFramework client,
-            String retrievalPath,
+            String path,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             FatalErrorHandler fatalErrorHandler)
             throws Exception {
         this.client = checkNotNull(client, "CuratorFramework client");
-        this.cache = new NodeCache(client, retrievalPath);
-        this.retrievalPath = checkNotNull(retrievalPath);
+        this.connectionInformationPath = ZooKeeperUtils.generateConnectionInformationPath(path);
+        this.cache = new NodeCache(client, connectionInformationPath);
         this.leaderRetrievalEventHandler = checkNotNull(leaderRetrievalEventHandler);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
@@ -188,6 +190,15 @@ public class ZooKeeperLeaderRetrievalDriver
 
     @Override
     public String toString() {
-        return "ZookeeperLeaderRetrievalDriver{" + "retrievalPath='" + retrievalPath + '\'' + '}';
+        return "ZookeeperLeaderRetrievalDriver{"
+                + "connectionInformationPath='"
+                + connectionInformationPath
+                + '\''
+                + '}';
+    }
+
+    @VisibleForTesting
+    public String getConnectionInformationPath() {
+        return connectionInformationPath;
     }
 }

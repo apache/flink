@@ -19,16 +19,20 @@
 package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, _}
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
+import org.apache.flink.table.api.{EnvironmentSettings, _}
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.CountNullNonNull
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
@@ -46,7 +50,7 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode)
-    extends HarnessTestBase(mode) {
+  extends HarnessTestBase(mode) {
 
   @Before
   override def before(): Unit = {
@@ -100,7 +104,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     testHarness.setStateTtlProcessingTime(1)
 
     // insertion
-    testHarness.processElement(binaryRecord(INSERT,"aaa", 1L: JLong))
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 1L: JLong))
     expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
 
     // insertion
@@ -144,7 +148,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     expectedOutput.add(binaryRecord(INSERT, "eee", 6L: JLong))
 
     // retract
-    testHarness.processElement(binaryRecord(INSERT,"aaa", 7L: JLong))
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 7L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
     testHarness.processElement(binaryRecord(INSERT, "bbb", 3L: JLong))
@@ -160,28 +164,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
   @Test
   def testAggregationWithDistinct(): Unit = {
-    val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.createTemporaryView("T", t)
-    tEnv.createTemporarySystemFunction("CntNullNonNull", new CountNullNonNull)
-
-    val sql =
-      """
-        |SELECT a, COUNT(DISTINCT b), CntNullNonNull(DISTINCT b), COUNT(*), SUM(c)
-        |FROM T
-        |GROUP BY a
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-
-    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType))
+    val (testHarness, outputTypes) = createAggregationWithDistinct
+    val assertor = new RowDataHarnessAssertor(outputTypes)
 
     testHarness.open()
 
@@ -191,7 +175,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     testHarness.setStateTtlProcessingTime(1)
 
     // insertion
-    testHarness.processElement(binaryRecord(INSERT,"aaa", "a1", 1L: JLong))
+    testHarness.processElement(binaryRecord(INSERT, "aaa", "a1", 1L: JLong))
     expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong, "1|0", 1L: JLong, 1L: JLong))
 
     // insertion
@@ -240,6 +224,41 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     testHarness.close()
   }
 
+  private def createAggregationWithDistinct()
+    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val data = new mutable.MutableList[(String, String, Long)]
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+    tEnv.createTemporarySystemFunction("CntNullNonNull", new CountNullNonNull)
+
+    val sql =
+      """
+        |SELECT a, COUNT(DISTINCT b), CntNullNonNull(DISTINCT b), COUNT(*), SUM(c)
+        |FROM T
+        |GROUP BY a
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
+    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val outputTypes = Array(
+      DataTypes.STRING().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.STRING().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.BIGINT().getLogicalType)
+
+    (testHarness, outputTypes)
+  }
+
+  @Test
+  def testCloseWithoutOpen(): Unit = {
+    val (testHarness, outputType) = createAggregationWithDistinct
+    testHarness.setup(new RowDataSerializer(outputType: _*))
+    // simulate a failover after a failed task open(e.g., stuck on initializing)
+    // expect no exception happens
+    testHarness.close()
+  }
 }
 
 object GroupAggregateHarnessTest {

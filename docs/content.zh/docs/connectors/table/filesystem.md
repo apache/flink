@@ -224,7 +224,7 @@ file sink 支持文件合并，以允许应用程序可以使用较小的检查�
             该参数只有在参数 `sink.partition-commit.trigger` 被设置为 'partition-time' 时才生效。
             如果该参数设置的不正确，比如在 TIMESTAMP_LTZ 列上定义了 source rowtime, 但没有设置该参数，则用户可能在若干个小时后才看到分区的提交。
             该参数的默认值是 'UTC', 代表水印是定义在 TIMESTAMP 列上或没有定义水印。 如果水印定义在 TIMESTAMP_LTZ 列上，则水印的时区是会话的时区。
-            该参数的可选值要么是完整的时区名比如 'America/Los_Angeles'，要么是自定义的时区 id 比如 'GMT-8:00'.</td>
+            该参数的可选值要么是完整的时区名比如 'America/Los_Angeles'，要么是自定义的时区 id 比如 'GMT-08:00'.</td>
     </tr>        
   </tbody>
 </table>

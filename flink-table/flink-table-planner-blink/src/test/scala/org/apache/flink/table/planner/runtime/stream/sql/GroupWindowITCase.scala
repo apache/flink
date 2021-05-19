@@ -24,6 +24,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -32,15 +34,14 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import java.time.{Duration, ZoneId}
+import java.lang.{Long => JLong}
+import java.time.{Duration, LocalDateTime, ZoneId, ZoneOffset}
 import java.util
 import java.util.concurrent.TimeUnit
-
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
 
 import scala.collection.JavaConversions._
 
@@ -368,6 +369,141 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1,1,3,16,3,3,3",
       "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,2,2,3,8,3,4,7")
     assertEquals(expected.sorted.mkString("\n"), sink.getUpsertResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testWindowAggregateOnUpsertSource(): Unit = {
+
+    def localDateTime(epochSecond: Long): LocalDateTime = {
+      LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
+    }
+
+    val upsertSourceCurrencyData = List(
+      changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
+      changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
+      changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
+      changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
+      changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
+
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsert_currency (
+         |  currency STRING,
+         |  currency_no STRING,
+         |  rate  BIGINT,
+         |  currency_time TIMESTAMP(3),
+         |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+         |  PRIMARY KEY(currency) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'UA,D',
+         |  'data-id' = '$upsertSourceDataId'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |currency,
+        |COUNT(1) AS cnt,
+        |TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+        |TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
+        |FROM upsert_currency
+        |GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
+        |""".stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Euro,0,1970-01-01T00:00,1970-01-01T00:00:05",
+      "US Dollar,1,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Yen,1,1970-01-01T00:00,1970-01-01T00:00:05",
+      "RMB,0,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Euro,1,1970-01-01T00:00:05,1970-01-01T00:00:10")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Ignore("FLINK-22680")
+  def testUnResolvedWindowAggregateOnUpsertSource(): Unit = {
+
+    def localDateTime(epochSecond: Long): LocalDateTime = {
+      LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
+    }
+
+    val upsertSourceCurrencyData = List(
+      changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
+      changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
+      changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
+      changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
+      changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
+
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsert_currency (
+         |  currency STRING,
+         |  currency_no STRING,
+         |  rate  BIGINT,
+         |  currency_time TIMESTAMP(3),
+         |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+         |  PRIMARY KEY(currency) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'UA,D',
+         |  'data-id' = '$upsertSourceDataId'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+        |TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end,
+        |MAX(rate) AS max_rate
+        |FROM upsert_currency
+        |GROUP BY TUMBLE(currency_time, INTERVAL '5' SECOND)
+        |""".stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test
+  def testWindowAggregateOnRetractStream(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |`string`,
+        |TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) as w_start,
+        |TUMBLE_END(rowtime, INTERVAL '0.005' SECOND) as w_end,
+        |COUNT(1) AS cnt
+        |FROM
+        | (
+        | SELECT `string`, rowtime
+        | FROM (
+        |  SELECT *,
+        |  ROW_NUMBER() OVER (PARTITION BY `string` ORDER BY rowtime DESC) as rowNum
+        |   FROM testTable
+        | )
+        | WHERE rowNum = 1
+        |)
+        |GROUP BY `string`, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+        |""".stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
+      "Hallo,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
+      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.005,0",
+      "Hello,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,1",
+      "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,0",
+      "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1",
+      "null,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test

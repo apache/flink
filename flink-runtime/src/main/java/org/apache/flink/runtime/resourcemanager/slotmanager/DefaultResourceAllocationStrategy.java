@@ -178,15 +178,17 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             Collection<ResourceRequirement> unfulfilledRequirements,
             List<InternalResourceInfo> availableResources,
             ResourceAllocationResult.Builder resultBuilder) {
-        final Collection<ResourceRequirement> missingResources =
-                tryFulfillRequirementsForJobWithResources(
-                        jobId, unfulfilledRequirements, availableResources);
-        for (ResourceRequirement missingResource : missingResources) {
+        for (ResourceRequirement missingResource : unfulfilledRequirements) {
             // for this strategy, all pending resources should have the same default slot resource
             final ResourceProfile effectiveProfile =
                     getEffectiveResourceProfile(
                             missingResource.getResourceProfile(), defaultSlotResourceProfile);
-            int numUnfulfilled = missingResource.getNumberOfRequiredSlots();
+            int numUnfulfilled =
+                    tryFulfilledRequirementWithResource(
+                            availableResources,
+                            missingResource.getNumberOfRequiredSlots(),
+                            missingResource.getResourceProfile(),
+                            jobId);
 
             if (!totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
                 // Can not fulfill this resource type will the default worker.

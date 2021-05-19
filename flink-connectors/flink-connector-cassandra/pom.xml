@@ -63,8 +63,9 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
-							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+						<configuration>
+							<!-- This is necessary because we bundle a subset of our dependencies,
+							and transitive dependencies of that subset should still be pulled into the user jar.-->
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes>

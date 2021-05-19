@@ -30,7 +30,6 @@ import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.utils.AggregateSum;
 import org.apache.flink.state.api.utils.ReduceSum;
 import org.apache.flink.state.api.utils.SavepointTestBase;
-import org.apache.flink.state.api.utils.WaitingWindowAssigner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -64,29 +63,22 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testReduceWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .reduce(new ReduceSum())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-                            return env;
-                        });
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -105,30 +97,24 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testReduceEvictorWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .evictor(new NoOpEvictor<>())
-                                    .reduce(new ReduceSum())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -148,29 +134,23 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .aggregate(new AggregateSum())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .aggregate(new AggregateSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -189,30 +169,24 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateEvictorWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .evictor(new NoOpEvictor<>())
-                                    .aggregate(new AggregateSum())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .aggregate(new AggregateSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -232,29 +206,23 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .process(new NoOpProcessWindowFunction())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .process(new NoOpProcessWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -273,30 +241,24 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessEvictorWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .evictor(new NoOpEvictor<>())
-                                    .process(new NoOpProcessWindowFunction())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .process(new NoOpProcessWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -316,29 +278,23 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        windowAssigner -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .assignTimestampsAndWatermarks(
-                                            WatermarkStrategy.<Integer>noWatermarks()
-                                                    .withTimestampAssigner((event, timestamp) -> 0))
-                                    .keyBy(id -> id)
-                                    .window(windowAssigner)
-                                    .apply(new NoOpWindowFunction())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .apply(new NoOpWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -357,35 +313,24 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyEvictorWindowStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(
-                                TumblingEventTimeWindows.of(Time.milliseconds(10))),
-                        (windowAssigner) -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            try {
-                                env.addSource(createSource(numbers))
-                                        .rebalance()
-                                        .assignTimestampsAndWatermarks(
-                                                WatermarkStrategy.<Integer>noWatermarks()
-                                                        .withTimestampAssigner(
-                                                                (event, timestamp) -> 0))
-                                        .keyBy(id -> id)
-                                        .window(windowAssigner)
-                                        .evictor(new NoOpEvictor<>())
-                                        .apply(new NoOpWindowFunction())
-                                        .uid(uid)
-                                        .addSink(new DiscardingSink<>());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .apply(new NoOpWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -405,26 +350,21 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testWindowTriggerStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        WaitingWindowAssigner.wrap(GlobalWindows.create()),
-                        source -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
 
-                            env.addSource(createSource(numbers))
-                                    .rebalance()
-                                    .keyBy(id -> id)
-                                    .window(source)
-                                    .trigger(PurgingTrigger.of(CountTrigger.of(10)))
-                                    .reduce(new ReduceSum())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            return env;
-                        });
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .keyBy(id -> id)
+                .window(GlobalWindows.create())
+                .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());

@@ -31,7 +31,7 @@ This page describes options where Flink automatically adjusts the parallelism in
 
 ## Reactive Mode
 
-{{< hint danger >}}
+{{< hint info >}}
 Reactive mode is an MVP ("minimum viable product") feature. The Flink community is actively looking for feedback by users through our mailing lists. Please check the limitations listed on this page.
 {{< /hint >}}
 
@@ -122,8 +122,8 @@ The [limitations of Adaptive Scheduler](#limitations-1) also apply to Reactive M
 
 ## Adaptive Scheduler
 
-{{< hint danger >}}
-Using Adaptive Scheduler directly (not through Reactive Mode) is only advised for advanced users.
+{{< hint warning >}}
+Using Adaptive Scheduler directly (not through Reactive Mode) is only advised for advanced users because slot allocation on a session cluster with multiple jobs is not defined.
 {{< /hint >}}
 
 The Adaptive Scheduler can adjust the parallelism of a job based on available slots. It will automatically reduce the parallelism if not enough slots are available to run the job with the originally configured parallelism; be it due to not enough resources being available at the time of submission, or TaskManager outages during the job execution. If new slots become available the job will be scaled up again, up to the configured parallelism.
@@ -146,7 +146,7 @@ The behavior of Adaptive Scheduler is configured by [all configuration options c
 
 - **Streaming jobs only**: The first version of Adaptive Scheduler runs with streaming jobs only. When submitting a batch job, we will automatically fall back to the default scheduler.
 - **No support for [local recovery]({{< ref "docs/ops/state/large_state_tuning">}}#task-local-recovery)**: Local recovery is a feature that schedules tasks to machines so that the state on that machine gets re-used if possible. The lack of this feature means that Adaptive Scheduler will always need to download the entire state from the checkpoint storage.
-- **No support for local failover**: Local failover means that the scheduler is able to restart parts ("regions" in Flink's internals) of a failed job, instead of the entire job. This limitation impacts only recovery time of embarrassingly parallel jobs: Flink's default scheduler can restart failed parts, while Adaptive Scheduler will restart the entire job.
+- **No support for partial failover**: Partial failover means that the scheduler is able to restart parts ("regions" in Flink's internals) of a failed job, instead of the entire job. This limitation impacts only recovery time of embarrassingly parallel jobs: Flink's default scheduler can restart failed parts, while Adaptive Scheduler will restart the entire job.
 - **Limited integration with Flink's Web UI**: Adaptive Scheduler allows that a job's parallelism can change over its lifetime. The web UI only shows the current parallelism the job.
 - **Limited Job metrics**: With the exception of `numRestarts` all [availability]({{< ref "docs/ops/metrics" >}}#availability) and [checkpointing]({{< ref "docs/ops/metrics" >}}#checkpointing) metrics with the `Job` scope are not working correctly.
 - **Unused slots**: If the max parallelism for slot sharing groups is not equal, slots offered to Adaptive Scheduler might be unused.
