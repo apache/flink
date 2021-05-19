@@ -180,7 +180,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     private DeclarativeSlotPoolBridge createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
-        return new SlotPoolBuilder(mainThreadExecutor).build();
+        return new SlotPoolBuilder(mainThreadExecutor).setBatchSlotTimeout(batchSlotTimeout).build();
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {

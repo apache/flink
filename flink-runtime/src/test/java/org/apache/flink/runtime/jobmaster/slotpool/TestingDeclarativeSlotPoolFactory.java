@@ -26,11 +26,11 @@ import java.util.Collection;
 import java.util.function.Consumer;
 
 /** Factory for creating a {@link TestingDeclarativeSlotPool}. */
-public final class TestingDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFactory {
+final class TestingDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFactory {
 
     final TestingDeclarativeSlotPoolBuilder builder;
 
-    public TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPoolBuilder builder) {
+    TestingDeclarativeSlotPoolFactory(TestingDeclarativeSlotPoolBuilder builder) {
         this.builder = builder;
     }
 

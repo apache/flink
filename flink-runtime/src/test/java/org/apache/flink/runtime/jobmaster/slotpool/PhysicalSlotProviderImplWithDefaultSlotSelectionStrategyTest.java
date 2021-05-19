@@ -44,9 +44,9 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
     public void testSlotAllocationFulfilledWithAvailableSlots()
             throws InterruptedException, ExecutionException {
         PhysicalSlotRequest request = physicalSlotProviderResource.createSimpleRequest();
+        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
         CompletableFuture<PhysicalSlotRequest.Result> slotFuture =
                 physicalSlotProviderResource.allocateSlot(request);
-        physicalSlotProviderResource.registerSlotOffersFromNewTaskExecutor(ResourceProfile.ANY);
         PhysicalSlotRequest.Result result = slotFuture.get();
         assertThat(result.getSlotRequestId(), is(request.getSlotRequestId()));
     }
