@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 import java.io.Serializable;
 
@@ -153,10 +154,10 @@ public class SavepointRestoreSettings implements Serializable {
         }
     }
 
-    public static SavepointRestoreSettings fromConfiguration(final Configuration configuration) {
-        final String savepointPath = configuration.getString(SavepointConfigOptions.SAVEPOINT_PATH);
+    public static SavepointRestoreSettings fromConfiguration(final ReadableConfig configuration) {
+        final String savepointPath = configuration.get(SavepointConfigOptions.SAVEPOINT_PATH);
         final boolean allowNonRestored =
-                configuration.getBoolean(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE);
+                configuration.get(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE);
         return savepointPath == null
                 ? SavepointRestoreSettings.none()
                 : SavepointRestoreSettings.forPath(savepointPath, allowNonRestored);
