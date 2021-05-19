@@ -40,6 +40,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -53,7 +54,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -398,10 +399,10 @@ public class MultipleInputStreamTaskTest {
         TaskMetricGroup taskMetricGroup =
                 new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(
+                    public InternalOperatorMetricGroup getOrAddOperator(
                             OperatorID operatorID, String name) {
-                        OperatorMetricGroup operatorMetricGroup =
-                                new OperatorMetricGroup(
+                        InternalOperatorMetricGroup operatorMetricGroup =
+                                new InternalOperatorMetricGroup(
                                         NoOpMetricRegistry.INSTANCE, this, operatorID, name);
                         operatorMetrics.put(name, operatorMetricGroup);
                         return operatorMetricGroup;
@@ -738,7 +739,8 @@ public class MultipleInputStreamTaskTest {
         InterceptingTaskMetricGroup taskMetricGroup =
                 new InterceptingTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+                    public InternalOperatorMetricGroup getOrAddOperator(
+                            OperatorID id, String name) {
                         if (id.equals(mainOperatorId)) {
                             return mainOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {

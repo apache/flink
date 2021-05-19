@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -33,13 +34,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator. */
 @Internal
-public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
+public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup>
+        implements OperatorMetricGroup {
     private final String operatorName;
     private final OperatorID operatorID;
 
-    private final OperatorIOMetricGroup ioMetrics;
+    private final InternalOperatorIOMetricGroup ioMetrics;
 
-    public OperatorMetricGroup(
+    public InternalOperatorMetricGroup(
             MetricRegistry registry,
             TaskMetricGroup parent,
             OperatorID operatorID,
@@ -53,7 +55,7 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
         this.operatorID = operatorID;
         this.operatorName = operatorName;
 
-        ioMetrics = new OperatorIOMetricGroup(this);
+        ioMetrics = new InternalOperatorIOMetricGroup(this);
     }
 
     // ------------------------------------------------------------------------
@@ -81,7 +83,8 @@ public class OperatorMetricGroup extends ComponentMetricGroup<TaskMetricGroup> {
      *
      * @return OperatorIOMetricGroup for this operator.
      */
-    public OperatorIOMetricGroup getIOMetricGroup() {
+    @Override
+    public InternalOperatorIOMetricGroup getIOMetricGroup() {
         return ioMetrics;
     }
 

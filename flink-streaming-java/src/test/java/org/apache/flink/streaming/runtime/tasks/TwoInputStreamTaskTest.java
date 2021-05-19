@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -473,9 +473,9 @@ public class TwoInputStreamTaskTest {
         final TaskMetricGroup taskMetricGroup =
                 new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(
+                    public InternalOperatorMetricGroup getOrAddOperator(
                             OperatorID operatorID, String name) {
-                        return new OperatorMetricGroup(
+                        return new InternalOperatorMetricGroup(
                                 NoOpMetricRegistry.INSTANCE, this, operatorID, name);
                     }
                 };
@@ -599,7 +599,8 @@ public class TwoInputStreamTaskTest {
         InterceptingTaskMetricGroup taskMetricGroup =
                 new InterceptingTaskMetricGroup() {
                     @Override
-                    public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
+                    public InternalOperatorMetricGroup getOrAddOperator(
+                            OperatorID id, String name) {
                         if (id.equals(headOperatorId)) {
                             return headOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {

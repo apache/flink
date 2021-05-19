@@ -135,7 +135,7 @@ public class MapOperatorTest implements java.io.Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             executionConfig.enableObjectReuse();
@@ -148,7 +148,7 @@ public class MapOperatorTest implements java.io.Serializable {
                                     executionConfig,
                                     cpTasks,
                                     accumulatorMap,
-                                    new UnregisteredMetricsGroup()),
+                                    UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
             assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -115,7 +115,7 @@ public class TestFinishedOnRestoreStreamOperator
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         // TODO: Should this be allowed to access for finished tasks?
         return createUnregisteredOperatorMetricGroup();
     }
