@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
@@ -29,7 +29,7 @@ import java.util.Optional;
  *
  * <p>Note: All boundaries of this class are inclusive. All indices are 0-based.
  */
-@Internal
+@PublicEvolving
 public final class ConstantArgumentCount implements ArgumentCount {
 
     private static final int OPEN_INTERVAL = -1;
