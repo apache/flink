@@ -315,7 +315,7 @@ properties.setProperty("group.id", "test");
 FlinkKafkaConsumer<String> myConsumer =
     new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy.
+    WatermarkStrategy
         .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<String> stream = env.addSource(myConsumer);
