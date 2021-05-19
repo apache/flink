@@ -151,7 +151,10 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
         JdbcOutputFormat<TestEntry, TestEntry, JdbcBatchStatementExecutor<TestEntry>> format =
                 new JdbcOutputFormat<>(
                         xaFacade,
-                        JdbcExecutionOptions.builder().withBatchIntervalMs(batchInterval).build(),
+                        JdbcExecutionOptions.builder()
+                                .withBatchIntervalMs(batchInterval)
+                                .withMaxRetries(0)
+                                .build(),
                         ctx ->
                                 JdbcBatchStatementExecutor.simple(
                                         String.format(INSERT_TEMPLATE, INPUT_TABLE),
