@@ -79,6 +79,15 @@ public class StreamSinkOperatorTest extends TestLogger {
                         new Tuple4<>(42L, 15L, 13L, "Ciao"),
                         new Tuple4<>(42L, 15L, null, "Ciao")));
 
+        assertThat(bufferingSink.watermarks.size(), is(3));
+
+        assertThat(
+                bufferingSink.watermarks,
+                contains(
+                        new org.apache.flink.api.common.eventtime.Watermark(17L),
+                        new org.apache.flink.api.common.eventtime.Watermark(42L),
+                        new org.apache.flink.api.common.eventtime.Watermark(42L)));
+
         testHarness.close();
     }
 
@@ -87,8 +96,11 @@ public class StreamSinkOperatorTest extends TestLogger {
         // watermark, processing-time, timestamp, event
         private final List<Tuple4<Long, Long, Long, T>> data;
 
+        private final List<org.apache.flink.api.common.eventtime.Watermark> watermarks;
+
         public BufferingQueryingSink() {
             data = new ArrayList<>();
+            watermarks = new ArrayList<>();
         }
 
         @Override
@@ -109,6 +121,12 @@ public class StreamSinkOperatorTest extends TestLogger {
                                 null,
                                 value));
             }
+        }
+
+        @Override
+        public void writeWatermark(org.apache.flink.api.common.eventtime.Watermark watermark)
+                throws Exception {
+            watermarks.add(watermark);
         }
     }
 }
