@@ -1615,7 +1615,12 @@ SqlNode SqlRichExplain() :
 }
 {
     <EXPLAIN> [ <PLAN> <FOR> ]
-    stmt = SqlQueryOrDml() {
-        return new SqlRichExplain(getPos(),stmt);
+    (
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlRichExplain(getPos(), stmt);
     }
 }
