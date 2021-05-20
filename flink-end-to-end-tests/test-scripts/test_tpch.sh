@@ -62,7 +62,6 @@ for i in {1..22}
 do
     echo "Running query #$i..."
 
-    # First line in sink yaml is ignored
     SINK_SQL=$(cat "$TPCH_DATA_DIR/sink/q${i}.sql")
     SINK_SQL=${SINK_SQL//\$RESULT_DIR/"$RESULT_DIR"}
 
