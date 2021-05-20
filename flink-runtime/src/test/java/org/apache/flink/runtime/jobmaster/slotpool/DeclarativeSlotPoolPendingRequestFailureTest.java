@@ -62,7 +62,7 @@ public class DeclarativeSlotPoolPendingRequestFailureTest extends TestLogger {
                         singleThreadExecutor);
 
         final SlotPool slotPool =
-                new SlotPoolBuilder(componentMainThreadExecutor)
+                new DeclarativeSlotPoolBridgeBuilder(componentMainThreadExecutor)
                         .setResourceManagerGateway(resourceManagerGateway)
                         .build();
 

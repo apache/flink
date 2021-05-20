@@ -140,7 +140,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
         TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
         try (SlotPool pool =
-                new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+                new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
                         .setResourceManagerGateway(resourceManagerGateway)
                         .disableAutoLoadRequirements()
                         .build()) {
@@ -184,11 +184,11 @@ public class SlotPoolInteractionsTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPool() throws Exception {
-        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
+        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
     }
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
                 .setResourceManagerGateway(null)
                 .build();
     }

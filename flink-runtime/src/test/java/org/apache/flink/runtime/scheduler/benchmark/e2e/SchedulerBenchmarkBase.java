@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelecti
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
@@ -91,7 +91,7 @@ public class SchedulerBenchmarkBase {
             throws Exception {
         final int slotPoolSize = jobConfiguration.getParallelism() * numberOfJobVertices;
 
-        final SlotPool slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
+        final SlotPool slotPool = new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).build();
         final TestingTaskExecutorGateway testingTaskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
         offerSlots(

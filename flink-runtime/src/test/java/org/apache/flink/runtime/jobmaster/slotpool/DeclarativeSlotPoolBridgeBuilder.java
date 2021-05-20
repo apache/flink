@@ -36,7 +36,7 @@ import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 
 /** Builder for a {@link DeclarativeSlotPool}. */
-public class SlotPoolBuilder {
+public class DeclarativeSlotPoolBridgeBuilder {
 
     private final ComponentMainThreadExecutor componentMainThreadExecutor;
 
@@ -52,32 +52,32 @@ public class SlotPoolBuilder {
     private boolean autoLoadRequirement = true;
     private int resourceRequirementCount = 100;
 
-    public SlotPoolBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
+    public DeclarativeSlotPoolBridgeBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.componentMainThreadExecutor = componentMainThreadExecutor;
     }
 
-    public SlotPoolBuilder setResourceManagerGateway(
+    public DeclarativeSlotPoolBridgeBuilder setResourceManagerGateway(
             @Nullable ResourceManagerGateway resourceManagerGateway) {
         this.resourceManagerGateway = resourceManagerGateway;
         return this;
     }
 
-    public SlotPoolBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
+    public DeclarativeSlotPoolBridgeBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
         this.batchSlotTimeout = batchSlotTimeout;
         return this;
     }
 
-    public SlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
+    public DeclarativeSlotPoolBridgeBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
         this.idleSlotTimeout = idleSlotTimeout;
         return this;
     }
 
-    public SlotPoolBuilder setClock(Clock clock) {
+    public DeclarativeSlotPoolBridgeBuilder setClock(Clock clock) {
         this.clock = clock;
         return this;
     }
 
-    public SlotPoolBuilder setJobId(JobID jobId) {
+    public DeclarativeSlotPoolBridgeBuilder setJobId(JobID jobId) {
         this.jobId = jobId;
         return this;
     }
@@ -109,12 +109,12 @@ public class SlotPoolBuilder {
         return slotPool;
     }
 
-    public SlotPoolBuilder setAutoLoadRequirementCount(int resourceRequirementCount) {
+    public DeclarativeSlotPoolBridgeBuilder setAutoLoadRequirementCount(int resourceRequirementCount) {
         this.resourceRequirementCount = resourceRequirementCount;
         return this;
     }
 
-    public SlotPoolBuilder disableAutoLoadRequirements() {
+    public DeclarativeSlotPoolBridgeBuilder disableAutoLoadRequirements() {
         this.autoLoadRequirement = false;
         return this;
     }

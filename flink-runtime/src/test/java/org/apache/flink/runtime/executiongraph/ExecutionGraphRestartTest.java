@@ -39,7 +39,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelecti
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -94,7 +94,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     }
 
     private SlotPool createSlotPoolImpl() throws Exception {
-        return new SlotPoolBuilder(mainThreadExecutor).setJobId(TEST_JOB_ID).build();
+        return new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).setJobId(TEST_JOB_ID).build();
     }
 
     @Test
