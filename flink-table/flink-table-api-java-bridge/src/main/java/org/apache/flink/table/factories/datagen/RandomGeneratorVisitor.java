@@ -86,7 +86,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(CharType booleanType) {
+    public DataGeneratorContainer visit(CharType charType) {
         ConfigOption<Integer> lenOption =
                 key(FIELDS + "." + name + "." + LENGTH)
                         .intType()
@@ -96,7 +96,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(VarCharType booleanType) {
+    public DataGeneratorContainer visit(VarCharType varCharType) {
         ConfigOption<Integer> lenOption =
                 key(FIELDS + "." + name + "." + LENGTH)
                         .intType()
@@ -106,7 +106,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(TinyIntType booleanType) {
+    public DataGeneratorContainer visit(TinyIntType tinyIntType) {
         ConfigOption<Integer> min = minKey.intType().defaultValue((int) Byte.MIN_VALUE);
         ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Byte.MAX_VALUE);
         return DataGeneratorContainer.of(
@@ -117,7 +117,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(SmallIntType booleanType) {
+    public DataGeneratorContainer visit(SmallIntType smallIntType) {
         ConfigOption<Integer> min = minKey.intType().defaultValue((int) Short.MIN_VALUE);
         ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Short.MAX_VALUE);
         return DataGeneratorContainer.of(

@@ -98,7 +98,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(CharType booleanType) {
+    public DataGeneratorContainer visit(CharType charType) {
         return DataGeneratorContainer.of(
                 getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
                 longStart,
@@ -106,7 +106,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(VarCharType booleanType) {
+    public DataGeneratorContainer visit(VarCharType varCharType) {
         return DataGeneratorContainer.of(
                 getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
                 longStart,
@@ -114,7 +114,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(TinyIntType booleanType) {
+    public DataGeneratorContainer visit(TinyIntType tinyIntType) {
         return DataGeneratorContainer.of(
                 SequenceGenerator.byteGenerator(
                         config.get(intStart).byteValue(), config.get(intEnd).byteValue()),
@@ -123,7 +123,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(SmallIntType booleanType) {
+    public DataGeneratorContainer visit(SmallIntType smallIntType) {
         return DataGeneratorContainer.of(
                 SequenceGenerator.shortGenerator(
                         config.get(intStart).shortValue(), config.get(intEnd).shortValue()),
