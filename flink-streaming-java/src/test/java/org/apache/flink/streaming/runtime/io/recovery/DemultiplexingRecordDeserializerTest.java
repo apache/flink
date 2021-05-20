@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.io.recovery;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -59,6 +58,7 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptySet;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.array;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.rescalingDescriptor;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.set;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
@@ -92,7 +92,7 @@ public class DemultiplexingRecordDeserializerTest {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(2, 0),
-                        new InflightDataRescalingDescriptor(
+                        rescalingDescriptor(
                                 to(0, 1),
                                 array(mappings(), mappings(), mappings(to(2, 3), to(4, 5))),
                                 emptySet()),
@@ -133,7 +133,7 @@ public class DemultiplexingRecordDeserializerTest {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(1, 0),
-                        new InflightDataRescalingDescriptor(
+                        rescalingDescriptor(
                                 to(41, 42),
                                 array(mappings(), mappings(to(2, 3), to(4, 5))),
                                 set(42)),
@@ -177,7 +177,7 @@ public class DemultiplexingRecordDeserializerTest {
         DemultiplexingRecordDeserializer<Long> deserializer =
                 DemultiplexingRecordDeserializer.create(
                         new InputChannelInfo(0, 0),
-                        new InflightDataRescalingDescriptor(
+                        rescalingDescriptor(
                                 to(0, 1), array(mappings(to(0, 1), to(4, 5))), emptySet()),
                         unused ->
                                 new SpillingAdaptiveSpanningRecordDeserializer<>(
