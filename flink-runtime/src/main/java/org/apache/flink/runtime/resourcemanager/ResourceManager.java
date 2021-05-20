@@ -256,6 +256,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		stopHeartbeatServices();
 
+		resourceManagerMetricGroup.close();
+
 		try {
 			slotManager.close();
 		} catch (Exception e) {
@@ -273,8 +275,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
-
-		resourceManagerMetricGroup.close();
 
 		clearStateInternal();
 
@@ -977,7 +977,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	protected void startServicesOnLeadership() {
 		startHeartbeatServices();
-
+		registerSlotAndTaskExecutorMetrics();
 		slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 	}
 
@@ -993,6 +993,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				clearStateInternal();
 
 				setFencingToken(null);
+
 
 				slotManager.suspend();
 
