@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowJoin
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{containsWindowStartEqualityAndEndEquality, excludeWindowStartEqualityAndEndEqualityFromJoinCondition, getChildWindowProperties}
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.{satisfyWindowJoin, excludeWindowStartEqualityAndEndEqualityFromWindowJoinCondition, getChildWindowProperties}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -41,7 +41,7 @@ class StreamPhysicalWindowJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel[FlinkLogicalJoin](0)
-    containsWindowStartEqualityAndEndEquality(join)
+    satisfyWindowJoin(join)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -73,7 +73,7 @@ class StreamPhysicalWindowJoinRule
       windowEndEqualityRightKeys,
       remainLeftKeys,
       remainRightKeys,
-      remainCondition) = excludeWindowStartEqualityAndEndEqualityFromJoinCondition(join)
+      remainCondition) = excludeWindowStartEqualityAndEndEqualityFromWindowJoinCondition(join)
     val providedTraitSet: RelTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     val left = call.rel[FlinkLogicalRel](1)
