@@ -361,7 +361,8 @@ public class StateAssignmentOperation {
                                     ResultSubpartitionInfo::getPartitionIdx,
                                     partitionIndex);
             final MappingBasedRepartitioner<ResultSubpartitionStateHandle> repartitioner =
-                    new MappingBasedRepartitioner<>(assignment.getOutputMapping(partitionIndex));
+                    new MappingBasedRepartitioner<>(
+                            assignment.getOutputMapping(partitionIndex).getRescaleMappings());
             final Map<OperatorInstanceID, List<ResultSubpartitionStateHandle>> repartitioned =
                     applyRepartitioner(
                             assignment.outputOperatorID,
@@ -406,7 +407,8 @@ public class StateAssignmentOperation {
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
         // subtask 0 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
-            final RescaleMappings mapping = stateAssignment.getInputMapping(gateIndex);
+            final RescaleMappings mapping =
+                    stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
 
             final List<List<InputChannelStateHandle>> gateState =
                     inputs.size() == 1
