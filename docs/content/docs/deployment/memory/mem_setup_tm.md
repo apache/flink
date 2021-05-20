@@ -44,9 +44,8 @@ The *total process memory* of Flink JVM processes consists of memory consumed by
 and by the JVM to run the process. The *total Flink memory* consumption includes usage of JVM Heap,
 *managed memory* (managed by Flink) and other direct (or native) memory.
 
-<center>
-  <img src="/fig/simple_mem_model.svg" width="300px" alt="Simple TaskManager Memory Model" usemap="#simple-mem-model">
-</center>
+{{< img src="/fig/simple_mem_model.svg" width="300px" alt="Simple TaskManager Memory Model" usemap="#simple-mem-model" >}}
+
 <br />
 
 If you run Flink locally (e.g. from your IDE) without creating a cluster, then only a subset of the memory configuration

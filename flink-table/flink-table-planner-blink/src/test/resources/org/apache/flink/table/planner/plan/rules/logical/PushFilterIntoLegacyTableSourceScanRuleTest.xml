@@ -35,27 +35,6 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCannotPushDownWithVirtualColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM VirtualTable WHERE price > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalFilter(condition=[>($4, 10)])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-   +- LogicalFilter(condition=[>($3, 10)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[]]]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCannotPushDown3">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE amount > 2 OR amount < 10]]>
@@ -92,6 +71,46 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
 LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
 +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
    +- LogicalFilter(condition=[OR(>($2, 2), <($2, 10))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownIn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE name IN ('Alice', 'Bob', 'Dave')]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[OR(=($0, _UTF-16LE'Alice'), =($0, _UTF-16LE'Bob'), =($0, _UTF-16LE'Dave'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
++- LogicalFilter(condition=[SEARCH($0, Sarg[_UTF-16LE'Alice':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Bob':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Dave':VARCHAR(5) CHARACTER SET "UTF-16LE"]:VARCHAR(5) CHARACTER SET "UTF-16LE")])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE price > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalFilter(condition=[>($4, 10)])
+   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalFilter(condition=[>($3, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[]]]])
 ]]>
     </Resource>
@@ -211,13 +230,10 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
   </TestCase>
   <TestCase name="testWithInterval">
     <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MTable
-WHERE
-  TIMESTAMPADD(HOUR, 5, a) >= b
-  OR
-  TIMESTAMPADD(YEAR, 2, b) >= a
-]]>
+      <![CDATA[SELECT * FROM MTable
+WHERE TIMESTAMPADD(HOUR, 5, a) >= b
+OR
+TIMESTAMPADD(YEAR, 2, b) >= a]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -253,12 +269,31 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPartialPushDownWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalFilter(condition=[AND(>($2, 2), >($4, 10))])
+   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalFilter(condition=[>($3, 10)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnconvertedExpression">
     <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MyTable WHERE
-    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
-      ]]>
+      <![CDATA[SELECT * FROM MyTable WHERE
+    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -315,24 +350,30 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartialPushDownWithVirtualColumn">
+  <TestCase name="testWithNullLiteral">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND price > 10]]>
+      <![CDATA[WITH MyView AS (SELECT CASE
+  WHEN amount > 0 THEN name
+  ELSE CAST(NULL AS STRING)
+  END AS a
+  FROM MyTable)
+SELECT a FROM MyView WHERE a IS NOT NULL
+]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalFilter(condition=[AND(>($2, 2), >($4, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IS NOT NULL($0)])
+   +- LogicalProject(a=[CASE(>($2, 0), $0, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-   +- LogicalFilter(condition=[>($3, 10)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
+LogicalProject(a=[$0])
++- LogicalProject(a=[CASE(>($2, 0), $0, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+   +- LogicalFilter(condition=[IS NOT NULL(CASE(>($2, 0), $0, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[false], filter=[]]]])
 ]]>
     </Resource>
   </TestCase>

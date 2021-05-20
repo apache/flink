@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation.hive;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -36,7 +37,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
@@ -51,6 +51,7 @@ import org.apache.flink.table.catalog.hive.factories.HiveFunctionDefinitionFacto
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
@@ -308,7 +309,7 @@ public class DDLOperationConverter {
             props.putAll(baseTable.getOptions());
             comment = baseTable.getComment();
         } else {
-            markNonGeneric(props);
+            markHiveConnector(props);
             comment = desc.getComment();
             if (desc.getTblProps() != null) {
                 props.putAll(desc.getTblProps());
@@ -368,7 +369,7 @@ public class DDLOperationConverter {
         if (desc.getTblProps() != null) {
             props.putAll(desc.getTblProps());
         }
-        markNonGeneric(props);
+        markHiveConnector(props);
         // external
         if (desc.isExternal()) {
             props.put(TABLE_IS_EXTERNAL, "true");
@@ -708,7 +709,6 @@ public class DDLOperationConverter {
         if (desc.getDatabaseProperties() != null) {
             props.putAll(desc.getDatabaseProperties());
         }
-        markNonGeneric(props);
         if (desc.getLocationUri() != null) {
             props.put(DATABASE_LOCATION_URI, desc.getLocationUri());
         }
@@ -720,8 +720,8 @@ public class DDLOperationConverter {
                 desc.getIfNotExists());
     }
 
-    private void markNonGeneric(Map<String, String> props) {
-        props.put(CatalogPropertiesUtil.IS_GENERIC, "false");
+    private void markHiveConnector(Map<String, String> props) {
+        props.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
     }
 
     private CatalogBaseTable getCatalogBaseTable(ObjectIdentifier tableIdentifier) {

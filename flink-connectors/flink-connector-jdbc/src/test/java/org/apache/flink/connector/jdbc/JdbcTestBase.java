@@ -27,12 +27,12 @@ import org.junit.Before;
 public abstract class JdbcTestBase {
 
     @Before
-    public final void before() throws Exception {
+    public void before() throws Exception {
         JdbcTestFixture.initSchema(getDbMetadata());
     }
 
     @After
-    public final void after() throws Exception {
+    public void after() throws Exception {
         JdbcTestFixture.cleanupData(getDbMetadata().getUrl());
         JdbcTestFixture.cleanUpDatabasesStatic(getDbMetadata());
     }

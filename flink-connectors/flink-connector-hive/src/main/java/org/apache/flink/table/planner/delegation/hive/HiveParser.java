@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.api.SqlParserException;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -35,7 +35,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableASOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException;
@@ -79,7 +78,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** A Parser that uses Hive's planner to parse a statement. */
@@ -161,7 +159,8 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_DROPFUNCTION,
                                 HiveASTParser.TOK_RELOADFUNCTION,
                                 HiveASTParser.TOK_CREATEVIEW,
-                                HiveASTParser.TOK_ALTERDATABASE_LOCATION));
+                                HiveASTParser.TOK_ALTERDATABASE_LOCATION,
+                                HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
     }
 
     private final PlannerContext plannerContext;
@@ -174,13 +173,12 @@ public class HiveParser extends ParserImpl {
             CatalogManager catalogManager,
             Supplier<FlinkPlannerImpl> validatorSupplier,
             Supplier<CalciteParser> calciteParserSupplier,
-            Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator,
             PlannerContext plannerContext) {
         super(
                 catalogManager,
                 validatorSupplier,
                 calciteParserSupplier,
-                sqlExprToRexConverterCreator);
+                plannerContext.getSqlExprToRexConverterFactory());
         this.plannerContext = plannerContext;
         this.catalogReader =
                 plannerContext.createCatalogReader(
@@ -233,10 +231,7 @@ public class HiveParser extends ParserImpl {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
-                                queryState,
-                                context,
-                                hiveCatalog,
-                                getCatalogManager().getCurrentDatabase());
+                                queryState, hiveCatalog, getCatalogManager().getCurrentDatabase());
                 Serializable work = ddlAnalyzer.analyzeInternal(node);
                 DDLOperationConverter ddlConverter =
                         new DDLOperationConverter(this, getCatalogManager(), hiveShim);
@@ -291,7 +286,7 @@ public class HiveParser extends ParserImpl {
                 throw new SqlParserException("SQL parse failed", e);
             }
         } catch (SemanticException e) {
-            throw new FlinkHiveException("HiveParser failed to parse " + cmd, e);
+            throw new ValidationException("HiveParser failed to parse " + cmd, e);
         }
     }
 

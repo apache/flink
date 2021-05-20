@@ -26,17 +26,15 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggRecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.TimeWindow;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.ClockService;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
-import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
+
+import java.time.ZoneId;
+import java.util.TimeZone;
+
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
 
 /**
  * The operator used for local window aggregation.
@@ -51,8 +49,17 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     private final RowDataKeySelector keySelector;
     private final SliceAssigner sliceAssigner;
     private final long windowInterval;
-    private final WindowBuffer.Factory windowBufferFactory;
-    private final WindowCombineFunction.LocalFactory combinerFactory;
+    private final WindowBuffer.LocalFactory windowBufferFactory;
+
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    private final ZoneId shiftTimezone;
+
+    /** The shift timezone is using DayLightSaving time or not. */
+    private final boolean useDayLightSaving;
 
     // ------------------------------------------------------------------------
 
@@ -74,26 +81,14 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
     public LocalSlicingWindowAggOperator(
             RowDataKeySelector keySelector,
             SliceAssigner sliceAssigner,
-            PagedTypeSerializer<RowData> keySer,
-            AbstractRowDataSerializer<RowData> inputSer,
-            GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler) {
-        this(
-                keySelector,
-                sliceAssigner,
-                new RecordsWindowBuffer.Factory(keySer, inputSer),
-                new LocalAggRecordsCombiner.Factory(genAggsHandler, keySer));
-    }
-
-    public LocalSlicingWindowAggOperator(
-            RowDataKeySelector keySelector,
-            SliceAssigner sliceAssigner,
-            WindowBuffer.Factory windowBufferFactory,
-            WindowCombineFunction.LocalFactory combinerFactory) {
+            WindowBuffer.LocalFactory windowBufferFactory,
+            ZoneId shiftTimezone) {
         this.keySelector = keySelector;
         this.sliceAssigner = sliceAssigner;
         this.windowInterval = sliceAssigner.getSliceEndInterval();
         this.windowBufferFactory = windowBufferFactory;
-        this.combinerFactory = combinerFactory;
+        this.shiftTimezone = shiftTimezone;
+        this.useDayLightSaving = TimeZone.getTimeZone(shiftTimezone).useDaylightTime();
     }
 
     @Override
@@ -104,14 +99,14 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
 
-        final WindowCombineFunction localCombiner =
-                combinerFactory.create(getRuntimeContext(), collector);
         this.windowBuffer =
                 windowBufferFactory.create(
                         getContainingTask(),
                         getContainingTask().getEnvironment().getMemoryManager(),
                         computeMemorySize(),
-                        localCombiner);
+                        getRuntimeContext(),
+                        collector,
+                        shiftTimezone);
     }
 
     @Override
@@ -128,9 +123,11 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         if (mark.getTimestamp() > currentWatermark) {
             currentWatermark = mark.getTimestamp();
             if (currentWatermark >= nextTriggerWatermark) {
-                // we only need to call advanceProgress() when currentWatermark may trigger window
+                // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);
-                nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
+                nextTriggerWatermark =
+                        getNextTriggerWatermark(
+                                currentWatermark, windowInterval, shiftTimezone, useDayLightSaving);
             }
         }
         super.processWatermark(mark);
@@ -146,7 +143,9 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         super.close();
         collector = null;
         functionsClosed = true;
-        windowBuffer.close();
+        if (windowBuffer != null) {
+            windowBuffer.close();
+        }
     }
 
     @Override
@@ -170,19 +169,5 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                                         ManagedMemoryUseCase.OPERATOR,
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
-    }
-
-    // ------------------------------------------------------------------------
-    //  Utilities
-    // ------------------------------------------------------------------------
-    /** Method to get the next watermark to trigger window. */
-    private static long getNextTriggerWatermark(long currentWatermark, long interval) {
-        long start = TimeWindow.getWindowStartWithOffset(currentWatermark, 0L, interval);
-        long triggerWatermark = start + interval - 1;
-        if (triggerWatermark > currentWatermark) {
-            return triggerWatermark;
-        } else {
-            return triggerWatermark + interval;
-        }
     }
 }

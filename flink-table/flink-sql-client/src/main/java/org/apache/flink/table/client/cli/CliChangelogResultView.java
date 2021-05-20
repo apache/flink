@@ -32,6 +32,7 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,7 @@ public class CliChangelogResultView
     private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
 
+    private final ZoneId sessionTimeZone;
     private LocalTime lastRetrieval;
     private int scrolling;
 
@@ -70,6 +72,10 @@ public class CliChangelogResultView
         previousResults = null;
         // rows are always appended at the tail and deleted from the head of the list
         results = new LinkedList<>();
+
+        this.sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -85,7 +91,7 @@ public class CliChangelogResultView
         if (idx == 0) {
             return 3;
         } else {
-            return MAX_COLUMN_WIDTH;
+            return PrintUtils.MAX_COLUMN_WIDTH;
         }
     }
 
@@ -129,7 +135,13 @@ public class CliChangelogResultView
 
                 for (Row change : changes) {
                     // convert row
-                    final String[] row = PrintUtils.rowToString(change, NULL_COLUMN, true);
+                    final String[] row =
+                            PrintUtils.rowToString(
+                                    change,
+                                    NULL_COLUMN,
+                                    true,
+                                    resultDescriptor.getResultSchema(),
+                                    sessionTimeZone);
 
                     // update results
 
@@ -284,7 +296,7 @@ public class CliChangelogResultView
                         s -> {
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);
+                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
                             schemaHeader.style(AttributedStyle.DEFAULT);
                         });
 

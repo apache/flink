@@ -28,6 +28,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.factories.DataGenOptions;
 import org.apache.flink.table.factories.datagen.types.DataGeneratorMapper;
 import org.apache.flink.table.factories.datagen.types.DecimalDataRandomGenerator;
 import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
@@ -55,10 +56,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.LENGTH;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.MAX;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.MIN;
 
 /** Creates a random {@link DataGeneratorContainer} for a particular logical type. */
 @Internal
@@ -76,8 +73,8 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     public RandomGeneratorVisitor(String name, ReadableConfig config) {
         super(name, config);
 
-        this.minKey = key(FIELDS + "." + name + "." + MIN);
-        this.maxKey = key(FIELDS + "." + name + "." + MAX);
+        this.minKey = key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.MIN);
+        this.maxKey = key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.MAX);
     }
 
     @Override
@@ -88,7 +85,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(CharType booleanType) {
         ConfigOption<Integer> lenOption =
-                key(FIELDS + "." + name + "." + LENGTH)
+                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         return DataGeneratorContainer.of(
@@ -98,7 +95,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(VarCharType booleanType) {
         ConfigOption<Integer> lenOption =
-                key(FIELDS + "." + name + "." + LENGTH)
+                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         return DataGeneratorContainer.of(
@@ -166,7 +163,9 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         return DataGeneratorContainer.of(
                 new DecimalDataRandomGenerator(
                         decimalType.getPrecision(), decimalType.getScale(),
-                        config.get(min), config.get(max)));
+                        config.get(min), config.get(max)),
+                min,
+                max);
     }
 
     @Override
@@ -188,7 +187,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(ArrayType arrayType) {
         ConfigOption<Integer> lenOption =
-                key(FIELDS + "." + name + "." + LENGTH)
+                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 
@@ -206,7 +205,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(MultisetType multisetType) {
         ConfigOption<Integer> lenOption =
-                key(FIELDS + "." + name + "." + LENGTH)
+                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 
@@ -228,7 +227,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(MapType mapType) {
         ConfigOption<Integer> lenOption =
-                key(FIELDS + "." + name + "." + LENGTH)
+                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 

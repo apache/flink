@@ -23,7 +23,7 @@ package org.apache.flink.runtime.execution;
  * the state {@code CREATED} and switch states according to this diagram:
  *
  * <pre>{@code
- *  CREATED  -> SCHEDULED -> DEPLOYING -> RECOVERING -> RUNNING -> FINISHED
+ *  CREATED  -> SCHEDULED -> DEPLOYING -> INITIALIZING -> RUNNING -> FINISHED
  *     |            |            |          |              |
  *     |            |            |    +-----+--------------+
  *     |            |            V    V
@@ -33,7 +33,7 @@ package org.apache.flink.runtime.execution;
  *     |
  *     |                                   ... -> FAILED
  *     V
- * RECONCILING  -> RECOVERING | RUNNING | FINISHED | CANCELED | FAILED
+ * RECONCILING  -> INITIALIZING | RUNNING | FINISHED | CANCELED | FAILED
  *
  * }</pre>
  *
@@ -71,7 +71,7 @@ public enum ExecutionState {
     RECONCILING,
 
     /** Restoring last possible valid state of the task if it has it. */
-    RECOVERING;
+    INITIALIZING;
 
     public boolean isTerminal() {
         return this == FINISHED || this == CANCELED || this == FAILED;

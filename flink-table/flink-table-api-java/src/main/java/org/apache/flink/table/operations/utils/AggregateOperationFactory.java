@@ -77,6 +77,7 @@ import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -313,6 +314,7 @@ final class AggregateOperationFactory {
 
     private void validateBatchTimeAttribute(LogicalType timeFieldType) {
         if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+                || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 || hasRoot(timeFieldType, BIGINT))) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "
@@ -321,7 +323,8 @@ final class AggregateOperationFactory {
     }
 
     private void validateStreamTimeAttribute(LogicalType timeFieldType) {
-        if (!hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+        if (!(hasRoot(timeFieldType, TIMESTAMP_WITHOUT_TIME_ZONE)
+                        || hasRoot(timeFieldType, TIMESTAMP_WITH_LOCAL_TIME_ZONE))
                 || !isTimeAttribute(timeFieldType)) {
             throw new ValidationException(
                     "A group window expects a time attribute for grouping "

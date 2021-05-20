@@ -36,6 +36,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 
@@ -61,19 +62,22 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
     // Utilities
     // ------------------------------------------------------------------------------------------
 
-    protected SliceAssigner createSliceAssigner(WindowingStrategy windowingStrategy) {
+    protected SliceAssigner createSliceAssigner(
+            WindowingStrategy windowingStrategy, ZoneId shiftTimeZone) {
         WindowSpec windowSpec = windowingStrategy.getWindow();
         if (windowingStrategy instanceof WindowAttachedWindowingStrategy) {
             int windowEndIndex =
                     ((WindowAttachedWindowingStrategy) windowingStrategy).getWindowEnd();
             // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
+            SliceAssigner innerAssigner =
+                    createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
             return SliceAssigners.windowed(windowEndIndex, innerAssigner);
 
         } else if (windowingStrategy instanceof SliceAttachedWindowingStrategy) {
             int sliceEndIndex = ((SliceAttachedWindowingStrategy) windowingStrategy).getSliceEnd();
             // we don't need time attribute to assign windows, use a magic value in this case
-            SliceAssigner innerAssigner = createSliceAssigner(windowSpec, Integer.MAX_VALUE);
+            SliceAssigner innerAssigner =
+                    createSliceAssigner(windowSpec, Integer.MAX_VALUE, shiftTimeZone);
             return SliceAssigners.sliced(sliceEndIndex, innerAssigner);
 
         } else if (windowingStrategy instanceof TimeAttributeWindowingStrategy) {
@@ -85,17 +89,18 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             } else {
                 timeAttributeIndex = -1;
             }
-            return createSliceAssigner(windowSpec, timeAttributeIndex);
+            return createSliceAssigner(windowSpec, timeAttributeIndex, shiftTimeZone);
 
         } else {
             throw new UnsupportedOperationException(windowingStrategy + " is not supported yet.");
         }
     }
 
-    protected SliceAssigner createSliceAssigner(WindowSpec windowSpec, int timeAttributeIndex) {
+    protected SliceAssigner createSliceAssigner(
+            WindowSpec windowSpec, int timeAttributeIndex, ZoneId shiftTimeZone) {
         if (windowSpec instanceof TumblingWindowSpec) {
             Duration size = ((TumblingWindowSpec) windowSpec).getSize();
-            return SliceAssigners.tumbling(timeAttributeIndex, size);
+            return SliceAssigners.tumbling(timeAttributeIndex, shiftTimeZone, size);
 
         } else if (windowSpec instanceof HoppingWindowSpec) {
             Duration size = ((HoppingWindowSpec) windowSpec).getSize();
@@ -107,7 +112,7 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
                                         + "integral multiple of slide, but got size %s ms and slide %s ms",
                                 size.toMillis(), slide.toMillis()));
             }
-            return SliceAssigners.hopping(timeAttributeIndex, size, slide);
+            return SliceAssigners.hopping(timeAttributeIndex, shiftTimeZone, size, slide);
 
         } else if (windowSpec instanceof CumulativeWindowSpec) {
             Duration maxSize = ((CumulativeWindowSpec) windowSpec).getMaxSize();
@@ -119,7 +124,7 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
                                         + "integral multiple of step, but got maxSize %s ms and step %s ms",
                                 maxSize.toMillis(), step.toMillis()));
             }
-            return SliceAssigners.cumulative(timeAttributeIndex, maxSize, step);
+            return SliceAssigners.cumulative(timeAttributeIndex, shiftTimeZone, maxSize, step);
 
         } else {
             throw new UnsupportedOperationException(windowSpec + " is not supported yet.");

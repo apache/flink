@@ -43,6 +43,8 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -117,7 +119,11 @@ public class ExpressionResolver {
 
     private final Map<String, LocalReferenceExpression> localReferences;
 
+    private final @Nullable DataType outputDataType;
+
     private final Map<Expression, LocalOverWindow> localOverWindows;
+
+    private final boolean isGroupedAggregation;
 
     private ExpressionResolver(
             TableConfig config,
@@ -127,7 +133,9 @@ public class ExpressionResolver {
             SqlExpressionResolver sqlExpressionResolver,
             FieldReferenceLookup fieldLookup,
             List<OverWindow> localOverWindows,
-            List<LocalReferenceExpression> localReferences) {
+            List<LocalReferenceExpression> localReferences,
+            @Nullable DataType outputDataType,
+            boolean isGroupedAggregation) {
         this.config = Preconditions.checkNotNull(config).getConfiguration();
         this.tableLookup = Preconditions.checkNotNull(tableLookup);
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
@@ -146,7 +154,9 @@ public class ExpressionResolver {
                                                     "Duplicate local reference: " + u);
                                         },
                                         LinkedHashMap::new));
+        this.outputDataType = outputDataType;
         this.localOverWindows = prepareOverWindows(localOverWindows);
+        this.isGroupedAggregation = isGroupedAggregation;
     }
 
     /**
@@ -320,8 +330,18 @@ public class ExpressionResolver {
         }
 
         @Override
+        public Optional<DataType> getOutputDataType() {
+            return Optional.ofNullable(outputDataType);
+        }
+
+        @Override
         public Optional<LocalOverWindow> getOverWindow(Expression alias) {
             return Optional.ofNullable(localOverWindows.get(alias));
+        }
+
+        @Override
+        public boolean isGroupedAggregation() {
+            return isGroupedAggregation;
         }
     }
 
@@ -434,6 +454,8 @@ public class ExpressionResolver {
         private final SqlExpressionResolver sqlExpressionResolver;
         private List<OverWindow> logicalOverWindows = new ArrayList<>();
         private List<LocalReferenceExpression> localReferences = new ArrayList<>();
+        private @Nullable DataType outputDataType;
+        private boolean isGroupedAggregation;
 
         private ExpressionResolverBuilder(
                 QueryOperation[] queryOperations,
@@ -461,6 +483,16 @@ public class ExpressionResolver {
             return this;
         }
 
+        public ExpressionResolverBuilder withOutputDataType(@Nullable DataType outputDataType) {
+            this.outputDataType = outputDataType;
+            return this;
+        }
+
+        public ExpressionResolverBuilder withGroupedAggregation(boolean isGroupedAggregation) {
+            this.isGroupedAggregation = isGroupedAggregation;
+            return this;
+        }
+
         public ExpressionResolver build() {
             return new ExpressionResolver(
                     config,
@@ -470,7 +502,9 @@ public class ExpressionResolver {
                     sqlExpressionResolver,
                     new FieldReferenceLookup(queryOperations),
                     logicalOverWindows,
-                    localReferences);
+                    localReferences,
+                    outputDataType,
+                    isGroupedAggregation);
         }
     }
 }

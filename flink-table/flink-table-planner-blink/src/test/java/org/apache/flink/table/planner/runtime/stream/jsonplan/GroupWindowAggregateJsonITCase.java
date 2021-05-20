@@ -38,7 +38,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
-                JavaScalaConversionUtil.toJava(TestData.windowData()),
+                JavaScalaConversionUtil.toJava(TestData.windowDataWithTimestamp()),
                 new String[] {
                     "ts STRING",
                     "`int` INT",

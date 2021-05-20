@@ -10,7 +10,7 @@
       },
       "catalogTable" : {
         "schema.2.expr" : "PROCTIME()",
-        "schema.2.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.2.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "connector" : "values",
         "schema.0.data-type" : "BIGINT",
         "schema.2.name" : "proctime",
@@ -59,6 +59,7 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
@@ -80,7 +81,7 @@
         "name" : "VARCHAR(2147483647)"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -107,7 +108,7 @@
         "name" : "VARCHAR(2147483647)"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"

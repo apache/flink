@@ -36,6 +36,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -133,9 +134,13 @@ class GPUDriver implements ExternalResourceDriver {
         final String cmd = discoveryScript.getAbsolutePath() + " " + gpuAmount + " " + args;
         final Process process = Runtime.getRuntime().exec(cmd);
         try (final BufferedReader stdoutReader =
-                        new BufferedReader(new InputStreamReader(process.getInputStream()));
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        process.getInputStream(), StandardCharsets.UTF_8));
                 final BufferedReader stderrReader =
-                        new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        process.getErrorStream(), StandardCharsets.UTF_8))) {
             final boolean hasProcessTerminated =
                     process.waitFor(DISCOVERY_SCRIPT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             if (!hasProcessTerminated) {

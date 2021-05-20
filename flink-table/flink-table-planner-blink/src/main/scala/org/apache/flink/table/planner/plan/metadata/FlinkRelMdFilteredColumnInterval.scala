@@ -22,13 +22,14 @@ import org.apache.flink.table.planner.plan.nodes.calcite.TableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalGlobalGroupAggregate, StreamPhysicalGroupAggregate, StreamPhysicalGroupTableAggregate, StreamPhysicalGroupWindowAggregate, StreamPhysicalGroupWindowTableAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
-import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
+import org.apache.flink.table.planner.plan.utils.{ColumnIntervalUtil, FlinkRelOptUtil}
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
+import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.Util
 
@@ -40,6 +41,9 @@ import scala.collection.JavaConversions._
   *
   * The [[FlinkRelMdFilteredColumnInterval]] is almost depend on the implementation of
   * [[FlinkRelMdColumnInterval]], except to handle filter argument in Calc RelNode.
+  *
+  * Refactor this meta data to a utility class later because it only serves for calculating the
+  * monotonicity of some specific aggregate functions.
   */
 class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredColumnInterval] {
 
@@ -67,11 +71,46 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
     } else {
       val condition = project.getProjects.get(filterArg)
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
-      ColumnIntervalUtil.getColumnIntervalWithFilter(
+      intersectColumnIntervalWithPredicate(
+        project.getProjects.get(columnIndex),
         Option(columnInterval),
         condition,
-        columnIndex,
         project.getCluster.getRexBuilder)
+    }
+  }
+
+  /**
+   * Calculate the value interval of the given column (which may carry derived column interval) and
+   * additional predicate expression, if the given column is a RexInputRef then the final interval
+   * is intersect with the predicate, if the given column is a RexLiteral then the final interval
+   * is the literal itself, otherwise return null. This can be improved (e.g., for RexCall) later.
+   *
+   * @param column original column
+   * @param origColumnInterval original column interval
+   * @param predicate the predicate expression
+   * @param rexBuilder RexBuilder instance to analyze the predicate expression
+   * @return
+   */
+  private def intersectColumnIntervalWithPredicate(
+      column: RexNode,
+      origColumnInterval: Option[ValueInterval],
+      predicate: RexNode,
+      rexBuilder: RexBuilder): ValueInterval = {
+    column match {
+      case inputRef: RexInputRef =>
+        ColumnIntervalUtil.getColumnIntervalWithFilter(
+          origColumnInterval,
+          predicate,
+          inputRef.getIndex,
+          rexBuilder)
+      case literal: RexLiteral =>
+        val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
+        if (literalValue == null) {
+          ValueInterval.empty
+        } else {
+          ValueInterval(literalValue, literalValue)
+        }
+      case _ => null
     }
   }
 
@@ -133,10 +172,11 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       val filterRef = calc.getProgram.getProjectList.get(filterArg)
       val condition = calc.getProgram.expandLocalRef(filterRef)
       checkArgument(SqlTypeUtil.inBooleanFamily(condition.getType))
-      ColumnIntervalUtil.getColumnIntervalWithFilter(
+      val column = calc.getProgram.expandLocalRef(calc.getProgram.getProjectList.get(columnIndex))
+      intersectColumnIntervalWithPredicate(
+        column,
         Option(columnInterval),
         condition,
-        columnIndex,
         calc.getCluster.getRexBuilder)
     }
   }
@@ -236,7 +276,9 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
-    checkArgument(filterArg == -1)
+    if (filterArg != -1) {
+      return null
+    }
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     fmq.getColumnInterval(rel, columnIndex)
   }
@@ -256,6 +298,10 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    // do not support `union`
+    if (!union.all) {
+      return null
+    }
     val subIntervals = union
       .getInputs
       .map(fmq.getFilteredColumnInterval(_, columnIndex, filterArg))

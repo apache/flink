@@ -30,6 +30,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.operators.window.TimeWindow.getWindowStartWithOffset;
+
 /**
  * A {@link WindowAssigner} that windows elements into cumulative windows based on the timestamp of
  * the elements. Windows are overlap.
@@ -66,9 +68,9 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow>
     @Override
     public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
         List<TimeWindow> windows = new ArrayList<>();
-        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, maxSize);
+        long start = getWindowStartWithOffset(timestamp, offset, maxSize);
         long lastEnd = start + maxSize;
-        long firstEnd = TimeWindow.getWindowStartWithOffset(timestamp, offset, step) + step;
+        long firstEnd = getWindowStartWithOffset(timestamp, offset, step) + step;
         for (long end = firstEnd; end <= lastEnd; end += step) {
             windows.add(new TimeWindow(start, end));
         }
@@ -77,7 +79,7 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow>
 
     @Override
     public TimeWindow assignPane(Object element, long timestamp) {
-        long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, step);
+        long start = getWindowStartWithOffset(timestamp, offset, step);
         return new TimeWindow(start, start + step);
     }
 
@@ -88,7 +90,7 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow>
 
     @Override
     public TimeWindow getLastWindow(TimeWindow pane) {
-        long windowStart = TimeWindow.getWindowStartWithOffset(pane.getStart(), offset, maxSize);
+        long windowStart = getWindowStartWithOffset(pane.getStart(), offset, maxSize);
         // the last window is the max size window
         return new TimeWindow(windowStart, windowStart + maxSize);
     }

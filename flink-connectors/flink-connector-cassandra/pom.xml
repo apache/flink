@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -63,8 +63,9 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration combine.self="override">
-							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+						<configuration>
+							<!-- This is necessary because we bundle a subset of our dependencies,
+							and transitive dependencies of that subset should still be pulled into the user jar.-->
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes>

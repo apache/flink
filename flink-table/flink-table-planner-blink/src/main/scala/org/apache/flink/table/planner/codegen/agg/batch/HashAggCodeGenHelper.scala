@@ -532,7 +532,7 @@ object HashAggCodeGenHelper {
     val rowDataType = classOf[RowData].getCanonicalName
     s"""
        |$iteratorType<$rowDataType, $rowDataType> $iteratorTerm =
-       |  $aggregateMapTerm.getEntryIterator();
+       |  $aggregateMapTerm.getEntryIterator(false); // reuse key/value during iterating
        |while ($iteratorTerm.advanceNext()) {
        |   // set result and output
        |   $reuseGroupKeyTerm = ($rowDataType)$iteratorTerm.getKey();

@@ -412,6 +412,29 @@ class SplitAggregateITCase(
     val expected = List("1,2,1,2,1", "2,4,3,4,3", "3,1,1,null,5", "4,2,2,6,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testAggFilterClauseBothWithAvgAndCount(): Unit = {
+    val t1 = tEnv.sqlQuery(
+      s"""
+         |SELECT
+         |  a,
+         |  COUNT(DISTINCT b) FILTER (WHERE NOT b = 2),
+         |  SUM(b) FILTER (WHERE NOT b = 5),
+         |  COUNT(b),
+         |  SUM(b),
+         |  AVG(b)
+         |FROM T
+         |GROUP BY a
+       """.stripMargin)
+
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,1,3,2,3,1", "2,3,24,8,29,3", "3,1,null,2,10,5", "4,2,6,4,21,5")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
 
 object SplitAggregateITCase {

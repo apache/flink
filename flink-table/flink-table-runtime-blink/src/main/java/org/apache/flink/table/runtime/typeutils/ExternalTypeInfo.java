@@ -64,20 +64,37 @@ public final class ExternalTypeInfo<T> extends TypeInformation<T> implements Dat
      * structures but serialized and deserialized into external data structures.
      */
     public static <T> ExternalTypeInfo<T> of(DataType dataType) {
-        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType);
+        final TypeSerializer<T> serializer = createExternalTypeSerializer(dataType, false);
+        return new ExternalTypeInfo<>(dataType, serializer);
+    }
+
+    /**
+     * Creates type information for a {@link DataType} that is possibly represented by internal data
+     * structures but serialized and deserialized into external data structures.
+     *
+     * @param isInternalInput allows for a non-bidirectional serializer from internal to external
+     */
+    public static <T> ExternalTypeInfo<T> of(DataType dataType, boolean isInternalInput) {
+        final TypeSerializer<T> serializer =
+                createExternalTypeSerializer(dataType, isInternalInput);
         return new ExternalTypeInfo<>(dataType, serializer);
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> TypeSerializer<T> createExternalTypeSerializer(DataType dataType) {
+    private static <T> TypeSerializer<T> createExternalTypeSerializer(
+            DataType dataType, boolean isInternalInput) {
         final LogicalType logicalType = dataType.getLogicalType();
-        if (logicalType instanceof RawType) {
+        if (logicalType instanceof RawType && !isInternalInput) {
             final RawType<?> rawType = (RawType<?>) logicalType;
             if (dataType.getConversionClass() == rawType.getOriginatingClass()) {
                 return (TypeSerializer<T>) rawType.getTypeSerializer();
             }
         }
-        return ExternalSerializer.of(dataType);
+        // note: we can add more special cases in the future to make the serialization more
+        // efficient, for example we can translate to RowTypeInfo if we know that field types can
+        // be mapped to type information as well, the external serializer in its current shape is
+        // the most general serializer implementation for all conversion classes
+        return ExternalSerializer.of(dataType, isInternalInput);
     }
 
     // --------------------------------------------------------------------------------------------

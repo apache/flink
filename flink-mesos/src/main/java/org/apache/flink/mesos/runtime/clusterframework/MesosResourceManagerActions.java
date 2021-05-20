@@ -28,7 +28,11 @@ import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
  *
  * <p>These are called by the MesosResourceManager components such as {@link LaunchCoordinator}, and
  * {@link TaskMonitor}.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public interface MesosResourceManagerActions {
 
     /**

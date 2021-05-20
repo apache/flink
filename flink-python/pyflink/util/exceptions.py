@@ -20,12 +20,11 @@ from py4j.protocol import Py4JJavaError
 
 
 class JavaException(Exception):
-    def __init__(self, msg, stack_trace):
-        self.msg = msg
+    def __init__(self, stack_trace: str):
         self.stack_trace = stack_trace
 
     def __str__(self):
-        return self.msg + "\n\t at " + self.stack_trace
+        return self.stack_trace
 
 
 class TableException(JavaException):
@@ -150,12 +149,9 @@ def capture_java_exception(f):
             get_gateway().jvm.org.apache.flink.client.python.PythonEnvUtils\
                 .setPythonException(e.java_exception)
             s = e.java_exception.toString()
-            stack_trace = '\n\t at '.join(map(lambda x: x.toString(),
-                                              e.java_exception.getStackTrace()))
             for exception in exception_mapping.keys():
                 if s.startswith(exception):
-                    java_exception = \
-                        exception_mapping[exception](s.split(': ', 1)[1], stack_trace)
+                    java_exception = convert_py4j_exception(e)
                     break
             else:
                 raise
@@ -197,14 +193,9 @@ def convert_py4j_exception(e: Py4JJavaError) -> JavaException:
     """
     Convert Py4J exception to JavaException.
     """
-    def extract_java_stack_trace(java_stack_trace):
-        return '\n\t at '.join(map(lambda x: x.toString(), java_stack_trace))
-
     s = e.java_exception.toString()
-    cause = e.java_exception.getCause()
-    stack_trace = extract_java_stack_trace(e.java_exception.getStackTrace())
-    while cause is not None:
-        stack_trace += '\nCaused by: %s: %s' % (cause.getClass().getName(), cause.getMessage())
-        stack_trace += "\n\t at " + extract_java_stack_trace(cause.getStackTrace())
-        cause = cause.getCause()
-    return JavaException(s.split(': ', 1)[1], stack_trace)
+    for exception in exception_mapping.keys():
+        if s.startswith(exception):
+            return exception_mapping[exception](str(e).split(': ', 1)[1])
+    else:
+        return JavaException(str(e).split(': ', 1)[1])

@@ -76,7 +76,13 @@ import java.util.stream.Collectors;
 import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
-/** Implementation of {@link ResourceManagerDriver} for Mesos deployment. */
+/**
+ * Implementation of {@link ResourceManagerDriver} for Mesos deployment.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosResourceManagerDriver
         extends AbstractResourceManagerDriver<RegisteredMesosWorkerNode> {
 

@@ -706,21 +706,21 @@ class InternalSynchronousMapRuntimeState(object):
 
     def get(self, map_key):
         if self._is_empty:
-            raise KeyError("Map key %s not found!" % str(map_key))
+            return None
         if map_key in self._write_cache:
             exists, value = self._write_cache[map_key]
             if exists:
                 return value
             else:
-                raise KeyError("Map key %s not found!" % str(map_key))
+                return None
         if self._cleared:
-            raise KeyError("Map key %s not found!" % str(map_key))
+            return None
         exists, value = self._map_state_handler.blocking_get(
             self._state_key, map_key, self._map_key_coder_impl, self._map_value_coder_impl)
         if exists:
             return value
         else:
-            raise KeyError("Map key %s not found!" % str(map_key))
+            return None
 
     def put(self, map_key, map_value):
         self._write_cache[map_key] = (True, map_value)
@@ -754,11 +754,10 @@ class InternalSynchronousMapRuntimeState(object):
     def contains(self, map_key):
         if self._is_empty:
             return False
-        try:
-            self.get(map_key)
-            return True
-        except KeyError:
+        if self.get(map_key) is None:
             return False
+        else:
+            return True
 
     def is_empty(self):
         if self._is_empty is None:

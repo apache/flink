@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacySink;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -80,7 +81,18 @@ public class StreamExecLegacySink<T> extends CommonExecLegacySink<T>
         } else if (rowtimeFieldIndices.size() == 1) {
             LogicalType[] convertedFieldTypes =
                     inputRowType.getChildren().stream()
-                            .map(t -> TypeCheckUtils.isRowTime(t) ? new TimestampType(3) : t)
+                            .map(
+                                    t -> {
+                                        if (TypeCheckUtils.isRowTime(t)) {
+                                            if (TypeCheckUtils.isTimestampWithLocalZone(t)) {
+                                                return new LocalZonedTimestampType(3);
+                                            } else {
+                                                return new TimestampType(3);
+                                            }
+                                        } else {
+                                            return t;
+                                        }
+                                    })
                             .toArray(LogicalType[]::new);
 
             return RowType.of(

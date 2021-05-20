@@ -83,16 +83,6 @@ public class ResultPartitionFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testReleaseOnConsumptionForPipelinedPartition() {
-        final ResultPartition resultPartition =
-                createResultPartition(ResultPartitionType.PIPELINED);
-
-        resultPartition.onConsumedSubpartition(0);
-
-        assertTrue(resultPartition.isReleased());
-    }
-
-    @Test
     public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
         final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 

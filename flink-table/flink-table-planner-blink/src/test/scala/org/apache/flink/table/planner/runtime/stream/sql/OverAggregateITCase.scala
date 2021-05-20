@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -25,13 +26,13 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.S
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
@@ -53,6 +54,104 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
     // https://issues.apache.org/jira/browse/FLINK-18405
     env.getCheckpointConfig.enableUnalignedCheckpoints(false)
+  }
+
+  @Test
+  def testLagFunction(): Unit = {
+    val sqlQuery = "SELECT a, b, c, " +
+        "  LAG(b) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LAG(b, 2) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LAG(b, 2, CAST(10086 AS BIGINT)) OVER(PARTITION BY a ORDER BY rowtime)" +
+        "FROM T1"
+
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000001L, (1, 1L, "Hi")),
+      Left(14000005L, (1, 2L, "Hi")),
+      Left(14000002L, (1, 3L, "Hello")),
+      Left(14000003L, (1, 4L, "Hello")),
+      Left(14000003L, (1, 5L, "Hello")),
+      Right(14000020L),
+      Left(14000021L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Right(14000030L))
+
+    val source = failingDataSource(data)
+    val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+        .setParallelism(source.parallelism)
+        .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", t1)
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      s"1,1,Hi,null,null,10086",
+      s"1,3,Hello,1,null,10086",
+      s"1,4,Hello,4,3,3",
+      s"1,5,Hello,4,3,3",
+      s"1,2,Hi,5,4,4",
+      s"1,6,Hello world,2,5,5",
+      s"1,7,Hello world,6,2,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLeadFunction(): Unit = {
+    expectedException.expectMessage("LEAD Function is not supported in stream mode")
+
+    val sqlQuery = "SELECT a, b, c, " +
+        "  LEAD(b) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LEAD(b, 2) OVER(PARTITION BY a ORDER BY rowtime)," +
+        "  LEAD(b, 2, CAST(10086 AS BIGINT)) OVER(PARTITION BY a ORDER BY rowtime)" +
+        "FROM T1"
+
+    val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
+      Left(14000001L, (1, 1L, "Hi")),
+      Left(14000003L, (1, 5L, "Hello")),
+      Right(14000020L),
+      Left(14000021L, (1, 6L, "Hello world")),
+      Left(14000022L, (1, 7L, "Hello world")),
+      Right(14000030L))
+    val source = failingDataSource(data)
+    val t1 = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
+        .setParallelism(source.parallelism)
+        .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.registerTable("T1", t1)
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+  }
+
+  @Test
+  def testRowNumberOnOver(): Unit = {
+    val t = failingDataSource(TestData.tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.registerTable("MyTable", t)
+    val sqlQuery = "SELECT a, ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime()) FROM MyTable"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,1",
+      "2,2",
+      "3,1",
+      "3,2",
+      "3,3",
+      "4,1",
+      "4,2",
+      "4,3",
+      "4,4",
+      "5,1",
+      "5,2",
+      "5,3",
+      "5,4",
+      "5,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -1031,6 +1130,35 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "null,Hello World,8,5",
       "A,Hello World,9,6",
       "B,Hello World,10,7")
+    assertEquals(expected, sink.getAppendResults)
+  }
+
+  @Test
+  def testDecimalSum0(): Unit = {
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(BigDecimal(1.11).bigDecimal))
+    data.+=(Row.of(BigDecimal(2.22).bigDecimal))
+    data.+=(Row.of(BigDecimal(3.33).bigDecimal))
+    data.+=(Row.of(BigDecimal(4.44).bigDecimal))
+
+    env.setParallelism(1)
+    val rowType = new RowTypeInfo(BigDecimalTypeInfo.of(38, 18))
+    val t = failingDataSource(data)(rowType).toTable(tEnv, 'd, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "select sum(d) over (ORDER BY proctime rows between unbounded preceding " +
+      "and current row) from T"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1.110000000000000000",
+      "3.330000000000000000",
+      "6.660000000000000000",
+      "11.100000000000000000")
     assertEquals(expected, sink.getAppendResults)
   }
 }

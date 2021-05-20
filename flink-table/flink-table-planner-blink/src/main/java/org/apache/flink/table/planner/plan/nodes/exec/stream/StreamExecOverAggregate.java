@@ -51,6 +51,7 @@ import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPreceding
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -151,8 +152,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         if (orderKeyType instanceof TimestampType
                 && ((TimestampType) orderKeyType).getKind() == TimestampKind.ROWTIME) {
             rowTimeIdx = orderKey;
-        } else if (orderKeyType instanceof TimestampType
-                && ((TimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
+        } else if (orderKeyType instanceof LocalZonedTimestampType
+                && ((LocalZonedTimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
             rowTimeIdx = -1;
         } else {
             throw new TableException(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -93,29 +94,39 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     }
 
     private void initCrossRegionConsumedPartitionGroups() {
-        Set<ConsumedPartitionGroup> visitedPartitionGroups =
-                Collections.newSetFromMap(new IdentityHashMap<>());
+        final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
+                producerRegionsByConsumedPartitionGroup = new IdentityHashMap<>();
 
         for (SchedulingPipelinedRegion pipelinedRegion :
                 schedulingTopology.getAllPipelinedRegions()) {
             for (ConsumedPartitionGroup consumedPartitionGroup :
                     pipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
-                if (!visitedPartitionGroups.contains(consumedPartitionGroup)) {
-                    visitedPartitionGroups.add(consumedPartitionGroup);
+                producerRegionsByConsumedPartitionGroup.computeIfAbsent(
+                        consumedPartitionGroup, this::getProducerRegionsForConsumedPartitionGroup);
+            }
+        }
 
-                    SchedulingPipelinedRegion producerRegion = null;
-                    for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
-                        SchedulingPipelinedRegion region = getProducerRegion(partitionId);
-                        if (producerRegion == null) {
-                            producerRegion = region;
-                        } else if (producerRegion != region) {
-                            crossRegionConsumedPartitionGroups.add(consumedPartitionGroup);
-                            break;
-                        }
-                    }
+        for (SchedulingPipelinedRegion pipelinedRegion :
+                schedulingTopology.getAllPipelinedRegions()) {
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    pipelinedRegion.getAllBlockingConsumedPartitionGroups()) {
+                final Set<SchedulingPipelinedRegion> producerRegions =
+                        producerRegionsByConsumedPartitionGroup.get(consumedPartitionGroup);
+                if (producerRegions.size() > 1 && producerRegions.contains(pipelinedRegion)) {
+                    crossRegionConsumedPartitionGroups.add(consumedPartitionGroup);
                 }
             }
         }
+    }
+
+    private Set<SchedulingPipelinedRegion> getProducerRegionsForConsumedPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        final Set<SchedulingPipelinedRegion> producerRegions =
+                Collections.newSetFromMap(new IdentityHashMap<>());
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            producerRegions.add(getProducerRegion(partitionId));
+        }
+        return producerRegions;
     }
 
     private SchedulingPipelinedRegion getProducerRegion(IntermediateResultPartitionID partitionId) {
@@ -310,6 +321,11 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
             IntermediateResultPartitionID partitionId, SchedulingPipelinedRegion pipelinedRegion) {
         return !pipelinedRegion.contains(
                 schedulingTopology.getResultPartition(partitionId).getProducer().getId());
+    }
+
+    @VisibleForTesting
+    Set<ConsumedPartitionGroup> getCrossRegionConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(crossRegionConsumedPartitionGroups);
     }
 
     /** The factory for creating {@link PipelinedRegionSchedulingStrategy}. */

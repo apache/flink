@@ -19,9 +19,10 @@
 package org.apache.flink.table.planner.delegation.hive;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBetween;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
-import org.apache.flink.table.planner.functions.sql.SqlCurrentTimestampFunction;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlTimestampFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -90,14 +91,15 @@ public class SqlFunctionConverter extends RexShuttle {
             RelDataType type = call.getType();
             return builder.makeCall(type, convertedOp, visitList(operands, update));
         } else {
-            if (convertedOp instanceof SqlCurrentTimestampFunction) {
+            if (convertedOp instanceof FlinkSqlTimestampFunction) {
                 // flink's current_timestamp has different type from hive's, convert it to a literal
                 Timestamp currentTS =
                         ((HiveParser.HiveParserSessionState) SessionState.get())
                                 .getHiveParserCurrentTS();
+                HiveShim hiveShim = HiveParserUtils.getSessionHiveShim();
                 try {
                     return HiveParserRexNodeConverter.convertConstant(
-                            new ExprNodeConstantDesc(currentTS), cluster);
+                            new ExprNodeConstantDesc(hiveShim.toHiveTimestamp(currentTS)), cluster);
                 } catch (SemanticException e) {
                     throw new FlinkHiveException(e);
                 }

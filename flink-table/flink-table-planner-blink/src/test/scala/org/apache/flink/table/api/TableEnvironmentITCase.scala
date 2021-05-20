@@ -707,7 +707,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertEquals(
       ResolvedSchema.of(
         Column.physical("name", DataTypes.STRING()),
-        Column.physical("pt", DataTypes.TIMESTAMP(3))),
+        Column.physical("pt", DataTypes.TIMESTAMP_LTZ(3))),
       tableResult.getResolvedSchema)
     val it = tableResult.collect()
     assertTrue(it.hasNext)

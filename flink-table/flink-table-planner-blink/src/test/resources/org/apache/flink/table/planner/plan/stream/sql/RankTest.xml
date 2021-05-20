@@ -119,8 +119,8 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
-+- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0], changelogMode=[I,UA,D])
+Calc(select=[a, b, count_c, w0$o0_0 AS w0$o0], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0_0], changelogMode=[I,UA,D])
    +- Exchange(distribution=[single], changelogMode=[I,UA,D])
       +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
@@ -183,6 +183,42 @@ Calc(select=[a, rk, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankWithAnotherRankAsInput">
+    <Resource name="sql">
+      <![CDATA[
+SELECT CAST(rna AS INT) AS rn1, CAST(rnb AS INT) AS rn2 FROM (
+  SELECT *, row_number() over (partition by a order by b desc) AS rnb
+  FROM (
+    SELECT *, row_number() over (partition by a, c order by b desc) AS rna
+    FROM MyTable
+  )
+  WHERE rna <= 100
+)
+WHERE rnb <= 200
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rn1=[CAST($5):INTEGER NOT NULL], rn2=[CAST($6):INTEGER NOT NULL])
++- LogicalFilter(condition=[<=($6, 200)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rna=[$5], rnb=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[<=($5, 100)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rna=[ROW_NUMBER() OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CAST(w0$o0) AS rn1, CAST(w0$o0_0) AS rn2])
++- Rank(strategy=[UpdateFastStrategy[0,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0, w0$o0_0])
+   +- Exchange(distribution=[hash[a]])
+      +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], select=[a, b, c, w0$o0])
+         +- Exchange(distribution=[hash[a, c]])
+            +- Calc(select=[a, b, c])
+               +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>

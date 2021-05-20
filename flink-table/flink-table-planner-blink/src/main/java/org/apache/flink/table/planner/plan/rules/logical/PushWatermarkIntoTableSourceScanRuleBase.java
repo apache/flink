@@ -134,7 +134,8 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
                         newType,
                         new String[] {digest},
                         new SourceAbilitySpec[] {abilitySpec});
-        return FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
+        return FlinkLogicalTableSourceScan.create(
+                scan.getCluster(), scan.getHints(), newTableSourceTable);
     }
 
     protected boolean supportsWatermarkPushDown(FlinkLogicalTableSourceScan scan) {

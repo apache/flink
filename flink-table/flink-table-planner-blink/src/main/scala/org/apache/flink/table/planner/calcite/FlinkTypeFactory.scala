@@ -80,9 +80,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
       case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
-      case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-        val lzTs = t.asInstanceOf[LocalZonedTimestampType]
-        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE, lzTs.getPrecision)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -157,9 +154,20 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
         val timestampType = t.asInstanceOf[TimestampType]
         timestampType.getKind match {
-          case TimestampKind.PROCTIME => createProctimeIndicatorType(true)
-          case TimestampKind.ROWTIME => createRowtimeIndicatorType(true)
+          case TimestampKind.ROWTIME => createRowtimeIndicatorType(t.isNullable, false)
           case TimestampKind.REGULAR => createSqlType(TIMESTAMP, timestampType.getPrecision)
+          case TimestampKind.PROCTIME => throw new TableException(
+            s"Processing time indicator only supports" +
+              s" LocalZonedTimestampType, but actual is TimestampType." +
+              s" This is a bug in planner, please file an issue.")
+        }
+      case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val lzTs = t.asInstanceOf[LocalZonedTimestampType]
+        lzTs.getKind match {
+          case TimestampKind.PROCTIME => createProctimeIndicatorType(t.isNullable)
+          case TimestampKind.ROWTIME => createRowtimeIndicatorType(t.isNullable, true)
+          case TimestampKind.REGULAR =>
+            createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE, lzTs.getPrecision)
         }
       case _ =>
         seenTypes.get(t) match {
@@ -178,7 +186,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     * Creates a indicator type for processing-time, but with similar properties as SQL timestamp.
     */
   def createProctimeIndicatorType(isNullable: Boolean): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    val originalType = createFieldTypeFromLogicalType(new LocalZonedTimestampType(isNullable, 3))
     canonize(new TimeIndicatorRelDataType(
       getTypeSystem,
       originalType.asInstanceOf[BasicSqlType],
@@ -189,9 +197,15 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
   /**
     * Creates a indicator type for event-time, but with similar properties as SQL timestamp.
     */
-  def createRowtimeIndicatorType(isNullable: Boolean): RelDataType = {
-    val originalType = createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
-    canonize(new TimeIndicatorRelDataType(
+  def createRowtimeIndicatorType(isNullable: Boolean, isTimestampLtz: Boolean): RelDataType = {
+    val originalType = if (isTimestampLtz) {
+      createFieldTypeFromLogicalType(new LocalZonedTimestampType(isNullable, 3))
+    } else {
+      createFieldTypeFromLogicalType(new TimestampType(isNullable, 3))
+    }
+
+    canonize(
+      new TimeIndicatorRelDataType(
       getTypeSystem,
       originalType.asInstanceOf[BasicSqlType],
       isNullable,
@@ -208,6 +222,22 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     buildRelNodeRowType(
       tableSchema.getFieldNames,
       tableSchema.getFieldDataTypes.map(_.getLogicalType))
+  }
+
+  /**
+   * Creates a table row type with the given field names and field types. Table row type is table
+   * schema for Calcite [[RelNode]]. See [[RelNode#getRowType]].
+   *
+   * It uses [[StructKind#FULLY_QUALIFIED]] to let each field must be referenced explicitly.
+   *
+   * @param fieldNames field names
+   * @param fieldTypes field types, every element is Flink's [[LogicalType]]
+   * @return a table row type with the input fieldNames, input fieldTypes.
+   */
+  def buildRelNodeRowType(
+      fieldNames: util.List[String],
+      fieldTypes: util.List[LogicalType]): RelDataType = {
+    buildStructType(fieldNames, fieldTypes, StructKind.FULLY_QUALIFIED)
   }
 
   /**
@@ -445,7 +475,9 @@ object FlinkTypeFactory {
 
   def isTimeIndicatorType(t: LogicalType): Boolean = t match {
     case t: TimestampType
-      if t.getKind == TimestampKind.ROWTIME || t.getKind == TimestampKind.PROCTIME => true
+      if t.getKind == TimestampKind.ROWTIME => true
+    case ltz: LocalZonedTimestampType
+      if ltz.getKind == TimestampKind.PROCTIME => true
     case _ => false
   }
 
@@ -461,6 +493,13 @@ object FlinkTypeFactory {
 
   def isProctimeIndicatorType(relDataType: RelDataType): Boolean = relDataType match {
     case ti: TimeIndicatorRelDataType if !ti.isEventTime => true
+    case _ => false
+  }
+
+  def isTimestampLtzIndicatorType(relDataType: RelDataType): Boolean =
+    relDataType match {
+    case ti: TimeIndicatorRelDataType if
+      ti.originalType.getSqlTypeName.equals(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE) => true
     case _ => false
   }
 
@@ -523,7 +562,16 @@ object FlinkTypeFactory {
         if (indicator.isEventTime) {
           new TimestampType(true, TimestampKind.ROWTIME, 3)
         } else {
-          new TimestampType(true, TimestampKind.PROCTIME, 3)
+          throw new TableException(s"Processing time indicator only supports" +
+            s" LocalZonedTimestampType, but actual is TimestampType." +
+            s" This is a bug in planner, please file an issue.")
+        }
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE if relDataType.isInstanceOf[TimeIndicatorRelDataType] =>
+        val indicator = relDataType.asInstanceOf[TimeIndicatorRelDataType]
+        if (indicator.isEventTime) {
+          new LocalZonedTimestampType(true, TimestampKind.ROWTIME, 3)
+        } else {
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3)
         }
 
       // temporal types

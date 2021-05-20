@@ -93,7 +93,7 @@ public class ShuffleDescriptorTest extends TestLogger {
 
             // These states are allowed
             if (state == ExecutionState.RUNNING
-                    || state == ExecutionState.RECOVERING
+                    || state == ExecutionState.INITIALIZING
                     || state == ExecutionState.FINISHED
                     || state == ExecutionState.SCHEDULED
                     || state == ExecutionState.DEPLOYING) {

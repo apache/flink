@@ -153,10 +153,35 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         "TestJob",
                         JobStatus.SUSPENDED,
                         new Exception("Test suspension exception"),
+                        null,
                         System.currentTimeMillis());
 
         assertThat(suspendedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
         assertThat(suspendedExecutionGraph.getFailureInfo(), notNullValue());
+    }
+
+    @Test
+    public void testCheckpointSettingsArchiving() {
+        final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                CheckpointCoordinatorConfiguration.builder().build();
+
+        final ArchivedExecutionGraph archivedGraph =
+                ArchivedExecutionGraph.createFromInitializingJob(
+                        new JobID(),
+                        "TestJob",
+                        JobStatus.INITIALIZING,
+                        null,
+                        new JobCheckpointingSettings(checkpointCoordinatorConfiguration, null),
+                        System.currentTimeMillis());
+
+        assertContainsCheckpointSettings(archivedGraph);
+    }
+
+    public static void assertContainsCheckpointSettings(ArchivedExecutionGraph archivedGraph) {
+        assertThat(archivedGraph.getCheckpointCoordinatorConfiguration(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStatsSnapshot(), notNullValue());
+        assertThat(archivedGraph.getCheckpointStorageName().get(), is("Unknown"));
+        assertThat(archivedGraph.getStateBackendName().get(), is("Unknown"));
     }
 
     @Test
@@ -350,8 +375,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 runtimeVertex.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedVertex.getStateTimestamp(ExecutionState.DEPLOYING));
         assertEquals(
-                runtimeVertex.getStateTimestamp(ExecutionState.RECOVERING),
-                archivedVertex.getStateTimestamp(ExecutionState.RECOVERING));
+                runtimeVertex.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedVertex.getStateTimestamp(ExecutionState.INITIALIZING));
         assertEquals(
                 runtimeVertex.getStateTimestamp(ExecutionState.RUNNING),
                 archivedVertex.getStateTimestamp(ExecutionState.RUNNING));
@@ -408,8 +433,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                 runtimeExecution.getStateTimestamp(ExecutionState.DEPLOYING),
                 archivedExecution.getStateTimestamp(ExecutionState.DEPLOYING));
         assertEquals(
-                runtimeExecution.getStateTimestamp(ExecutionState.RECOVERING),
-                archivedExecution.getStateTimestamp(ExecutionState.RECOVERING));
+                runtimeExecution.getStateTimestamp(ExecutionState.INITIALIZING),
+                archivedExecution.getStateTimestamp(ExecutionState.INITIALIZING));
         assertEquals(
                 runtimeExecution.getStateTimestamp(ExecutionState.RUNNING),
                 archivedExecution.getStateTimestamp(ExecutionState.RUNNING));

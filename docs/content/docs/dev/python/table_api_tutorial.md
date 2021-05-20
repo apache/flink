@@ -33,7 +33,7 @@ Apache Flink offers a Table API as a unified, relational API for batch and strea
 
 ## What Will You Be Building? 
 
-In this tutorial, you will learn how to build a pure Python Flink Table API project.
+In this tutorial, you will learn how to build a pure Python Flink Table API pipeline.
 The pipeline will read data from an input csv file and write the results to an output csv file.
 
 ## Prerequisites
@@ -203,4 +203,4 @@ pyflink	1
 
 This should get you started with writing your own Flink Python Table API programs.
 To learn more about the Python Table API, you can refer
-[Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+{{< pythondoc name="Flink Python API Docs">}} for more details.

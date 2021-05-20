@@ -1,6 +1,6 @@
 ---
 title: "ALTER 语句"
-weight: 5
+weight: 6
 type: docs
 aliases:
   - /zh/dev/table/sql/alter.html

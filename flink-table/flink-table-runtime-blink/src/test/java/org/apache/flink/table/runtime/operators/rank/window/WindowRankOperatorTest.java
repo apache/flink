@@ -41,14 +41,20 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for window rank operators created by {@link WindowRankOperatorBuilder}. */
+@RunWith(Parameterized.class)
 public class WindowRankOperatorTest {
 
     private static final RowType INPUT_ROW_TYPE =
@@ -114,11 +120,31 @@ public class WindowRankOperatorTest {
                     OUTPUT_TYPES_WITHOUT_RANK_NUMBER,
                     new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
+    private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
+    private final ZoneId shiftTimeZone;
+
+    public WindowRankOperatorTest(ZoneId shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
+    }
+
+    @Parameterized.Parameters(name = "TimeZone = {0}")
+    public static Collection<Object[]> runMode() {
+        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
+    }
+
+    private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            SlicingWindowOperator<RowData, ?> operator) throws Exception {
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
+    }
+
     @Test
     public void testTop2Windows() throws Exception {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -138,36 +164,51 @@ public class WindowRankOperatorTest {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
         // add elements out-of-order
-        testHarness.processElement(insertRecord("key2", 1, 999L));
-        testHarness.processElement(insertRecord("key2", 4, 999L));
-        testHarness.processElement(insertRecord("key2", 5, 999L));
-        testHarness.processElement(insertRecord("key2", 3, 999L));
-        testHarness.processElement(insertRecord("key2", 2, 1999L));
-        testHarness.processElement(insertRecord("key2", 7, 3999L));
-        testHarness.processElement(insertRecord("key2", 8, 3999L));
-        testHarness.processElement(insertRecord("key2", 1, 3999L));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 4, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 5, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 8, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone)));
 
-        testHarness.processElement(insertRecord("key1", 2, 999L));
-        testHarness.processElement(insertRecord("key1", 1, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 4, 1999L));
-        testHarness.processElement(insertRecord("key1", 6, 1999L));
-        testHarness.processElement(insertRecord("key1", 7, 1999L));
+        testHarness.processElement(
+                insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
         testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(insertRecord("key1", 1, 999L, 1L));
-        expectedOutput.add(insertRecord("key1", 2, 999L, 2L));
-        expectedOutput.add(insertRecord("key2", 1, 999L, 1L));
-        expectedOutput.add(insertRecord("key2", 3, 999L, 2L));
+        expectedOutput.add(insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone), 1L));
+        expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone), 2L));
+        expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone), 1L));
+        expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone), 2L));
         expectedOutput.add(new Watermark(999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(insertRecord("key1", 4, 1999L, 1L));
-        expectedOutput.add(insertRecord("key1", 6, 1999L, 2L));
-        expectedOutput.add(insertRecord("key2", 2, 1999L, 1L));
+        expectedOutput.add(insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone), 1L));
+        expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone), 2L));
+        expectedOutput.add(insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone), 1L));
         expectedOutput.add(new Watermark(1999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -184,14 +225,15 @@ public class WindowRankOperatorTest {
         testHarness.open();
 
         testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(insertRecord("key2", 1, 3999L, 1L));
-        expectedOutput.add(insertRecord("key2", 7, 3999L, 2L));
+        expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone), 1L));
+        expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone), 2L));
         expectedOutput.add(new Watermark(3999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // late element, should be dropped
-        testHarness.processElement(insertRecord("key2", 1, 3500L));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(3500L, shiftTimeZone)));
 
         testHarness.processWatermark(new Watermark(4999));
         expectedOutput.add(new Watermark(4999));
@@ -208,6 +250,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -227,32 +270,47 @@ public class WindowRankOperatorTest {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
         // add elements out-of-order
-        testHarness.processElement(insertRecord("key2", 1, 999L));
-        testHarness.processElement(insertRecord("key2", 4, 999L));
-        testHarness.processElement(insertRecord("key2", 5, 999L));
-        testHarness.processElement(insertRecord("key2", 3, 999L));
-        testHarness.processElement(insertRecord("key2", 2, 1999L));
-        testHarness.processElement(insertRecord("key2", 7, 3999L));
-        testHarness.processElement(insertRecord("key2", 8, 3999L));
-        testHarness.processElement(insertRecord("key2", 1, 3999L));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 4, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 5, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 8, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone)));
 
-        testHarness.processElement(insertRecord("key1", 2, 999L));
-        testHarness.processElement(insertRecord("key1", 1, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 4, 1999L));
-        testHarness.processElement(insertRecord("key1", 6, 1999L));
-        testHarness.processElement(insertRecord("key1", 7, 1999L));
+        testHarness.processElement(
+                insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
         testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(insertRecord("key1", 2, 999L, 2L));
-        expectedOutput.add(insertRecord("key2", 3, 999L, 2L));
+        expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone), 2L));
+        expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone), 2L));
         expectedOutput.add(new Watermark(999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(insertRecord("key1", 6, 1999L, 2L));
+        expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone), 2L));
         expectedOutput.add(new Watermark(1999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -269,7 +327,7 @@ public class WindowRankOperatorTest {
         testHarness.open();
 
         testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(insertRecord("key2", 7, 3999L, 2L));
+        expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone), 2L));
         expectedOutput.add(new Watermark(3999));
         ASSERTER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -281,6 +339,7 @@ public class WindowRankOperatorTest {
         SlicingWindowOperator<RowData, ?> operator =
                 WindowRankOperatorBuilder.builder()
                         .inputSerializer(INPUT_ROW_SER)
+                        .shiftTimeZone(shiftTimeZone)
                         .keySerializer(KEY_SER)
                         .sortKeyComparator(GENERATED_SORT_KEY_COMPARATOR)
                         .sortKeySelector(SORT_KEY_SELECTOR)
@@ -300,36 +359,51 @@ public class WindowRankOperatorTest {
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
         // add elements out-of-order
-        testHarness.processElement(insertRecord("key2", 1, 999L));
-        testHarness.processElement(insertRecord("key2", 4, 999L));
-        testHarness.processElement(insertRecord("key2", 5, 999L));
-        testHarness.processElement(insertRecord("key2", 3, 999L));
-        testHarness.processElement(insertRecord("key2", 2, 1999L));
-        testHarness.processElement(insertRecord("key2", 7, 3999L));
-        testHarness.processElement(insertRecord("key2", 8, 3999L));
-        testHarness.processElement(insertRecord("key2", 1, 3999L));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 4, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 5, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 8, toUtcTimestampMills(3999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone)));
 
-        testHarness.processElement(insertRecord("key1", 2, 999L));
-        testHarness.processElement(insertRecord("key1", 1, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 3, 999L));
-        testHarness.processElement(insertRecord("key1", 4, 1999L));
-        testHarness.processElement(insertRecord("key1", 6, 1999L));
-        testHarness.processElement(insertRecord("key1", 7, 1999L));
+        testHarness.processElement(
+                insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 3, toUtcTimestampMills(999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone)));
+        testHarness.processElement(
+                insertRecord("key1", 7, toUtcTimestampMills(1999L, shiftTimeZone)));
 
         testHarness.processWatermark(new Watermark(999));
-        expectedOutput.add(insertRecord("key1", 1, 999L));
-        expectedOutput.add(insertRecord("key1", 2, 999L));
-        expectedOutput.add(insertRecord("key2", 1, 999L));
-        expectedOutput.add(insertRecord("key2", 3, 999L));
+        expectedOutput.add(insertRecord("key1", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key1", 2, toUtcTimestampMills(999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key2", 3, toUtcTimestampMills(999L, shiftTimeZone)));
         expectedOutput.add(new Watermark(999));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.processWatermark(new Watermark(1999));
-        expectedOutput.add(insertRecord("key1", 4, 1999L));
-        expectedOutput.add(insertRecord("key1", 6, 1999L));
-        expectedOutput.add(insertRecord("key2", 2, 1999L));
+        expectedOutput.add(insertRecord("key1", 4, toUtcTimestampMills(1999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key1", 6, toUtcTimestampMills(1999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key2", 2, toUtcTimestampMills(1999L, shiftTimeZone)));
         expectedOutput.add(new Watermark(1999));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -346,18 +420,12 @@ public class WindowRankOperatorTest {
         testHarness.open();
 
         testHarness.processWatermark(new Watermark(3999));
-        expectedOutput.add(insertRecord("key2", 1, 3999L));
-        expectedOutput.add(insertRecord("key2", 7, 3999L));
+        expectedOutput.add(insertRecord("key2", 1, toUtcTimestampMills(3999L, shiftTimeZone)));
+        expectedOutput.add(insertRecord("key2", 7, toUtcTimestampMills(3999L, shiftTimeZone)));
         expectedOutput.add(new Watermark(3999));
         ASSERTER_WITHOUT_RANK_NUMBER.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         testHarness.close();
-    }
-
-    private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            SlicingWindowOperator<RowData, ?> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, KEY_SELECTOR, KEY_SELECTOR.getProducedType());
     }
 }

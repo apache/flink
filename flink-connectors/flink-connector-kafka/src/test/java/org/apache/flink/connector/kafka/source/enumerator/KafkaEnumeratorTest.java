@@ -333,7 +333,7 @@ public class KafkaEnumeratorTest {
         enumerator.start();
 
         // No reader is registered, so the state should be empty
-        final KafkaSourceEnumState state1 = enumerator.snapshotState();
+        final KafkaSourceEnumState state1 = enumerator.snapshotState(1L);
         assertTrue(state1.assignedPartitions().isEmpty());
 
         registerReader(context, enumerator, READER0);
@@ -341,7 +341,7 @@ public class KafkaEnumeratorTest {
         context.runNextOneTimeCallable();
 
         // The state should contain splits assigned to READER0 and READER1
-        final KafkaSourceEnumState state2 = enumerator.snapshotState();
+        final KafkaSourceEnumState state2 = enumerator.snapshotState(1L);
         verifySplitAssignmentWithPartitions(
                 getExpectedAssignments(
                         new HashSet<>(Arrays.asList(READER0, READER1)), PRE_EXISTING_TOPICS),

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.window.combines.WindowCombineFunction;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
@@ -30,6 +29,7 @@ import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssign
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -45,16 +45,18 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
 
     private final SliceSharedAssigner sliceSharedAssigner;
     private final WindowIsEmptySupplier emptySupplier;
+    private final SliceMergeTargetHelper mergeTargetHelper;
 
     public SliceSharedWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
             WindowBuffer.Factory bufferFactory,
-            WindowCombineFunction.Factory combinerFactory,
             SliceSharedAssigner sliceAssigner,
             TypeSerializer<RowData> accSerializer,
-            int indexOfCountStar) {
-        super(genAggsHandler, bufferFactory, combinerFactory, sliceAssigner, accSerializer);
+            int indexOfCountStar,
+            ZoneId shiftTimeZone) {
+        super(genAggsHandler, bufferFactory, sliceAssigner, accSerializer, shiftTimeZone);
         this.sliceSharedAssigner = sliceAssigner;
+        this.mergeTargetHelper = new SliceMergeTargetHelper();
         this.emptySupplier = new WindowIsEmptySupplier(indexOfCountStar, sliceAssigner);
     }
 
@@ -76,9 +78,9 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         if (nextWindowEndOptional.isPresent()) {
             long nextWindowEnd = nextWindowEndOptional.get();
             if (sliceSharedAssigner.isEventTime()) {
-                timerService.registerEventTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+                windowTimerService.registerEventTimeWindowTimer(nextWindowEnd);
             } else {
-                timerService.registerProcessingTimeTimer(nextWindowEnd, nextWindowEnd - 1);
+                windowTimerService.registerProcessingTimeWindowTimer(nextWindowEnd);
             }
         }
     }
@@ -115,6 +117,19 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
         }
     }
 
+    protected long sliceStateMergeTarget(long sliceToMerge) throws Exception {
+        mergeTargetHelper.setMergeTarget(null);
+        sliceSharedAssigner.mergeSlices(sliceToMerge, mergeTargetHelper);
+
+        // the mergeTarget might be null, which means the merging happens in memory instead of
+        // on state, so the slice state to merge into is itself.
+        if (mergeTargetHelper.getMergeTarget() != null) {
+            return mergeTargetHelper.getMergeTarget();
+        } else {
+            return sliceToMerge;
+        }
+    }
+
     private boolean isWindowEmpty() {
         if (emptySupplier.indexOfCountStar < 0) {
             // for non-hopping windows, the window is never empty
@@ -123,6 +138,8 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             return emptySupplier.get();
         }
     }
+
+    // ------------------------------------------------------------------------------------------
 
     private final class WindowIsEmptySupplier implements Supplier<Boolean>, Serializable {
         private static final long serialVersionUID = 1L;
@@ -149,6 +166,26 @@ public final class SliceSharedWindowAggProcessor extends AbstractWindowAggProces
             } catch (Exception e) {
                 throw new RuntimeException(e.getMessage(), e);
             }
+        }
+    }
+
+    private static final class SliceMergeTargetHelper
+            implements SliceSharedAssigner.MergeCallback, Serializable {
+
+        private static final long serialVersionUID = 1L;
+        private Long mergeTarget = null;
+
+        @Override
+        public void merge(@Nullable Long mergeResult, Iterable<Long> toBeMerged) throws Exception {
+            this.mergeTarget = mergeResult;
+        }
+
+        public Long getMergeTarget() {
+            return mergeTarget;
+        }
+
+        public void setMergeTarget(Long mergeTarget) {
+            this.mergeTarget = mergeTarget;
         }
     }
 }

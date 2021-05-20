@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -34,6 +35,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
@@ -59,6 +62,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.SYMBOL;
@@ -225,8 +229,9 @@ public final class LogicalTypeCasts {
      * VARCHAR(3), but VARCHAR(2) is not contained in CHAR(3)). Same for binary strings.
      *
      * <p>Constructed types (ARRAY, ROW, MAP, etc.) and user-defined distinct type must be of same
-     * kind but ignore field names and other logical attributes. However, all the children types
-     * ({@link LogicalType#getChildren()}) must be compatible.
+     * kind but ignore field names and other logical attributes. Structured and row kinds are
+     * compatible. However, all the children types ({@link LogicalType#getChildren()}) must be
+     * compatible.
      */
     public static boolean supportsAvoidingCast(LogicalType sourceType, LogicalType targetType) {
         final CastAvoidanceChecker checker = new CastAvoidanceChecker(sourceType);
@@ -312,8 +317,8 @@ public final class LogicalTypeCasts {
         } else if (hasFamily(sourceType, CONSTRUCTED) || hasFamily(targetType, CONSTRUCTED)) {
             return supportsConstructedCasting(sourceType, targetType, allowExplicit);
         } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
-            // inheritance is not supported yet, so structured type must be fully equal
-            return false;
+            return supportsStructuredCasting(
+                    sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
         } else if (sourceRoot == RAW || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
@@ -331,12 +336,60 @@ public final class LogicalTypeCasts {
         return false;
     }
 
+    private static boolean supportsStructuredCasting(
+            LogicalType sourceType,
+            LogicalType targetType,
+            BiFunction<LogicalType, LogicalType, Boolean> childPredicate) {
+        final LogicalTypeRoot sourceRoot = sourceType.getTypeRoot();
+        final LogicalTypeRoot targetRoot = targetType.getTypeRoot();
+        if (sourceRoot != STRUCTURED_TYPE || targetRoot != STRUCTURED_TYPE) {
+            return false;
+        }
+        final StructuredType sourceStructuredType = (StructuredType) sourceType;
+        final StructuredType targetStructuredType = (StructuredType) targetType;
+        // non-anonymous structured types must be fully equal
+        if (sourceStructuredType.getObjectIdentifier().isPresent()
+                || targetStructuredType.getObjectIdentifier().isPresent()) {
+            return false;
+        }
+        // for anonymous structured types we are a bit more lenient, if they provide similar fields
+        // e.g. this is necessary when structured types derived from type information and
+        // structured types derived within Table API are slightly different
+        final Class<?> sourceClass = sourceStructuredType.getImplementationClass().orElse(null);
+        final Class<?> targetClass = targetStructuredType.getImplementationClass().orElse(null);
+        if (sourceClass != targetClass) {
+            return false;
+        }
+        final List<String> sourceNames =
+                sourceStructuredType.getAttributes().stream()
+                        .map(StructuredType.StructuredAttribute::getName)
+                        .collect(Collectors.toList());
+        final List<String> targetNames =
+                sourceStructuredType.getAttributes().stream()
+                        .map(StructuredType.StructuredAttribute::getName)
+                        .collect(Collectors.toList());
+        if (!sourceNames.equals(targetNames)) {
+            return false;
+        }
+        final List<LogicalType> sourceChildren = sourceType.getChildren();
+        final List<LogicalType> targetChildren = targetType.getChildren();
+        for (int i = 0; i < sourceChildren.size(); i++) {
+            if (!childPredicate.apply(sourceChildren.get(i), targetChildren.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean supportsConstructedCasting(
             LogicalType sourceType, LogicalType targetType, boolean allowExplicit) {
         final LogicalTypeRoot sourceRoot = sourceType.getTypeRoot();
         final LogicalTypeRoot targetRoot = targetType.getTypeRoot();
-        // all constructed types can only be casted within the same type root
-        if (sourceRoot == targetRoot) {
+        // all constructed types can only be casted within the same type root,
+        // however, rows can be converted to structured types and vice versa
+        if (sourceRoot == targetRoot
+                || (sourceRoot == ROW && targetRoot == STRUCTURED_TYPE)
+                || (sourceRoot == STRUCTURED_TYPE && targetRoot == ROW)) {
             final List<LogicalType> sourceChildren = sourceType.getChildren();
             final List<LogicalType> targetChildren = targetType.getChildren();
             if (sourceChildren.size() != targetChildren.size()) {
@@ -352,8 +405,8 @@ public final class LogicalTypeCasts {
         return false;
     }
 
-    private static CastingRuleBuilder castTo(LogicalTypeRoot sourceType) {
-        return new CastingRuleBuilder(sourceType);
+    private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {
+        return new CastingRuleBuilder(targetType);
     }
 
     private static LogicalTypeRoot[] allTypes() {
@@ -363,8 +416,8 @@ public final class LogicalTypeCasts {
     private static class CastingRuleBuilder {
 
         private final LogicalTypeRoot targetType;
-        private Set<LogicalTypeRoot> implicitSourceTypes = new HashSet<>();
-        private Set<LogicalTypeRoot> explicitSourceTypes = new HashSet<>();
+        private final Set<LogicalTypeRoot> implicitSourceTypes = new HashSet<>();
+        private final Set<LogicalTypeRoot> explicitSourceTypes = new HashSet<>();
 
         CastingRuleBuilder(LogicalTypeRoot targetType) {
             this.targetType = targetType;
@@ -463,12 +516,35 @@ public final class LogicalTypeCasts {
         }
 
         @Override
+        public Boolean visit(RowType targetType) {
+            if (sourceType.isNullable() && !targetType.isNullable()) {
+                return false;
+            }
+            // ROW and structured types are very compatible if field types match
+            if (hasRoot(sourceType, STRUCTURED_TYPE)) {
+                final List<LogicalType> sourceChildren = sourceType.getChildren();
+                final List<LogicalType> targetChildren = targetType.getChildren();
+                return supportsAvoidingCast(sourceChildren, targetChildren);
+            }
+            return defaultMethod(targetType);
+        }
+
+        @Override
         public Boolean visit(StructuredType targetType) {
             if (sourceType.isNullable() && !targetType.isNullable()) {
                 return false;
             }
-            // structured types should be equal (modulo nullability)
-            return sourceType.equals(targetType) || sourceType.copy(true).equals(targetType);
+            // ROW and structured types are very compatible if field types match
+            if (hasRoot(sourceType, ROW)) {
+                final List<LogicalType> sourceChildren = sourceType.getChildren();
+                final List<LogicalType> targetChildren = targetType.getChildren();
+                return supportsAvoidingCast(sourceChildren, targetChildren);
+            }
+            if (sourceType.equals(targetType) || sourceType.copy(true).equals(targetType)) {
+                return true;
+            }
+            return supportsStructuredCasting(
+                    sourceType, targetType, LogicalTypeCasts::supportsAvoidingCast);
         }
 
         @Override

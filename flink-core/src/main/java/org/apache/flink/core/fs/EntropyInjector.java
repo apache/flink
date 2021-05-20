@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.WrappingProxy;
 
 import javax.annotation.Nullable;
 
@@ -95,23 +96,14 @@ public class EntropyInjector {
     private static EntropyInjectingFileSystem getEntropyFs(FileSystem fs) {
         if (fs instanceof EntropyInjectingFileSystem) {
             return (EntropyInjectingFileSystem) fs;
-        } else if (fs instanceof SafetyNetWrapperFileSystem) {
-            FileSystem delegate = ((SafetyNetWrapperFileSystem) fs).getWrappedDelegate();
-            if (delegate instanceof EntropyInjectingFileSystem) {
-                return (EntropyInjectingFileSystem) delegate;
-            } else if (delegate instanceof PluginFileSystemFactory.ClassLoaderFixingFileSystem) {
-                FileSystem innerFs =
-                        ((PluginFileSystemFactory.ClassLoaderFixingFileSystem) delegate).getInner();
-                if (innerFs instanceof EntropyInjectingFileSystem) {
-                    return (EntropyInjectingFileSystem) innerFs;
-                }
-                return null;
-            } else {
-                return null;
-            }
-        } else {
-            return null;
         }
+
+        if (fs instanceof WrappingProxy) {
+            FileSystem delegate = ((WrappingProxy<FileSystem>) fs).getWrappedDelegate();
+            return getEntropyFs(delegate);
+        }
+
+        return null;
     }
 
     @VisibleForTesting

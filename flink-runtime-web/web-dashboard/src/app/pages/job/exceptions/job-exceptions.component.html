@@ -58,7 +58,7 @@
         <tr *ngIf="listOfException.length > 0">
           <td colspan="6">
             <i nz-icon nzType="info-circle" nzTheme="fill"></i>&nbsp;
-            <i>The exception history is limited to the most recent failures that caused parts of the job or the entire job to restart. The maximum history size can be configured through the Flink configuration.</i>
+            <i>The exception history is limited to the most recent failures that caused parts of the job or the entire job to restart. The maximum history size can be configured via the Flink configuration property <b>web.exception-history-size</b>.</i>
           </td>
         </tr>
         <tr *ngIf="truncated">

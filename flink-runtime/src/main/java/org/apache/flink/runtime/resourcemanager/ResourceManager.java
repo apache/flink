@@ -231,6 +231,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public final void onStart() throws Exception {
         try {
+            log.info("Starting the resource manager.");
             startResourceManagerServices();
         } catch (Throwable t) {
             final ResourceManagerException exception =
@@ -564,11 +565,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         if (null != jobManagerRegistration) {
             if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
-                log.info(
-                        "Received resource declaration for job {}: {}",
-                        jobId,
-                        resourceRequirements.getResourceRequirements());
-
                 slotManager.processResourceRequirements(resourceRequirements);
 
                 return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1059,8 +1055,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             jmResourceIdRegistrations.remove(jobManagerResourceId);
 
             if (resourceRequirementHandling == ResourceRequirementHandling.CLEAR) {
-                slotManager.processResourceRequirements(
-                        ResourceRequirements.empty(jobId, jobMasterGateway.getAddress()));
+                slotManager.clearResourceRequirements(jobId);
             }
 
             // tell the job manager about the disconnect

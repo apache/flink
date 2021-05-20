@@ -1548,7 +1548,7 @@ class TableEnvironment(object):
 
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
-        j_config = get_j_env_configuration(self)
+        j_config = get_j_env_configuration(self._get_j_env())
         if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
                 and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
@@ -1559,7 +1559,7 @@ class TableEnvironment(object):
         if jar_urls is not None:
             # normalize and remove duplicates
             jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
-            j_configuration = get_j_env_configuration(self)
+            j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
                     jar_urls_set.add(url)

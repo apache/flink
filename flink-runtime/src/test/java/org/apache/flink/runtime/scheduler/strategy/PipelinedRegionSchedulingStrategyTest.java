@@ -211,6 +211,68 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
     }
 
     @Test
+    public void testComputingCrossRegionConsumedPartitionGroupsCorrectly() throws Exception {
+        final JobVertex v1 = createJobVertex("v1", 4);
+        final JobVertex v2 = createJobVertex("v2", 3);
+        final JobVertex v3 = createJobVertex("v3", 2);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        v3.connectNewDataSetAsInput(
+                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        v3.connectNewDataSetAsInput(
+                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newBatchJobGraphBuilder().addJobVertices(ordered).build();
+        final ExecutionGraph executionGraph =
+                TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+
+        final SchedulingTopology schedulingTopology = executionGraph.getSchedulingTopology();
+
+        final PipelinedRegionSchedulingStrategy schedulingStrategy =
+                new PipelinedRegionSchedulingStrategy(
+                        testingSchedulerOperation, schedulingTopology);
+
+        final Set<ConsumedPartitionGroup> crossRegionConsumedPartitionGroups =
+                schedulingStrategy.getCrossRegionConsumedPartitionGroups();
+
+        assertEquals(1, crossRegionConsumedPartitionGroups.size());
+
+        final ConsumedPartitionGroup expected =
+                executionGraph
+                        .getJobVertex(v3.getID())
+                        .getTaskVertices()[1]
+                        .getAllConsumedPartitionGroups()
+                        .get(0);
+
+        assertTrue(crossRegionConsumedPartitionGroups.contains(expected));
+    }
+
+    @Test
+    public void testNoCrossRegionConsumedPartitionGroupsWithAllToAllBlockingEdge() {
+        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+        final List<TestingSchedulingExecutionVertex> producer =
+                topology.addExecutionVertices().withParallelism(4).finish();
+        final List<TestingSchedulingExecutionVertex> consumer =
+                topology.addExecutionVertices().withParallelism(4).finish();
+
+        topology.connectAllToAll(producer, consumer)
+                .withResultPartitionType(ResultPartitionType.BLOCKING)
+                .finish();
+
+        final PipelinedRegionSchedulingStrategy schedulingStrategy =
+                new PipelinedRegionSchedulingStrategy(testingSchedulerOperation, topology);
+
+        final Set<ConsumedPartitionGroup> crossRegionConsumedPartitionGroups =
+                schedulingStrategy.getCrossRegionConsumedPartitionGroups();
+
+        assertEquals(0, crossRegionConsumedPartitionGroups.size());
+    }
+
+    @Test
     public void testSchedulingTopologyWithCrossRegionConsumedPartitionGroups() throws Exception {
         final JobVertex v1 = createJobVertex("v1", 4);
         final JobVertex v2 = createJobVertex("v2", 3);

@@ -132,7 +132,7 @@ class OneInputRowWithTimerHandler(RowWithTimerInputHandler):
         if output_result:
             yield from self._output_factory.from_normal_data(output_result)
 
-        yield from self._output_factory.from_timers(self._internal_timer_service.timers)
+        yield from self._output_factory.from_timers(self._internal_timer_service.timers.keys())
 
         self._internal_timer_service.timers.clear()
 

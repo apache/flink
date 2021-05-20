@@ -99,13 +99,12 @@ to enable support for Scala projects and files:
 We use the [Spotless
 plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) together
 with [google-java-format](https://github.com/google/google-java-format) to
-format our Java code. Due to [FLINK-21106](https://issues.apache.org/jira/browse/FLINK-21106) a
-specific, patched version of the plugin is needed to work correctly with IntelliJ.
+format our Java code.
 
 You can configure your IDE to automatically apply formatting on saving with these steps:
 
 1. Download the [google-java-format
-   plugin v1.7.0.5](https://issues.apache.org/jira/secure/attachment/13019264/google-java-format-1.7-patched.zip).
+   plugin v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957).
 2. Open Settings → Plugins, click on the gear icon and select "Install Plugin from Disk". Navigate to the downloaded zip file and select it.
 3. In the plugin settings, enable the plugin and change the code style to "AOSP" (4-space indents).
 4. Remember to never update this plugin to a later version!

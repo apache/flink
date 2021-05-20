@@ -48,7 +48,13 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-/** Utils for Mesos. */
+/**
+ * Utils for Mesos.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosUtils {
 
     /**

@@ -40,15 +40,19 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
 
     private final int rowtimeIndex;
 
+    private final boolean consumeRowtimeMetadata;
+
     private transient StreamRecord<Object> outRecord;
 
     public OutputConversionOperator(
             @Nullable RowData.FieldGetter atomicFieldGetter,
             DataStructureConverter converter,
-            int rowtimeIndex) {
+            int rowtimeIndex,
+            boolean consumeRowtimeMetadata) {
         this.atomicFieldGetter = atomicFieldGetter;
         this.converter = converter;
         this.rowtimeIndex = rowtimeIndex;
+        this.consumeRowtimeMetadata = consumeRowtimeMetadata;
     }
 
     @Override
@@ -65,7 +69,12 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
     public void processElement(StreamRecord<RowData> element) throws Exception {
         final RowData rowData = element.getValue();
 
-        if (rowtimeIndex != -1) {
+        if (consumeRowtimeMetadata) {
+            // timestamp is TIMESTAMP_LTZ
+            final long rowtime = rowData.getTimestamp(rowData.getArity() - 1, 3).getMillisecond();
+            outRecord.setTimestamp(rowtime);
+        } else if (rowtimeIndex != -1) {
+            // timestamp might be TIMESTAMP or TIMESTAMP_LTZ
             final long rowtime = rowData.getTimestamp(rowtimeIndex, 3).getMillisecond();
             outRecord.setTimestamp(rowtime);
         }

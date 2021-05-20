@@ -53,13 +53,16 @@ import org.apache.flink.table.runtime.operators.window.internal.MergingWindowPro
 import org.apache.flink.table.runtime.operators.window.internal.PanedWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.time.ZoneId;
 import java.util.Collection;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -120,6 +123,13 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     protected final boolean produceUpdates;
 
+    /**
+     * The shift timezone of the window, if the proctime or rowtime type is TIMESTAMP_LTZ, the shift
+     * timezone is the timezone user configured in TableConfig, other cases the timezone is UTC
+     * which means never shift when assigning windows.
+     */
+    protected final ZoneId shiftTimeZone;
+
     private final int rowtimeIndex;
 
     /**
@@ -174,7 +184,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            ZoneId shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAggregator = checkNotNull(windowAggregator);
         this.windowAssigner = checkNotNull(windowAssigner);
@@ -190,7 +201,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         // rowtime index should >= 0 when in event time mode
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
         this.rowtimeIndex = rowtimeIndex;
-
+        this.shiftTimeZone = shiftTimeZone;
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
@@ -204,7 +215,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             LogicalType[] windowPropertyTypes,
             int rowtimeIndex,
             boolean produceUpdates,
-            long allowedLateness) {
+            long allowedLateness,
+            ZoneId shiftTimeZone) {
         checkArgument(allowedLateness >= 0);
         this.windowAssigner = checkNotNull(windowAssigner);
         this.trigger = checkNotNull(trigger);
@@ -219,6 +231,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         // rowtime index should >= 0 when in event time mode
         checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
         this.rowtimeIndex = rowtimeIndex;
+        this.shiftTimeZone = shiftTimeZone;
 
         setChainingStrategy(ChainingStrategy.ALWAYS);
     }
@@ -334,6 +347,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             timestamp = internalTimerService.currentProcessingTime();
         }
 
+        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
+
         // the windows which the input row should be placed into
         Collection<W> affectedWindows = windowFunction.assignStateNamespace(inputRow, timestamp);
         boolean isElementDropped = true;
@@ -418,7 +433,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
      * @param window the window whose state to discard
      */
     private void registerCleanupTimer(W window) {
-        long cleanupTime = cleanupTime(window);
+        long cleanupTime = toEpochMillsForTimer(cleanupTime(window), shiftTimeZone);
         if (cleanupTime == Long.MAX_VALUE) {
             // don't set a GC timer for "end of time"
             return;
@@ -480,6 +495,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         }
 
         @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
+        }
+
+        @Override
         public RowData getWindowAccumulators(W window) throws Exception {
             windowState.setCurrentNamespace(window);
             return windowState.value();
@@ -514,7 +534,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
         @Override
         public void deleteCleanupTimer(W window) throws Exception {
-            long cleanupTime = cleanupTime(window);
+            long cleanupTime = toEpochMillsForTimer(cleanupTime(window), shiftTimeZone);
             if (cleanupTime == Long.MAX_VALUE) {
                 // no need to clean up because we didn't set one
                 return;
@@ -597,6 +617,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         @Override
         public void deleteEventTimeTimer(long time) {
             internalTimerService.deleteEventTimeTimer(window, time);
+        }
+
+        @Override
+        public ZoneId getShiftTimeZone() {
+            return shiftTimeZone;
         }
 
         public void clear() throws Exception {

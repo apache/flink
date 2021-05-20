@@ -106,7 +106,7 @@ public class FilterPushDownSpec extends SourceAbilitySpecBase {
                                                                 "We should not need to lookup any expressions at this point");
                                                     }),
                                     context.getCatalogManager().getDataTypeFactory(),
-                                    (sqlExpression, inputSchema) -> {
+                                    (sqlExpression, inputRowType, outputType) -> {
                                         throw new TableException(
                                                 "SQL expression parsing is not supported at this location.");
                                     })

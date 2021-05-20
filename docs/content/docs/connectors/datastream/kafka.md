@@ -100,6 +100,12 @@ For convenience, Flink provides the following schemas out of the box:
       [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html). Using these deserialization schema
       record will be read with the schema that was retrieved from Schema Registry and transformed to a statically provided( either through 
       `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` or `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`).
+      
+    - You can also use [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
+      to retrieve the writer’s schema. Similarly, the deserialization record will be read with the schema from AWS Glue Schema Registry and transformed
+      (either through `GlueSchemaRegistryAvroDeserializationSchema.forGeneric(...)` or `GlueSchemaRegistryAvroDeserializationSchema.forSpecific(...)`).
+      For more information on integrating the AWS Glue Schema Registry with Apache Flink see
+      [Use Case: Amazon Kinesis Data Analytics for Apache Flink](https://docs.aws.amazon.com/glue/latest/dg/schema-registry-integrations.html#schema-registry-integrations-kinesis-data-analytics-apache-flink).
 
     <br>To use this deserialization schema one has to add the following additional dependency:
     
@@ -109,6 +115,9 @@ For convenience, Flink provides the following schemas out of the box:
 {{< /tab >}}
 {{< tab "ConfluentRegistryAvroDeserializationSchema" >}}
 {{< artifact flink-avro-confluent-registry >}}
+{{< /tab >}}
+{{< tab "GlueSchemaRegistryAvroDeserializationSchema" >}}
+{{< artifact flink-avro-glue-schema-registry >}}
 {{< /tab >}}
 {{< /tabs >}}
 

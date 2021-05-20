@@ -42,6 +42,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -167,7 +168,10 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
                 return val -> (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
             case TIMESTAMP_WITH_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
-                return val -> TimestampData.fromTimestamp((Timestamp) val);
+                return val ->
+                        val instanceof LocalDateTime
+                                ? TimestampData.fromLocalDateTime((LocalDateTime) val)
+                                : TimestampData.fromTimestamp((Timestamp) val);
             case CHAR:
             case VARCHAR:
                 return val -> StringData.fromString((String) val);

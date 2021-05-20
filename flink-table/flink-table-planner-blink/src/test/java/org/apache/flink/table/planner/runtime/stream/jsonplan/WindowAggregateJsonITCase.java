@@ -18,27 +18,42 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for window aggregate json plan. */
+@RunWith(Parameterized.class)
 public class WindowAggregateJsonITCase extends JsonPlanTestBase {
+
+    @Parameterized.Parameters(name = "agg_phase = {0}")
+    public static Object[] parameters() {
+        return new Object[][] {
+            new Object[] {AggregatePhaseStrategy.ONE_PHASE},
+            new Object[] {AggregatePhaseStrategy.TWO_PHASE}
+        };
+    }
+
+    @Parameterized.Parameter public AggregatePhaseStrategy aggPhase;
 
     @Before
     public void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
-                JavaScalaConversionUtil.toJava(TestData.windowData()),
+                JavaScalaConversionUtil.toJava(TestData.windowDataWithTimestamp()),
                 new String[] {
                     "ts STRING",
                     "`int` INT",
@@ -56,6 +71,11 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         put("failing-source", "true");
                     }
                 });
+        tableEnv.getConfig()
+                .getConfiguration()
+                .setString(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        aggPhase.toString());
     }
 
     @Test
@@ -112,7 +132,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 Arrays.asList(
                         "+I[a, 1]",
                         "+I[a, 4]",
-                        "+I[a, 5]",
+                        "+I[a, 6]",
                         "+I[b, 1]",
                         "+I[b, 1]",
                         "+I[b, 1]",
@@ -145,8 +165,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
         assertResult(
                 Arrays.asList(
                         "+I[a, 4]",
-                        "+I[a, 5]",
-                        "+I[a, 5]",
+                        "+I[a, 6]",
+                        "+I[a, 6]",
                         "+I[b, 1]",
                         "+I[b, 1]",
                         "+I[b, 1]",
@@ -158,6 +178,49 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         "+I[null, 1]",
                         "+I[null, 1]",
                         "+I[null, 1]"),
+                result);
+    }
+
+    @Test
+    public void testDistinctSplitEnabled() throws Exception {
+        tableEnv.getConfig()
+                .getConfiguration()
+                .setBoolean(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+        createTestValuesSinkTable(
+                "MySink", "name STRING", "max_double DOUBLE", "cnt_distinct_int BIGINT");
+
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink select name, "
+                                + "   max(`double`),\n"
+                                + "   count(distinct `int`) "
+                                + "FROM TABLE ("
+                                + "  CUMULATE(\n"
+                                + "     TABLE MyTable,\n"
+                                + "     DESCRIPTOR(rowtime),\n"
+                                + "     INTERVAL '5' SECOND,\n"
+                                + "     INTERVAL '15' SECOND))"
+                                + "GROUP BY name, window_start, window_end");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+
+        List<String> result = TestValuesTableFactory.getResults("MySink");
+        assertResult(
+                Arrays.asList(
+                        "+I[a, 5.0, 3]",
+                        "+I[a, 5.0, 4]",
+                        "+I[a, 5.0, 4]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 3.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 4.0, 1]",
+                        "+I[b, 6.0, 2]",
+                        "+I[b, 6.0, 2]",
+                        "+I[null, 7.0, 1]",
+                        "+I[null, 7.0, 1]",
+                        "+I[null, 7.0, 1]"),
                 result);
     }
 }

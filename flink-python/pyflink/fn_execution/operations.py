@@ -494,7 +494,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             window_assigner,
             window_aggregator,
             trigger,
-            self._window.time_field_index)
+            self._window.time_field_index,
+            self._window.shift_timezone)
 
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
         results = []

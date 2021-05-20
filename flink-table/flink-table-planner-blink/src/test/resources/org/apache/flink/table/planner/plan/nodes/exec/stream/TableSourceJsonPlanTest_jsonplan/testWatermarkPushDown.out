@@ -75,7 +75,7 @@
         }
       } ]
     },
-    "id" : 10,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -114,7 +114,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 11,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -141,8 +141,8 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 10,
-    "target" : 11,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },

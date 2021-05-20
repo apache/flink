@@ -68,7 +68,8 @@ private class FlinkLogicalValuesConverter
 
   override def convert(rel: RelNode): RelNode = {
     val values = rel.asInstanceOf[LogicalValues]
-    FlinkLogicalValues.create(rel.getCluster, values.getRowType, values.getTuples())
+    FlinkLogicalValues.create(
+      rel.getCluster, values.getTraitSet, values.getRowType, values.getTuples())
   }
 }
 
@@ -77,13 +78,31 @@ object FlinkLogicalValues {
 
   def create(
       cluster: RelOptCluster,
+      traitSet: RelTraitSet,
       rowType: RelDataType,
       tuples: ImmutableList[ImmutableList[RexLiteral]]): FlinkLogicalValues = {
     val mq = cluster.getMetadataQuery
-    val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
-      RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
-        def get: util.List[RelCollation] = RelMdCollation.values(mq, rowType, tuples)
-      }).simplify()
-    new FlinkLogicalValues(cluster, traitSet, rowType, tuples)
+    var newTraitSet = cluster.traitSetOf(FlinkConventions.LOGICAL)
+    if (tuples.isEmpty && traitSet != null) {
+      // ReduceExpressionsRule will produce emtpy values
+      // And PruneEmptyRules will remove sort rel node
+      // So there will be a empty values with useless collation, in this case we need keep
+      // original collation to make this conversion success.
+      newTraitSet = newTraitSet.replaceIf(
+        RelCollationTraitDef.INSTANCE.asInstanceOf[RelTraitDef[RelTrait]],
+        new Supplier[RelTrait]() {
+          def get: RelTrait = {
+            traitSet.getTrait(RelCollationTraitDef.INSTANCE)
+          }
+        })
+    } else {
+      newTraitSet = newTraitSet.replaceIfs(
+        RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
+          def get: util.List[RelCollation] = {
+            RelMdCollation.values(mq, rowType, tuples)
+          }
+        })
+    }
+    new FlinkLogicalValues(cluster, newTraitSet.simplify(), rowType, tuples)
   }
 }

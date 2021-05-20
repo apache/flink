@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.api.internal.CollectResultProvider;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
@@ -93,8 +93,8 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
         return sink.name("Streaming select table sink");
     }
 
-    public SelectResultProvider getSelectResultProvider() {
-        return new SelectResultProvider() {
+    public CollectResultProvider getSelectResultProvider() {
+        return new CollectResultProvider() {
 
             @Override
             public void setJobClient(JobClient jobClient) {

@@ -47,6 +47,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
@@ -260,6 +261,11 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         .setChannelTypes(channelType)
                         .setExpectedFailures(5)
                         .setFailuresAfterSourceFinishes(1)
+                        // prevent test from timing out in case when a failover happens concurrently
+                        // with triggering a checkpoint (some execution status can change right
+                        // after triggering)
+                        .setCheckpointTimeout(Duration.ofSeconds(30))
+                        .setTolerableCheckpointFailures(3)
                         .setAlignmentTimeout(timeout);
     }
 

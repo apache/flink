@@ -174,7 +174,9 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
                                 newDatabase.getClass().getName()));
             }
 
-            databases.put(databaseName, newDatabase.copy());
+            Map<String, String> mergedProperties = new HashMap<>(existingDatabase.getProperties());
+            mergedProperties.putAll(newDatabase.getProperties());
+            databases.put(databaseName, newDatabase.copy(mergedProperties));
         } else if (!ignoreIfNotExists) {
             throw new DatabaseNotExistException(getName(), databaseName);
         }

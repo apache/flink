@@ -63,7 +63,7 @@ class SimplifyFilterConditionRule(
     val simplifiedCondition = FlinkRexUtil.simplify(rexBuilder, condition)
     val newCondition = RexUtil.pullFactors(rexBuilder, simplifiedCondition)
 
-    if (!changed.head && !RexUtil.eq(condition, newCondition)) {
+    if (!changed.head && !condition.equals(newCondition)) {
       changed(0) = true
     }
 

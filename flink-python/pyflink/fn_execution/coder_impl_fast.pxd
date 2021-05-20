@@ -34,7 +34,7 @@ cdef class InternalRow:
     cdef bint is_accumulate_msg(self)
 
 cdef class BaseCoderImpl:
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
 cdef unsigned char ROW_KIND_BIT_SIZE
@@ -74,14 +74,14 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
 
     cpdef bytes encode_nested(self, value)
     # encode data to output_stream
-    cdef void _encode_one_row_to_buffer(self, value, unsigned char row_kind_value)
-    cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream)
-    cdef void _encode_one_row_with_row_kind(self, value, LengthPrefixOutputStream output_stream,
+    cdef _encode_one_row_to_buffer(self, value, unsigned char row_kind_value)
+    cdef _encode_one_row(self, value, LengthPrefixOutputStream output_stream)
+    cdef _encode_one_row_with_row_kind(self, value, LengthPrefixOutputStream output_stream,
                                             unsigned char row_kind_value)
-    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+    cdef _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                             item)
-    cdef void _encode_field_simple(self, TypeName field_type, item)
-    cdef void _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item)
+    cdef _encode_field_simple(self, TypeName field_type, item)
+    cdef _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item)
     cdef void _extend(self, size_t missing)
     cdef void _encode_byte(self, unsigned char val)
     cdef void _encode_smallint(self, libc.stdint.int16_t v)
@@ -109,8 +109,8 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
 cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef bint _is_row_data
     cdef bint _is_first_row
-    cdef void _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
-    cdef void _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream)
+    cdef _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
+    cdef _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream)
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message

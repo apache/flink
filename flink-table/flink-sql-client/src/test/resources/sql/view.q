@@ -72,6 +72,12 @@ show views;
 2 rows in set
 !ok
 
+# test SHOW CREATE TABLE for views
+show create table v1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.TableException: SHOW CREATE TABLE does not support showing CREATE VIEW statement with identifier `default_catalog`.`default_database`.`v1`.
+!error
+
 # ==== test permanent view =====
 
 # register a permanent view with the duplicate name with temporary view
@@ -98,15 +104,15 @@ show views;
 
 # test describe view
 describe v1;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
@@ -139,28 +145,28 @@ create view `mod` as select * from orders;
 !info
 
 describe `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 
 desc `mod`;
-+---------+-------------------------+-------+-----+--------+-----------+
-|    name |                    type |  null | key | extras | watermark |
-+---------+-------------------------+-------+-----+--------+-----------+
-|    user |                  BIGINT | false |     |        |           |
-| product |             VARCHAR(32) |  true |     |        |           |
-|  amount |                     INT |  true |     |        |           |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |     |        |           |
-+---------+-------------------------+-------+-----+--------+-----------+
++---------+-----------------------------+-------+-----+--------+-----------+
+|    name |                        type |  null | key | extras | watermark |
++---------+-----------------------------+-------+-----+--------+-----------+
+|    user |                      BIGINT | false |     |        |           |
+| product |                 VARCHAR(32) |  true |     |        |           |
+|  amount |                         INT |  true |     |        |           |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |        |           |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
++---------+-----------------------------+-------+-----+--------+-----------+
 5 rows in set
 !ok
 

@@ -158,7 +158,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 
         if (sorter == null) {
             // no spilling, output by iterating aggregate map.
-            KeyValueIterator<BinaryRowData, BinaryRowData> iter = aggregateMap.getEntryIterator();
+            KeyValueIterator<BinaryRowData, BinaryRowData> iter =
+                    aggregateMap.getEntryIterator(false);
 
             while (iter.advanceNext()) {
                 // set result and output

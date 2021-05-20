@@ -40,21 +40,21 @@ class BatchPhysicalLegacySinkRule extends ConverterRule(
     "BatchPhysicalLegacySinkRule") {
 
   def convert(rel: RelNode): RelNode = {
-    val sinkNode = rel.asInstanceOf[FlinkLogicalLegacySink]
+    val sink = rel.asInstanceOf[FlinkLogicalLegacySink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
-      sinkNode.sink match {
+    var requiredTraitSet = sink.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+    if (sink.catalogTable != null && sink.catalogTable.isPartitioned) {
+      sink.sink match {
         case partitionSink: PartitionableTableSink =>
-          partitionSink.setStaticPartition(sinkNode.staticPartitions)
-          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
-              .filter(!sinkNode.staticPartitions.contains(_))
+          partitionSink.setStaticPartition(sink.staticPartitions)
+          val dynamicPartFields = sink.catalogTable.getPartitionKeys
+              .filter(!sink.staticPartitions.contains(_))
 
           if (dynamicPartFields.nonEmpty) {
             val dynamicPartIndices =
               dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
 
-            val shuffleEnable = sinkNode
+            val shuffleEnable = sink
                 .catalogTable
                 .getOptions
                 .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
@@ -72,18 +72,19 @@ class BatchPhysicalLegacySinkRule extends ConverterRule(
             }
           }
         case _ => throw new TableException("We need PartitionableTableSink to write data to" +
-            s" partitioned table: ${sinkNode.sinkName}")
+            s" partitioned table: ${sink.sinkName}")
       }
     }
 
-    val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
+    val newInput = RelOptRule.convert(sink.getInput, requiredTraitSet)
 
     new BatchPhysicalLegacySink(
       rel.getCluster,
       newTrait,
       newInput,
-      sinkNode.sink,
-      sinkNode.sinkName)
+      sink.hints,
+      sink.sink,
+      sink.sinkName)
   }
 }
 

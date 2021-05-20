@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.function.RunnableWithException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ThreadSafe
 public class CheckpointsCleaner implements Serializable {
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointsCleaner.class);
+    private static final long serialVersionUID = 2545865801947537790L;
 
     private final AtomicInteger numberOfCheckpointsToClean;
 
@@ -50,23 +53,44 @@ public class CheckpointsCleaner implements Serializable {
             boolean shouldDiscard,
             Runnable postCleanAction,
             Executor executor) {
+        cleanup(
+                checkpoint,
+                () -> {
+                    if (shouldDiscard) {
+                        checkpoint.discard();
+                    }
+                },
+                postCleanAction,
+                executor);
+    }
+
+    public void cleanCheckpointOnFailedStoring(
+            CompletedCheckpoint completedCheckpoint, Executor executor) {
+        cleanup(
+                completedCheckpoint,
+                completedCheckpoint::discardOnFailedStoring,
+                () -> {},
+                executor);
+    }
+
+    private void cleanup(
+            Checkpoint checkpoint,
+            RunnableWithException cleanupAction,
+            Runnable postCleanupAction,
+            Executor executor) {
         numberOfCheckpointsToClean.incrementAndGet();
         executor.execute(
                 () -> {
                     try {
-                        if (shouldDiscard) {
-                            try {
-                                checkpoint.discard();
-                            } catch (Exception e) {
-                                LOG.warn(
-                                        "Could not discard completed checkpoint {}.",
-                                        checkpoint.getCheckpointID(),
-                                        e);
-                            }
-                        }
+                        cleanupAction.run();
+                    } catch (Exception e) {
+                        LOG.warn(
+                                "Could not properly discard completed checkpoint {}.",
+                                checkpoint.getCheckpointID(),
+                                e);
                     } finally {
                         numberOfCheckpointsToClean.decrementAndGet();
-                        postCleanAction.run();
+                        postCleanupAction.run();
                     }
                 });
     }

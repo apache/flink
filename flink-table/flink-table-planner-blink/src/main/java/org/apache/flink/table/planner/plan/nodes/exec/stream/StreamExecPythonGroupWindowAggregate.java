@@ -41,9 +41,9 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonDeserializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -63,7 +63,14 @@ import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTrigger
 import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -71,8 +78,10 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasRowIntervalType;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType;
@@ -82,10 +91,12 @@ import static org.apache.flink.table.planner.plan.utils.AggregateUtil.timeFieldI
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toDuration;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.toLong;
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for group widow aggregate (Python user defined aggregate function). */
-public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBase {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecPythonGroupWindowAggregate.class);
 
@@ -98,12 +109,27 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     "org.apache.flink.table.runtime.operators.python.aggregate."
                             + "PythonStreamGroupWindowAggregateOperator";
 
+    public static final String FIELD_NAME_WINDOW = "window";
+    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
+
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    @JsonProperty(FIELD_NAME_WINDOW)
+    @JsonSerialize(using = LogicalWindowJsonSerializer.class)
+    @JsonDeserialize(using = LogicalWindowJsonDeserializer.class)
     private final LogicalWindow window;
+
+    @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
     private final PlannerNamedWindowProperty[] namedWindowProperties;
-    private final WindowEmitStrategy emitStrategy;
+
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
+
+    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
     public StreamExecPythonGroupWindowAggregate(
@@ -111,18 +137,43 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
             AggregateCall[] aggCalls,
             LogicalWindow window,
             PlannerNamedWindowProperty[] namedWindowProperties,
-            WindowEmitStrategy emitStrategy,
             boolean generateUpdateBefore,
             boolean needRetraction,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.grouping = grouping;
-        this.aggCalls = aggCalls;
-        this.window = window;
-        this.namedWindowProperties = namedWindowProperties;
-        this.emitStrategy = emitStrategy;
+        this(
+                grouping,
+                aggCalls,
+                window,
+                namedWindowProperties,
+                generateUpdateBefore,
+                needRetraction,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecPythonGroupWindowAggregate(
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
+            @JsonProperty(FIELD_NAME_NAMED_WINDOW_PROPERTIES)
+                    PlannerNamedWindowProperty[] namedWindowProperties,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.grouping = checkNotNull(grouping);
+        this.aggCalls = checkNotNull(aggCalls);
+        this.window = checkNotNull(window);
+        this.namedWindowProperties = checkNotNull(namedWindowProperties);
         this.generateUpdateBefore = generateUpdateBefore;
         this.needRetraction = needRetraction;
     }
@@ -172,6 +223,10 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         } else {
             inputTimeFieldIndex = -1;
         }
+
+        final ZoneId shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(
+                        window.timeAttribute().getOutputDataType().getLogicalType(), tableConfig);
         Tuple2<WindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
                 generateWindowAssignerAndTrigger();
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
@@ -181,6 +236,7 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
         OneInputTransformation<RowData, RowData> transform;
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(tableConfig, window);
         if (isGeneralPythonUDAF) {
             final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
             Arrays.fill(aggCallNeedRetractions, needRetraction);
@@ -201,7 +257,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             windowAssigner,
                             aggInfoList,
                             emitStrategy.getAllowLateness(),
-                            config);
+                            config,
+                            shiftTimeZone);
         } else {
             transform =
                     createPandasPythonStreamWindowGroupOneInputTransformation(
@@ -212,7 +269,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             windowAssigner,
                             trigger,
                             emitStrategy.getAllowLateness(),
-                            config);
+                            config,
+                            shiftTimeZone);
         }
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
@@ -300,7 +358,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     WindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
-                    Configuration config) {
+                    Configuration config,
+                    ZoneId shiftTimeZone) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
@@ -316,7 +375,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         allowance,
                         inputTimeFieldIndex,
                         pythonUdafInputOffsets,
-                        pythonFunctionInfos);
+                        pythonFunctionInfos,
+                        shiftTimeZone);
         return new OneInputTransformation<>(
                 inputTransform,
                 getDescription(),
@@ -334,7 +394,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     WindowAssigner<?> windowAssigner,
                     AggregateInfoList aggInfoList,
                     long allowance,
-                    Configuration config) {
+                    Configuration config,
+                    ZoneId shiftTimeZone) {
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean countStarInserted = aggInfoList.countStarInserted();
         final Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
@@ -354,7 +415,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                         inputCountIndex,
                         generateUpdateBefore,
                         countStarInserted,
-                        allowance);
+                        allowance,
+                        shiftTimeZone);
 
         return new OneInputTransformation<>(
                 inputTransform,
@@ -375,7 +437,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     long allowance,
                     int inputTimeFieldIndex,
                     int[] udafInputOffsets,
-                    PythonFunctionInfo[] pythonFunctionInfos) {
+                    PythonFunctionInfo[] pythonFunctionInfos,
+                    ZoneId shiftTimeZone) {
         Class clazz =
                 CommonPythonUtil.loadClass(
                         ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
@@ -392,7 +455,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             long.class,
                             PlannerNamedWindowProperty[].class,
                             int[].class,
-                            int[].class);
+                            int[].class,
+                            ZoneId.class);
             return ctor.newInstance(
                     config,
                     pythonFunctionInfos,
@@ -404,7 +468,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     allowance,
                     namedWindowProperties,
                     grouping,
-                    udafInputOffsets);
+                    udafInputOffsets,
+                    shiftTimeZone);
         } catch (NoSuchMethodException
                 | IllegalAccessException
                 | InstantiationException
@@ -428,7 +493,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     int indexOfCountStar,
                     boolean generateUpdateBefore,
                     boolean countStarInserted,
-                    long allowance) {
+                    long allowance,
+                    ZoneId shiftTimeZone) {
         Class clazz =
                 CommonPythonUtil.loadClass(
                         GENERAL_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
@@ -448,7 +514,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                             WindowAssigner.class,
                             LogicalWindow.class,
                             long.class,
-                            PlannerNamedWindowProperty[].class);
+                            PlannerNamedWindowProperty[].class,
+                            ZoneId.class);
             return ctor.newInstance(
                     config,
                     inputType,
@@ -463,7 +530,8 @@ public class StreamExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
                     windowAssigner,
                     window,
                     allowance,
-                    namedWindowProperties);
+                    namedWindowProperties,
+                    shiftTimeZone);
         } catch (NoSuchMethodException
                 | IllegalAccessException
                 | InstantiationException

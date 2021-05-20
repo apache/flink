@@ -61,6 +61,7 @@ class StreamPhysicalLegacyTableSourceScanRule
     new StreamPhysicalLegacyTableSourceScan(
       rel.getCluster,
       traitSet,
+      scan.getHints,
       scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
     )
   }

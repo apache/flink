@@ -166,6 +166,17 @@ $ echo 'stop' | ./bin/kubernetes-session.sh \
 
 The Kubernetes-specific configuration options are listed on the [configuration page]({{< ref "docs/deployment/config" >}}#kubernetes).
 
+Flink uses [Fabric8 Kubernetes client](https://github.com/fabric8io/kubernetes-client) to communicate with Kubernetes APIServer to create/delete Kubernetes resources(e.g. Deployment, Pod, ConfigMap, Service, etc.), as well as watch the Pods and ConfigMaps.
+Except for the above Flink config options, some [expert options](https://github.com/fabric8io/kubernetes-client#configuring-the-client) of Fabric8 Kubernetes client could be configured via system properties or environment variables.
+
+For example, users could use the following Flink config options to set the concurrent max requests, which allows running more jobs in a session cluster when [Kubernetes HA Services]({{< ref "docs/deployment/ha/kubernetes_ha" >}}) are used.
+Please note that, each Flink job will consume `3` concurrent requests.
+
+```yaml
+containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
+env.java.opts.jobmanager: "-Dkubernetes.max.concurrent.requests=200"
+```
+
 ### Accessing Flink's Web UI
 
 Flink's Web UI and REST endpoint can be exposed in several ways via the [kubernetes.rest-service.exposed.type]({{< ref "docs/deployment/config" >}}#kubernetes-rest-service-exposed-type) configuration option.
@@ -233,8 +244,8 @@ For example, use the following command to enable the S3 plugin for your Flink se
 
 ```bash
 $ ./bin/kubernetes-session.sh
-    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}}.jar \
-    -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}}.jar
+    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar \
+    -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{< version >}}.jar
 ```
 
 ### Custom Docker Image

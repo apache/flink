@@ -38,10 +38,15 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.window.LocalSlicingWindowAggOperator;
+import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.LocalAggCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -51,6 +56,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -63,7 +69,6 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     private static final long WINDOW_AGG_MEMORY_RATIO = 100;
 
     public static final String FIELD_NAME_WINDOWING = "windowing";
-    public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -115,10 +120,12 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         final TableConfig config = planner.getTableConfig();
-        final SliceAssigner sliceAssigner = createSliceAssigner(windowing);
+        final ZoneId shiftTimeZone =
+                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), config);
+        final SliceAssigner sliceAssigner = createSliceAssigner(windowing, shiftTimeZone);
 
         final AggregateInfoList aggInfoList =
-                AggregateUtil.deriveWindowAggregateInfoList(
+                AggregateUtil.deriveStreamWindowAggregateInfoList(
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
@@ -130,17 +137,22 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                         aggInfoList,
                         config,
                         planner.getRelBuilder(),
-                        inputRowType.getChildren());
+                        inputRowType.getChildren(),
+                        shiftTimeZone);
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
 
+        PagedTypeSerializer<RowData> keySer =
+                (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer();
+        AbstractRowDataSerializer<RowData> valueSer = new RowDataSerializer(inputRowType);
+
+        WindowBuffer.LocalFactory bufferFactory =
+                new RecordsWindowBuffer.LocalFactory(
+                        keySer, valueSer, new LocalAggCombiner.Factory(generatedAggsHandler));
+
         final OneInputStreamOperator<RowData, RowData> localAggOperator =
                 new LocalSlicingWindowAggOperator(
-                        selector,
-                        sliceAssigner,
-                        (PagedTypeSerializer<RowData>) selector.getProducedType().toSerializer(),
-                        new RowDataSerializer(inputRowType),
-                        generatedAggsHandler);
+                        selector, sliceAssigner, bufferFactory, shiftTimeZone);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
@@ -157,7 +169,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
             AggregateInfoList aggInfoList,
             TableConfig config,
             RelBuilder relBuilder,
-            List<LogicalType> fieldTypes) {
+            List<LogicalType> fieldTypes,
+            ZoneId shiftTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                                 new CodeGeneratorContext(config),
@@ -171,6 +184,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
                 "LocalWindowAggsHandler",
                 aggInfoList,
                 JavaScalaConversionUtil.toScala(Collections.emptyList()),
-                sliceAssigner);
+                sliceAssigner,
+                shiftTimeZone);
     }
 }

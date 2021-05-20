@@ -25,7 +25,7 @@
         "predicates" : [ ]
       } ]
     },
-    "id" : 6,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -371,7 +371,7 @@
         "nullable" : true
       }
     },
-    "id" : 7,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -432,7 +432,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 8,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -467,15 +467,15 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, a1, b, b1, c1, c2, d1])"
   } ],
   "edges" : [ {
-    "source" : 6,
-    "target" : 7,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 7,
-    "target" : 8,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },

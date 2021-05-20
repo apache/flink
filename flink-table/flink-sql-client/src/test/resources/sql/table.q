@@ -73,6 +73,22 @@ show tables;
 1 row in set
 !ok
 
+# test SHOW CREATE TABLE
+show create table orders;
+CREATE TABLE `default_catalog`.`default_database`.`orders` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
 # ==========================================================================
 # test alter table
 # ==========================================================================
@@ -91,30 +107,46 @@ alter table orders2 set ('connector' = 'kafka');
 
 # test describe table
 describe orders2;
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    name |                    type |  null |       key |        extras |                  watermark |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    user |                  BIGINT | false | PRI(user) |               |                            |
-| product |             VARCHAR(32) |  true |           |               |                            |
-|  amount |                     INT |  true |           |               |                            |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
 !ok
 
 # test desc table
 desc orders2;
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    name |                    type |  null |       key |        extras |                  watermark |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
-|    user |                  BIGINT | false | PRI(user) |               |                            |
-| product |             VARCHAR(32) |  true |           |               |                            |
-|  amount |                     INT |  true |           |               |                            |
-|      ts |  TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
-|   ptime | TIMESTAMP(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
-+---------+-------------------------+-------+-----------+---------------+----------------------------+
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
+!ok
+
+# test SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'kafka'
+)
+
 !ok
 
 # ==========================================================================
@@ -163,6 +195,18 @@ show tables;
 |       tbl1 |
 +------------+
 1 row in set
+!ok
+
+# SHOW CREATE TABLE for temporary table
+show create table tbl1;
+CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`tbl1` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT
+) WITH (
+  'connector' = 'datagen'
+)
+
 !ok
 
 drop temporary table tbl1;

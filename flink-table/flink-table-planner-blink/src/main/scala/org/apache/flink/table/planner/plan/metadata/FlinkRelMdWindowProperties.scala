@@ -214,13 +214,16 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     }
 
     val startColumns = windowProperties.getWindowStartColumns.intersect(grouping)
+      .map(grouping.indexOf(_)).toList
     val endColumns = windowProperties.getWindowEndColumns.intersect(grouping)
+      .map(grouping.indexOf(_)).toList
     val timeColumns = windowProperties.getWindowTimeColumns.intersect(grouping)
+      .map(grouping.indexOf(_)).toList
 
     RelWindowProperties.create(
-      startColumns,
-      endColumns,
-      timeColumns,
+      ImmutableBitSet.of(startColumns :_*),
+      ImmutableBitSet.of(endColumns :_*),
+      ImmutableBitSet.of(timeColumns :_*),
       windowProperties.getWindowSpec,
       windowProperties.getTimeAttributeType
     )

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
@@ -140,71 +141,20 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
             return;
         }
 
-        // Try and read the state handles from storage. We try until we either successfully read
-        // all of them or when we reach a stable state, i.e. when we successfully read the same set
-        // of checkpoints in two tries. We do it like this to protect against transient outages
-        // of the checkpoint store (for example a DFS): if the DFS comes online midway through
-        // reading a set of checkpoints we would run the risk of reading only a partial set
-        // of checkpoints while we could in fact read the other checkpoints as well if we retried.
-        // Waiting until a stable state protects against this while also being resilient against
-        // checkpoints being actually unreadable.
-        //
-        // These considerations are also important in the scope of incremental checkpoints, where
-        // we use ref-counting for shared state handles and might accidentally delete shared state
-        // of checkpoints that we don't read due to transient storage outages.
-        final List<CompletedCheckpoint> lastTryRetrievedCheckpoints =
-                new ArrayList<>(numberOfInitialCheckpoints);
         final List<CompletedCheckpoint> retrievedCheckpoints =
                 new ArrayList<>(numberOfInitialCheckpoints);
-        Exception retrieveException = null;
-        do {
-            LOG.info("Trying to fetch {} checkpoints from storage.", numberOfInitialCheckpoints);
+        LOG.info("Trying to fetch {} checkpoints from storage.", numberOfInitialCheckpoints);
 
-            lastTryRetrievedCheckpoints.clear();
-            lastTryRetrievedCheckpoints.addAll(retrievedCheckpoints);
-
-            retrievedCheckpoints.clear();
-
-            for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle :
-                    initialCheckpoints) {
-
-                CompletedCheckpoint completedCheckpoint;
-
-                try {
-                    completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
-                    if (completedCheckpoint != null) {
-                        retrievedCheckpoints.add(completedCheckpoint);
-                    }
-                } catch (Exception e) {
-                    LOG.warn(
-                            "Could not retrieve checkpoint, not adding to list of recovered checkpoints.",
-                            e);
-                    retrieveException = e;
-                }
-            }
-
-        } while (retrievedCheckpoints.size() != numberOfInitialCheckpoints
-                && !CompletedCheckpoint.checkpointsMatch(
-                        lastTryRetrievedCheckpoints, retrievedCheckpoints));
+        for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle :
+                initialCheckpoints) {
+            retrievedCheckpoints.add(
+                    checkNotNull(retrieveCompletedCheckpoint(checkpointStateHandle)));
+        }
 
         // Clear local handles in order to prevent duplicates on recovery. The local handles should
-        // reflect
-        // the state handle store contents.
+        // reflect the state handle store contents.
         completedCheckpoints.clear();
         completedCheckpoints.addAll(retrievedCheckpoints);
-
-        if (completedCheckpoints.isEmpty() && numberOfInitialCheckpoints > 0) {
-            throw new FlinkException(
-                    "Could not read any of the "
-                            + numberOfInitialCheckpoints
-                            + " checkpoints from storage.",
-                    retrieveException);
-        } else if (completedCheckpoints.size() != numberOfInitialCheckpoints) {
-            LOG.warn(
-                    "Could only fetch {} of {} checkpoints from storage.",
-                    completedCheckpoints.size(),
-                    numberOfInitialCheckpoints);
-        }
     }
 
     /**
@@ -212,6 +162,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
      * older ones.
      *
      * @param checkpoint Completed checkpoint to add.
+     * @throws PossibleInconsistentStateException if adding the checkpoint failed and leaving the
+     *     system in an possibly inconsistent state, i.e. it's uncertain whether the checkpoint
+     *     metadata was fully written to the underlying systems or not.
      */
     @Override
     public void addCheckpoint(

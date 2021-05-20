@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -163,7 +164,11 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             }
 
             if (numRequestedBuffers <= 0) {
-                throw new TimeoutException("Buffer request timeout.");
+                throw new TimeoutException(
+                        String.format(
+                                "Buffer request timeout, this means there is a fierce contention of"
+                                        + " the batch shuffle read memory, please increase '%s'.",
+                                TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY.key()));
             }
         } catch (Throwable throwable) {
             // fail all pending subpartition readers immediately if any exception occurs

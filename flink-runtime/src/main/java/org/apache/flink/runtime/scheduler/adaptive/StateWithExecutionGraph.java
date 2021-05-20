@@ -91,8 +91,6 @@ abstract class StateWithExecutionGraph implements State {
         this.operatorCoordinatorHandler = operatorCoordinatorHandler;
         this.kvStateHandler = new KvStateHandler(executionGraph);
         this.logger = logger;
-        Preconditions.checkState(
-                executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
         FutureUtils.assertNoException(
                 executionGraph
@@ -110,6 +108,10 @@ abstract class StateWithExecutionGraph implements State {
     @VisibleForTesting
     ExecutionGraph getExecutionGraph() {
         return executionGraph;
+    }
+
+    JobID getJobId() {
+        return executionGraph.getJobID();
     }
 
     protected OperatorCoordinatorHandler getOperatorCoordinatorHandler() {

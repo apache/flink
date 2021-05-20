@@ -18,13 +18,21 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.types.Row;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.ArrayList;
+
+import scala.collection.JavaConverters;
 
 /** Test json serialization/deserialization for LookupJoin. */
 public class LookupJoinJsonPlanTest extends TableTestBase {
@@ -101,5 +109,42 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "FROM MyTable AS T \n"
                         + "JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D \n"
                         + "ON T.a = D.id\n");
+    }
+
+    @Test
+    public void testLegacyTableSourceException() {
+        expectedException().expectMessage("TemporalTableSourceSpec can not be serialized.");
+        TableSchema tableSchema =
+                TableSchema.builder()
+                        .field("id", Types.INT)
+                        .field("name", Types.STRING)
+                        .field("age", Types.INT)
+                        .build();
+        InMemoryLookupableTableSource.createTemporaryTable(
+                tEnv,
+                false,
+                JavaConverters.asScalaIteratorConverter(new ArrayList<Row>().iterator())
+                        .asScala()
+                        .toList(),
+                tableSchema,
+                "LookupTable",
+                true);
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a int,\n"
+                        + "  b varchar,"
+                        + "  c bigint,"
+                        + "  proctime timestamp(3),"
+                        + "  rowtime timestamp(3),"
+                        + "  id int,"
+                        + "  name varchar,"
+                        + "  age int"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "INSERT INTO MySink SELECT * FROM MyTable AS T JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
     }
 }

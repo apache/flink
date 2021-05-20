@@ -36,7 +36,7 @@
         }
       } ]
     },
-    "id" : 43,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -102,7 +102,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 44,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -126,7 +126,7 @@
     "description" : "Calc(select=[c, a, (b > 10) AS $f2, b])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 45,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -236,7 +236,7 @@
     "aggCallNeedRetractions" : [ false, false, false, false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 46,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -357,7 +357,7 @@
       }
     } ],
     "condition" : null,
-    "id" : 47,
+    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -410,7 +410,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 48,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -438,36 +438,36 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, cnt_a1, cnt_a2, sum_a, sum_b, avg_b])"
   } ],
   "edges" : [ {
-    "source" : 43,
-    "target" : 44,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 44,
-    "target" : 45,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 45,
-    "target" : 46,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 46,
-    "target" : 47,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 47,
-    "target" : 48,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },

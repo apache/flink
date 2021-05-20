@@ -74,6 +74,10 @@ class RowBasedOperationTests(object):
         def func2(x):
             return x * 2
 
+        def func3(x):
+            assert isinstance(x, Row)
+            return x
+
         pandas_udf = udf(func,
                          result_type=DataTypes.ROW(
                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
@@ -86,7 +90,12 @@ class RowBasedOperationTests(object):
                                 DataTypes.FIELD("d", DataTypes.BIGINT())]),
                            func_type='pandas')
 
-        t.map(pandas_udf).map(pandas_udf_2).execute_insert("Results").wait()
+        general_udf = udf(func3,
+                          result_type=DataTypes.ROW(
+                              [DataTypes.FIELD("c", DataTypes.BIGINT()),
+                               DataTypes.FIELD("d", DataTypes.BIGINT())]))
+
+        t.map(pandas_udf).map(pandas_udf_2).map(general_udf).execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
@@ -255,7 +264,7 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.select(t.a, t.c) \
             .group_by(t.c) \
-            .flat_aggregate(mytop) \
+            .flat_aggregate(mytop.alias('a')) \
             .select(t.a) \
             .flat_aggregate(mytop.alias("b")) \
             .select("b") \
@@ -330,8 +339,8 @@ class CountAndSumAggregateFunction(AggregateFunction):
 class Top2(TableAggregateFunction):
 
     def emit_value(self, accumulator):
-        yield Row(accumulator[0])
-        yield Row(accumulator[1])
+        yield accumulator[0]
+        yield accumulator[1]
 
     def create_accumulator(self):
         return [None, None]
@@ -356,8 +365,7 @@ class Top2(TableAggregateFunction):
         return DataTypes.ARRAY(DataTypes.BIGINT())
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+        return DataTypes.BIGINT()
 
 
 class ListViewConcatTableAggregateFunction(TableAggregateFunction):

@@ -20,7 +20,6 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.SqlClient;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
@@ -35,6 +34,7 @@ import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
@@ -74,6 +74,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.api.internal.TableResultImpl.TABLE_RESULT_OK;
@@ -99,6 +100,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class CliClient implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(CliClient.class);
+    public static final Supplier<Terminal> DEFAULT_TERMINAL_FACTORY =
+            TerminalUtils::createDefaultTerminal;
 
     private final Executor executor;
 
@@ -109,6 +112,8 @@ public class CliClient implements AutoCloseable {
     private final String prompt;
 
     private final @Nullable MaskingCallback inputTransformer;
+
+    private final Supplier<Terminal> terminalFactory;
 
     private Terminal terminal;
 
@@ -127,13 +132,13 @@ public class CliClient implements AutoCloseable {
      * using {@link #close()}.
      */
     @VisibleForTesting
-    CliClient(
-            Terminal terminal,
+    public CliClient(
+            Supplier<Terminal> terminalFactory,
             String sessionId,
             Executor executor,
             Path historyFilePath,
             @Nullable MaskingCallback inputTransformer) {
-        this.terminal = terminal;
+        this.terminalFactory = terminalFactory;
         this.sessionId = sessionId;
         this.executor = executor;
         this.inputTransformer = inputTransformer;
@@ -153,8 +158,12 @@ public class CliClient implements AutoCloseable {
      * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
      * afterwards using {@link #close()}.
      */
-    public CliClient(String sessionId, Executor executor, Path historyFilePath) {
-        this(null, sessionId, executor, historyFilePath, null);
+    public CliClient(
+            Supplier<Terminal> terminalFactory,
+            String sessionId,
+            Executor executor,
+            Path historyFilePath) {
+        this(terminalFactory, sessionId, executor, historyFilePath, null);
     }
 
     public Terminal getTerminal() {
@@ -208,9 +217,8 @@ public class CliClient implements AutoCloseable {
 
     /** Opens the interactive CLI shell. */
     public void executeInInteractiveMode() {
-        terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
-
         try {
+            terminal = terminalFactory.get();
             executeInteractive();
         } finally {
             closeTerminal();
@@ -219,7 +227,7 @@ public class CliClient implements AutoCloseable {
 
     public void executeInNonInteractiveMode(String content) {
         try {
-            terminal = TerminalUtils.createDefaultTerminal(useSystemInOutStream);
+            terminal = terminalFactory.get();
             executeFile(content, ExecutionMode.NON_INTERACTIVE_EXECUTION);
         } finally {
             closeTerminal();
@@ -229,7 +237,7 @@ public class CliClient implements AutoCloseable {
     public boolean executeInitialization(String content) {
         try {
             OutputStream outputStream = new ByteArrayOutputStream(256);
-            terminal = TerminalUtils.createDummyTerminal(outputStream);
+            terminal = TerminalUtils.createDumbTerminal(outputStream);
             boolean success = executeFile(content, ExecutionMode.INITIALIZATION);
             LOG.info(outputStream.toString());
             return success;
@@ -254,8 +262,7 @@ public class CliClient implements AutoCloseable {
      * Execute statement from the user input and prints status information and/or errors on the
      * terminal.
      */
-    @VisibleForTesting
-    void executeInteractive() {
+    private void executeInteractive() {
         isRunning = true;
         LineReader lineReader = createLineReader(terminal);
 
@@ -297,8 +304,7 @@ public class CliClient implements AutoCloseable {
      *
      * @param content SQL file content
      */
-    @VisibleForTesting
-    boolean executeFile(String content, ExecutionMode mode) {
+    private boolean executeFile(String content, ExecutionMode mode) {
         terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EXECUTE_FILE).toAnsi());
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
@@ -414,6 +420,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof EndStatementSetOperation) {
             // END
             callEndStatementSet();
+        } else if (operation instanceof ShowCreateTableOperation) {
+            // SHOW CREATE TABLE
+            callShowCreateTable((ShowCreateTableOperation) operation);
         } else {
             // fallback to default implementation
             executeOperation(operation);
@@ -527,6 +536,14 @@ public class CliClient implements AutoCloseable {
     }
 
     public void callExplain(ExplainOperation operation) {
+        printRawContent(operation);
+    }
+
+    public void callShowCreateTable(ShowCreateTableOperation operation) {
+        printRawContent(operation);
+    }
+
+    public void printRawContent(Operation operation) {
         TableResult tableResult = executor.executeOperation(sessionId, operation);
         // show raw content instead of tableau style
         final String explanation =
@@ -569,7 +586,8 @@ public class CliClient implements AutoCloseable {
                     Integer.MAX_VALUE,
                     "",
                     false,
-                    false);
+                    false,
+                    CliUtils.getSessionTimeZone(executor.getSessionConfig(sessionId)));
             terminal.flush();
         }
     }
@@ -648,21 +666,14 @@ public class CliClient implements AutoCloseable {
         if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
             String msg = "Command history file path: " + historyFilePath;
             // print it in the command line as well as log file
-            System.out.println(msg);
+            terminal.writer().println(msg);
             LOG.info(msg);
             lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
         } else {
             String msg = "Unable to create history file: " + historyFilePath;
-            System.out.println(msg);
+            terminal.writer().println(msg);
             LOG.warn(msg);
         }
         return lineReader;
     }
-
-    /**
-     * Internal flag to use {@link System#in} and {@link System#out} stream to construct {@link
-     * Terminal} for tests. This allows tests can easily mock input stream when startup {@link
-     * SqlClient}.
-     */
-    protected static boolean useSystemInOutStream = false;
 }

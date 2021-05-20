@@ -23,17 +23,28 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-/** A timestamp queue based threshold meter. */
+/**
+ * A timestamp queue based threshold meter.
+ *
+ * <p>Note: This class is thread safe, at the price of synchronization overhead. Do not use this in
+ * performance sensitive scenarios, e.g., per-record updated metrics.
+ */
 public class ThresholdMeter implements Meter {
     private static final double MILLISECONDS_PER_SECOND = 1000.0;
     private final Clock clock;
     private final double maxEventsPerInterval;
     private final Duration interval;
+
+    @GuardedBy("this")
     private final Queue<Long> eventTimestamps;
+
+    @GuardedBy("this")
     private long eventCount = 0;
 
     public ThresholdMeter(double maxEventsPerInterval, Duration interval) {
@@ -52,13 +63,13 @@ public class ThresholdMeter implements Meter {
     }
 
     @Override
-    public void markEvent() {
+    public synchronized void markEvent() {
         eventTimestamps.add(clock.absoluteTimeMillis());
         eventCount++;
     }
 
     @Override
-    public void markEvent(long n) {
+    public synchronized void markEvent(long n) {
         long timestamp = clock.absoluteTimeMillis();
         for (int i = 0; i < n; i++) {
             eventTimestamps.add(timestamp);
@@ -72,20 +83,21 @@ public class ThresholdMeter implements Meter {
     }
 
     @Override
-    public long getCount() {
+    public synchronized long getCount() {
         return eventCount;
     }
 
     public void checkAgainstThreshold() throws ThresholdExceedException {
-        if (getEventCountsRecentInterval() >= maxEventsPerInterval) {
+        int recentEvents = getEventCountsRecentInterval();
+        if (recentEvents >= maxEventsPerInterval) {
             throw new ThresholdExceedException(
                     String.format(
                             "%d events detected in the recent interval, reaching the threshold %f.",
-                            getEventCountsRecentInterval(), maxEventsPerInterval));
+                            recentEvents, maxEventsPerInterval));
         }
     }
 
-    private int getEventCountsRecentInterval() {
+    private synchronized int getEventCountsRecentInterval() {
         Long currentTimeStamp = clock.absoluteTimeMillis();
         while (!eventTimestamps.isEmpty()
                 && currentTimeStamp - eventTimestamps.peek() > interval.toMillis()) {

@@ -26,6 +26,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /** Indicate timeField type. */
@@ -55,6 +56,18 @@ public class PlannerWindowReference {
     @JsonIgnore
     public Optional<LogicalType> getType() {
         return Optional.ofNullable(type);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        PlannerWindowReference that = (PlannerWindowReference) o;
+        return Objects.equals(name, that.name) && Objects.equals(type, that.type);
     }
 
     @Override

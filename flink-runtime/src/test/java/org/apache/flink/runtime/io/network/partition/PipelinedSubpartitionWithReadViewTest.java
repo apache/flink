@@ -106,6 +106,7 @@ public class PipelinedSubpartitionWithReadViewTest {
     @Test
     public void testRelease() {
         readView.releaseAllResources();
+        resultPartition.close();
         assertFalse(
                 resultPartition
                         .getPartitionManager()

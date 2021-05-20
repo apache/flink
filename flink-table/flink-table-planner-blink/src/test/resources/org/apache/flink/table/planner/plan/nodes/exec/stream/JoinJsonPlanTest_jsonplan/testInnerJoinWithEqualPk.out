@@ -32,7 +32,7 @@
         }
       } ]
     },
-    "id" : 21,
+    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -46,7 +46,7 @@
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 22,
+    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -72,7 +72,7 @@
     "aggCallNeedRetractions" : [ ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 23,
+    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -90,7 +90,7 @@
     "description" : "GroupAggregate(groupBy=[a1], select=[a1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 24,
+    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -139,7 +139,7 @@
         }
       } ]
     },
-    "id" : 25,
+    "id" : 5,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
@@ -153,7 +153,7 @@
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 26,
+    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -179,7 +179,7 @@
     "aggCallNeedRetractions" : [ ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
-    "id" : 27,
+    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -197,7 +197,7 @@
     "description" : "GroupAggregate(groupBy=[b1], select=[b1])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
-    "id" : 28,
+    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -225,7 +225,7 @@
     },
     "leftUniqueKeys" : [ [ 0 ] ],
     "rightUniqueKeys" : [ [ 0 ] ],
-    "id" : 29,
+    "id" : 9,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -268,7 +268,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
-    "id" : 30,
+    "id" : 10,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -288,64 +288,64 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a1, b1])"
   } ],
   "edges" : [ {
-    "source" : 21,
-    "target" : 22,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 22,
-    "target" : 23,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 23,
-    "target" : 24,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 25,
-    "target" : 26,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 26,
-    "target" : 27,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 27,
-    "target" : 28,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 24,
-    "target" : 29,
+    "source" : 4,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 28,
-    "target" : 29,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 29,
-    "target" : 30,
+    "source" : 9,
+    "target" : 10,
     "shuffle" : {
       "type" : "FORWARD"
     },

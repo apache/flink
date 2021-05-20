@@ -29,7 +29,6 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -52,10 +51,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,15 +72,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
-@RunWith(Parameterized.class)
 public class LocalExecutorITCase extends TestLogger {
-
-    @Parameters(name = "Planner: {0}")
-    public static List<String> planner() {
-        return Arrays.asList(
-                ExecutionEntry.EXECUTION_PLANNER_VALUE_OLD,
-                ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
-    }
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 
@@ -126,7 +113,7 @@ public class LocalExecutorITCase extends TestLogger {
         return config;
     }
 
-    @Parameter public String planner;
+    private static final String PLANNER = "blink";
 
     @Rule public ExpectedException exception = ExpectedException.none();
 
@@ -162,7 +149,7 @@ public class LocalExecutorITCase extends TestLogger {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
@@ -207,7 +194,7 @@ public class LocalExecutorITCase extends TestLogger {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
@@ -255,7 +242,7 @@ public class LocalExecutorITCase extends TestLogger {
         Objects.requireNonNull(url);
 
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -282,7 +269,7 @@ public class LocalExecutorITCase extends TestLogger {
         Objects.requireNonNull(url);
 
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -319,7 +306,7 @@ public class LocalExecutorITCase extends TestLogger {
         Objects.requireNonNull(url);
 
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -340,7 +327,7 @@ public class LocalExecutorITCase extends TestLogger {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -381,7 +368,7 @@ public class LocalExecutorITCase extends TestLogger {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -429,7 +416,7 @@ public class LocalExecutorITCase extends TestLogger {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
@@ -568,7 +555,7 @@ public class LocalExecutorITCase extends TestLogger {
 
     private Environment createDefaultEnvironment() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_PLANNER", PLANNER);
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_UPDATE_MODE", "");
         replaceVars.put("$VAR_MAX_ROWS", "100");

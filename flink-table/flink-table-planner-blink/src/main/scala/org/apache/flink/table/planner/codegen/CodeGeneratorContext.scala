@@ -38,6 +38,7 @@ import org.apache.flink.util.InstantiationUtil
 
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
+import java.time.ZoneId
 
 import scala.collection.mutable
 
@@ -628,6 +629,18 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin
     addReusableMember(stmt)
     DEFAULT_TIMEZONE_TERM
+  }
+
+  /**
+   * Adds a reusable shift TimeZone of window to the member area of the generated class.
+   */
+  def addReusableShiftTimeZone(zoneId: ZoneId): String = {
+    val fieldTerm = s"shiftTimeZone"
+    val stmt =
+      s"""private static final java.time.ZoneId $fieldTerm =
+         |                 java.time.ZoneId.of("${zoneId.toString}");""".stripMargin
+    addReusableMember(stmt)
+    fieldTerm
   }
 
   /**

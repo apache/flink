@@ -25,12 +25,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -103,9 +105,12 @@ public abstract class AbstractInvokable {
      * execution failure. It can be overwritten to respond to shut down the user code properly.
      *
      * @throws Exception thrown if any exception occurs during the execution of the user code
+     * @return a future that is completed when this {@link AbstractInvokable} is fully terminated.
+     *     Note that it may never complete if the invokable is stuck.
      */
-    public void cancel() throws Exception {
+    public Future<Void> cancel() throws Exception {
         // The default implementation does nothing.
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -303,4 +308,12 @@ public abstract class AbstractInvokable {
      *     failure/recovery.
      */
     public void restore() throws Exception {}
+
+    /**
+     * @return true if blocking input such as {@link InputGate#getNext()} is used (as opposed to
+     *     {@link InputGate#pollNext()}. To be removed together with the DataSet API.
+     */
+    public boolean isUsingNonBlockingInput() {
+        return false;
+    }
 }

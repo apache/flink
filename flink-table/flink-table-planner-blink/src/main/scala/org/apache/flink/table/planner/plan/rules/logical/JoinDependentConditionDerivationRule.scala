@@ -116,7 +116,7 @@ class JoinDependentConditionDerivationRule
         builder.getRexBuilder,
         builder.and(conjunctions ++ additionalConditions))
 
-      if (!newCondExp.toString.equals(join.getCondition.toString)) {
+      if (!newCondExp.equals(join.getCondition)) {
         val newJoin = join.copy(
           join.getTraitSet,
           newCondExp,

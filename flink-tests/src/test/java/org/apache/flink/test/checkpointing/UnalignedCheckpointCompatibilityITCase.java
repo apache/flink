@@ -45,6 +45,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -206,7 +207,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
-        env.getCheckpointConfig().setAlignmentTimeout(0);
+        env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
         if (checkpointingInterval > 0) {
             env.enableCheckpointing(checkpointingInterval);

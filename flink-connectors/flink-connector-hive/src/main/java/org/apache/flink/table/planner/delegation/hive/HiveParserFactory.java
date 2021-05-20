@@ -23,7 +23,6 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.delegation.ParserFactory;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 
@@ -36,8 +35,6 @@ public class HiveParserFactory implements ParserFactory {
 
     @Override
     public Parser create(CatalogManager catalogManager, PlannerContext plannerContext) {
-        SqlExprToRexConverterFactory sqlExprToRexConverterFactory =
-                plannerContext::createSqlExprToRexConverter;
         return new HiveParser(
                 catalogManager,
                 () ->
@@ -45,9 +42,6 @@ public class HiveParserFactory implements ParserFactory {
                                 catalogManager.getCurrentCatalog(),
                                 catalogManager.getCurrentDatabase()),
                 plannerContext::createCalciteParser,
-                tableSchema ->
-                        sqlExprToRexConverterFactory.create(
-                                plannerContext.getTypeFactory().buildRelNodeRowType(tableSchema)),
                 plannerContext);
     }
 

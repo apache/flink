@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
 import com.google.protobuf.ByteString;
@@ -61,6 +62,9 @@ public enum PythonOperatorUtils {
             builder.addInputs(inputProto);
         }
         builder.setTakesRowAsInput(pythonFunctionInfo.getPythonFunction().takesRowAsInput());
+        builder.setIsPandasUdf(
+                pythonFunctionInfo.getPythonFunction().getPythonFunctionKind()
+                        == PythonFunctionKind.PANDAS);
         return builder.build();
     }
 

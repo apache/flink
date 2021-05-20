@@ -188,7 +188,8 @@ public class RelDataTypeSerdeTest {
                                                 -1)),
                                 Arrays.asList("f3", "f4")),
                         FACTORY.createSqlType(SqlTypeName.SARG),
-                        FACTORY.createRowtimeIndicatorType(true),
+                        FACTORY.createRowtimeIndicatorType(true, false),
+                        FACTORY.createRowtimeIndicatorType(true, true),
                         FACTORY.createProctimeIndicatorType(true),
                         FACTORY.createFieldTypeFromLogicalType(
                                 new LegacyTypeInformationType<>(LogicalTypeRoot.RAW, Types.STRING)),

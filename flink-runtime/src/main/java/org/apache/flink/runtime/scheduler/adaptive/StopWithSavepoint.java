@@ -147,7 +147,11 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         if (successfulUpdate) {
             if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
-                handleAnyFailure(cause);
+                handleAnyFailure(
+                        cause == null
+                                ? new FlinkException(
+                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                : cause);
             }
         }
 
@@ -179,12 +183,14 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         final Executing.FailureResult failureResult = context.howToHandleFailure(cause);
 
         if (failureResult.canRestart()) {
+            getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
                     failureResult.getBackoffTime());
         } else {
+            getLogger().info("Failing job.", failureResult.getFailureCause());
             context.goToFailing(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),

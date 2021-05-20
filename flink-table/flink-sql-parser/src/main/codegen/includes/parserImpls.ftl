@@ -273,10 +273,17 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 }
 {
     (
-        <SYSTEM> <FUNCTION>
+        <SYSTEM>
+        {
+            if (!isTemporary){
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
+            }
+        }
+        <FUNCTION>
         ifNotExists = IfNotExistsOpt()
         functionIdentifier = SimpleIdentifier()
-        {  isSystemFunction = true; }
+        { isSystemFunction = true; }
     |
         <FUNCTION>
         ifNotExists = IfNotExistsOpt()
@@ -412,6 +419,22 @@ SqlShowTables SqlShowTables() :
     <SHOW> <TABLES>
     {
         return new SqlShowTables(getPos());
+    }
+}
+
+/**
+* Parse a "Show Create Table" query command.
+*/
+SqlShowCreateTable SqlShowCreateTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <CREATE> <TABLE> { pos = getPos();}
+    tableName = CompoundIdentifier()
+    {
+        return new SqlShowCreateTable(pos, tableName);
     }
 }
 

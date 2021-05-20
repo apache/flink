@@ -40,6 +40,24 @@ Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, D
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testEmptyValuesWithSort">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES 1, 2, 3) AS T (a) WHERE a = 1 and a = 2 ORDER BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[AND(=($0, 1), =($0, 2))])
+      +- LogicalValues(tuples=[[{ 1 }, { 2 }, { 3 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSingleRow">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)]]>

@@ -34,7 +34,13 @@ import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 
-/** {@link MesosServices} implementation for the ZooKeeper high availability based mode. */
+/**
+ * {@link MesosServices} implementation for the ZooKeeper high availability based mode.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class ZooKeeperMesosServices extends AbstractMesosServices {
 
     // Factory to create ZooKeeper utility classes

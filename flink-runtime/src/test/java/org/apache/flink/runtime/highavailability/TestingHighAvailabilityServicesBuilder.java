@@ -29,6 +29,7 @@ import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /** Builder for the {@link TestingHighAvailabilityServices}. */
@@ -70,6 +71,10 @@ public class TestingHighAvailabilityServicesBuilder {
 
     private RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
+    private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
+    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+
     public TestingHighAvailabilityServices build() {
         final TestingHighAvailabilityServices testingHighAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -95,6 +100,10 @@ public class TestingHighAvailabilityServicesBuilder {
         testingHighAvailabilityServices.setCheckpointRecoveryFactory(checkpointRecoveryFactory);
         testingHighAvailabilityServices.setJobGraphStore(jobGraphStore);
         testingHighAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
+
+        testingHighAvailabilityServices.setCloseFuture(closeFuture);
+        testingHighAvailabilityServices.setCloseAndCleanupAllDataFuture(
+                closeAndCleanupAllDataFuture);
 
         return testingHighAvailabilityServices;
     }
@@ -161,6 +170,18 @@ public class TestingHighAvailabilityServicesBuilder {
     public TestingHighAvailabilityServicesBuilder setRunningJobsRegistry(
             RunningJobsRegistry runningJobsRegistry) {
         this.runningJobsRegistry = runningJobsRegistry;
+        return this;
+    }
+
+    public TestingHighAvailabilityServicesBuilder setCloseFuture(
+            CompletableFuture<Void> closeFuture) {
+        this.closeFuture = closeFuture;
+        return this;
+    }
+
+    public TestingHighAvailabilityServicesBuilder setCloseAndCleanupAllDataFuture(
+            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
+        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
         return this;
     }
 }

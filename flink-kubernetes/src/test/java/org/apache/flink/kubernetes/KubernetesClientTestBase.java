@@ -31,10 +31,16 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
+import io.fabric8.mockwebserver.dsl.DelayPathable;
+import io.fabric8.mockwebserver.dsl.HttpMethodable;
+import io.fabric8.mockwebserver.dsl.MockServerExpectation;
+import io.fabric8.mockwebserver.dsl.ReturnOrWebsocketable;
+import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.function.Function;
 
 /**
  * Base class for {@link KubernetesClusterDescriptorTest} and {@link
@@ -53,14 +59,35 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
     }
 
     protected void mockCreateConfigMapAlreadyExisting(ConfigMap configMap) {
-        final String path = String.format("/api/v1/namespaces/%s/configmaps", NAMESPACE);
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps",
+                        configMap.getApiVersion(), configMap.getMetadata().getNamespace());
         server.expect().post().withPath(path).andReturn(500, configMap).always();
     }
 
+    protected void mockGetConfigMapFailed(ConfigMap configMap) {
+        mockConfigMapRequest(configMap, HttpMethodable::get);
+    }
+
     protected void mockReplaceConfigMapFailed(ConfigMap configMap) {
-        final String name = configMap.getMetadata().getName();
-        final String path = String.format("/api/v1/namespaces/%s/configmaps/%s", NAMESPACE, name);
-        server.expect().put().withPath(path).andReturn(500, configMap).always();
+        mockConfigMapRequest(configMap, HttpMethodable::put);
+    }
+
+    private void mockConfigMapRequest(
+            ConfigMap configMap,
+            Function<
+                            MockServerExpectation,
+                            DelayPathable<
+                                    ReturnOrWebsocketable<TimesOnceableOrHttpHeaderable<Void>>>>
+                    methodTypeSetter) {
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps/%s",
+                        configMap.getApiVersion(),
+                        configMap.getMetadata().getNamespace(),
+                        configMap.getMetadata().getName());
+        methodTypeSetter.apply(server.expect()).withPath(path).andReturn(500, configMap).always();
     }
 
     protected Service buildExternalServiceWithLoadBalancer(

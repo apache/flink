@@ -24,7 +24,13 @@ import java.net.URL;
 
 import scala.Option;
 
-/** An interface for resolving artifact URIs. */
+/**
+ * An interface for resolving artifact URIs.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public interface MesosArtifactResolver {
     Option<URL> resolve(Path remoteFile);
 }

@@ -17,6 +17,8 @@
 
 package org.apache.flink.connector.jdbc.xa;
 
+import org.apache.flink.api.common.JobID;
+
 import org.junit.Test;
 
 import javax.transaction.xa.Xid;
@@ -46,7 +48,8 @@ public class SemanticXidGeneratorTest {
         checkUniqueness(
                 unused -> {
                     generator.open();
-                    return generator.generateXid(TEST_RUNTIME_CONTEXT, checkpointId);
+                    return generator.generateXid(
+                            JdbcXaSinkTestBase.getRuntimeContext(new JobID()), checkpointId);
                 });
     }
 

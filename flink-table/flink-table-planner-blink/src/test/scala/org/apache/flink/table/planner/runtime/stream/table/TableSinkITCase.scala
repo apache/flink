@@ -984,6 +984,82 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  def testPartialInsertWithComplexReorderAndComputedColumn(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` AS `a` + 1,
+         |  `c` STRING,
+         |  `c1` STRING,
+         |  `c2` STRING,
+         |  `c3` BIGINT,
+         |  `d` INT,
+         |  `e` DOUBLE
+         |)
+         |PARTITIONED BY (`c`, `d`)
+         |WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
+
+    val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
+    tEnv.createTemporaryView("MyTable", t)
+
+    tEnv.executeSql(
+      s"""
+         |INSERT INTO testSink (a,c2,e,c,c1,c3,d)
+         |SELECT 1,'c2',sum(y),'c','c1',33333,12 FROM MyTable GROUP BY x
+         |""".stripMargin).await()
+    val expected = List(
+      "1,c,c1,c2,33333,12,0.1",
+      "1,c,c1,c2,33333,12,0.4",
+      "1,c,c1,c2,33333,12,1.0",
+      "1,c,c1,c2,33333,12,2.2",
+      "1,c,c1,c2,33333,12,3.9")
+    val result = TestValuesTableFactory.getResults("testSink")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testPartialInsertWithComplexReorder(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `c` STRING,
+         |  `c1` STRING,
+         |  `c2` STRING,
+         |  `c3` BIGINT,
+         |  `d` INT,
+         |  `e` DOUBLE
+         |)
+         |WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
+
+    val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
+    tEnv.createTemporaryView("MyTable", t)
+
+    tEnv.executeSql(
+      s"""
+         |INSERT INTO testSink (a,c2,e,c,c1,c3,d)
+         |SELECT 1,'c2',sum(y),'c','c1',33333,12 FROM MyTable GROUP BY x
+         |""".stripMargin).await()
+    val expected = List(
+      "1,c,c1,c2,33333,12,0.1",
+      "1,c,c1,c2,33333,12,0.4",
+      "1,c,c1,c2,33333,12,1.0",
+      "1,c,c1,c2,33333,12,2.2",
+      "1,c,c1,c2,33333,12,3.9")
+    val result = TestValuesTableFactory.getResults("testSink")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
   def testPartialInsertWithDynamicPartitionAndComputedColumn2(): Unit = {
     tEnv.executeSql(
       s"""

@@ -55,6 +55,9 @@
           "properties" : {
             "web-submit" : {
               "type" : "boolean"
+            },
+            "web-cancel" : {
+              "type" : "boolean"
             }
           }
         }
@@ -740,7 +743,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"
@@ -1253,6 +1256,9 @@
           "type" : "boolean"
         },
         "tolerable_failed_checkpoints" : {
+          "type" : "integer"
+        },
+        "alignment_timeout" : {
           "type" : "integer"
         }
       }
@@ -1967,7 +1973,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "attempt" : {
                 "type" : "integer"
@@ -2279,7 +2285,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2365,7 +2371,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2600,7 +2606,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "RECOVERING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"

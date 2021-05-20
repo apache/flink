@@ -639,12 +639,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public Iterable<ExecutionVertex> getAllExecutionVertices() {
-        return new Iterable<ExecutionVertex>() {
-            @Override
-            public Iterator<ExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
-            }
-        };
+        return () -> new AllVerticesIterator<>(getVerticesTopologically().iterator());
     }
 
     @Override
@@ -957,7 +952,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         final Execution failedExecution = currentExecutions.get(failingAttempt);
         if (failedExecution != null
                 && (failedExecution.getState() == ExecutionState.RUNNING
-                        || failedExecution.getState() == ExecutionState.RECOVERING)) {
+                        || failedExecution.getState() == ExecutionState.INITIALIZING)) {
             failGlobal(cause);
         } else {
             LOG.debug(
@@ -1226,7 +1221,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         Map<String, Accumulator<?, ?>> accumulators;
 
         switch (state.getExecutionState()) {
-            case RECOVERING:
+            case INITIALIZING:
                 return attempt.switchToRecovering();
 
             case RUNNING:

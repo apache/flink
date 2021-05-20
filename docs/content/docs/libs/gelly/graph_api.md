@@ -457,7 +457,7 @@ graph.subgraph((vertex => vertex.getValue > 0), (edge => edge.getValue < 0))
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="Filter Transformations" width="80%" src="{% link /fig/gelly-filter.png %}"/>
+    <img alt="Filter Transformations" width="80%" src="/fig/gelly-filter.png"/>
 </p>
 
 * <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to a provided user-defined transformation function.
@@ -499,7 +499,7 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 * <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and the current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exist, these will be preserved.
 
 <p class="text-center">
-    <img alt="Union Transformation" width="50%" src="{% link /fig/gelly-union.png %}"/>
+    <img alt="Union Transformation" width="50%" src="/fig/gelly-union.png"/>
 </p>
 
 * <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and the specified graph.
@@ -630,7 +630,7 @@ The neighborhood scope is defined by the `EdgeDirection` parameter, which takes 
 For example, assume that you want to select the minimum weight of all out-edges for each vertex in the following graph:
 
 <p class="text-center">
-    <img alt="reduceOnEdges Example" width="50%" src="{% link /fig/gelly-example-graph.png %}"/>
+    <img alt="reduceOnEdges Example" width="50%" src="/fig/gelly-example-graph.png"/>
 </p>
 
 The following code will collect the out-edges for each vertex and apply the `SelectMinWeight()` user-defined function on each of the resulting neighborhoods:
@@ -669,7 +669,7 @@ final class SelectMinWeight extends ReduceEdgesFunction[Double] {
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="reduceOnEdges Example" width="50%" src="{% link /fig/gelly-reduceOnEdges.png %}"/>
+    <img alt="reduceOnEdges Example" width="50%" src="/fig/gelly-reduceOnEdges.png"/>
 </p>
 
 Similarly, assume that you would like to compute the sum of the values of all in-coming neighbors, for every vertex. The following code will collect the in-coming neighbors for each vertex and apply the `SumValues()` user-defined function on each neighborhood:
@@ -708,7 +708,7 @@ final class SumValues extends ReduceNeighborsFunction[Long] {
 {{< /tabs >}}
 
 <p class="text-center">
-    <img alt="reduceOnNeighbors Example" width="70%" src="{% link /fig/gelly-reduceOnNeighbors.png %}"/>
+    <img alt="reduceOnNeighbors Example" width="70%" src="/fig/gelly-reduceOnNeighbors.png"/>
 </p>
 
 When the aggregation function is not associative and commutative or when it is desirable to return more than one values per vertex, one can use the more general

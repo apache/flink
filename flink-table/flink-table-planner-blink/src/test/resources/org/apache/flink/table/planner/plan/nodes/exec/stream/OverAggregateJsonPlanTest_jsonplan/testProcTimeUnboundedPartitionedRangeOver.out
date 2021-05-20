@@ -23,7 +23,7 @@
         "connector" : "values",
         "schema.watermark.0.rowtime" : "rowtime",
         "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "schema.4.data-type" : "TIMESTAMP(3) NOT NULL",
+        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
         "schema.0.name" : "a"
       },
       "sourceAbilitySpecs" : [ {
@@ -92,6 +92,7 @@
       "operands" : [ ],
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     }, {
@@ -121,7 +122,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -165,7 +166,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -201,6 +202,7 @@
       "inputIndex" : 2,
       "type" : {
         "timestampKind" : "PROCTIME",
+        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
         "nullable" : false
       }
     } ],
@@ -222,7 +224,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -250,7 +252,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
@@ -333,7 +335,7 @@
         "c" : "BIGINT"
       }, {
         "proctime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"

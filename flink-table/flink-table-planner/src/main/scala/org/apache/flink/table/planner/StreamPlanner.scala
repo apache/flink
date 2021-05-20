@@ -191,7 +191,7 @@ class StreamPlanner(
       case s: UnregisteredSinkModifyOperation[_] =>
         writeToSink(s.getChild, s.getSink, "UnregisteredSink")
 
-      case s: SelectSinkOperation =>
+      case s: CollectModifyOperation =>
         val sink = new StreamSelectTableSink(
           TableSchema.fromResolvedSchema(s.getChild.getResolvedSchema))
         s.setSelectResultProvider(sink.getSelectResultProvider)

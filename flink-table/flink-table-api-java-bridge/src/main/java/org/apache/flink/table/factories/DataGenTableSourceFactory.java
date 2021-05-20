@@ -46,31 +46,6 @@ import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
     public static final String IDENTIFIER = "datagen";
-    public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
-
-    public static final ConfigOption<Long> ROWS_PER_SECOND =
-            key("rows-per-second")
-                    .longType()
-                    .defaultValue(ROWS_PER_SECOND_DEFAULT_VALUE)
-                    .withDescription("Rows per second to control the emit rate.");
-
-    public static final ConfigOption<Long> NUMBER_OF_ROWS =
-            key("number-of-rows")
-                    .longType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Total number of rows to emit. By default, the source is unbounded.");
-
-    public static final String FIELDS = "fields";
-    public static final String KIND = "kind";
-    public static final String START = "start";
-    public static final String END = "end";
-    public static final String MIN = "min";
-    public static final String MAX = "max";
-    public static final String LENGTH = "length";
-
-    public static final String SEQUENCE = "sequence";
-    public static final String RANDOM = "random";
 
     @Override
     public String factoryIdentifier() {
@@ -85,8 +60,17 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(ROWS_PER_SECOND);
-        options.add(NUMBER_OF_ROWS);
+        options.add(DataGenOptions.ROWS_PER_SECOND);
+        options.add(DataGenOptions.NUMBER_OF_ROWS);
+
+        // Placeholder options
+        options.add(DataGenOptions.FIELD_KIND);
+        options.add(DataGenOptions.FIELD_MIN);
+        options.add(DataGenOptions.FIELD_MAX);
+        options.add(DataGenOptions.FIELD_LENGTH);
+        options.add(DataGenOptions.FIELD_START);
+        options.add(DataGenOptions.FIELD_END);
+
         return options;
     }
 
@@ -105,7 +89,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
             DataType type = schema.getFieldDataTypes()[i];
 
             ConfigOption<String> kind =
-                    key(FIELDS + "." + name + "." + KIND).stringType().defaultValue(RANDOM);
+                    key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.KIND)
+                            .stringType()
+                            .defaultValue(DataGenOptions.RANDOM);
             DataGeneratorContainer container =
                     createContainer(name, type, options.get(kind), options);
             fieldGenerators[i] = container.getGenerator();
@@ -118,8 +104,8 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
         Set<String> consumedOptionKeys = new HashSet<>();
         consumedOptionKeys.add(CONNECTOR.key());
-        consumedOptionKeys.add(ROWS_PER_SECOND.key());
-        consumedOptionKeys.add(NUMBER_OF_ROWS.key());
+        consumedOptionKeys.add(DataGenOptions.ROWS_PER_SECOND.key());
+        consumedOptionKeys.add(DataGenOptions.NUMBER_OF_ROWS.key());
         optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
         FactoryUtil.validateUnconsumedKeys(
                 factoryIdentifier(), options.keySet(), consumedOptionKeys);
@@ -129,16 +115,16 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
                 fieldGenerators,
                 name,
                 schema,
-                options.get(ROWS_PER_SECOND),
-                options.get(NUMBER_OF_ROWS));
+                options.get(DataGenOptions.ROWS_PER_SECOND),
+                options.get(DataGenOptions.NUMBER_OF_ROWS));
     }
 
     private DataGeneratorContainer createContainer(
             String name, DataType type, String kind, ReadableConfig options) {
         switch (kind) {
-            case RANDOM:
+            case DataGenOptions.RANDOM:
                 return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
-            case SEQUENCE:
+            case DataGenOptions.SEQUENCE:
                 return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
             default:
                 throw new ValidationException("Unsupported generator kind: " + kind);

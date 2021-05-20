@@ -19,11 +19,14 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -58,11 +61,13 @@ public interface Parser {
      * Entry point for parsing SQL expressions expressed as a String.
      *
      * @param sqlExpression the SQL expression to parse
-     * @param inputSchema the schema of the fields in sql expression
+     * @param inputRowType the fields available in the SQL expression
+     * @param outputType expected top-level output type if available
      * @return resolved expression
      * @throws org.apache.flink.table.api.SqlParserException when failed to parse the sql expression
      */
-    ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema);
+    ResolvedExpression parseSqlExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType);
 
     /**
      * Returns completion hints for the given statement at the given cursor position. The completion

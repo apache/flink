@@ -92,4 +92,13 @@ public interface CallContext {
     default ValidationException newValidationError(String message, Object... args) {
         return new ValidationException(String.format(message, args));
     }
+
+    /**
+     * Returns whether the function call happens as part of an aggregation that defines grouping
+     * columns.
+     *
+     * <p>E.g. {@code SELECT COUNT(*) FROM t} is not a grouped aggregation but {@code SELECT
+     * COUNT(*) FROM t GROUP BY k} is.
+     */
+    boolean isGroupedAggregation();
 }
