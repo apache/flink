@@ -168,6 +168,62 @@ env.createTemporarySystemFunction("SubstringFunction", new SubstringFunction(tru
 {{< /tab >}}
 {{< /tabs >}}
 
+你可以在 Table API 中使用 `*` 表达式作为函数的一个参数，它将被扩展为该表所有的列作为函数对应位置的参数。
+
+{{< tabs "101c5f48-f5a3-4e9a-b8ef-2fdd21a9e007" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class MyConcatFunction extends ScalarFunction {
+  public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... fields) {
+    return Arrays.stream(fields)
+        .map(Object::toString)
+        .collect(Collectors.joining(","));
+  }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 使用 $("*") 作为函数的参数，如果 MyTable 有 3 列 (a, b, c)，
+// 它们都将会被传给 MyConcatFunction。
+env.from("MyTable").select(call(MyConcatFunction.class, $("*")));
+
+// 它等价于显式地将所有列传给 MyConcatFunction。
+env.from("MyTable").select(call(MyConcatFunction.class, $("a"), $("b"), $("c")));
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
+
+import scala.annotation.varargs
+
+class MyConcatFunction extends ScalarFunction {
+  @varargs
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) row: AnyRef*): String = {
+    row.map(f => f.toString).mkString(",")
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// 使用 $"*" 作为函数的参数，如果 MyTable 有 3 个列 (a, b, c)，
+// 它们都将会被传给 MyConcatFunction。
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"*"));
+
+// 它等价于显式地将所有列传给 MyConcatFunction。
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
+
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 {{< top >}}
 
 开发指南
