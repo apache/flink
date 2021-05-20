@@ -277,17 +277,17 @@ public class SlotManagerImpl implements SlotManager {
 			slotRequestTimeoutCheck = null;
 		}
 
-		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
-			cancelPendingSlotRequest(pendingSlotRequest);
-		}
-
-		pendingSlotRequests.clear();
-
 		ArrayList<InstanceID> registeredTaskManagers = new ArrayList<>(taskManagerRegistrations.keySet());
 
 		for (InstanceID registeredTaskManager : registeredTaskManagers) {
 			unregisterTaskManager(registeredTaskManager, new SlotManagerException("The slot manager is being suspended."));
 		}
+
+		for (PendingSlotRequest pendingSlotRequest : pendingSlotRequests.values()) {
+			cancelPendingSlotRequest(pendingSlotRequest);
+		}
+
+		pendingSlotRequests.clear();
 
 		resourceManagerId = null;
 		resourceActions = null;
@@ -592,11 +592,11 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param taskManagerConnection to communicate with the remote task manager
 	 */
 	private void registerSlot(
-			SlotID slotId,
-			AllocationID allocationId,
-			JobID jobId,
-			ResourceProfile resourceProfile,
-			TaskExecutorConnection taskManagerConnection) {
+		SlotID slotId,
+		AllocationID allocationId,
+		JobID jobId,
+		ResourceProfile resourceProfile,
+		TaskExecutorConnection taskManagerConnection) {
 
 		if (slots.containsKey(slotId)) {
 			// remove the old slot first
@@ -684,10 +684,10 @@ public class SlotManagerImpl implements SlotManager {
 	}
 
 	private void updateSlotState(
-			TaskManagerSlot slot,
-			TaskManagerRegistration taskManagerRegistration,
-			@Nullable AllocationID allocationId,
-			@Nullable JobID jobId) {
+		TaskManagerSlot slot,
+		TaskManagerRegistration taskManagerRegistration,
+		@Nullable AllocationID allocationId,
+		@Nullable JobID jobId) {
 		if (null != allocationId) {
 			switch (slot.getState()) {
 				case PENDING:
@@ -1223,11 +1223,11 @@ public class SlotManagerImpl implements SlotManager {
 	@VisibleForTesting
 	public void unregisterTaskManagersAndReleaseResources() {
 		Iterator<Map.Entry<InstanceID, TaskManagerRegistration>> taskManagerRegistrationIterator =
-				taskManagerRegistrations.entrySet().iterator();
+			taskManagerRegistrations.entrySet().iterator();
 
 		while (taskManagerRegistrationIterator.hasNext()) {
 			TaskManagerRegistration taskManagerRegistration =
-					taskManagerRegistrationIterator.next().getValue();
+				taskManagerRegistrationIterator.next().getValue();
 
 			taskManagerRegistrationIterator.remove();
 
