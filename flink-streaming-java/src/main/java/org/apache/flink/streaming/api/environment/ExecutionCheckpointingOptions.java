@@ -198,7 +198,7 @@ public class ExecutionCheckpointingOptions {
                                     .build());
 
     public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
-            ConfigOptions.key("execution.checkpointing.id-of-ignored-in-flight-data")
+            ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
                     .longType()
                     .defaultValue(-1L)
                     .withDescription(
