@@ -79,7 +79,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
+    <DESCRIBE> <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -254,7 +254,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    ( <DESCRIBE> | <DESC> ) <DATABASE> { pos = getPos();}
+    <DESCRIBE> <DATABASE> { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
