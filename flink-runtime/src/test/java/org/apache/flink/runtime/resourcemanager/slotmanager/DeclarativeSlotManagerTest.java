@@ -81,6 +81,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -1478,6 +1479,9 @@ public class DeclarativeSlotManagerTest extends TestLogger {
                         .setSlotManagerMetricGroup(
                                 SlotManagerMetricGroup.create(metricRegistry, "localhost"))
                         .buildAndStartWithDirectExec();
+
+        // sanity check to ensure metrics were actually registered
+        assertThat(registeredMetrics.get(), greaterThan(0));
         closeFn.accept(slotManager);
         assertThat(registeredMetrics.get(), is(0));
     }

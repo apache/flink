@@ -53,6 +53,7 @@ import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -979,16 +980,17 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 SlotManagerMetricGroup.create(metricRegistry, "localhost"));
 
         context.runTest(
-                () -> {
-                    context.runInMainThreadAndWait(
-                            () -> {
-                                try {
-                                    closeFn.accept(context.getSlotManager());
-                                } catch (Exception e) {
-                                    fail("Error when closing slot manager.");
-                                }
-                            });
-                    assertThat(registeredMetrics.get(), is(0));
-                });
+                () ->
+                        context.runInMainThreadAndWait(
+                                () -> {
+                                    try {
+                                        // sanity check to ensure metrics were actually registered
+                                        assertThat(registeredMetrics.get(), greaterThan(0));
+                                        closeFn.accept(context.getSlotManager());
+                                        assertThat(registeredMetrics.get(), is(0));
+                                    } catch (Exception e) {
+                                        fail("Error when closing slot manager.");
+                                    }
+                                }));
     }
 }
