@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Line splitter to determine whether the submitted line is complete. It also offers to split the
@@ -31,6 +32,7 @@ import java.util.List;
 public class CliStatementSplitter {
 
     private static final String MASK = "--.*$";
+    private static final String BEGINNING_MASK = "^(\\s)*--.*$";
 
     public static boolean isStatementComplete(String statement) {
         String[] lines = statement.split("\n");
@@ -49,16 +51,23 @@ public class CliStatementSplitter {
         for (String line : content.split("\n")) {
             if (isEndOfStatement(line)) {
                 buffer.add(line);
-                statements.add(String.join("\n", buffer));
+                statements.add(normalize(buffer));
                 buffer.clear();
             } else {
                 buffer.add(line);
             }
         }
         if (!buffer.isEmpty()) {
-            statements.add(String.join("\n", buffer));
+            statements.add(normalize(buffer));
         }
         return statements;
+    }
+
+    private static String normalize(List<String> buffer) {
+        // remove comment lines
+        return buffer.stream()
+                .map(statementLine -> statementLine.replaceAll(BEGINNING_MASK, ""))
+                .collect(Collectors.joining("\n"));
     }
 
     private static boolean isEndOfStatement(String line) {
