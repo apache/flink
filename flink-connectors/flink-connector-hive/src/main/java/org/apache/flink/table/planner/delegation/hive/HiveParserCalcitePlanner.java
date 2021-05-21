@@ -1244,33 +1244,6 @@ public class HiveParserCalcitePlanner {
                 && qbp.getDistinctFuncExprsForClause(detsClauseName).size() > 1) {
             throw new SemanticException(ErrorMsg.UNSUPPORTED_MULTIPLE_DISTINCTS.getMsg());
         }
-        if (cubeRollupGrpSetPresent) {
-            if (!HiveConf.getBoolVar(
-                    semanticAnalyzer.getConf(), HiveConf.ConfVars.HIVEMAPSIDEAGGREGATE)) {
-                throw new SemanticException(ErrorMsg.HIVE_GROUPING_SETS_AGGR_NOMAPAGGR.getMsg());
-            }
-
-            if (semanticAnalyzer.getConf().getBoolVar(HiveConf.ConfVars.HIVEGROUPBYSKEW)) {
-                semanticAnalyzer.checkExpressionsForGroupingSet(
-                        gbAstExprs,
-                        qb.getParseInfo().getDistinctFuncExprsForClause(detsClauseName),
-                        aggregationTrees,
-                        this.relToRowResolver.get(srcRel));
-
-                if (qbp.getDestGroupingSets().size()
-                        > semanticAnalyzer
-                                .getConf()
-                                .getIntVar(
-                                        HiveConf.ConfVars.HIVE_NEW_JOB_GROUPING_SET_CARDINALITY)) {
-                    String errorMsg =
-                            "The number of rows per input row due to grouping sets is "
-                                    + qbp.getDestGroupingSets().size();
-                    throw new SemanticException(
-                            ErrorMsg.HIVE_GROUPING_SETS_THRESHOLD_NOT_ALLOWED_WITH_SKEW.getMsg(
-                                    errorMsg));
-                }
-            }
-        }
 
         if (hasGrpByAstExprs || hasAggregationTrees) {
             ArrayList<ExprNodeDesc> gbExprNodeDescs = new ArrayList<>();
@@ -2325,7 +2298,7 @@ public class HiveParserCalcitePlanner {
                                     tabAlias,
                                     false);
                     colInfo.setSkewedCol(
-                            (exprDesc instanceof ExprNodeColumnDesc)
+                            exprDesc instanceof ExprNodeColumnDesc
                                     && ((ExprNodeColumnDesc) exprDesc).isSkewedCol());
                     // Hive errors out in case of duplication. We allow it and see what happens.
                     outRR.put(tabAlias, colAlias, colInfo);
