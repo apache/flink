@@ -368,7 +368,10 @@ class DataStream(object):
         """
         j_data_streams = []
         for data_stream in streams:
-            j_data_streams.append(data_stream._j_data_stream)
+            if isinstance(data_stream, KeyedStream):
+                j_data_streams.append(data_stream._values()._j_data_stream)
+            else:
+                j_data_streams.append(data_stream._j_data_stream)
         gateway = get_gateway()
         JDataStream = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream
         j_data_stream_arr = get_gateway().new_array(JDataStream, len(j_data_streams))
