@@ -128,11 +128,18 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                         if (!future.isSuccess()) {
                             clientHandler.removeInputChannel(inputChannel);
                             SocketAddress remoteAddr = future.channel().remoteAddress();
+                            String address =
+                                    remoteAddr == null
+                                            ? String.format(
+                                                    "%s (#%d)",
+                                                    connectionId.getAddress(),
+                                                    connectionId.getConnectionIndex())
+                                            : remoteAddr.toString();
                             inputChannel.onError(
                                     new LocalTransportException(
                                             String.format(
                                                     "Sending the partition request to '%s' failed.",
-                                                    remoteAddr),
+                                                    address),
                                             future.channel().localAddress(),
                                             future.cause()));
                         }
@@ -181,11 +188,18 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                             public void operationComplete(ChannelFuture future) throws Exception {
                                 if (!future.isSuccess()) {
                                     SocketAddress remoteAddr = future.channel().remoteAddress();
+                                    String address =
+                                            remoteAddr == null
+                                                    ? String.format(
+                                                            "%s (#%d)",
+                                                            connectionId.getAddress(),
+                                                            connectionId.getConnectionIndex())
+                                                    : remoteAddr.toString();
                                     inputChannel.onError(
                                             new LocalTransportException(
                                                     String.format(
                                                             "Sending the task event to '%s' failed.",
-                                                            remoteAddr),
+                                                            address),
                                                     future.channel().localAddress(),
                                                     future.cause()));
                                 }
