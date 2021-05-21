@@ -127,7 +127,7 @@ public class SessionContext {
         // If rebuild a new Configuration, it loses control of the SessionState if users wants to
         // modify the configuration
         resetSessionConfigurationToDefault(defaultContext.getFlinkConfig());
-        buildClassLoaderAndUpdateDependencies(defaultContext.getDependencies());
+        buildClassLoaderAndUpdateDependencies(dependencies);
         executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
     }
 
@@ -269,7 +269,8 @@ public class SessionContext {
             JarUtils.checkJarFile(jar);
         } catch (IOException e) {
             throw new SqlExecutionException(
-                    String.format("Failed to get the jar file with specified path: %s.", jarPath));
+                    String.format("Failed to get the jar file with specified path: %s.", jarPath),
+                    e);
         }
 
         if (dependencies.contains(jar)) {
@@ -326,7 +327,7 @@ public class SessionContext {
                                     sessionConfiguration, PipelineOptions.JARS, URL::new));
         } catch (MalformedURLException e) {
             throw new SqlExecutionException(
-                    "Failed to parse the option `JARS` in configuration.", e);
+                    "Failed to parse the option `PipelineOptions.JARS` in configuration.", e);
         }
         jarsInConfig.addAll(newDependencies);
         ConfigUtils.encodeCollectionToConfig(

@@ -172,8 +172,8 @@ rest.port=$VAR_REST_PORT
 !ok
 
 # test add jar
-ADD JAR '$VAR_PIPELINE_JARS_PATH';
-[INFO] The specified jar is added.
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is added into session classloader.
 !info
 
 set;
@@ -198,6 +198,6 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=localhost
 pipeline.classpaths=
-pipeline.jars=
+pipeline.jars=$VAR_PIPELINE_JARS_URL
 rest.port=$VAR_REST_PORT
 !ok

@@ -21,19 +21,17 @@ package org.apache.flink.table.client.gateway.context;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +40,7 @@ import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
+import static org.apache.flink.core.testutils.CommonTestUtils.containsCause;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.junit.Assert.assertEquals;
@@ -53,8 +52,6 @@ import static org.junit.Assert.assertTrue;
 public class SessionContextTest {
 
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 
@@ -192,13 +189,18 @@ public class SessionContextTest {
 
         // reset to the default classloader
         sessionContext.reset();
-        assertEquals(Collections.emptyList(), getConfiguration().get(JARS));
+        assertEquals(
+                Arrays.asList(udfJar.toURI().toURL().toString()), getConfiguration().get(JARS));
     }
 
     @Test
     public void testAddIllegalJar() {
-        exception.expect(SqlExecutionException.class);
-        sessionContext.addJar("/path/to/illegal.jar");
+        validateAddJarException("/path/to/illegal.jar");
+    }
+
+    @Test
+    public void testRemoteJar() {
+        validateAddJarException("hdfs://remote:10080/remote.jar");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -240,5 +242,14 @@ public class SessionContextTest {
                 .getTableEnvironment()
                 .getConfig()
                 .getConfiguration();
+    }
+
+    private void validateAddJarException(String jarPath) {
+        try {
+            sessionContext.addJar(jarPath);
+        } catch (Exception e) {
+            containsCause(e, IOException.class);
+            assertTrue(e.getCause().getMessage().contains("JAR file does not exist"));
+        }
     }
 }

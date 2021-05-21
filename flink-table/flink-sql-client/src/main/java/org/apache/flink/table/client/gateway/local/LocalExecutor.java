@@ -223,7 +223,6 @@ public class LocalExecutor implements Executor {
         final TableEnvironmentInternal tEnv =
                 (TableEnvironmentInternal) context.getTableEnvironment();
         try {
-
             return context.wrapClassLoader(() -> tEnv.executeInternal(operations));
         } catch (Exception e) {
             throw new SqlExecutionException(MESSAGE_SQL_EXECUTION_ERROR, e);

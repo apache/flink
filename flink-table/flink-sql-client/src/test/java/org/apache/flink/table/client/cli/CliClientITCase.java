@@ -106,7 +106,7 @@ public class CliClientITCase extends AbstractTestBase {
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PIPELINE_JARS_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_UDF_JAR_PATH", udfDependency.getPath());
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",

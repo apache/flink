@@ -1415,7 +1415,6 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-<<<<<<< HEAD
     public void testSqlRichExplainWithSelect() {
         final String sql = "explain plan for select a, b, c, d from t2";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -1434,15 +1433,6 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testAddJarOperation() {
-        final String sql = "ADD JAR   a/b/foo.jar   ";
-        Optional<Operation> optionalOpe = ExtendedParser.INSTANCE.parse(sql);
-        assertEquals(true, optionalOpe.isPresent());
-        Operation operation = optionalOpe.get();
-        assert operation instanceof AddJarOperation;
-        final AddJarOperation addJarOperation = (AddJarOperation) operation;
-        assertEquals("ADD JAR a/b/foo.jar", addJarOperation.asSummaryString());
-=======
     public void testAddJars() {
         List<String> jarPaths =
                 Arrays.asList(
@@ -1455,7 +1445,6 @@ public class SqlToOperationConverterTest {
         for (String path : jarPaths) {
             validateJarPath(path, "  ADD   JAR   '%s'");
         }
->>>>>>> [FLINK-22064][sql-client] Support ADD JAR in SQL Client
     }
 
     // ~ Tool Methods ----------------------------------------------------------

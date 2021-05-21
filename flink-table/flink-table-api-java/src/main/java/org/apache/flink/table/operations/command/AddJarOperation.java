@@ -35,6 +35,6 @@ public class AddJarOperation implements Operation {
 
     @Override
     public String asSummaryString() {
-        return String.format("ADD JAR %s", path);
+        return String.format("ADD JAR '%s'", path);
     }
 }
