@@ -1604,30 +1604,39 @@ public class CheckpointCoordinator {
     }
 
     private Map<OperatorID, OperatorState> extractOperatorStates(CompletedCheckpoint checkpoint) {
-        Map<OperatorID, OperatorState> operatorStates = checkpoint.getOperatorStates();
+        Map<OperatorID, OperatorState> originalOperatorStates = checkpoint.getOperatorStates();
 
-        if (checkpoint.getCheckpointID() == checkpointIdOfIgnoredInFlightData) {
-            // rewrite the operator state with empty in-flight data.
-            for (OperatorState operatorState : operatorStates.values()) {
-                for (Map.Entry<Integer, OperatorSubtaskState> subtaskStateEntry :
-                        operatorState.getSubtaskStates().entrySet()) {
+        if (checkpoint.getCheckpointID() != checkpointIdOfIgnoredInFlightData) {
+            // Don't do any changes if it is not required.
+            return originalOperatorStates;
+        }
 
-                    OperatorSubtaskState subtaskState = subtaskStateEntry.getValue();
-                    if (!subtaskState.getResultSubpartitionState().isEmpty()
-                            || !subtaskState.getInputChannelState().isEmpty()) {
-                        operatorState.putState(
-                                subtaskStateEntry.getKey(),
-                                subtaskState
-                                        .toBuilder()
-                                        .setResultSubpartitionState(StateObjectCollection.empty())
-                                        .setInputChannelState(StateObjectCollection.empty())
-                                        .build());
-                    }
-                }
+        HashMap<OperatorID, OperatorState> newStates = new HashMap<>();
+        // Create the new operator states without in-flight data.
+        for (OperatorState originalOperatorState : originalOperatorStates.values()) {
+            OperatorState newState =
+                    new OperatorState(
+                            originalOperatorState.getOperatorID(),
+                            originalOperatorState.getParallelism(),
+                            originalOperatorState.getMaxParallelism());
+
+            newStates.put(newState.getOperatorID(), newState);
+
+            for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                    originalOperatorState.getSubtaskStates().entrySet()) {
+
+                newState.putState(
+                        originalSubtaskStateEntry.getKey(),
+                        originalSubtaskStateEntry
+                                .getValue()
+                                .toBuilder()
+                                .setResultSubpartitionState(StateObjectCollection.empty())
+                                .setInputChannelState(StateObjectCollection.empty())
+                                .build());
             }
         }
 
-        return operatorStates;
+        return newStates;
     }
 
     /**

@@ -65,6 +65,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
     public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
+    /** Default id of checkpoint for which in-flight data should be ignored on recovery. */
+    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA = -1;
+
     // ------------------------------------------------------------------------
 
     /** Checkpointing mode (exactly-once vs. at-least-once). */
@@ -92,7 +95,8 @@ public class CheckpointConfig implements java.io.Serializable {
     private boolean unalignedCheckpointsEnabled;
 
     /** Id of checkpoint for which in-flight data should be ignored on recovery. */
-    private long checkpointIdOfIgnoredInFlightData;
+    private long checkpointIdOfIgnoredInFlightData =
+            DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
 
     private Duration alignmentTimeout =
             ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue();
