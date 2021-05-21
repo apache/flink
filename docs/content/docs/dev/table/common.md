@@ -161,7 +161,7 @@ val tEnv = TableEnvironment.create(setting)
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+env_settings = EnvironmentSettings.new_instance().build()
 table_env = TableEnvironment.create(env_settings)
 
 # create a blink batch TableEnvironment
@@ -841,7 +841,7 @@ The following code shows an example and the corresponding output for multiple-si
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 final Schema schema = new Schema()
@@ -880,7 +880,7 @@ System.out.println(explanation);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
+val settings = EnvironmentSettings.newInstance.inStreamingMode.build
 val tEnv = TableEnvironment.create(settings)
 
 val schema = new Schema()
@@ -919,7 +919,7 @@ println(explanation)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
 t_env = TableEnvironment.create(environment_settings=settings)
 
 schema = Schema()
