@@ -102,13 +102,15 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         @Override
         public void onAdded(List<KubernetesConfigMap> configMaps) {
-            // The ConfigMap is created by KubernetesLeaderElectionDriver with empty data. We do not
-            // process this
-            // useless event.
+            onAddedOrModified(configMaps);
         }
 
         @Override
         public void onModified(List<KubernetesConfigMap> configMaps) {
+            onAddedOrModified(configMaps);
+        }
+
+        private void onAddedOrModified(List<KubernetesConfigMap> configMaps) {
             final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
             leaderRetrievalEventHandler.notifyLeaderAddress(
                     getLeaderInformationFromConfigMap(configMap));
