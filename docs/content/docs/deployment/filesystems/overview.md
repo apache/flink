@@ -58,6 +58,9 @@ The Apache Flink project supports the following file systems:
 
   - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+    
+  - **[Google Cloud Storage]({{< ref "docs/deployment/filesystems/gcs" >}})** is supported by `gcs-connector` and registered under the *gs://* URI scheme.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
 Except **MapR FS**, you can and should use any of them as [plugins]({{< ref "docs/deployment/filesystems/plugins" >}}). 
 
@@ -106,7 +109,6 @@ This way, Flink seamlessly supports all of Hadoop file systems implementing the 
 and all Hadoop-compatible file systems (HCFS).
 
   - HDFS (tested)
-  - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
   - [Alluxio](http://alluxio.org/) (tested, see configuration specifics below)
   - [XtreemFS](http://www.xtreemfs.org/) (tested)
   - FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
