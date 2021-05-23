@@ -106,7 +106,7 @@ This way, Flink seamlessly supports all of Hadoop file systems implementing the 
 and all Hadoop-compatible file systems (HCFS).
 
   - HDFS (tested)
-  - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
+  - [Google Cloud Storage Connector for Hadoop]({{< ref "docs/deployment/filesystems/gcs" >}})
   - [Alluxio](http://alluxio.org/) (tested, see configuration specifics below)
   - [XtreemFS](http://www.xtreemfs.org/) (tested)
   - FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
