@@ -18,9 +18,14 @@
 
 package org.apache.flink.fs.gs.utils;
 
+import org.apache.flink.fs.gs.GSFileSystemFactory;
+import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import java.net.URI;
+import java.util.UUID;
 
 /** Utility functions related to blobs. */
 public class BlobUtils {
@@ -39,18 +44,94 @@ public class BlobUtils {
      * @return The blob id
      */
     public static GSBlobIdentifier parseUri(URI uri) {
+        Preconditions.checkArgument(
+                uri.getScheme().equals(GSFileSystemFactory.SCHEME),
+                String.format("URI scheme for %s must be %s", uri, GSFileSystemFactory.SCHEME));
+
         String finalBucketName = uri.getAuthority();
-        if (finalBucketName == null) {
+        if (StringUtils.isNullOrWhitespaceOnly(finalBucketName)) {
             throw new IllegalArgumentException(String.format("Bucket name in %s is invalid", uri));
         }
         String path = uri.getPath();
-        if (path == null) {
+        if (StringUtils.isNullOrWhitespaceOnly(path)) {
             throw new IllegalArgumentException(String.format("Object name in %s is invalid", uri));
         }
         String finalObjectName = path.substring(1); // remove leading slash from path
-        if (finalObjectName.isEmpty()) {
+        if (StringUtils.isNullOrWhitespaceOnly(finalObjectName)) {
             throw new IllegalArgumentException(String.format("Object name in %s is invalid", uri));
         }
         return new GSBlobIdentifier(finalBucketName, finalObjectName);
+    }
+
+    /**
+     * Returns the temporary bucket name. If options specifies a temporary bucket name, we use that
+     * one; otherwise, we use the bucket name of the final blob.
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @param options The file system options
+     * @return The temporary bucket name
+     */
+    public static String getTemporaryBucketName(
+            GSBlobIdentifier finalBlobIdentifier, GSFileSystemOptions options) {
+        return options.getWriterTemporaryBucketName().orElse(finalBlobIdentifier.bucketName);
+    }
+
+    /**
+     * Returns a temporary object partial name, i.e. .inprogress/foo/bar/ for the final blob with
+     * object name "foo/bar". The included trailing slash is deliberate, so that we can be sure that
+     * object names that start with this partial name are, in fact, temporary files associated with
+     * the upload of the associated final blob.
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @return The temporary object partial name
+     */
+    public static String getTemporaryObjectPartialName(GSBlobIdentifier finalBlobIdentifier) {
+        return String.format("%s%s/", TEMPORARY_OBJECT_PREFIX, finalBlobIdentifier.objectName);
+    }
+
+    /**
+     * Returns a temporary object name, formed by appending the compact string version of the
+     * temporary object id to the temporary object partial name, i.e.
+     * .inprogress/foo/bar/EjgelvANQ525hLUW2S6DBA for the final blob with object name "foo/bar".
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @param temporaryObjectId The temporary object id
+     * @return The temporary object name
+     */
+    public static String getTemporaryObjectName(
+            GSBlobIdentifier finalBlobIdentifier, UUID temporaryObjectId) {
+        return getTemporaryObjectPartialName(finalBlobIdentifier) + temporaryObjectId.toString();
+    }
+
+    /**
+     * Resolves a temporary blob identifier for a provided temporary object id and the provided
+     * options.
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @param temporaryObjectId The temporary object id
+     * @param options The file system options
+     * @return The blob identifier
+     */
+    public static GSBlobIdentifier getTemporaryBlobIdentifier(
+            GSBlobIdentifier finalBlobIdentifier,
+            UUID temporaryObjectId,
+            GSFileSystemOptions options) {
+        String temporaryBucketName = BlobUtils.getTemporaryBucketName(finalBlobIdentifier, options);
+        String temporaryObjectName =
+                BlobUtils.getTemporaryObjectName(finalBlobIdentifier, temporaryObjectId);
+        return new GSBlobIdentifier(temporaryBucketName, temporaryObjectName);
+    }
+
+    /**
+     * Generates a new temporary blob identifier, with a random temporary object id.
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @param options The file system options
+     * @return The blob identifier
+     */
+    public static GSBlobIdentifier generateTemporaryBlobIdentifier(
+            GSBlobIdentifier finalBlobIdentifier, GSFileSystemOptions options) {
+        UUID temporaryObjectId = UUID.randomUUID();
+        return getTemporaryBlobIdentifier(finalBlobIdentifier, temporaryObjectId, options);
     }
 }

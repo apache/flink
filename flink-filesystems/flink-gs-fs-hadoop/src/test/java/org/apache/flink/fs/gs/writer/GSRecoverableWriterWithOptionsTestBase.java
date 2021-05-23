@@ -29,7 +29,6 @@ import org.apache.flink.fs.gs.storage.MockBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
-import com.google.cloud.storage.BlobId;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,6 +40,7 @@ import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -54,7 +54,13 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
     protected static Configuration getCustomConfiguration() {
         Configuration config = new Configuration();
         config.setString("gs.writer.temporary.bucket.name", "temporary-bucket");
-        config.setInteger("gs.writer.chunk.size", 2048);
+        config.setInteger("gs.writer.chunk.size", 512 * 1024);
+        return config;
+    }
+
+    protected static Configuration getInvalidChunkSizeConfiguration() {
+        Configuration config = new Configuration();
+        config.setInteger("gs.writer.chunk.size", 300 * 1024);
         return config;
     }
 
@@ -68,7 +74,8 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
 
     private static final String FINAL_OBJECT_NAME = "foo/bar";
 
-    private static final BlobId FINAL_BLOB_ID = BlobId.of(FINAL_BUCKET_NAME, FINAL_OBJECT_NAME);
+    private static final GSBlobIdentifier FINAL_BLOB_ID =
+            new GSBlobIdentifier(FINAL_BUCKET_NAME, FINAL_OBJECT_NAME);
 
     private static final URI FINAL_OBJECT_URI = URI.create("gs://bucket/foo/bar");
 
@@ -155,9 +162,10 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         // we expect one blob at this point, which should be in the same bucket as the final blob
         // and with the expected prefix
         assertEquals(1, blobStorage.blobs.size());
-        BlobId blobId = (BlobId) blobStorage.blobs.keySet().toArray()[0];
-        assertEquals(temporaryBucketName, blobId.getBucket());
-        assertTrue(blobId.getName().startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
+        GSBlobIdentifier blobIdentifier =
+                (GSBlobIdentifier) blobStorage.blobs.keySet().toArray()[0];
+        assertEquals(temporaryBucketName, blobIdentifier.bucketName);
+        assertTrue(blobIdentifier.objectName.startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
         // commit the write, which will also clean up the temporary objects
@@ -190,9 +198,10 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         // and with
         // the expected prefix
         assertEquals(1, blobStorage.blobs.size());
-        BlobId blobId = (BlobId) blobStorage.blobs.keySet().toArray()[0];
-        assertEquals(temporaryBucketName, blobId.getBucket());
-        assertTrue(blobId.getName().startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
+        GSBlobIdentifier blobIdentifier =
+                (GSBlobIdentifier) blobStorage.blobs.keySet().toArray()[0];
+        assertEquals(temporaryBucketName, blobIdentifier.bucketName);
+        assertTrue(blobIdentifier.objectName.startsWith(BlobUtils.TEMPORARY_OBJECT_PREFIX));
         assertEquals(expectedBlobBytes.length, stream.getPos());
 
         // commit the write, which will also clean up the temporary objects
@@ -264,12 +273,12 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         int writePastRecoveryPointCount = 2;
 
         // write and persist up to the recovery point
-        GSRecoverableWriterState state = null;
+        GSResumeRecoverable recoverable = null;
         for (int i = 0; i <= recoverToIndex; i++) {
             for (byte[] content : dataSets[i]) {
                 stream.write(content);
             }
-            state = (GSRecoverableWriterState) stream.persist();
+            recoverable = (GSResumeRecoverable) stream.persist();
         }
 
         // write the extra data sets (these are the writes that will be discarded on recovery
@@ -282,9 +291,9 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
         }
 
         // assume an error happens here and that we need to recover back to the recovery point
-        assertNotNull(state);
+        assertNotNull(recoverable);
         assertTrue(recoverableWriter.supportsResume());
-        RecoverableFsDataOutputStream recoveredStream = recoverableWriter.recover(state);
+        RecoverableFsDataOutputStream recoveredStream = recoverableWriter.recover(recoverable);
 
         // write the datasets to the end, starting immediately past the recovery point
         for (int i = recoverToIndex + 1; i < dataSets.length; i++) {
@@ -322,27 +331,25 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
     }
 
     @Test
-    public void shouldCleanupAfterFailure() throws IOException {
+    public void shouldNotCleanupAfterFailure() throws IOException {
 
         // process each data set, persisting after each one
-        GSRecoverableWriterState state = null;
+        GSResumeRecoverable recoverable = null;
         for (byte[][] dataSet : dataSets) {
             for (byte[] content : dataSet) {
                 stream.write(content);
             }
-            state = (GSRecoverableWriterState) stream.persist();
+            recoverable = (GSResumeRecoverable) stream.persist();
         }
 
         // close here but don't commit, instead clean up
         stream.close();
 
         // clean up state
-        assertTrue(recoverableWriter.requiresCleanupOfRecoverableState());
-        assertNotNull(state);
-        assertTrue(recoverableWriter.cleanupRecoverableState(state));
+        assertFalse(recoverableWriter.requiresCleanupOfRecoverableState());
 
-        // we should have zero blobs
-        assertEquals(0, blobStorage.blobs.size());
+        // we should have a blob for each dataset
+        assertEquals(dataSets.length, blobStorage.blobs.size());
     }
 
     @Test(expected = IOException.class)

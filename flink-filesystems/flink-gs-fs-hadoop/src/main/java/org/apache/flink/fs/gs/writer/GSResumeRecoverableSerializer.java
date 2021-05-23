@@ -28,21 +28,19 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 /** The serializer for the recoverable writer state. */
-class GSRecoverableWriterStateSerializer
-        implements SimpleVersionedSerializer<GSRecoverableWriterState> {
+class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResumeRecoverable> {
 
     /** Current version of serializer. */
     private static final int SERIALIZER_VERSION = 0;
 
     /** The one and only instance of the serializer. */
-    public static final GSRecoverableWriterStateSerializer INSTANCE =
-            new GSRecoverableWriterStateSerializer();
+    public static final GSResumeRecoverableSerializer INSTANCE =
+            new GSResumeRecoverableSerializer();
 
-    private GSRecoverableWriterStateSerializer() {}
+    private GSResumeRecoverableSerializer() {}
 
     @Override
     public int getVersion() {
@@ -50,26 +48,26 @@ class GSRecoverableWriterStateSerializer
     }
 
     @Override
-    public byte[] serialize(GSRecoverableWriterState state) throws IOException {
-        Preconditions.checkNotNull(state);
+    public byte[] serialize(GSResumeRecoverable recoverable) throws IOException {
+        Preconditions.checkNotNull(recoverable);
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
             try (DataOutputStream dataOutputStream = new DataOutputStream(outputStream)) {
 
-                // finalBlobId
-                dataOutputStream.writeUTF(state.finalBlobIdentifier.bucketName);
-                dataOutputStream.writeUTF(state.finalBlobIdentifier.objectName);
+                // finalBlobIdentifier
+                dataOutputStream.writeUTF(recoverable.finalBlobIdentifier.bucketName);
+                dataOutputStream.writeUTF(recoverable.finalBlobIdentifier.objectName);
 
-                // bytesWritten
-                dataOutputStream.writeLong(state.bytesWritten);
+                // position
+                dataOutputStream.writeLong(recoverable.position);
 
                 // closed
-                dataOutputStream.writeBoolean(state.closed);
+                dataOutputStream.writeBoolean(recoverable.closed);
 
                 // componentObjectIds
-                dataOutputStream.writeInt(state.componentObjectIds.size());
-                for (UUID componentObjectId : state.componentObjectIds) {
+                dataOutputStream.writeInt(recoverable.componentObjectIds.length);
+                for (UUID componentObjectId : recoverable.componentObjectIds) {
                     dataOutputStream.writeLong(componentObjectId.getMostSignificantBits());
                     dataOutputStream.writeLong(componentObjectId.getLeastSignificantBits());
                 }
@@ -81,7 +79,7 @@ class GSRecoverableWriterStateSerializer
     }
 
     @Override
-    public GSRecoverableWriterState deserialize(int version, byte[] serialized) throws IOException {
+    public GSResumeRecoverable deserialize(int version, byte[] serialized) throws IOException {
         Preconditions.checkArgument(version >= 0);
         Preconditions.checkNotNull(serialized);
 
@@ -93,10 +91,10 @@ class GSRecoverableWriterStateSerializer
                             version, SERIALIZER_VERSION));
         }
 
-        GSBlobIdentifier finalBlobId;
-        long bytesWritten;
+        GSBlobIdentifier finalBlobIdentifier;
+        long position;
         boolean closed;
-        List<UUID> componentObjectIds = new ArrayList<>();
+        ArrayList<UUID> componentObjectIds = new ArrayList<>();
 
         try (ByteArrayInputStream inputStream = new ByteArrayInputStream(serialized)) {
 
@@ -105,10 +103,10 @@ class GSRecoverableWriterStateSerializer
                 // finalBlobId
                 String finalBucketName = dataInputStream.readUTF();
                 String finalObjectName = dataInputStream.readUTF();
-                finalBlobId = new GSBlobIdentifier(finalBucketName, finalObjectName);
+                finalBlobIdentifier = new GSBlobIdentifier(finalBucketName, finalObjectName);
 
-                // bytesWritten
-                bytesWritten = dataInputStream.readLong();
+                // position
+                position = dataInputStream.readLong();
 
                 // closed
                 closed = dataInputStream.readBoolean();
@@ -124,6 +122,6 @@ class GSRecoverableWriterStateSerializer
             }
         }
 
-        return new GSRecoverableWriterState(finalBlobId, bytesWritten, closed, componentObjectIds);
+        return new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
     }
 }

@@ -36,7 +36,8 @@ import java.util.Collections;
  */
 public class GSFileSystemFactory implements FileSystemFactory {
 
-    private static final String SCHEME = "gs";
+    /** The scheme for the Google Storage file system. */
+    public static final String SCHEME = "gs";
 
     private static final String HADOOP_CONFIG_PREFIX = "fs.gs.";
 

@@ -24,13 +24,17 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.GSFileSystemOptions;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.GSBlobStorage;
+import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.UUID;
 
 /** The data output stream implementation for the GS recoverable writer. */
 class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
@@ -41,11 +45,17 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
     /** The GS file system options. */
     private final GSFileSystemOptions options;
 
-    /** The recoverable writer. */
-    private final GSRecoverableWriter writer;
+    /** The blob id to which the recoverable write operation is writing. */
+    private final GSBlobIdentifier finalBlobIdentifier;
 
-    /** The recoverable writer state. */
-    private final GSRecoverableWriterState state;
+    /** The write position, i.e. number of bytes that have been written so far. */
+    private long position;
+
+    /** Indicates if the write has been closed. */
+    private boolean closed;
+
+    /** The object ids for the temporary objects that should be composed to form the final blob. */
+    private final ArrayList<UUID> componentObjectIds;
 
     /**
      * The current write channel, if one exists. A channel is created when one doesn't exist and
@@ -57,20 +67,48 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
      */
     @Nullable GSChecksumWriteChannel currentWriteChannel;
 
+    /**
+     * Constructs a new, initially empty output stream.
+     *
+     * @param storage The storage implementation
+     * @param options The file system options
+     * @param finalBlobIdentifier The final blob identifier to which to write
+     */
     GSRecoverableFsDataOutputStream(
             GSBlobStorage storage,
             GSFileSystemOptions options,
-            GSRecoverableWriter writer,
-            GSRecoverableWriterState state) {
+            GSBlobIdentifier finalBlobIdentifier) {
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
-        this.writer = Preconditions.checkNotNull(writer);
-        this.state = Preconditions.checkNotNull(state);
+        this.finalBlobIdentifier = Preconditions.checkNotNull(finalBlobIdentifier);
+        this.position = 0;
+        this.closed = false;
+        this.componentObjectIds = new ArrayList<>();
+    }
+
+    /**
+     * Constructs an output stream from a recoverable.
+     *
+     * @param storage The storage implementation
+     * @param options The file system options
+     * @param recoverable The recoverable
+     */
+    GSRecoverableFsDataOutputStream(
+            GSBlobStorage storage, GSFileSystemOptions options, GSResumeRecoverable recoverable) {
+        this.storage = Preconditions.checkNotNull(storage);
+        this.options = Preconditions.checkNotNull(options);
+        this.finalBlobIdentifier = Preconditions.checkNotNull(recoverable.finalBlobIdentifier);
+        Preconditions.checkArgument(recoverable.position >= 0);
+        this.position = recoverable.position;
+        this.closed = recoverable.closed;
+        this.componentObjectIds =
+                new ArrayList<>(
+                        Arrays.asList(Preconditions.checkNotNull(recoverable.componentObjectIds)));
     }
 
     @Override
     public long getPos() throws IOException {
-        return state.bytesWritten;
+        return position;
     }
 
     @Override
@@ -93,7 +131,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
         Preconditions.checkArgument(length >= 0);
 
         // if the data stream is already closed, throw an exception
-        if (state.closed) {
+        if (closed) {
             throw new IOException("Illegal attempt to write to closed output stream");
         }
 
@@ -117,43 +155,49 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
         }
 
         // update count of total bytes written
-        state.bytesWritten += length;
+        position += bytesWritten;
     }
 
     @Override
     public void flush() throws IOException {
-        // not supported for GS, flushing frequency is controlled by the chunk size setting
-        // https://googleapis.dev/java/google-cloud-clients/0.90.0-alpha/com/google/cloud/WriteChannel.html#setChunkSize-int-
+        closeWriteChannelIfExists();
     }
 
     @Override
     public void sync() throws IOException {
-        // not supported for GS, flushing frequency is controlled by the chunk size setting
-        // https://googleapis.dev/java/google-cloud-clients/0.90.0-alpha/com/google/cloud/WriteChannel.html#setChunkSize-int-
+        closeWriteChannelIfExists();
     }
 
     @Override
     public RecoverableWriter.ResumeRecoverable persist() throws IOException {
         closeWriteChannelIfExists();
-        return new GSRecoverableWriterState(state);
+        return createRecoverable();
     }
 
     @Override
     public void close() throws IOException {
         closeWriteChannelIfExists();
-        state.closed = true;
+        closed = true;
     }
 
     @Override
     public Committer closeForCommit() throws IOException {
         close();
-        return new GSRecoverableWriterCommitter(storage, options, writer, state);
+        return new GSRecoverableWriterCommitter(storage, options, createRecoverable());
+    }
+
+    private GSResumeRecoverable createRecoverable() {
+        return new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
     }
 
     private GSChecksumWriteChannel createWriteChannel() {
 
         // add a new component blob id for the new channel to write to
-        GSBlobIdentifier blobIdentifier = state.createComponentBlobId(options);
+        UUID componentObjectId = UUID.randomUUID();
+        componentObjectIds.add(componentObjectId);
+        GSBlobIdentifier blobIdentifier =
+                BlobUtils.getTemporaryBlobIdentifier(
+                        finalBlobIdentifier, componentObjectId, options);
 
         // create the channel and set the chunk size if specified in options
         GSBlobStorage.WriteChannel writeChannel = storage.writeBlob(blobIdentifier);

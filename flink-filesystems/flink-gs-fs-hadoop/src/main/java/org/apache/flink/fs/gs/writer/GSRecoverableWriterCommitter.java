@@ -39,69 +39,55 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
     /** The GS file system options. */
     private final GSFileSystemOptions options;
 
-    /** The recoverable writer instance. */
-    private final GSRecoverableWriter writer;
-
-    /** The recoverable writer state for the commit operation. */
-    private final GSRecoverableWriterState state;
+    /** The recoverable for the commit operation. */
+    private final GSResumeRecoverable recoverable;
 
     GSRecoverableWriterCommitter(
-            GSBlobStorage storage,
-            GSFileSystemOptions options,
-            GSRecoverableWriter writer,
-            GSRecoverableWriterState state) {
+            GSBlobStorage storage, GSFileSystemOptions options, GSResumeRecoverable recoverable) {
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
-        this.writer = Preconditions.checkNotNull(writer);
-        this.state = Preconditions.checkNotNull(state);
+        this.recoverable = Preconditions.checkNotNull(recoverable);
     }
 
     @Override
     public void commit() throws IOException {
 
-        // compose all the component blob ids into the final blob id. if the component blob ids are
-        // in the same bucket as the final blob id, this can be done directly. otherwise, we must
-        // compose to a new temporary blob id in the same bucket as the component blob ids and
-        // then copy that blob to the final blob location
-        if (state.finalBlobIdentifier.bucketName.equals(state.getTemporaryBucketName(options))) {
-
-            // compose directly to final blob
-            composeBlobs(state.getComponentBlobIds(options), state.finalBlobIdentifier);
-
-        } else {
-
-            // compose to a temporary blob id, then copy to final blob id
-            GSBlobIdentifier intermediateBlobIdentifier = state.createTemporaryBlobId(options);
-            composeBlobs(state.getComponentBlobIds(options), intermediateBlobIdentifier);
-            storage.copy(intermediateBlobIdentifier, state.finalBlobIdentifier);
+        // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
+        // first, make sure the final blob doesn't already exist
+        Optional<GSBlobStorage.BlobMetadata> blobMetadata =
+                storage.getMetadata(recoverable.finalBlobIdentifier);
+        if (blobMetadata.isPresent()) {
+            throw new IOException(
+                    String.format(
+                            "Blob %s already exists during attempted commit",
+                            recoverable.finalBlobIdentifier));
         }
 
-        // clean up after commit
-        writer.cleanupRecoverableState(state);
+        // write the final blob
+        writeFinalBlob();
+
+        // clean up after successful commit
+        cleanupTemporaryBlobs();
     }
 
     @Override
     public void commitAfterRecovery() throws IOException {
 
-        // is the final blob present? if so, we have completed the compose step already
+        // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
+        // only write the final blob if it doesn't already exist
         Optional<GSBlobStorage.BlobMetadata> blobMetadata =
-                storage.getMetadata(state.finalBlobIdentifier);
-        if (blobMetadata.isPresent()) {
-
-            // the final blob is present, so assume the compose succeeded.
-            // clean up in case any temporary files are still around
-            writer.cleanupRecoverableState(state);
-
-        } else {
-
-            // the final blob isn't present, so do a full commit
-            commit();
+                storage.getMetadata(recoverable.finalBlobIdentifier);
+        if (!blobMetadata.isPresent()) {
+            writeFinalBlob();
         }
+
+        // clean up after successful commit
+        cleanupTemporaryBlobs();
     }
 
     @Override
     public RecoverableWriter.CommitRecoverable getRecoverable() {
-        return state;
+        return recoverable;
     }
 
     /**
@@ -132,7 +118,8 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         GSBlobIdentifier composedBlobId =
                 remainingBlobIds.isEmpty()
                         ? targetBlobIdentifier
-                        : state.createTemporaryBlobId(options);
+                        : BlobUtils.generateTemporaryBlobIdentifier(
+                                recoverable.finalBlobIdentifier, options);
 
         // compose the blobs
         storage.compose(composeBlobIds, composedBlobId);
@@ -142,6 +129,61 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
         if (!remainingBlobIds.isEmpty()) {
             remainingBlobIds.add(0, composedBlobId);
             composeBlobs(remainingBlobIds, targetBlobIdentifier);
+        }
+    }
+
+    /**
+     * Writes the final blob by composing the temporary blobs and copying, if necessary.
+     *
+     * @throws IOException On underlying failure.
+     */
+    private void writeFinalBlob() throws IOException {
+
+        // compose all the component blob ids into the final blob id. if the component blob ids are
+        // in the same bucket as the final blob id, this can be done directly. otherwise, we must
+        // compose to a new temporary blob id in the same bucket as the component blob ids and
+        // then copy that blob to the final blob location
+        String temporaryBucketName =
+                BlobUtils.getTemporaryBucketName(recoverable.finalBlobIdentifier, options);
+        if (recoverable.finalBlobIdentifier.bucketName.equals(temporaryBucketName)) {
+
+            // compose directly to final blob
+            composeBlobs(recoverable.getComponentBlobIds(options), recoverable.finalBlobIdentifier);
+
+        } else {
+
+            // compose to the intermediate blob, then copy
+            GSBlobIdentifier intermediateBlobIdentifier =
+                    BlobUtils.generateTemporaryBlobIdentifier(
+                            recoverable.finalBlobIdentifier, options);
+            composeBlobs(recoverable.getComponentBlobIds(options), intermediateBlobIdentifier);
+            storage.copy(intermediateBlobIdentifier, recoverable.finalBlobIdentifier);
+        }
+    }
+
+    /**
+     * Clean up after a successful commit operation, by deleting any temporary blobs associated with
+     * the final blob.
+     *
+     * @throws IOException On underlying storage failure
+     */
+    private void cleanupTemporaryBlobs() throws IOException {
+
+        // determine the partial name for the temporary objects to be deleted
+        String temporaryBucketName =
+                BlobUtils.getTemporaryBucketName(recoverable.finalBlobIdentifier, options);
+        String temporaryObjectPartialName =
+                BlobUtils.getTemporaryObjectPartialName(recoverable.finalBlobIdentifier);
+
+        // find all the temp blobs by looking for anything that starts with the temporary
+        // object partial name. doing it this way finds any orphaned temp blobs as well
+        List<GSBlobIdentifier> foundTempBlobIdentifiers =
+                storage.list(temporaryBucketName, temporaryObjectPartialName);
+        if (!foundTempBlobIdentifiers.isEmpty()) {
+
+            // delete all the temp blobs, and populate the set with ones that were actually deleted
+            // normalize in case the blob came back with a generation populated
+            storage.delete(foundTempBlobIdentifiers);
         }
     }
 }

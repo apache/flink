@@ -29,8 +29,6 @@ import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
 
 /** The recoverable writer implementation for Google storage. */
 public class GSRecoverableWriter implements RecoverableWriter {
@@ -54,7 +52,9 @@ public class GSRecoverableWriter implements RecoverableWriter {
 
     @Override
     public boolean requiresCleanupOfRecoverableState() {
-        return true;
+        // we can't clean up any state prior to commit
+        // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
+        return false;
     }
 
     @Override
@@ -66,57 +66,22 @@ public class GSRecoverableWriter implements RecoverableWriter {
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
         Preconditions.checkNotNull(path);
 
-        GSBlobIdentifier finalBlobId = BlobUtils.parseUri(path.toUri());
-        GSRecoverableWriterState state = new GSRecoverableWriterState(finalBlobId);
-        return new GSRecoverableFsDataOutputStream(storage, options, this, state);
+        GSBlobIdentifier finalBlobIdentifier = BlobUtils.parseUri(path.toUri());
+        return new GSRecoverableFsDataOutputStream(storage, options, finalBlobIdentifier);
     }
 
     @Override
     public RecoverableFsDataOutputStream recover(ResumeRecoverable resumable) throws IOException {
         Preconditions.checkNotNull(resumable);
 
-        GSRecoverableWriterState state = (GSRecoverableWriterState) resumable;
-        return new GSRecoverableFsDataOutputStream(storage, options, this, state);
+        GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;
+        return new GSRecoverableFsDataOutputStream(storage, options, recoverable);
     }
 
     @Override
     public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-        Preconditions.checkNotNull(resumable);
-
-        // determine the partial name for the temporary objects to be deleted
-        GSRecoverableWriterState state = (GSRecoverableWriterState) resumable;
-        String temporaryBucketName = state.getTemporaryBucketName(options);
-        String temporaryObjectPartialName = state.getTemporaryObjectPartialName();
-
-        // this will hold the set of blob ids that were actually deleted
-        HashSet<GSBlobIdentifier> deletedBlobIdentifiers = new HashSet<>();
-
-        // find all the temp blobs by looking for anything that starts with the temporary
-        // object partial name. doing it this way finds any orphaned temp blobs as well
-        List<GSBlobIdentifier> foundTempBlobIdentifiers =
-                storage.list(temporaryBucketName, temporaryObjectPartialName);
-        if (!foundTempBlobIdentifiers.isEmpty()) {
-
-            // delete all the temp blobs, and populate the set with ones that were actually deleted
-            // normalize in case the blob came back with a generation populated
-            List<Boolean> deleteResults = storage.delete(foundTempBlobIdentifiers);
-            for (int i = 0; i < deleteResults.size(); i++) {
-                if (deleteResults.get(i)) {
-                    deletedBlobIdentifiers.add(foundTempBlobIdentifiers.get(i));
-                }
-            }
-        }
-
-        // determine if we deleted everything we expected to, by comparing the stored
-        // temp blob ids so the ones that were found and deleted
-        for (GSBlobIdentifier componentBlobIdentifier : state.getComponentBlobIds(options)) {
-            if (!deletedBlobIdentifiers.contains(componentBlobIdentifier)) {
-                // we expected to delete this blob but did not, so return false
-                return false;
-            }
-        }
-
-        // everything was deleted that was expected to be
+        // we can't safely clean up any state prior to commit, so do nothing here
+        // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
         return true;
     }
 
@@ -125,19 +90,19 @@ public class GSRecoverableWriter implements RecoverableWriter {
             throws IOException {
         Preconditions.checkNotNull(resumable);
 
-        GSRecoverableWriterState state = (GSRecoverableWriterState) resumable;
-        return new GSRecoverableWriterCommitter(storage, options, this, state);
+        GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;
+        return new GSRecoverableWriterCommitter(storage, options, recoverable);
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
-        return (SimpleVersionedSerializer) GSRecoverableWriterStateSerializer.INSTANCE;
+        return (SimpleVersionedSerializer) GSResumeRecoverableSerializer.INSTANCE;
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
-        return (SimpleVersionedSerializer) GSRecoverableWriterStateSerializer.INSTANCE;
+        return (SimpleVersionedSerializer) GSResumeRecoverableSerializer.INSTANCE;
     }
 }

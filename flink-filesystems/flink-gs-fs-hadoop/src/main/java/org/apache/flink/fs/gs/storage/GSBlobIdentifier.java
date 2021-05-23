@@ -70,6 +70,18 @@ public class GSBlobIdentifier {
         return Objects.hash(bucketName, objectName);
     }
 
+    @Override
+    public String toString() {
+        return "GSBlobIdentifier{"
+                + "bucketName='"
+                + bucketName
+                + '\''
+                + ", objectName='"
+                + objectName
+                + '\''
+                + '}';
+    }
+
     /**
      * Construct an abstract blob identifier from a Google BlobId.
      *

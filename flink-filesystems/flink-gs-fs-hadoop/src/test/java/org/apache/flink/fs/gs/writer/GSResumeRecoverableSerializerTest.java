@@ -24,48 +24,44 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 
 /** Test recoverable writer serializer. */
-public class GSRecoverableWriterStateSerializerTest {
+public class GSResumeRecoverableSerializerTest {
 
     private void shouldSerializeAndDeserializeState(
             String bucketName,
             String objectName,
-            long bytesWritten,
+            long position,
             boolean closed,
             int componentObjectIdCount)
             throws IOException {
 
         // create the state
         GSBlobIdentifier finalBlobIdentifier = new GSBlobIdentifier(bucketName, objectName);
-        List<UUID> componentObjectIds = new ArrayList<>();
+        ArrayList<UUID> componentObjectIds = new ArrayList<>();
         for (int i = 0; i < componentObjectIdCount; i++) {
             componentObjectIds.add(UUID.randomUUID());
         }
-        GSRecoverableWriterState state =
-                new GSRecoverableWriterState(
-                        finalBlobIdentifier, bytesWritten, closed, componentObjectIds);
+        GSResumeRecoverable state =
+                new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
 
         // serialize and deserialize
-        GSRecoverableWriterStateSerializer serializer = GSRecoverableWriterStateSerializer.INSTANCE;
+        GSResumeRecoverableSerializer serializer = GSResumeRecoverableSerializer.INSTANCE;
         byte[] serialized = serializer.serialize(state);
-        GSRecoverableWriterState deserializedState =
-                (GSRecoverableWriterState)
-                        serializer.deserialize(serializer.getVersion(), serialized);
+        GSResumeRecoverable deserializedState =
+                (GSResumeRecoverable) serializer.deserialize(serializer.getVersion(), serialized);
 
         // check that states match
         assertEquals(bucketName, deserializedState.finalBlobIdentifier.bucketName);
         assertEquals(objectName, deserializedState.finalBlobIdentifier.objectName);
-        assertEquals(bytesWritten, deserializedState.bytesWritten);
+        assertEquals(position, deserializedState.position);
         assertEquals(closed, deserializedState.closed);
-        assertEquals(componentObjectIdCount, deserializedState.componentObjectIds.size());
+        assertEquals(componentObjectIdCount, deserializedState.componentObjectIds.length);
         for (int i = 0; i < componentObjectIdCount; i++) {
-            assertEquals(
-                    state.componentObjectIds.get(i), deserializedState.componentObjectIds.get(i));
+            assertEquals(state.componentObjectIds[i], deserializedState.componentObjectIds[i]);
         }
     }
 
@@ -86,7 +82,7 @@ public class GSRecoverableWriterStateSerializerTest {
 
     @Test(expected = IOException.class)
     public void shouldFailOnMoreRecentSerializedDataVersion() throws IOException {
-        GSRecoverableWriterStateSerializer serializer = GSRecoverableWriterStateSerializer.INSTANCE;
+        GSResumeRecoverableSerializer serializer = GSResumeRecoverableSerializer.INSTANCE;
         serializer.deserialize(serializer.getVersion() + 1, new byte[] {0});
     }
 }
