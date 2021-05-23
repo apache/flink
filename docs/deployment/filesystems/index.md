@@ -60,6 +60,9 @@ The Apache Flink project supports the following file systems:
   - **[Azure Blob Storage]({% link deployment/filesystems/azure.md %})** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
+  - **[Google Cloud Storage]({% link deployment/filesystems/gcs.md %})** is supported by `gcs-connector` and registered under the *gs://* URI scheme.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+
 Except **MapR FS**, you can and should use any of them as [plugins]({% link deployment/filesystems/plugins.md %}). 
 
 To use a pluggable file systems, copy the corresponding JAR file from the `opt` directory to a directory under `plugins` directory
