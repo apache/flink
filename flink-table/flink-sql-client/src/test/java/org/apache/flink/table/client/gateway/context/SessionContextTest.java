@@ -31,10 +31,12 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
@@ -195,12 +197,23 @@ public class SessionContextTest {
 
     @Test
     public void testAddIllegalJar() {
-        validateAddJarException("/path/to/illegal.jar");
+        validateAddJarException("/path/to/illegal.jar", "JAR file does not exist");
     }
 
     @Test
     public void testRemoteJar() {
-        validateAddJarException("hdfs://remote:10080/remote.jar");
+        validateAddJarException("hdfs://remote:10080/remote.jar", "JAR file does not exist");
+    }
+
+    @Test
+    public void testIllegalJarInConfig() throws Exception {
+        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
+        innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
+
+        File udfJar =
+                TestUserClassLoaderJar.createJarFile(
+                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
+        validateAddJarException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -244,12 +257,15 @@ public class SessionContextTest {
                 .getConfiguration();
     }
 
-    private void validateAddJarException(String jarPath) {
+    private void validateAddJarException(String jarPath, String errorMessages) {
+        Set<URL> originDependencies = sessionContext.getDependencies();
         try {
             sessionContext.addJar(jarPath);
         } catch (Exception e) {
             containsCause(e, IOException.class);
-            assertTrue(e.getCause().getMessage().contains("JAR file does not exist"));
+            assertTrue(e.getCause().getMessage().contains(errorMessages));
+            // Keep dependencies as same as before if fail to add jar
+            assertEquals(originDependencies, sessionContext.getDependencies());
         }
     }
 }

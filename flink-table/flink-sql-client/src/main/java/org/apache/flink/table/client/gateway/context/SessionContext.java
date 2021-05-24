@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.context;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -110,6 +111,11 @@ public class SessionContext {
 
     public Map<String, String> getConfigMap() {
         return sessionConfiguration.toMap();
+    }
+
+    @VisibleForTesting
+    Set<URL> getDependencies() {
+        return dependencies;
     }
 
     // --------------------------------------------------------------------------------------------
